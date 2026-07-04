@@ -2,6 +2,10 @@
 
 一个用于整理、浏览和删除《无限暖暖》截图相册的本地网页工具。  
 A local web tool for browsing, organizing, previewing, and deleting Infinity Nikki screenshots.
+<div align="center">
+  <a href="#简体中文教程"><b>🇨🇳 简体中文</b></a> &nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#english-guide"><b>🇺🇸 English</b></a>
+</div>
 
 ---
 
@@ -9,11 +13,11 @@ A local web tool for browsing, organizing, previewing, and deleting Infinity Nik
 
 ### 1. 这个项目是做什么的？
 
-这个项目可以在浏览器里打开一个相册管理页面，用来管理《无限暖暖》的截图文件夹。
+这个项目可以在浏览器里打开一个相册管理页面，用来管理《无限暖暖》的相册文件夹。
 
 你可以用它做这些事：
 
-- 选择电脑里的《无限暖暖》截图文件夹。
+- 选择电脑里的《无限暖暖》相册文件夹，推荐文件路径：文件所在盘和目录\InfinityNikki Launcher\InfinityNikki\X6Game\Saved\GamePlayPhotos\你的id\NikkiPhotos_HighQuality。
 - 按拍摄日期自动分组显示照片。
 - 点击日期快速跳转到某一天的照片。
 - 单击照片进行选中，双击照片查看大图。
