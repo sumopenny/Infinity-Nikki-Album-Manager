@@ -1,4 +1,5 @@
 import type { ThumbnailMode } from './types/thumbnail'
+import type { ThemeMode } from './types/theme'
 
 export type Language = 'zh' | 'en'
 export type StatusPrefix = 'read' | 'restored'
@@ -32,6 +33,8 @@ export interface LocaleMessages {
     githubText: string
     languageButton: string
     languageAria: string
+    themeButton: (themeMode: ThemeMode) => string
+    themeAria: (themeMode: ThemeMode) => string
     chooseDirectory: string
     loading: string
     clearDirectory: string
@@ -169,6 +172,8 @@ export const messages: Record<Language, LocaleMessages> = {
       githubText: '访问GitHub仓库',
       languageButton: '切换为英文版',
       languageAria: '切换到英文版',
+      themeButton: (themeMode) => (themeMode === 'light' ? '切换深色模式' : '切换白色主题'),
+      themeAria: (themeMode) => (themeMode === 'light' ? '切换到深色模式' : '切换到白色主题'),
       chooseDirectory: '选择/恢复相册路径',
       loading: '正在读取...',
       clearDirectory: '清除路径',
@@ -246,6 +251,8 @@ export const messages: Record<Language, LocaleMessages> = {
       githubText: 'GitHub',
       languageButton: 'Switch to Chinese',
       languageAria: 'Switch to Chinese',
+      themeButton: (themeMode) => (themeMode === 'light' ? 'Switch to dark mode' : 'Switch to white theme'),
+      themeAria: (themeMode) => (themeMode === 'light' ? 'Switch to dark mode' : 'Switch to white theme'),
       chooseDirectory: 'Choose / restore album folder',
       loading: 'Reading...',
       clearDirectory: 'Clear folder',

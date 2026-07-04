@@ -16,9 +16,12 @@ import {
 } from './utils/fileSystem'
 import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
 import { DEFAULT_LANGUAGE, getThumbnailModeOptions, messages, type Language, type StatusPrefix, type StatusSuffix } from './i18n'
+import { isThemeMode, type ThemeMode } from './types/theme'
 
 const THUMBNAIL_STORAGE_KEY = 'infinity-nikki-thumbnail-mode'
+const THEME_STORAGE_KEY = 'infinity-nikki-theme-mode'
 const storedThumbnailMode = localStorage.getItem(THUMBNAIL_STORAGE_KEY)
+const storedThemeMode = localStorage.getItem(THEME_STORAGE_KEY)
 
 type DirectoryState =
   | { type: 'none' }
@@ -46,6 +49,7 @@ const statusState = ref<StatusState>({ type: 'initial' })
 const isLoading = ref(false)
 const isDeleting = ref(false)
 const thumbnailMode = ref<ThumbnailMode>(isThumbnailMode(storedThumbnailMode) ? storedThumbnailMode : 'default')
+const themeMode = ref<ThemeMode>(isThemeMode(storedThemeMode) ? storedThemeMode : 'light')
 
 const locale = computed(() => messages[language.value])
 const dateGroups = computed(() => groupPhotosByDate(photos.value))
@@ -104,6 +108,14 @@ watch(
   language,
   (nextLanguage) => {
     document.documentElement.lang = nextLanguage === 'zh' ? 'zh-CN' : 'en'
+  },
+  { immediate: true }
+)
+
+watch(
+  themeMode,
+  (nextThemeMode) => {
+    document.documentElement.dataset.theme = nextThemeMode
   },
   { immediate: true }
 )
@@ -177,6 +189,11 @@ async function clearDirectory() {
 function changeThumbnailMode(mode: ThumbnailMode) {
   thumbnailMode.value = mode
   localStorage.setItem(THUMBNAIL_STORAGE_KEY, mode)
+}
+
+function toggleTheme() {
+  themeMode.value = themeMode.value === 'light' ? 'dark' : 'light'
+  localStorage.setItem(THEME_STORAGE_KEY, themeMode.value)
 }
 
 function toggleAll() {
@@ -303,6 +320,7 @@ onBeforeUnmount(() => {
       :is-deleting="isDeleting"
       :thumbnail-mode="thumbnailMode"
       :thumbnail-mode-options="thumbnailModeOptions"
+      :theme-mode="themeMode"
       :language="language"
       :messages="locale.topBar"
       @choose-directory="chooseDirectory"
@@ -311,6 +329,7 @@ onBeforeUnmount(() => {
       @delete-selected="deleteSelectedPhotos"
       @change-thumbnail-mode="changeThumbnailMode"
       @toggle-language="toggleLanguage"
+      @toggle-theme="toggleTheme"
     />
 
     <main class="album-layout">

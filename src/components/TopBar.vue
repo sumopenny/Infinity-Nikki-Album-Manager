@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Language, LocaleMessages } from '../i18n'
 import type { ThumbnailMode } from '../types/thumbnail'
+import type { ThemeMode } from '../types/theme'
 
 defineProps<{
   directoryName: string
@@ -11,6 +12,7 @@ defineProps<{
   isDeleting: boolean
   thumbnailMode: ThumbnailMode
   thumbnailModeOptions: Array<{ value: ThumbnailMode; label: string }>
+  themeMode: ThemeMode
   language: Language
   messages: LocaleMessages['topBar']
 }>()
@@ -21,6 +23,7 @@ defineEmits<{
   toggleAll: []
   deleteSelected: []
   toggleLanguage: []
+  toggleTheme: []
   changeThumbnailMode: [mode: ThumbnailMode]
 }>()
 
@@ -75,6 +78,10 @@ function handleThumbnailModeChange(event: Event) {
       </div>
 
       <div class="action-row">
+        <button class="theme-button" type="button" :aria-label="messages.themeAria(themeMode)" @click="$emit('toggleTheme')">
+          <span class="theme-icon" aria-hidden="true">{{ themeMode === 'light' ? '🌙' : '☀️' }}</span>
+          <span>{{ messages.themeButton(themeMode) }}</span>
+        </button>
         <label class="thumbnail-select-wrap">
           <span>{{ messages.thumbnail }}</span>
           <select
