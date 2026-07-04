@@ -14,16 +14,25 @@ A local web tool for browsing, organizing, previewing, and deleting Infinity Nik
 ### 1. 这个项目是做什么的？
 
 这个项目可以在浏览器里打开一个相册管理页面，用来管理《无限暖暖》的相册文件夹。
+![项目截图](img/1.png)
 
 你可以用它做这些事：
 
 - 选择电脑里的《无限暖暖》相册文件夹，推荐文件路径：文件所在盘和目录\InfinityNikki Launcher\InfinityNikki\X6Game\Saved\GamePlayPhotos\你的id\NikkiPhotos_HighQuality。
+![项目截图](img/2.png)
+
 - 按拍摄日期自动分组显示照片。
 - 点击日期快速跳转到某一天的照片。
 - 单击照片进行选中，双击照片查看大图。
+![项目截图](img/3.png)
+
 - 在大图预览里使用键盘左右方向键翻页。
 - 删除选中的照片，或删除当前预览的照片。
 - 调整缩略图比例，比如 1:1、16:9、4:3、9:16、3:4。
+![项目截图](img/4.png)
+
+- 浏览器会记住上次选择过的相册文件夹，下次可以尝试自动恢复。
+
 - 浏览器会记住上次选择过的相册文件夹，下次可以尝试自动恢复。
 
 重要提醒：删除照片会同步删除电脑文件夹里的原图，请确认不要的照片再删除。
@@ -370,17 +379,21 @@ npm run preview
 ### 1. What is this project?
 
 Infinity Nikki Album Manager is a local web app for managing Infinity Nikki screenshot folders in your browser.
+![Project Screenshot](img/1.png)
 
 You can use it to:
 
-- Choose your local Infinity Nikki screenshot folder.
+- Choose your local Infinity Nikki screenshot folder. Recommended path: `drive and directory\InfinityNikki Launcher\InfinityNikki\X6Game\Saved\GamePlayPhotos\your id\NikkiPhotos_HighQuality`.
+![Project Screenshot](img/2.png)
 - Automatically group photos by date.
 - Jump to a specific date from the sidebar.
 - Single-click photos to select them.
 - Double-click photos to preview them in a larger view.
+![Project Screenshot](img/3.png)
 - Use keyboard shortcuts in the preview window.
 - Delete selected photos or delete the photo currently being previewed.
 - Change thumbnail ratios, including 1:1, 16:9, 4:3, 9:16, and 3:4.
+![Project Screenshot](img/4.png)
 - Let the browser remember the last selected album folder when possible.
 
 Important: deleting a photo in this app also deletes the original file from your computer folder.
