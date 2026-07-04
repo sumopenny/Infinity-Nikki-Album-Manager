@@ -27,7 +27,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -92,9 +93,35 @@ p {
 
 h1 {
   margin-bottom: 0;
-  color: #4c4240;
-  font-size: 20px;
+  background: linear-gradient(115deg, #3e628b 0%, #944747 32%, #bdaa5d 58%, #7a5c8c 82%);
+  background-size: 260% 260%;
+  color: transparent;
+  font-size: 29px;
   letter-spacing: 0.04em;
+  text-shadow: 0 2px 2px rgba(255, 255, 255, 0.32);
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: title-gradient-flow 4.8s ease-in-out infinite;
+
+   
+  /* 酒红色描边
+  -webkit-text-stroke: 0.5px #ffffff;
+  text-stroke: 1px #ffffff; */
+  
+}
+
+@keyframes title-gradient-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .brand-actions {
@@ -103,7 +130,8 @@ h1 {
 }
 
 .signature,
-.github-link {
+.github-link,
+.language-button {
   padding: 5px 10px;
   border: 1px solid rgba(201, 132, 134, 0.24);
   border-radius: 999px;
@@ -113,7 +141,8 @@ h1 {
   font-weight: 700;
 }
 
-.github-link {
+.github-link,
+.language-button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -121,9 +150,21 @@ h1 {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.github-link:hover {
+.language-button {
+  border-color: #ead69c;
+  background: var(--yellow-soft);
+  color: #8a7350;
+}
+
+.github-link:hover,
+.language-button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 16px rgba(201, 132, 134, 0.15);
+  box-shadow: 0 2px 15px rgba(243, 181, 136, 0.438);
+}
+
+.signature:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 15px rgba(201, 132, 134, 0.373);
 }
 
 .github-link svg {
@@ -192,10 +233,15 @@ h1 {
   transform: translateY(-1px);
 }
 
+.primary-button:hover{
+  transform: translateY(-1px);
+  background: #d28f92;
+}
+
 .primary-button {
-  background: linear-gradient(135deg, var(--pink), #f1cccb);
+  background: #f1cccb;
   color: #fff;
-  box-shadow: 0 8px 16px rgba(201, 132, 134, 0.2);
+  box-shadow: 0 0px 16px rgba(201, 132, 134, 0.37);
 }
 
 .soft-button {
@@ -207,7 +253,7 @@ h1 {
 .danger-button {
   background: #d28f92;
   color: #fff;
-  box-shadow: 0 8px 16px rgba(194, 114, 116, 0.18);
+  box-shadow: 0 0px 10px rgba(194, 114, 115, 0.562);
 }
 
 .path-pill,

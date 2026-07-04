@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
+import type { LocaleMessages } from '../i18n'
 import type { PhotoItem } from '../utils/dateGrouping'
 
 const props = defineProps<{
@@ -7,6 +8,8 @@ const props = defineProps<{
   hasPrevious: boolean
   hasNext: boolean
   isDeleting: boolean
+  messages: LocaleMessages['lightbox']
+  dateMessages: LocaleMessages['date']
 }>()
 
 const emit = defineEmits<{
@@ -47,7 +50,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
       <button
         class="lightbox-nav lightbox-prev"
         type="button"
-        aria-label="查看上一张图片"
+        :aria-label="messages.previousAria"
         :disabled="!hasPrevious"
         @click="$emit('previous')"
       >
@@ -55,15 +58,15 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
       </button>
 
       <div class="lightbox-panel">
-        <button class="close-button" type="button" aria-label="关闭预览" @click="$emit('close')">×</button>
+        <button class="close-button" type="button" :aria-label="messages.closeAria" @click="$emit('close')">×</button>
         <img :src="photo.url" :alt="photo.name" />
         <div class="lightbox-footer">
           <div class="lightbox-caption">
-            <strong>{{ photo.displayDate }} {{ photo.timeText }}</strong>
+            <strong>{{ dateMessages.displayDate(photo.dateKey) }} {{ photo.timeText }}</strong>
             <span>{{ photo.fileSizeText }}</span>
           </div>
           <button class="lightbox-delete" type="button" :disabled="isDeleting" @click="$emit('deleteCurrent')">
-            {{ isDeleting ? '删除中...' : '删除此图片' }}
+            {{ isDeleting ? messages.deleting : messages.deleteCurrent }}
           </button>
         </div>
       </div>
@@ -71,7 +74,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
       <button
         class="lightbox-nav lightbox-next"
         type="button"
-        aria-label="查看下一张图片"
+        :aria-label="messages.nextAria"
         :disabled="!hasNext"
         @click="$emit('next')"
       >

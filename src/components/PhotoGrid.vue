@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { LocaleMessages } from '../i18n'
 import type { DateGroup, PhotoItem } from '../utils/dateGrouping'
 import type { ThumbnailMode } from '../types/thumbnail'
 
@@ -6,6 +7,7 @@ const props = defineProps<{
   dateGroups: DateGroup[]
   selectedIds: Set<string>
   thumbnailMode: ThumbnailMode
+  messages: LocaleMessages['grid']
 }>()
 
 defineEmits<{
@@ -23,9 +25,9 @@ function isDateSelected(group: DateGroup): boolean {
   <div class="photo-grid-wrap" :class="`mode-${thumbnailMode}`">
     <div v-if="!dateGroups.length" class="empty-album">
       <div class="empty-icon">♡</div>
-      <h2>还没有照片</h2>
-      <p>点击上方“选择/恢复相册路径”，读取命名为 2026_06_26_11_22_58_6316602.jpeg 这类格式的图片。</p>
-      <p>推荐文件路径：\InfinityNikki Launcher\InfinityNikki\X6Game\Saved\GamePlayPhotos\你的id\NikkiPhotos_HighQuality</p>
+      <h2>{{ messages.emptyTitle }}</h2>
+      <p>{{ messages.emptyDescription }}</p>
+      <p>{{ messages.recommendedPath }}</p>
     </div>
 
     <section
@@ -37,12 +39,12 @@ function isDateSelected(group: DateGroup): boolean {
     >
       <div class="date-block-header">
         <div>
-          <p class="eyebrow">{{ group.photos.length }} photos</p>
+          <p class="eyebrow">{{ messages.photoCount(group.photos.length) }}</p>
           <h2>{{ group.displayDate }}</h2>
         </div>
         <label class="date-check">
           <input type="checkbox" :checked="isDateSelected(group)" @change="$emit('toggleDate', group.dateKey)" />
-          <span>选择这一天</span>
+          <span>{{ messages.selectDay }}</span>
         </label>
       </div>
 

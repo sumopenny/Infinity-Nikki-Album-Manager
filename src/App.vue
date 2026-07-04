@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import TopBar from './components/TopBar.vue'
 import DateSidebar from './components/DateSidebar.vue'
 import PhotoGrid from './components/PhotoGrid.vue'
@@ -15,24 +15,84 @@ import {
   type AlbumDirectoryResult
 } from './utils/fileSystem'
 import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
+import { DEFAULT_LANGUAGE, getThumbnailModeOptions, messages, type Language, type StatusPrefix, type StatusSuffix } from './i18n'
 
 const THUMBNAIL_STORAGE_KEY = 'infinity-nikki-thumbnail-mode'
 const storedThumbnailMode = localStorage.getItem(THUMBNAIL_STORAGE_KEY)
 
+type DirectoryState =
+  | { type: 'none' }
+  | { type: 'remembered'; name: string }
+  | { type: 'selected'; name: string }
+
+type StatusState =
+  | { type: 'initial' }
+  | { type: 'reading' }
+  | { type: 'restoring' }
+  | { type: 'restoreFailed' }
+  | { type: 'restorePathFailed' }
+  | { type: 'readFailed' }
+  | { type: 'cleared' }
+  | { type: 'success'; count: number; prefix: StatusPrefix; suffix?: StatusSuffix }
+  | { type: 'deleted'; deletedCount: number; failedNames: string[] }
+  | { type: 'custom'; message: string }
+
 const photos = ref<PhotoItem[]>([])
 const selectedIds = ref<Set<string>>(new Set())
 const currentPreview = ref<PhotoItem | null>(null)
-const directoryName = ref('尚未选择相册路径')
-const statusMessage = ref('请选择包含无限暖暖截图的文件夹，推荐直接选择 NikkiPhotos_HighQuality 图片文件夹。')
+const language = ref<Language>(DEFAULT_LANGUAGE)
+const directoryState = ref<DirectoryState>({ type: 'none' })
+const statusState = ref<StatusState>({ type: 'initial' })
 const isLoading = ref(false)
 const isDeleting = ref(false)
 const thumbnailMode = ref<ThumbnailMode>(isThumbnailMode(storedThumbnailMode) ? storedThumbnailMode : 'default')
 
+const locale = computed(() => messages[language.value])
 const dateGroups = computed(() => groupPhotosByDate(photos.value))
-const yearGroups = computed(() => groupDatesByYear(dateGroups.value))
+const formattedDateGroups = computed(() =>
+  dateGroups.value.map((group) => ({
+    ...group,
+    displayDate: locale.value.date.displayDate(group.dateKey),
+    monthDay: locale.value.date.monthDay(group.dateKey)
+  }))
+)
+const yearGroups = computed(() => groupDatesByYear(formattedDateGroups.value))
 const selectedCount = computed(() => selectedIds.value.size)
 const totalCount = computed(() => photos.value.length)
 const allSelected = computed(() => totalCount.value > 0 && selectedCount.value === totalCount.value)
+const thumbnailModeOptions = computed(() => getThumbnailModeOptions(language.value))
+const directoryName = computed(() => {
+  if (directoryState.value.type === 'remembered') return locale.value.app.rememberedDirectory(directoryState.value.name)
+  if (directoryState.value.type === 'selected') return directoryState.value.name
+  return locale.value.app.noDirectory
+})
+const statusMessage = computed(() => {
+  const app = locale.value.app
+  const state = statusState.value
+
+  switch (state.type) {
+    case 'reading':
+      return app.readingStatus
+    case 'restoring':
+      return app.restoringStatus
+    case 'restoreFailed':
+      return app.restoreFailedStatus
+    case 'restorePathFailed':
+      return app.restorePathFailedStatus
+    case 'readFailed':
+      return app.readFailedStatus
+    case 'cleared':
+      return app.clearedStatus
+    case 'success':
+      return `${app.successStatus(state.count, state.prefix)}${state.suffix ? app.successSuffix(state.suffix) : ''}`
+    case 'deleted':
+      return app.deletedStatus(state.deletedCount, state.failedNames)
+    case 'custom':
+      return state.message
+    default:
+      return app.initialStatus
+  }
+})
 const currentPreviewIndex = computed(() => {
   if (!currentPreview.value) return -1
   return photos.value.findIndex((photo) => photo.id === currentPreview.value?.id)
@@ -40,34 +100,40 @@ const currentPreviewIndex = computed(() => {
 const hasPreviousPreview = computed(() => currentPreviewIndex.value > 0)
 const hasNextPreview = computed(() => currentPreviewIndex.value >= 0 && currentPreviewIndex.value < photos.value.length - 1)
 
-function successStatus(count: number, prefix = '已读取'): string {
-  return count
-    ? `${prefix} ${count} 张照片。单击选中，双击查看大图；预览中可点删除按钮或按 Delete 删除，←/→ 翻页，Esc 关闭。`
-    : '这个文件夹里没有找到符合命名格式的图片。'
-}
+watch(
+  language,
+  (nextLanguage) => {
+    document.documentElement.lang = nextLanguage === 'zh' ? 'zh-CN' : 'en'
+  },
+  { immediate: true }
+)
 
-function replaceAlbum(result: AlbumDirectoryResult, message: string) {
+function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusState) {
   releasePhotoUrls(photos.value)
   selectedIds.value = new Set()
   currentPreview.value = null
   photos.value = result.photos
-  directoryName.value = result.directoryName
-  statusMessage.value = message
+  directoryState.value = { type: 'selected', name: result.directoryName }
+  statusState.value = nextStatus
+}
+
+function toggleLanguage() {
+  language.value = language.value === 'zh' ? 'en' : 'zh'
 }
 
 async function restoreSavedDirectory() {
   const savedHandle = await getSavedAlbumDirectoryHandle()
   if (!savedHandle) return
 
-  directoryName.value = `已记住：${savedHandle.name}`
+  directoryState.value = { type: 'remembered', name: savedHandle.name }
   isLoading.value = true
-  statusMessage.value = '正在恢复上次选择的相册路径...'
+  statusState.value = { type: 'restoring' }
 
   try {
-    const result = await readAlbumDirectory(savedHandle, { requestPermission: false })
-    replaceAlbum(result, successStatus(result.photos.length, '已恢复'))
+    const result = await readAlbumDirectory(savedHandle, { requestPermission: false, messages: locale.value.fileSystem })
+    replaceAlbum(result, { type: 'success', count: result.photos.length, prefix: 'restored' })
   } catch (error) {
-    statusMessage.value = error instanceof Error ? error.message : '恢复上次相册路径失败，请重新选择文件夹。'
+    statusState.value = error instanceof Error ? { type: 'custom', message: error.message } : { type: 'restoreFailed' }
   } finally {
     isLoading.value = false
   }
@@ -75,24 +141,24 @@ async function restoreSavedDirectory() {
 
 async function chooseDirectory() {
   isLoading.value = true
-  statusMessage.value = '正在读取相册，请稍候...'
+  statusState.value = { type: 'reading' }
 
   try {
     const savedHandle = await getSavedAlbumDirectoryHandle()
     if (savedHandle && !photos.value.length) {
       try {
-        const restored = await readAlbumDirectory(savedHandle, { requestPermission: true })
-        replaceAlbum(restored, `${successStatus(restored.photos.length, '已恢复')}已继续使用上次记住的相册文件夹。`)
+        const restored = await readAlbumDirectory(savedHandle, { requestPermission: true, messages: locale.value.fileSystem })
+        replaceAlbum(restored, { type: 'success', count: restored.photos.length, prefix: 'restored', suffix: 'continued' })
         return
       } catch {
-        statusMessage.value = '上次记住的路径无法恢复，请重新选择相册文件夹。'
+        statusState.value = { type: 'restorePathFailed' }
       }
     }
 
-    const result = await pickAlbumDirectory()
-    replaceAlbum(result, `${successStatus(result.photos.length)}已记住本次选择的相册文件夹。`)
+    const result = await pickAlbumDirectory(locale.value.fileSystem)
+    replaceAlbum(result, { type: 'success', count: result.photos.length, prefix: 'read', suffix: 'remembered' })
   } catch (error) {
-    statusMessage.value = error instanceof Error ? error.message : '读取相册失败，请重试。'
+    statusState.value = error instanceof Error ? { type: 'custom', message: error.message } : { type: 'readFailed' }
   } finally {
     isLoading.value = false
   }
@@ -104,8 +170,8 @@ async function clearDirectory() {
   photos.value = []
   selectedIds.value = new Set()
   currentPreview.value = null
-  directoryName.value = '尚未选择相册路径'
-  statusMessage.value = '已清除记住的相册路径。需要继续管理相册时，请重新选择文件夹。'
+  directoryState.value = { type: 'none' }
+  statusState.value = { type: 'cleared' }
 }
 
 function changeThumbnailMode(mode: ThumbnailMode) {
@@ -180,21 +246,19 @@ async function deletePhotos(targets: PhotoItem[], confirmMessage: string, keepPr
       : null
   }
 
-  statusMessage.value = failedNames.length
-    ? `已删除 ${deletedIds.size} 张，${failedNames.length} 张删除失败：${failedNames.join('、')}`
-    : `已删除 ${deletedIds.size} 张照片。`
+  statusState.value = { type: 'deleted', deletedCount: deletedIds.size, failedNames }
 
   isDeleting.value = false
 }
 
 async function deleteSelectedPhotos() {
   const targets = photos.value.filter((photo) => selectedIds.value.has(photo.id))
-  await deletePhotos(targets, `确定删除选中的 ${targets.length} 张照片吗？这会同步删除电脑文件夹里的原图。`)
+  await deletePhotos(targets, locale.value.app.confirmDeleteSelected(targets.length))
 }
 
 async function deleteCurrentPreview() {
   if (!currentPreview.value) return
-  await deletePhotos([currentPreview.value], `确定删除当前预览的这张照片吗？这会同步删除电脑文件夹里的原图。`, true)
+  await deletePhotos([currentPreview.value], locale.value.app.confirmDeleteCurrent, true)
 }
 
 function scrollToDate(dateKey: string) {
@@ -238,29 +302,34 @@ onBeforeUnmount(() => {
       :is-loading="isLoading"
       :is-deleting="isDeleting"
       :thumbnail-mode="thumbnailMode"
+      :thumbnail-mode-options="thumbnailModeOptions"
+      :language="language"
+      :messages="locale.topBar"
       @choose-directory="chooseDirectory"
       @clear-directory="clearDirectory"
       @toggle-all="toggleAll"
       @delete-selected="deleteSelectedPhotos"
       @change-thumbnail-mode="changeThumbnailMode"
+      @toggle-language="toggleLanguage"
     />
 
     <main class="album-layout">
-      <DateSidebar :year-groups="yearGroups" @jump-to-date="scrollToDate" />
+      <DateSidebar :year-groups="yearGroups" :messages="locale.sidebar" @jump-to-date="scrollToDate" />
 
-      <section class="album-content" aria-label="图片展示区">
+      <section class="album-content" :aria-label="locale.app.albumContentAria">
         <div class="status-card">
           <div>
-            <p class="eyebrow">Album Status</p>
-            <h2>{{ totalCount ? `共 ${totalCount} 张照片` : '等待选择相册路径' }}</h2>
+            <p class="eyebrow">{{ locale.app.statusEyebrow }}</p>
+            <h2>{{ totalCount ? locale.app.totalPhotos(totalCount) : locale.app.waitingTitle }}</h2>
           </div>
           <p>{{ statusMessage }}</p>
         </div>
 
         <PhotoGrid
-          :date-groups="dateGroups"
+          :date-groups="formattedDateGroups"
           :selected-ids="selectedIds"
           :thumbnail-mode="thumbnailMode"
+          :messages="locale.grid"
           @toggle-photo="togglePhoto"
           @toggle-date="toggleDate"
           @open-preview="openPreview"
@@ -273,6 +342,8 @@ onBeforeUnmount(() => {
       :has-previous="hasPreviousPreview"
       :has-next="hasNextPreview"
       :is-deleting="isDeleting"
+      :messages="locale.lightbox"
+      :date-messages="locale.date"
       @close="closePreview"
       @previous="showPreviousPreview"
       @next="showNextPreview"

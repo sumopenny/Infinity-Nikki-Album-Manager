@@ -1,4 +1,5 @@
 import { parsePhotoDate, type PhotoItem } from './dateGrouping'
+import type { LocaleMessages } from '../i18n'
 
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
 const DB_NAME = 'infinity-nikki-album-manager'
@@ -12,6 +13,8 @@ export interface AlbumDirectoryResult {
   photos: PhotoItem[]
 }
 
+type FileSystemMessages = LocaleMessages['fileSystem']
+
 function isImageFile(fileName: string): boolean {
   const extension = fileName.split('.').pop()?.toLowerCase() ?? ''
   return IMAGE_EXTENSIONS.has(extension)
@@ -24,19 +27,19 @@ function formatFileSize(size: number): string {
   return `${(size / 1024 / 1024 / 1024).toFixed(1)} GB`
 }
 
-function normalizeDirectoryError(error: unknown): Error {
-  if (!(error instanceof Error)) return new Error('读取相册失败，请重试。')
+function normalizeDirectoryError(error: unknown, messages: FileSystemMessages): Error {
+  if (!(error instanceof Error)) return new Error(messages.readFailed)
 
   const rawMessage = error.message || ''
   const errorName = error.name || ''
   const message = `${errorName} ${rawMessage}`.toLowerCase()
 
   if (message.includes('system') || rawMessage.includes('系统文件') || errorName === 'SecurityError') {
-    return new Error('无法打开此文件夹：浏览器不允许网页访问包含系统文件或受保护的目录。请直接选择 NikkiPhotos_HighQuality 图片文件夹，不要选择游戏安装根目录、C 盘根目录、Windows、Program Files 等上级目录。')
+    return new Error(messages.systemDirectory)
   }
 
   if (errorName === 'AbortError') {
-    return new Error('已取消选择相册文件夹。')
+    return new Error(messages.abortSelection)
   }
 
   return error
@@ -113,11 +116,11 @@ export async function clearSavedAlbumDirectoryHandle(): Promise<void> {
 
 export async function readAlbumDirectory(
   directoryHandle: FileSystemDirectoryHandle,
-  options: { requestPermission?: boolean } = {}
+  options: { requestPermission?: boolean; messages: FileSystemMessages }
 ): Promise<AlbumDirectoryResult> {
   const hasPermission = await ensureReadWritePermission(directoryHandle, options.requestPermission ?? true)
   if (!hasPermission) {
-    throw new Error('已记住上次相册路径，但浏览器需要重新授权。请点击“选择/恢复相册路径”完成授权。')
+    throw new Error(options.messages.permissionRequired)
   }
 
   const photos: PhotoItem[] = []
@@ -145,7 +148,7 @@ export async function readAlbumDirectory(
       })
     }
   } catch (error) {
-    throw normalizeDirectoryError(error)
+    throw normalizeDirectoryError(error, options.messages)
   }
 
   photos.sort((a, b) => b.timestamp - a.timestamp)
@@ -157,9 +160,9 @@ export async function readAlbumDirectory(
   }
 }
 
-export async function pickAlbumDirectory(): Promise<AlbumDirectoryResult> {
+export async function pickAlbumDirectory(messages: FileSystemMessages): Promise<AlbumDirectoryResult> {
   if (!window.showDirectoryPicker) {
-    throw new Error('当前浏览器不支持选择文件夹。请使用最新版 Chrome 或 Edge，并在 localhost/HTTPS 环境运行。')
+    throw new Error(messages.unsupportedBrowser)
   }
 
   try {
@@ -169,11 +172,11 @@ export async function pickAlbumDirectory(): Promise<AlbumDirectoryResult> {
       startIn: 'pictures'
     })
 
-    const result = await readAlbumDirectory(directoryHandle, { requestPermission: true })
+    const result = await readAlbumDirectory(directoryHandle, { requestPermission: true, messages })
     await saveAlbumDirectoryHandle(directoryHandle)
     return result
   } catch (error) {
-    throw normalizeDirectoryError(error)
+    throw normalizeDirectoryError(error, messages)
   }
 }
 

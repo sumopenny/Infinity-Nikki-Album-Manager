@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import type { LocaleMessages } from '../i18n'
 import type { YearGroup } from '../utils/dateGrouping'
 
 defineProps<{
   yearGroups: YearGroup[]
+  messages: LocaleMessages['sidebar']
 }>()
 
 defineEmits<{
@@ -11,11 +13,11 @@ defineEmits<{
 </script>
 
 <template>
-  <aside class="date-sidebar" aria-label="日期侧边栏">
-    <div class="sidebar-title">拍摄日期</div>
+  <aside class="date-sidebar" :aria-label="messages.aria">
+    <div class="sidebar-title">{{ messages.title }}</div>
 
     <div v-if="!yearGroups.length" class="empty-sidebar">
-      选择相册后，这里会按年份和日期展开。
+      {{ messages.empty }}
     </div>
 
     <section v-for="yearGroup in yearGroups" :key="yearGroup.year" class="year-section">
@@ -28,7 +30,7 @@ defineEmits<{
         @click="$emit('jumpToDate', date.dateKey)"
       >
         <span>{{ date.monthDay }}</span>
-        <small>{{ date.photos.length }} 张</small>
+        <small>{{ messages.photoCount(date.photos.length) }}</small>
       </button>
     </section>
   </aside>
