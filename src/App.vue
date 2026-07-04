@@ -6,6 +6,7 @@ import PhotoGrid from './components/PhotoGrid.vue'
 import Lightbox from './components/Lightbox.vue'
 import { groupDatesByYear, groupPhotosByDate, type PhotoItem } from './utils/dateGrouping'
 import {
+  clearSavedAlbumDirectoryHandle,
   deletePhotoFile,
   getSavedAlbumDirectoryHandle,
   pickAlbumDirectory,
@@ -95,6 +96,16 @@ async function chooseDirectory() {
   } finally {
     isLoading.value = false
   }
+}
+
+async function clearDirectory() {
+  await clearSavedAlbumDirectoryHandle()
+  releasePhotoUrls(photos.value)
+  photos.value = []
+  selectedIds.value = new Set()
+  currentPreview.value = null
+  directoryName.value = '尚未选择相册路径'
+  statusMessage.value = '已清除记住的相册路径。需要继续管理相册时，请重新选择文件夹。'
 }
 
 function changeThumbnailMode(mode: ThumbnailMode) {
@@ -228,6 +239,7 @@ onBeforeUnmount(() => {
       :is-deleting="isDeleting"
       :thumbnail-mode="thumbnailMode"
       @choose-directory="chooseDirectory"
+      @clear-directory="clearDirectory"
       @toggle-all="toggleAll"
       @delete-selected="deleteSelectedPhotos"
       @change-thumbnail-mode="changeThumbnailMode"

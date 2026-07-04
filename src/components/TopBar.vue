@@ -13,6 +13,7 @@ defineProps<{
 
 defineEmits<{
   chooseDirectory: []
+  clearDirectory: []
   toggleAll: []
   deleteSelected: []
   changeThumbnailMode: [mode: ThumbnailMode]
@@ -57,6 +58,9 @@ function handleThumbnailModeChange(event: Event) {
       <div class="path-row">
         <button class="primary-button" type="button" :disabled="isLoading" @click="$emit('chooseDirectory')">
           {{ isLoading ? '正在读取...' : '选择/恢复相册路径' }}
+        </button>
+        <button class="soft-button" type="button" :disabled="isLoading" @click="$emit('clearDirectory')">
+          清除路径
         </button>
         <div class="path-pill" :title="directoryName">{{ directoryName }}</div>
       </div>
