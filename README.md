@@ -2,10 +2,22 @@
 
 一个用于整理、浏览和删除《无限暖暖》截图相册的本地网页工具。  
 A local web tool for browsing, organizing, previewing, and deleting Infinity Nikki screenshots.
+
+## 使用方式 / How to Use
+
+本项目已经部署到 Vercel，可以直接访问：`https://infinity-nikki-album-manager.vercel.app/`
+
+如果你觉得这个网站不错，欢迎在 GitHub 页面右上角点一个小星星 Star 支持一下。
+
+This project has been deployed on Vercel. You can visit it directly at: `https://infinity-nikki-album-manager.vercel.app/`
+
+If you like this website, please give it a Star in the upper-right corner of the GitHub page.
+
 <div align="center">
   <a href="#简体中文教程"><b>🇨🇳 简体中文</b></a> &nbsp;&nbsp;|&nbsp;&nbsp;
   <a href="#english-guide"><b>🇺🇸 English</b></a>
 </div>
+
 
 ---
 

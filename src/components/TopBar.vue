@@ -40,6 +40,7 @@ function handleThumbnailModeChange(event: Event) {
         <h1>{{ messages.title }}</h1>
       </div>
       <div class="brand-actions">
+        <span class="star-hint">{{ messages.starHint }}</span>
         <a
           class="github-link"
           href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager"

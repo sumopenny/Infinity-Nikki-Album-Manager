@@ -131,7 +131,8 @@ h1 {
 
 .signature,
 .github-link,
-.language-button {
+.language-button,
+.star-hint {
   padding: 5px 10px;
   border: 1px solid rgba(201, 132, 134, 0.24);
   border-radius: 999px;
@@ -154,6 +155,13 @@ h1 {
   border-color: #ead69c;
   background: var(--yellow-soft);
   color: #8a7350;
+}
+
+.star-hint {
+  max-width: 380px;
+  background: rgba(255, 246, 217, 0.88);
+  color: #8a7350;
+  line-height: 1.35;
 }
 
 .github-link:hover,

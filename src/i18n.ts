@@ -27,6 +27,7 @@ export interface LocaleMessages {
   }
   topBar: {
     title: string
+    starHint: string
     githubAria: string
     githubText: string
     languageButton: string
@@ -163,6 +164,7 @@ export const messages: Record<Language, LocaleMessages> = {
     },
     topBar: {
       title: '无限暖暖相册管理',
+      starHint: '觉得网站不错的话，欢迎在 GitHub 右上角点个小星星 Star⭐~',
       githubAria: '访问GitHub仓库',
       githubText: '访问GitHub仓库',
       languageButton: '切换为英文版',
@@ -239,6 +241,7 @@ export const messages: Record<Language, LocaleMessages> = {
     },
     topBar: {
       title: 'Infinity Nikki Album Manager',
+      starHint: 'Like this website? Please give it a Star⭐ on GitHub~',
       githubAria: 'Open GitHub repository',
       githubText: 'GitHub',
       languageButton: 'Switch to Chinese',
