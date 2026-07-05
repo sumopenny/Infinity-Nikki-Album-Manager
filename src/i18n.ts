@@ -18,11 +18,14 @@ export interface LocaleMessages {
     statusEyebrow: string
     waitingTitle: string
     albumContentAria: string
+    favoritesButton: string
+    showAllPhotos: string
     rememberedDirectory: (name: string) => string
     successStatus: (count: number, prefix: StatusPrefix) => string
     successSuffix: (suffix: StatusSuffix) => string
     deletedStatus: (deletedCount: number, failedNames: string[]) => string
-    totalPhotos: (count: number) => string
+    totalPhotos: (count: number, favoritesOnly?: boolean) => string
+    favoriteCount: (count: number) => string
     confirmDeleteSelected: (count: number) => string
     confirmDeleteCurrent: string
   }
@@ -53,8 +56,12 @@ export interface LocaleMessages {
   grid: {
     emptyTitle: string
     emptyDescription: string
+    emptyFavoritesTitle: string
+    emptyFavoritesDescription: string
     recommendedPath: string
     selectDay: string
+    addFavorite: string
+    removeFavorite: string
     photoCount: (count: number) => string
   }
   lightbox: {
@@ -149,11 +156,13 @@ export const messages: Record<Language, LocaleMessages> = {
       statusEyebrow: 'Album Status',
       waitingTitle: '等待选择相册路径',
       albumContentAria: '图片展示区',
+      favoritesButton: '收藏夹',
+      showAllPhotos: '全部照片',
       rememberedDirectory: (name) => `已记住：${name}`,
       successStatus: (count, prefix) => {
         const prefixText = prefix === 'restored' ? '已恢复' : '已读取'
         return count
-          ? `${prefixText} ${count} 张照片。单击选中，双击查看大图；预览中可点删除按钮或按 Delete 删除，←/→ 翻页，Esc 关闭。`
+          ? `${prefixText} ${count} 张照片。点卡片左下角爱心可收藏，点左侧收藏夹只看收藏；单击选中，双击查看大图。`
           : '这个文件夹里没有找到符合命名格式的图片。'
       },
       successSuffix: (suffix) => (suffix === 'continued' ? '已继续使用上次记住的相册文件夹。' : '已记住本次选择的相册文件夹。'),
@@ -161,7 +170,8 @@ export const messages: Record<Language, LocaleMessages> = {
         failedNames.length
           ? `已删除 ${deletedCount} 张，${failedNames.length} 张删除失败：${failedNames.join('、')}`
           : `已删除 ${deletedCount} 张照片。`,
-      totalPhotos: (count) => `共 ${count} 张照片`,
+      totalPhotos: (count, favoritesOnly) => (favoritesOnly ? `收藏夹 ${count} 张照片` : `共 ${count} 张照片`),
+      favoriteCount: (count) => `${count} 张收藏`,
       confirmDeleteSelected: (count) => `确定删除选中的 ${count} 张照片吗？这会同步删除电脑文件夹里的原图。`,
       confirmDeleteCurrent: '确定删除当前预览的这张照片吗？这会同步删除电脑文件夹里的原图。'
     },
@@ -192,8 +202,12 @@ export const messages: Record<Language, LocaleMessages> = {
     grid: {
       emptyTitle: '还没有照片',
       emptyDescription: '点击上方“选择/恢复相册路径”，读取命名为 2026_06_26_11_22_58_6316602.jpeg 这类格式的图片。',
+      emptyFavoritesTitle: '收藏夹还是空的',
+      emptyFavoritesDescription: '点击照片时间前的爱心，就能把喜欢的图片加入收藏夹。',
       recommendedPath: '推荐文件路径：\\InfinityNikki Launcher\\InfinityNikki\\X6Game\\Saved\\GamePlayPhotos\\你的id\\NikkiPhotos_HighQuality',
       selectDay: '选择这一天',
+      addFavorite: '加入收藏夹',
+      removeFavorite: '取消收藏',
       photoCount: (count) => `${count} 张照片`
     },
     lightbox: {
@@ -228,11 +242,13 @@ export const messages: Record<Language, LocaleMessages> = {
       statusEyebrow: 'Album Status',
       waitingTitle: 'Waiting for an album folder',
       albumContentAria: 'Photo gallery',
+      favoritesButton: 'Favorites',
+      showAllPhotos: 'All photos',
       rememberedDirectory: (name) => `Remembered: ${name}`,
       successStatus: (count, prefix) => {
         const prefixText = prefix === 'restored' ? 'Restored' : 'Loaded'
         return count
-          ? `${prefixText} ${count} photos. Click to select, double-click to preview; use Delete in preview, ←/→ to browse, and Esc to close.`
+          ? `${prefixText} ${count} photos. Click the heart before each time to favorite it, then use Favorites on the left to show saved photos only.`
           : 'No images matching the filename pattern were found in this folder.'
       },
       successSuffix: (suffix) => (suffix === 'continued' ? 'Continued using the remembered album folder.' : 'Remembered this album folder.'),
@@ -240,7 +256,8 @@ export const messages: Record<Language, LocaleMessages> = {
         failedNames.length
           ? `Deleted ${deletedCount}; ${failedNames.length} failed: ${failedNames.join(', ')}`
           : `Deleted ${deletedCount} photos.`,
-      totalPhotos: (count) => `${count} photos total`,
+      totalPhotos: (count, favoritesOnly) => (favoritesOnly ? `${count} favorite photos` : `${count} photos total`),
+      favoriteCount: (count) => `${count} favorites`,
       confirmDeleteSelected: (count) => `Delete the selected ${count} photos? This also deletes the original files from your computer.`,
       confirmDeleteCurrent: 'Delete the currently previewed photo? This also deletes the original file from your computer.'
     },
@@ -271,8 +288,12 @@ export const messages: Record<Language, LocaleMessages> = {
     grid: {
       emptyTitle: 'No photos yet',
       emptyDescription: 'Click “Choose / restore album folder” above to load images named like 2026_06_26_11_22_58_6316602.jpeg.',
+      emptyFavoritesTitle: 'No favorites yet',
+      emptyFavoritesDescription: 'Click the heart before a photo time to add that image to Favorites.',
       recommendedPath: 'Recommended path: \\InfinityNikki Launcher\\InfinityNikki\\X6Game\\Saved\\GamePlayPhotos\\Your ID\\NikkiPhotos_HighQuality',
       selectDay: 'Select this day',
+      addFavorite: 'Add to Favorites',
+      removeFavorite: 'Remove from Favorites',
       photoCount: (count) => `${count} photos`
     },
     lightbox: {

@@ -1,15 +1,20 @@
 # Infinity Nikki Album Manager / 无限暖暖相册管理
 
-一个用于整理、浏览和删除《无限暖暖》截图相册的本地网页工具。  
-A local web tool for browsing, organizing, previewing, and deleting Infinity Nikki screenshots.
+<div align="center">
+  <img src="wxnn.ico" alt="项目图标" width="64" height="64" style="border-radius: 12px;">
+  <br>
+  <em>一个用于整理、浏览、收藏和删除《无限暖暖》相册的本地网页工具。</em>
+  <br>
+  <em>A local web tool for browsing, organizing, favoriting, previewing, and deleting Infinity Nikki albums.</em>
+</div>
 
 ## 使用方式 / How to Use
 
-本项目已经部署到 Vercel，可以直接访问：`https://infinity-nikki-album-manager.vercel.app/`
+本项目已经部署到 Vercel，可以直接访问（需要VPN）：`https://infinity-nikki-album-manager.vercel.app/`
 
 如果你觉得这个网站不错，欢迎在 GitHub 页面右上角点一个小星星 Star 支持一下。
 
-This project has been deployed on Vercel. You can visit it directly at: `https://infinity-nikki-album-manager.vercel.app/`
+This project has been deployed on Vercel. You can visit it directly (requires VPN):  `https://infinity-nikki-album-manager.vercel.app/`
 
 If you like this website, please give it a Star in the upper-right corner of the GitHub page.
 
@@ -25,27 +30,28 @@ If you like this website, please give it a Star in the upper-right corner of the
 
 ### 1. 这个项目是做什么的？
 
-这个项目可以在浏览器里打开一个相册管理页面，用来管理《无限暖暖》的相册文件夹。
+这个项目可以在浏览器里打开一个相册管理页面，用来管理《无限暖暖》的相册文件夹，并支持按拍摄日期浏览、收藏喜欢的照片和删除不需要的原图。
 ![项目截图](img/1.png)
+![项目截图](img/2.png)
 
 你可以用它做这些事：
 
 - 选择电脑里的《无限暖暖》相册文件夹，推荐文件路径：文件所在盘和目录\InfinityNikki Launcher\InfinityNikki\X6Game\Saved\GamePlayPhotos\你的id\NikkiPhotos_HighQuality。
-![项目截图](img/2.png)
+![项目截图](img/3.png)
 
 - 按拍摄日期自动分组显示照片。
 - 点击日期快速跳转到某一天的照片。
+- 点击照片时间前的爱心图标，把喜欢的图片加入收藏夹；点击左侧收藏夹按钮，只展示收藏图片及对应拍摄日期。
 - 单击照片进行选中，双击照片查看大图。
-![项目截图](img/3.png)
+![项目截图](img/4.png)
 
 - 在大图预览里使用键盘左右方向键翻页。
 - 删除选中的照片，或删除当前预览的照片。
 - 调整缩略图比例，比如 1:1、16:9、4:3、9:16、3:4。
-![项目截图](img/4.png)
+![项目截图](img/5.png)
 
 - 浏览器会记住上次选择过的相册文件夹，下次可以尝试自动恢复。
-
-- 浏览器会记住上次选择过的相册文件夹，下次可以尝试自动恢复。
+- 收藏夹状态会保存在当前浏览器本地，不会上传图片或收藏记录。
 
 重要提醒：删除照片会同步删除电脑文件夹里的原图，请确认不要的照片再删除。
 
@@ -243,12 +249,25 @@ NikkiPhotos_HighQuality
 常用操作：
 
 - 单击照片：选中或取消选中。
+- 点击照片时间前的爱心图标：加入或取消收藏，空心爱心表示未收藏，填充爱心表示已收藏。
 - 双击照片：打开大图预览。
 - 点击左侧日期：跳转到对应日期。
+- 点击左侧收藏夹：只显示收藏的图片，左侧日期同步切换为收藏图片的拍摄日期。
 - 点击“全选照片”：选中全部照片。
 - 再点一次“取消全选”：取消全部选中。
 
-#### 6.4 大图预览
+#### 6.4 使用收藏夹
+
+收藏夹适合临时筛选和整理喜欢的照片。
+
+- 每张照片时间前都有一个爱心图标。
+- 点击爱心图标后，照片会加入或移出收藏夹。
+- 点击左侧栏上方的“收藏夹”按钮后，图片展示区只显示已收藏照片。
+- 收藏夹模式下，左侧日期栏只显示收藏照片对应的拍摄日期。
+- 再次点击左侧栏上方的“全部照片”按钮，可以返回完整相册。
+- 收藏记录保存在当前浏览器本地；如果清理浏览器数据，收藏记录可能会被清除。
+
+#### 6.5 大图预览
 
 打开大图后可以这样操作：
 
@@ -257,7 +276,7 @@ NikkiPhotos_HighQuality
 - 按 `Esc`：关闭大图预览。
 - 按 `Delete` 或点击删除按钮：删除当前预览的照片。
 
-#### 6.5 删除照片
+#### 6.6 删除照片
 
 页面支持删除照片。
 
@@ -268,7 +287,7 @@ NikkiPhotos_HighQuality
 
 删除前浏览器会弹出确认框，请认真确认。
 
-再次提醒：删除操作会删除电脑文件夹里的原图，不只是从网页上移除。
+再次提醒：删除操作会删除电脑文件夹里的原图，不只是从网页上移除；如果删除的是收藏照片，它也会自动从收藏夹中移除。
 
 ---
 
@@ -390,23 +409,25 @@ npm run preview
 
 ### 1. What is this project?
 
-Infinity Nikki Album Manager is a local web app for managing Infinity Nikki screenshot folders in your browser.
+Infinity Nikki Album Manager is a local web app for managing Infinity Nikki screenshot folders in your browser, including date browsing, favorites, previews, and local file deletion.
 ![Project Screenshot](img/1.png)
-
+![Project Screenshot](img/2.png)
 You can use it to:
 
 - Choose your local Infinity Nikki screenshot folder. Recommended path: `drive and directory\InfinityNikki Launcher\InfinityNikki\X6Game\Saved\GamePlayPhotos\your id\NikkiPhotos_HighQuality`.
-![Project Screenshot](img/2.png)
+![Project Screenshot](img/3.png)
 - Automatically group photos by date.
 - Jump to a specific date from the sidebar.
+- Click the heart icon before each photo time to add it to Favorites, then click the left Favorites button to show only favorite photos and their capture dates.
 - Single-click photos to select them.
 - Double-click photos to preview them in a larger view.
-![Project Screenshot](img/3.png)
+![Project Screenshot](img/4.png)
 - Use keyboard shortcuts in the preview window.
 - Delete selected photos or delete the photo currently being previewed.
 - Change thumbnail ratios, including 1:1, 16:9, 4:3, 9:16, and 3:4.
-![Project Screenshot](img/4.png)
+![Project Screenshot](img/5.png)
 - Let the browser remember the last selected album folder when possible.
+- Save Favorites locally in the current browser without uploading photos or favorite records.
 
 Important: deleting a photo in this app also deletes the original file from your computer folder.
 
@@ -546,7 +567,7 @@ http://localhost:5173
 After opening the website, click:
 
 ```text
-选择/恢复相册路径
+Choose / restore album folder
 ```
 
 Then choose your Infinity Nikki screenshot folder.
@@ -599,12 +620,25 @@ After choosing the correct folder, the page will display your photos.
 Common actions:
 
 - Single-click a photo: select or unselect it.
+- Click the heart icon before a photo time: add or remove it from Favorites. An outlined heart means not favorited, and a filled heart means favorited.
 - Double-click a photo: open large preview.
 - Click a date in the sidebar: jump to that date.
-- Click `全选照片`: select all photos.
-- Click `取消全选`: clear all selected photos.
+- Click Favorites in the left sidebar: show favorite photos only, with the sidebar dates limited to favorite photo capture dates.
+- Click `Select all`: select all photos.
+- Click `Deselect all`: clear all selected photos.
 
-#### 6.4 Large preview
+#### 6.4 Use Favorites
+
+Favorites are useful for temporarily filtering and organizing photos you like.
+
+- Each photo has a heart icon before its time text.
+- Click the heart icon to add the photo to or remove it from Favorites.
+- Click the `Favorites` button above the left sidebar to show only favorited photos in the gallery.
+- In Favorites mode, the left date sidebar only shows capture dates that contain favorited photos.
+- Click `All photos` above the left sidebar to return to the full album.
+- Favorite records are stored locally in the current browser; clearing browser data may remove them.
+
+#### 6.5 Large preview
 
 In the large preview:
 
@@ -613,7 +647,7 @@ In the large preview:
 - Press `Esc`: close preview.
 - Press `Delete` or click the delete button: delete the current photo.
 
-#### 6.5 Delete photos
+#### 6.6 Delete photos
 
 The app can delete photos.
 
@@ -624,7 +658,7 @@ You can delete:
 
 The browser will ask for confirmation before deleting.
 
-Again: deleting in this app deletes the original file from your computer folder.
+Again: deleting in this app deletes the original file from your computer folder. If the deleted photo was favorited, it is also removed from Favorites automatically.
 
 ---
 

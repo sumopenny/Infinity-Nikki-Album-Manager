@@ -20,8 +20,18 @@ import { isThemeMode, type ThemeMode } from './types/theme'
 
 const THUMBNAIL_STORAGE_KEY = 'infinity-nikki-thumbnail-mode'
 const THEME_STORAGE_KEY = 'infinity-nikki-theme-mode'
+const FAVORITES_STORAGE_KEY = 'infinity-nikki-favorite-photo-ids'
 const storedThumbnailMode = localStorage.getItem(THUMBNAIL_STORAGE_KEY)
 const storedThemeMode = localStorage.getItem(THEME_STORAGE_KEY)
+
+function readStoredFavoriteIds(): Set<string> {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) ?? '[]')
+    return new Set(Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [])
+  } catch {
+    return new Set()
+  }
+}
 
 type DirectoryState =
   | { type: 'none' }
@@ -42,6 +52,8 @@ type StatusState =
 
 const photos = ref<PhotoItem[]>([])
 const selectedIds = ref<Set<string>>(new Set())
+const favoriteIds = ref<Set<string>>(readStoredFavoriteIds())
+const showFavoritesOnly = ref(false)
 const currentPreview = ref<PhotoItem | null>(null)
 const language = ref<Language>(DEFAULT_LANGUAGE)
 const directoryState = ref<DirectoryState>({ type: 'none' })
@@ -52,7 +64,9 @@ const thumbnailMode = ref<ThumbnailMode>(isThumbnailMode(storedThumbnailMode) ? 
 const themeMode = ref<ThemeMode>(isThemeMode(storedThemeMode) ? storedThemeMode : 'light')
 
 const locale = computed(() => messages[language.value])
-const dateGroups = computed(() => groupPhotosByDate(photos.value))
+const favoritePhotos = computed(() => photos.value.filter((photo) => favoriteIds.value.has(photo.id)))
+const visiblePhotos = computed(() => (showFavoritesOnly.value ? favoritePhotos.value : photos.value))
+const dateGroups = computed(() => groupPhotosByDate(visiblePhotos.value))
 const formattedDateGroups = computed(() =>
   dateGroups.value.map((group) => ({
     ...group,
@@ -63,6 +77,8 @@ const formattedDateGroups = computed(() =>
 const yearGroups = computed(() => groupDatesByYear(formattedDateGroups.value))
 const selectedCount = computed(() => selectedIds.value.size)
 const totalCount = computed(() => photos.value.length)
+const visibleCount = computed(() => visiblePhotos.value.length)
+const favoriteCount = computed(() => favoritePhotos.value.length)
 const allSelected = computed(() => totalCount.value > 0 && selectedCount.value === totalCount.value)
 const thumbnailModeOptions = computed(() => getThumbnailModeOptions(language.value))
 const directoryName = computed(() => {
@@ -105,6 +121,14 @@ const hasPreviousPreview = computed(() => currentPreviewIndex.value > 0)
 const hasNextPreview = computed(() => currentPreviewIndex.value >= 0 && currentPreviewIndex.value < photos.value.length - 1)
 
 watch(
+  favoriteIds,
+  (nextFavoriteIds) => {
+    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...nextFavoriteIds]))
+  },
+  { deep: true }
+)
+
+watch(
   language,
   (nextLanguage) => {
     document.documentElement.lang = nextLanguage === 'zh' ? 'zh-CN' : 'en'
@@ -125,6 +149,8 @@ function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusState) {
   selectedIds.value = new Set()
   currentPreview.value = null
   photos.value = result.photos
+  favoriteIds.value = new Set(result.photos.filter((photo) => favoriteIds.value.has(photo.id)).map((photo) => photo.id))
+  if (showFavoritesOnly.value && !favoriteIds.value.size) showFavoritesOnly.value = false
   directoryState.value = { type: 'selected', name: result.directoryName }
   statusState.value = nextStatus
 }
@@ -182,6 +208,7 @@ async function clearDirectory() {
   photos.value = []
   selectedIds.value = new Set()
   currentPreview.value = null
+  showFavoritesOnly.value = false
   directoryState.value = { type: 'none' }
   statusState.value = { type: 'cleared' }
 }
@@ -213,6 +240,24 @@ function togglePhoto(photoId: string) {
     next.add(photoId)
   }
   selectedIds.value = next
+}
+
+function toggleFavoritesOnly() {
+  showFavoritesOnly.value = !showFavoritesOnly.value
+  selectedIds.value = new Set()
+  currentPreview.value = null
+}
+
+function toggleFavorite(photoId: string) {
+  const next = new Set(favoriteIds.value)
+  if (next.has(photoId)) {
+    next.delete(photoId)
+  } else {
+    next.add(photoId)
+  }
+
+  favoriteIds.value = next
+  if (showFavoritesOnly.value && !next.has(photoId)) selectedIds.value = new Set([...selectedIds.value].filter((id) => id !== photoId))
 }
 
 function toggleDate(dateKey: string) {
@@ -256,6 +301,8 @@ async function deletePhotos(targets: PhotoItem[], confirmMessage: string, keepPr
 
   photos.value = remainingPhotos
   selectedIds.value = new Set([...selectedIds.value].filter((id) => !deletedIds.has(id)))
+  favoriteIds.value = new Set([...favoriteIds.value].filter((id) => !deletedIds.has(id)))
+  if (showFavoritesOnly.value && !favoriteIds.value.size) showFavoritesOnly.value = false
 
   if (deletedCurrentPreview) {
     currentPreview.value = keepPreviewOpen
@@ -333,13 +380,26 @@ onBeforeUnmount(() => {
     />
 
     <main class="album-layout">
-      <DateSidebar :year-groups="yearGroups" :messages="locale.sidebar" @jump-to-date="scrollToDate" />
+      <div class="sidebar-column">
+        <button
+          class="favorites-button"
+          type="button"
+          :class="{ active: showFavoritesOnly }"
+          :aria-pressed="showFavoritesOnly"
+          @click="toggleFavoritesOnly"
+        >
+          <span>{{ showFavoritesOnly ? locale.app.showAllPhotos : locale.app.favoritesButton }}</span>
+          <small>{{ locale.app.favoriteCount(favoriteCount) }}</small>
+        </button>
+
+        <DateSidebar :year-groups="yearGroups" :messages="locale.sidebar" @jump-to-date="scrollToDate" />
+      </div>
 
       <section class="album-content" :aria-label="locale.app.albumContentAria">
         <div class="status-card">
           <div>
             <p class="eyebrow">{{ locale.app.statusEyebrow }}</p>
-            <h2>{{ totalCount ? locale.app.totalPhotos(totalCount) : locale.app.waitingTitle }}</h2>
+            <h2>{{ totalCount ? locale.app.totalPhotos(visibleCount, showFavoritesOnly) : locale.app.waitingTitle }}</h2>
           </div>
           <p>{{ statusMessage }}</p>
         </div>
@@ -347,9 +407,12 @@ onBeforeUnmount(() => {
         <PhotoGrid
           :date-groups="formattedDateGroups"
           :selected-ids="selectedIds"
+          :favorite-ids="favoriteIds"
           :thumbnail-mode="thumbnailMode"
+          :is-favorites-view="showFavoritesOnly"
           :messages="locale.grid"
           @toggle-photo="togglePhoto"
+          @toggle-favorite="toggleFavorite"
           @toggle-date="toggleDate"
           @open-preview="openPreview"
         />
