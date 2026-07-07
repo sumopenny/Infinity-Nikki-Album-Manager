@@ -155,7 +155,7 @@ button:disabled {
 .app-shell {
   min-height: 100vh;
   width: 100%;
-  overflow-x: clip;
+  --sidebar-sticky-top: 124px;
 }
 
 .top-module {
@@ -430,9 +430,10 @@ h1 {
 
 .sidebar-column {
   position: sticky;
-  top: clamp(78px, 10vh, 124px);
+  top: var(--sidebar-sticky-top);
   flex: 0 0 clamp(112px, 11vw, 148px);
   min-width: 0;
+  align-self: flex-start;
 }
 
 .favorites-button {
@@ -481,7 +482,7 @@ h1 {
 
 .date-sidebar {
   width: 100%;
-  max-height: calc(100svh - 174px);
+  max-height: calc(100svh - var(--sidebar-sticky-top) - 50px);
   overflow: auto;
   padding: 10px;
   border: 1px solid var(--line-soft);
@@ -927,12 +928,6 @@ h1 {
 
 .lightbox-caption span {
   flex: 0 0 auto;
-}
-
-@supports not (overflow: clip) {
-  .app-shell {
-    overflow-x: hidden;
-  }
 }
 
 @media (max-width: 900px) {
