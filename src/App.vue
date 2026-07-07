@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import TopBar from './components/TopBar.vue'
 import DateSidebar from './components/DateSidebar.vue'
 import PhotoGrid from './components/PhotoGrid.vue'
@@ -62,6 +62,9 @@ const isLoading = ref(false)
 const isDeleting = ref(false)
 const thumbnailMode = ref<ThumbnailMode>(isThumbnailMode(storedThumbnailMode) ? storedThumbnailMode : 'default')
 const themeMode = ref<ThemeMode>(isThemeMode(storedThemeMode) ? storedThemeMode : 'light')
+const appShellRef = ref<HTMLElement | null>(null)
+const topBarRef = ref<InstanceType<typeof TopBar> | null>(null)
+let topBarResizeObserver: ResizeObserver | null = null
 
 const locale = computed(() => messages[language.value])
 const favoritePhotos = computed(() => photos.value.filter((photo) => favoriteIds.value.has(photo.id)))
@@ -337,6 +340,17 @@ function closePreview() {
   currentPreview.value = null
 }
 
+// 更新侧栏吸顶偏移量。参数：无。根据顶部工具栏实际高度设置 CSS 变量，避免侧栏滚动时被顶部栏遮住。
+function updateSidebarStickyOffset() {
+  const appShell = appShellRef.value
+  const topBarElement = topBarRef.value?.$el as HTMLElement | undefined
+
+  if (!appShell || !topBarElement) return
+
+  // 预留 10px 间距，让左侧栏始终停在顶部工具栏下方。
+  appShell.style.setProperty('--sidebar-sticky-top', `${Math.ceil(topBarElement.getBoundingClientRect().height) + 10}px`)
+}
+
 function showPreviousPreview() {
   if (!hasPreviousPreview.value) return
   currentPreview.value = photos.value[currentPreviewIndex.value - 1]
@@ -349,16 +363,30 @@ function showNextPreview() {
 
 onMounted(() => {
   restoreSavedDirectory()
+  nextTick(() => {
+    updateSidebarStickyOffset()
+
+    const topBarElement = topBarRef.value?.$el as HTMLElement | undefined
+    if (!topBarElement || typeof ResizeObserver === 'undefined') return
+
+    // 监听顶部工具栏换行、语言切换和窗口宽度变化造成的高度变化。
+    topBarResizeObserver = new ResizeObserver(updateSidebarStickyOffset)
+    topBarResizeObserver.observe(topBarElement)
+  })
+  window.addEventListener('resize', updateSidebarStickyOffset)
 })
 
 onBeforeUnmount(() => {
+  topBarResizeObserver?.disconnect()
+  window.removeEventListener('resize', updateSidebarStickyOffset)
   releasePhotoUrls(photos.value)
 })
 </script>
 
 <template>
-  <div class="app-shell">
+  <div ref="appShellRef" class="app-shell">
     <TopBar
+      ref="topBarRef"
       :directory-name="directoryName"
       :total-count="totalCount"
       :selected-count="selectedCount"
