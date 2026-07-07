@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { Language, LocaleMessages } from '../i18n'
 import type { ThumbnailMode } from '../types/thumbnail'
 import type { ThemeMode } from '../types/theme'
 
-defineProps<{
+const props = defineProps<{
   directoryName: string
   totalCount: number
   selectedCount: number
@@ -17,7 +18,7 @@ defineProps<{
   messages: LocaleMessages['topBar']
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   chooseDirectory: []
   clearDirectory: []
   toggleAll: []
@@ -27,12 +28,39 @@ defineEmits<{
   changeThumbnailMode: [mode: ThumbnailMode]
 }>()
 
-function handleThumbnailModeChange(event: Event) {
-  const target = event.target as HTMLSelectElement
-  const value = target.value as ThumbnailMode
-  ;(event.currentTarget as HTMLSelectElement).blur()
-  return value
+const isThumbnailDropdownOpen = ref(false)
+const thumbnailDropdownRef = ref<HTMLElement | null>(null)
+
+const selectedThumbnailLabel = computed(() => {
+  return props.thumbnailModeOptions.find((option) => option.value === props.thumbnailMode)?.label ?? props.thumbnailModeOptions[0]?.label ?? ''
+})
+
+function toggleThumbnailDropdown() {
+  isThumbnailDropdownOpen.value = !isThumbnailDropdownOpen.value
 }
+
+function closeThumbnailDropdown() {
+  isThumbnailDropdownOpen.value = false
+}
+
+function selectThumbnailMode(mode: ThumbnailMode) {
+  emit('changeThumbnailMode', mode)
+  closeThumbnailDropdown()
+}
+
+function handleDocumentClick(event: MouseEvent) {
+  if (!thumbnailDropdownRef.value?.contains(event.target as Node)) {
+    closeThumbnailDropdown()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleDocumentClick)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocumentClick)
+})
 </script>
 
 <template>
@@ -82,18 +110,36 @@ function handleThumbnailModeChange(event: Event) {
           <span class="theme-icon" aria-hidden="true">{{ themeMode === 'light' ? '🌙' : '☀️' }}</span>
           <span>{{ messages.themeButton(themeMode) }}</span>
         </button>
-        <label class="thumbnail-select-wrap">
+        <div class="thumbnail-select-wrap">
           <span>{{ messages.thumbnail }}</span>
-          <select
-            class="thumbnail-select"
-            :value="thumbnailMode"
-            @change="$emit('changeThumbnailMode', handleThumbnailModeChange($event))"
-          >
-            <option v-for="option in thumbnailModeOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </label>
+          <div ref="thumbnailDropdownRef" class="thumbnail-dropdown">
+            <button
+              class="thumbnail-select"
+              type="button"
+              aria-haspopup="listbox"
+              :aria-expanded="isThumbnailDropdownOpen"
+              @click.stop="toggleThumbnailDropdown"
+              @keydown.esc="closeThumbnailDropdown"
+            >
+              <span>{{ selectedThumbnailLabel }}</span>
+              <span class="thumbnail-select-arrow" aria-hidden="true">⌄</span>
+            </button>
+            <div v-if="isThumbnailDropdownOpen" class="thumbnail-options" role="listbox">
+              <button
+                v-for="option in thumbnailModeOptions"
+                :key="option.value"
+                class="thumbnail-option"
+                :class="{ active: option.value === thumbnailMode }"
+                type="button"
+                role="option"
+                :aria-selected="option.value === thumbnailMode"
+                @click="selectThumbnailMode(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </div>
+        </div>
         <button class="danger-button" type="button" :disabled="!selectedCount || isDeleting" @click="$emit('deleteSelected')">
           {{ isDeleting ? messages.deleting : messages.deleteSelected(selectedCount) }}
         </button>
