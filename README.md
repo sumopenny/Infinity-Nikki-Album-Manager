@@ -10,11 +10,11 @@
 
 ## 使用方式 / How to Use
 
-本项目已经部署到 Vercel，可以直接访问（需要VPN）：`https://infinity-nikki-album-manager.vercel.app/`
+本项目已经部署到 Vercel，可以直接访问（需要VPN）：`https://infinity-nikki-album-manager.vercel.app`
 
 如果你觉得这个网站不错，欢迎在 GitHub 页面右上角点一个小星星 Star 支持一下。
 
-This project has been deployed on Vercel. You can visit it directly (requires VPN):  `https://infinity-nikki-album-manager.vercel.app/`
+This project has been deployed on Vercel. You can visit it directly (requires VPN):  `https://infinity-nikki-album-manager.vercel.app`
 
 If you like this website, please give it a Star in the upper-right corner of the GitHub page.
 
@@ -79,26 +79,19 @@ If you like this website, please give it a Star in the upper-right corner of the
 
 如果双击启动文件时提示 `Node.js was not found` 或 `npm was not found`，一般就是 Node.js 没装好，需要重新安装 Node.js。
 
-#### 2.3 Chrome 或 Edge 浏览器
+#### 2.3 浏览器
 
 本项目需要浏览器支持“选择文件夹”和“读写本地文件”的能力。
 
-推荐使用：
-
-- Google Chrome 最新版
-- Microsoft Edge 最新版
-
-不推荐使用太旧的浏览器。某些浏览器可能无法选择文件夹，也可能无法删除本地图片。
-
 ---
 
-### 3. 如何从 GitHub 下载项目？
+### 3. 如何从 GitHub/Gitee 下载项目？
 
 如果你不熟悉 Git，也没有关系，按下面步骤操作即可。
 
 #### 方法一：直接下载 ZIP，适合大多数人
 
-1. 打开项目的 GitHub 页面。
+1. 打开项目的 GitHub/Gitee 页面。
 2. 点击绿色的 `Code` 按钮。
 3. 点击 `Download ZIP`。
 4. 下载完成后，右键压缩包，选择“全部解压”或“解压到当前文件夹”。
@@ -142,7 +135,7 @@ Start-Project.bat
 http://localhost:5173
 ```
 
-如果浏览器没有自动打开，请自己打开 Chrome 或 Edge，然后把下面这个地址复制到地址栏里：
+如果浏览器没有自动打开，请自己打开浏览器，然后把下面这个地址复制到地址栏里：
 
 ```text
 http://localhost:5173
@@ -154,8 +147,8 @@ http://localhost:5173
 
 请记住：
 
-- 网站使用期间，不要关闭显示 `npm run dev` 或 `VITE` 的开发服务窗口。
-- 如果关闭了开发服务窗口，网页就会停止运行。
+- 网站使用期间，不要关闭 `Start-Project.bat` 的服务窗口。
+- 如果关闭了.bat服务窗口，网页就会停止运行。
 - 如果不小心关掉了，重新双击 `Start-Project.bat` 即可。
 
 ---
@@ -165,7 +158,7 @@ http://localhost:5173
 如果你不想使用 BAT 文件，也可以手动启动。
 
 1. 打开项目文件夹。
-2. 在空白处右键，选择“在终端中打开”或“Open in Terminal”。
+2. 在空白处右键，选择“在终端中打开”。
 3. 第一次运行时，输入：
 
 ```bash
@@ -214,33 +207,9 @@ NikkiPhotos_HighQuality
 
 如果选择了系统保护目录，浏览器可能会拒绝访问。
 
-#### 6.2 图片文件名要求
+#### 6.2 图片文件名
 
 项目会根据图片文件名里的日期来分组。
-
-支持类似下面格式的文件名：
-
-```text
-2026_07_04_15_30.png
-2026_07_04_15_30_25.jpg
-```
-
-也就是说，文件名开头需要包含：
-
-```text
-年_月_日_小时_分钟
-```
-
-或：
-
-```text
-年_月_日_小时_分钟_秒
-```
-
-如果页面提示没有找到图片，通常有两种原因：
-
-1. 选错文件夹了。
-2. 图片文件名不是项目支持的日期格式。
 
 #### 6.3 浏览照片
 
@@ -455,29 +424,22 @@ If Node.js is not installed:
 
 If the launcher says `Node.js was not found` or `npm was not found`, Node.js is missing or not installed correctly.
 
-#### 2.3 Chrome or Edge browser
+#### 2.3 A browser
 
-This app needs browser support for folder selection and local file read/write access.
-
-Recommended browsers:
-
-- Latest Google Chrome
-- Latest Microsoft Edge
-
-Older browsers may not support folder selection or local file deletion.
+This project needs a browser that supports folder selection and local file read/write access.
 
 ---
 
-### 3. How to download the project from GitHub
+### 3. How to download the project from GitHub/Gitee
 
 If you are not familiar with Git, use the ZIP download method.
 
 #### Method 1: Download ZIP, recommended for most users
 
-1. Open the project's GitHub page.
+1. Open the project's GitHub/Gitee page.
 2. Click the green `Code` button.
 3. Click `Download ZIP`.
-4. After downloading, right-click the ZIP file and choose `Extract All`.
+4. After downloading, right-click the ZIP file and choose `Extract All` or extract it to the current folder.
 5. Open the extracted project folder.
 6. Find `Start-Project.bat`.
 7. Double-click it.
@@ -528,8 +490,8 @@ You may see one or two black command windows.
 
 Please remember:
 
-- Do not close the dev server window that shows `npm run dev` or `VITE` while using the website.
-- If you close the dev server window, the website will stop working.
+- Do not close the `Start-Project.bat` service window while using the website.
+- If you close the BAT service window, the website will stop working.
 - If that happens, simply double-click `Start-Project.bat` again.
 
 ---
@@ -588,30 +550,9 @@ Do not choose these locations:
 
 Browsers may block access to protected folders.
 
-#### 6.2 Photo filename format
+#### 6.2 Photo filenames
 
 The app groups photos by dates found in filenames.
-
-Supported filename examples:
-
-```text
-2026_07_04_15_30.png
-2026_07_04_15_30_25.jpg
-```
-
-The filename should start with:
-
-```text
-year_month_day_hour_minute
-```
-
-or:
-
-```text
-year_month_day_hour_minute_second
-```
-
-If the page says no photos were found, usually either the wrong folder was selected or the filenames do not match this date format.
 
 #### 6.3 Browse photos
 
@@ -725,7 +666,7 @@ jpg, jpeg, png, webp, gif, bmp, avif
 
 The browser tries to remember the last folder, but for security reasons, it may still ask for permission again.
 
-If that happens, click `选择/恢复相册路径` again and grant permission.
+If that happens, click `Choose / restore album folder` again and grant permission.
 
 ---
 
