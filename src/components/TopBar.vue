@@ -87,6 +87,15 @@ onBeforeUnmount(() => {
           </svg>
           <span>{{ messages.githubText }}</span>
         </a>
+        <a
+          class="github-link"
+          href="https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager"
+          target="_blank"
+          rel="noreferrer"
+          :aria-label="messages.giteeAria"
+        >
+          <span>{{ messages.giteeText }}</span>
+        </a>
         <button class="language-button" type="button" :aria-label="messages.languageAria" @click="$emit('toggleLanguage')">
           {{ messages.languageButton }}
         </button>

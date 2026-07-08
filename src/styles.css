@@ -9,7 +9,7 @@
   --surface-strong: #ffffff;
   --surface-soft: rgba(255, 255, 255, 0.82);
   --soft-accent: rgba(255, 239, 237, 0.92);
-  --warm-accent: #f9f1dc;
+  --warm-accent: #fffcf5;
   --pink: #e9b9b8;
   --pink-deep: #c98486;
   --yellow: #f3e6bd;
@@ -24,7 +24,7 @@
   --primary-hover-text: #fff;
   --primary-shadow: 0 0 10px rgba(100, 158, 192, 0.507);
   --photo-shadow: 0 0px 9px rgba(150, 85, 41, 0.229);
-  --photo-hover-shadow: 0 0px 15px rgba(157, 85, 37, 0.411);
+  --photo-hover-shadow: 0 0px 15px rgba(199, 102, 36, 0.208);
   --scrollbar-track: rgba(255, 255, 255, 0.62);
   --scrollbar-thumb: rgba(201, 132, 134, 0.42);
   --scrollbar-thumb-hover: rgba(201, 132, 134, 0.68);
@@ -32,9 +32,9 @@
   --heading: #4c4240;
   --muted: #9b8f8b;
   --shadow: 0 14px 34px rgba(150, 119, 98, 0.14);
-  --top-bg: rgba(255, 255, 255, 0.7);
+  --top-bg: rgba(255, 255, 255, 0.6);
   --top-border: rgba(201, 132, 134, 0.18);
-  --path-bg: rgba(255, 255, 255, 0.82);
+  --path-bg: rgba(255, 255, 255, 0.6);
   --frame-bg: #f5efe9;
   --overlay-bg: rgba(76, 66, 64, 0.62);
   --lightbox-nav-bg: rgba(255, 253, 249, 0.86);
@@ -82,9 +82,9 @@
   --heading: #fff8f4;
   --muted: #b7aaa5;
   --shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
-  --top-bg: rgba(10, 10, 12, 0.85);
+  --top-bg: rgba(10, 10, 12, 0.7);
   --top-border: rgba(255, 255, 255, 0.08);
-  --path-bg: rgba(20, 20, 24, 0.86);
+  --path-bg: rgba(20, 20, 24, 0.6);
   --frame-bg: #18181c;
   --overlay-bg: rgba(0, 0, 0, 0.76);
   --lightbox-nav-bg: rgba(18, 18, 21, 0.88);
@@ -172,6 +172,7 @@ button:disabled {
   min-height: 100vh;
   width: 100%;
   --sidebar-sticky-top: 124px;
+  --sidebar-width: clamp(112px, 11vw, 148px);
 }
 
 .top-module {
@@ -182,7 +183,7 @@ button:disabled {
   border-bottom: 1px solid var(--top-border);
   background: var(--top-bg);
   backdrop-filter: blur(18px);
-  box-shadow: 0 4px 20px rgba(150, 119, 98, 0.1);
+  box-shadow: 0 0px 28px rgba(143, 110, 88, 0.219);
 }
 
 .brand-row,
@@ -311,12 +312,12 @@ h1 {
 .language-button:hover,
 .theme-button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 2px 15px rgba(243, 181, 136, 0.438);
+  box-shadow: 0 2px 11px rgba(197, 147, 111, 0.202);
 }
 
 .signature:hover {
   transform: translateY(-1px);
-  box-shadow: 0 2px 15px rgba(201, 132, 134, 0.373);
+  box-shadow: 0 2px 10px rgba(152, 99, 101, 0.254);
 }
 
 .github-link svg {
@@ -461,12 +462,13 @@ h1 {
   transform: translateY(-1px);
   background: var(--primary-hover-bg);
   color: var(--primary-hover-text);
+  box-shadow: var(--primary-shadow);
 }
 
 .primary-button {
   background: var(--primary-bg);
   color: var(--primary-text);
-  box-shadow: var(--primary-shadow);
+
 }
 
 .soft-button {
@@ -509,15 +511,18 @@ h1 {
   align-items: flex-start;
   gap: 12px;
   width: 100%;
-  max-width: 1920px;
+  max-width: 2920px;
   margin: 0 auto;
   padding: 10px clamp(8px, 1.8vw, 18px) 32px;
 }
 
 .sidebar-column {
-  position: sticky;
+  position: fixed;
   top: var(--sidebar-sticky-top);
-  flex: 0 0 clamp(112px, 11vw, 148px);
+  left: max(clamp(8px, 1.8vw, 18px), calc((100vw - 2920px) / 2 + clamp(8px, 1.8vw, 18px)));
+  z-index: 20;
+  width: var(--sidebar-width);
+  flex: 0 0 var(--sidebar-width);
   min-width: 0;
   align-self: flex-start;
 }
@@ -568,7 +573,7 @@ h1 {
 
 .date-sidebar {
   width: 100%;
-  height: calc(100svh - var(--sidebar-sticky-top) - 100px);
+  /* height: calc(100svh - var(--sidebar-sticky-top) - 100px); */
   max-height: calc(100svh - var(--sidebar-sticky-top) - 100px);
   overflow-x: hidden;
   overflow-y: auto;
@@ -636,6 +641,7 @@ h1 {
 .album-content {
   flex: 1;
   min-width: 0;
+  margin-left: calc(var(--sidebar-width) + 12px);
   font-size: 13px;
 }
 
@@ -1088,6 +1094,7 @@ h1 {
 
   .album-content {
     width: 100%;
+    margin-left: 0;
   }
 }
 

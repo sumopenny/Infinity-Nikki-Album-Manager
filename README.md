@@ -1,7 +1,7 @@
 # Infinity Nikki Album Manager / 无限暖暖相册管理
 
 <div align="center">
-  <img src="wxnn.ico" alt="项目图标" width="64" height="64" style="border-radius: 12px;">
+  <img src="img/wxnn.ico" alt="项目图标" width="64" height="64" style="border-radius: 12px;">
   <br>
   <em>一个用于整理、浏览、收藏和删除《无限暖暖》相册的本地网页工具。</em>
   <br>
@@ -61,9 +61,9 @@ If you like this website, please give it a Star in the upper-right corner of the
 
 请先准备下面几样东西。
 
-#### 2.1 一台 Windows 电脑
+#### 2.1 一台电脑
 
-这个项目提供了一个 `Start-Project.bat` 文件，适合 Windows 用户双击启动。
+这个项目提供了 `相册网站启动器` 快捷方式，双击即可启动。
 
 #### 2.2 Node.js
 
@@ -75,7 +75,7 @@ If you like this website, please give it a Star in the upper-right corner of the
 2. 访问 Node.js 官网：`https://nodejs.org/`
 3. 下载 LTS 版本，也就是官网推荐的长期支持版本。
 4. 像安装普通软件一样一路下一步安装。
-5. 安装完成后，重新打开项目文件夹，再双击 `Start-Project.bat`。
+5. 安装完成后，重新打开项目文件夹，再双击 `相册网站启动器`。
 
 如果双击启动文件时提示 `Node.js was not found` 或 `npm was not found`，一般就是 Node.js 没装好，需要重新安装 Node.js。
 
@@ -96,7 +96,7 @@ If you like this website, please give it a Star in the upper-right corner of the
 3. 点击 `Download ZIP`。
 4. 下载完成后，右键压缩包，选择“全部解压”或“解压到当前文件夹”。
 5. 打开解压后的项目文件夹。
-6. 找到 `Start-Project.bat` 文件。
+6. 找到 `相册网站启动器` 文件。
 7. 双击它。
 
 注意：不要直接在压缩包里面双击运行。一定要先解压，再进入解压后的文件夹运行。
@@ -114,18 +114,22 @@ npm run dev
 
 ---
 
-### 4. 最简单的启动方式：双击 Start-Project.bat
+### 4. 最简单的启动方式：双击 相册网站启动器
 
 项目根目录里有一个文件：
 
 ```text
-Start-Project.bat
+相册网站启动器
 ```
+
+它会自动调用 `start` 文件夹里的 `Start-Project.exe` 和 `Start-Project.bat`。
+
+如果快捷方式失效，也可以改为双击 `start\Start-Project.exe`。
 
 使用步骤：
 
 1. 打开项目文件夹。
-2. 找到 `Start-Project.bat`。
+2. 找到 `相册网站启动器`。
 3. 用鼠标左键双击它。
 4. 第一次运行时，它会自动执行 `npm install` 安装依赖。
 5. 等它安装完成后，会自动启动网站。
@@ -143,13 +147,14 @@ http://localhost:5173
 
 #### 启动时出现的黑色窗口能不能关？
 
-会出现一个或两个黑色命令窗口。
+会出现启动器窗口和开发服务窗口。
 
 请记住：
 
-- 网站使用期间，不要关闭 `Start-Project.bat` 的服务窗口。
-- 如果关闭了.bat服务窗口，网页就会停止运行。
-- 如果不小心关掉了，重新双击 `Start-Project.bat` 即可。
+- 启动器窗口完成检查、启动网站并打开浏览器后，会自动关闭。
+- 网站使用期间，不要关闭标题为 `Dev Server` 的开发服务窗口。
+- 如果关闭了开发服务窗口，网页就会停止运行。
+- 如果不小心关掉了，重新双击 `相册网站启动器` 即可。
 
 ---
 
@@ -262,15 +267,16 @@ NikkiPhotos_HighQuality
 
 ### 7. 常见问题
 
-#### 问：双击 Start-Project.bat 没反应怎么办？
+#### 问：双击 相册网站启动器 没反应怎么办？
 
 可以按顺序检查：
 
 1. 项目是不是已经解压出来了？不要在 ZIP 压缩包里运行。
 2. 电脑是否安装了 Node.js？
-3. `Start-Project.bat` 是否和 `package.json` 在同一个文件夹？
-4. 是否有安全软件拦截了 BAT 文件？
-5. 可以尝试右键 `Start-Project.bat`，选择“以管理员身份运行”。
+3. `start` 文件夹是否还在项目根目录里？
+4. `start\Start-Project.exe` 和 `start\Start-Project.bat` 是否都存在？
+5. 是否有安全软件拦截了快捷方式、EXE 或 BAT 文件？
+6. 可以尝试右键 `相册网站启动器`，选择“以管理员身份运行”。
 
 #### 问：提示 npm install 失败怎么办？
 
@@ -296,7 +302,7 @@ npm install
 http://localhost:5173
 ```
 
-如果提示端口被占用，可以关闭其他正在运行的项目窗口，然后重新双击 `Start-Project.bat`。
+如果提示端口被占用，可以关闭其他正在运行的项目窗口，然后重新双击 `相册网站启动器`。
 
 #### 问：为什么浏览器不让我选择某个文件夹？
 
@@ -359,7 +365,10 @@ npm run preview
 
 ```text
 .
-├─ Start-Project.bat        # Windows 一键启动文件
+├─ 相册网站启动器           # 一键启动快捷方式
+├─ start/                   # 启动器文件目录
+│  ├─ Start-Project.exe     # Windows 一键启动程序
+│  └─ Start-Project.bat     # Windows 启动脚本，负责检查依赖并启动本地网站
 ├─ index.html               # 网页入口
 ├─ package.json             # 项目信息和 npm 命令
 ├─ src/                     # 源代码目录
@@ -406,9 +415,9 @@ Important: deleting a photo in this app also deletes the original file from your
 
 Please prepare the following items first.
 
-#### 2.1 A Windows computer
+#### 2.1 A computer
 
-This project includes a `Start-Project.bat` file for Windows users. You can double-click it to start the project.
+This project includes the `相册网站启动器` shortcut. Double-click it to start the project.
 
 #### 2.2 Node.js
 
@@ -419,8 +428,8 @@ If Node.js is not installed:
 1. Open your browser.
 2. Visit the Node.js website: `https://nodejs.org/`
 3. Download the LTS version.
-4. Install it like a normal Windows program.
-5. After installation, open the project folder again and double-click `Start-Project.bat`.
+4. Install it like a normal program.
+5. After installation, open the project folder again and double-click `相册网站启动器`.
 
 If the launcher says `Node.js was not found` or `npm was not found`, Node.js is missing or not installed correctly.
 
@@ -441,7 +450,7 @@ If you are not familiar with Git, use the ZIP download method.
 3. Click `Download ZIP`.
 4. After downloading, right-click the ZIP file and choose `Extract All` or extract it to the current folder.
 5. Open the extracted project folder.
-6. Find `Start-Project.bat`.
+6. Find `相册网站启动器`.
 7. Double-click it.
 
 Do not run the BAT file directly inside the ZIP archive. Extract the ZIP first.
@@ -457,18 +466,22 @@ npm run dev
 
 ---
 
-### 4. Easiest way to start: double-click Start-Project.bat
+### 4. Easiest way to start: double-click 相册网站启动器
 
 In the project root folder, find this file:
 
 ```text
-Start-Project.bat
+相册网站启动器
 ```
+
+It automatically calls `Start-Project.exe` and `Start-Project.bat` inside the `start` folder.
+
+If the shortcut stops working, you can double-click `start\Start-Project.exe` instead.
 
 Steps:
 
 1. Open the project folder.
-2. Find `Start-Project.bat`.
+2. Find `相册网站启动器`.
 3. Double-click it.
 4. On first run, it will automatically run `npm install`.
 5. After dependencies are installed, it will start the website.
@@ -486,13 +499,14 @@ http://localhost:5173
 
 #### Can I close the black command windows?
 
-You may see one or two black command windows.
+You may see a launcher window and a dev server window.
 
 Please remember:
 
-- Do not close the `Start-Project.bat` service window while using the website.
-- If you close the BAT service window, the website will stop working.
-- If that happens, simply double-click `Start-Project.bat` again.
+- The launcher window closes automatically after checks finish, the website starts, and the browser opens.
+- Do not close the `Dev Server` window while using the website.
+- If you close the dev server window, the website will stop working.
+- If that happens, simply double-click `相册网站启动器` again.
 
 ---
 
@@ -605,15 +619,16 @@ Again: deleting in this app deletes the original file from your computer folder.
 
 ### 7. FAQ
 
-#### Q: Nothing happens when I double-click Start-Project.bat. What should I do?
+#### Q: Nothing happens when I double-click 相册网站启动器. What should I do?
 
 Check these items in order:
 
 1. Did you extract the ZIP first? Do not run inside the ZIP archive.
 2. Is Node.js installed?
-3. Is `Start-Project.bat` in the same folder as `package.json`?
-4. Did Windows security software block the BAT file?
-5. Try right-clicking `Start-Project.bat` and choosing `Run as administrator`.
+3. Is the `start` folder still inside the project root folder?
+4. Do `start\Start-Project.exe` and `start\Start-Project.bat` both exist?
+5. Did Windows security software block the shortcut, EXE, or BAT file?
+6. Try right-clicking `相册网站启动器` and choosing `Run as administrator`.
 
 #### Q: npm install failed. What should I do?
 
@@ -639,7 +654,7 @@ If it is open, manually visit:
 http://localhost:5173
 ```
 
-If port 5173 is already in use, close other running project windows and double-click `Start-Project.bat` again.
+If port 5173 is already in use, close other running project windows and double-click `相册网站启动器` again.
 
 #### Q: Why does the browser refuse to open a folder?
 
@@ -702,7 +717,10 @@ npm run preview
 
 ```text
 .
-├─ Start-Project.bat        # Windows one-click launcher
+├─ 相册网站启动器           # Windows one-click launcher shortcut
+├─ start/                   # Launcher files
+│  ├─ Start-Project.exe     # Windows one-click launcher executable
+│  └─ Start-Project.bat     # Windows startup script for dependency checks and local website startup
 ├─ index.html               # HTML entry
 ├─ package.json             # Project metadata and npm scripts
 ├─ src/                     # Source code

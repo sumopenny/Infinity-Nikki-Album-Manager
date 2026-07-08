@@ -2,7 +2,7 @@
 setlocal
 title Infinity Nikki Album Manager - One Click Start
 
-set "PROJECT_DIR=%~dp0"
+for %%I in ("%~dp0..") do set "PROJECT_DIR=%%~fI"
 cd /d "%PROJECT_DIR%"
 
 echo.
@@ -36,7 +36,7 @@ if errorlevel 1 (
 
 if not exist "package.json" (
     echo [ERROR] package.json was not found.
-    echo Make sure this BAT file is in the project root folder.
+    echo Make sure the start folder is inside the project root folder.
     echo.
     pause
     exit /b 1
@@ -75,7 +75,7 @@ echo.
 echo If the browser did not open, visit this address manually:
 echo http://localhost:5173
 echo.
-echo You can close this launcher window now, but keep the dev server window open.
-echo.
-pause
+echo Launcher checks complete. This window will close automatically.
+echo Keep the dev server window open while using the site.
+timeout /t 2 /nobreak >nul
 endlocal

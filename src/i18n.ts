@@ -34,6 +34,8 @@ export interface LocaleMessages {
     starHint: string
     githubAria: string
     githubText: string
+    giteeAria: string
+    giteeText: string
     languageButton: string
     languageAria: string
     themeButton: (themeMode: ThemeMode) => string
@@ -180,6 +182,8 @@ export const messages: Record<Language, LocaleMessages> = {
       starHint: '觉得网站不错的话，欢迎在 GitHub 右上角点个小星星 Star⭐~',
       githubAria: '访问GitHub仓库',
       githubText: '访问GitHub仓库',
+      giteeAria: '访问Gitee仓库',
+      giteeText: '访问Gitee仓库',
       languageButton: '切换为英文版',
       languageAria: '切换到英文版',
       themeButton: (themeMode) => (themeMode === 'light' ? '切换深色模式' : '切换白色主题'),
@@ -266,6 +270,8 @@ export const messages: Record<Language, LocaleMessages> = {
       starHint: 'Like this website? Please give it a Star⭐ on GitHub~',
       githubAria: 'Open GitHub repository',
       githubText: 'GitHub',
+      giteeAria: 'Open Gitee repository',
+      giteeText: 'Gitee',
       languageButton: 'Switch to Chinese',
       languageAria: 'Switch to Chinese',
       themeButton: (themeMode) => (themeMode === 'light' ? 'Switch to dark mode' : 'Switch to white theme'),
