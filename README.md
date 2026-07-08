@@ -63,7 +63,7 @@ If you like this website, please give it a Star in the upper-right corner of the
 
 #### 2.1 一台电脑
 
-这个项目提供了 `相册网站启动器` 快捷方式，双击即可启动。
+这个项目提供了根目录下的 `无限暖暖相册启动器.exe`，双击即可启动。
 
 #### 2.2 Node.js
 
@@ -75,7 +75,7 @@ If you like this website, please give it a Star in the upper-right corner of the
 2. 访问 Node.js 官网：`https://nodejs.org/`
 3. 下载 LTS 版本，也就是官网推荐的长期支持版本。
 4. 像安装普通软件一样一路下一步安装。
-5. 安装完成后，重新打开项目文件夹，再双击 `相册网站启动器`。
+5. 安装完成后，重新打开项目文件夹，再双击 `无限暖暖相册启动器.exe`。
 
 如果双击启动文件时提示 `Node.js was not found` 或 `npm was not found`，一般就是 Node.js 没装好，需要重新安装 Node.js。
 
@@ -96,7 +96,7 @@ If you like this website, please give it a Star in the upper-right corner of the
 3. 点击 `Download ZIP`。
 4. 下载完成后，右键压缩包，选择“全部解压”或“解压到当前文件夹”。
 5. 打开解压后的项目文件夹。
-6. 找到 `相册网站启动器` 文件。
+6. 找到 `无限暖暖相册启动器.exe` 文件。
 7. 双击它。
 
 注意：不要直接在压缩包里面双击运行。一定要先解压，再进入解压后的文件夹运行。
@@ -114,22 +114,22 @@ npm run dev
 
 ---
 
-### 4. 最简单的启动方式：双击 相册网站启动器
+### 4. 最简单的启动方式：双击 无限暖暖相册启动器.exe
 
 项目根目录里有一个文件：
 
 ```text
-相册网站启动器
+无限暖暖相册启动器.exe
 ```
 
-它会自动调用 `start` 文件夹里的 `Start-Project.exe` 和 `Start-Project.bat`。
+它会自动调用 `start` 文件夹里的 `Start-Project.bat`。
 
-如果快捷方式失效，也可以改为双击 `start\Start-Project.exe`。
+如果启动器失效，也可以改为双击 `start\Start-Project.bat`。
 
 使用步骤：
 
 1. 打开项目文件夹。
-2. 找到 `相册网站启动器`。
+2. 找到 `无限暖暖相册启动器.exe`。
 3. 用鼠标左键双击它。
 4. 第一次运行时，它会自动执行 `npm install` 安装依赖。
 5. 等它安装完成后，会自动启动网站。
@@ -154,7 +154,7 @@ http://localhost:5173
 - 启动器窗口完成检查、启动网站并打开浏览器后，会自动关闭。
 - 网站使用期间，不要关闭标题为 `Dev Server` 的开发服务窗口。
 - 如果关闭了开发服务窗口，网页就会停止运行。
-- 如果不小心关掉了，重新双击 `相册网站启动器` 即可。
+- 如果不小心关掉了，重新双击 `无限暖暖相册启动器.exe` 即可。
 
 ---
 
@@ -267,16 +267,16 @@ NikkiPhotos_HighQuality
 
 ### 7. 常见问题
 
-#### 问：双击 相册网站启动器 没反应怎么办？
+#### 问：双击 无限暖暖相册启动器.exe 没反应怎么办？
 
 可以按顺序检查：
 
 1. 项目是不是已经解压出来了？不要在 ZIP 压缩包里运行。
 2. 电脑是否安装了 Node.js？
 3. `start` 文件夹是否还在项目根目录里？
-4. `start\Start-Project.exe` 和 `start\Start-Project.bat` 是否都存在？
+4. `无限暖暖相册启动器.exe` 和 `start\Start-Project.bat` 是否都存在？
 5. 是否有安全软件拦截了快捷方式、EXE 或 BAT 文件？
-6. 可以尝试右键 `相册网站启动器`，选择“以管理员身份运行”。
+6. 可以尝试右键 `无限暖暖相册启动器.exe`，选择“以管理员身份运行”。
 
 #### 问：提示 npm install 失败怎么办？
 
@@ -302,7 +302,7 @@ npm install
 http://localhost:5173
 ```
 
-如果提示端口被占用，可以关闭其他正在运行的项目窗口，然后重新双击 `相册网站启动器`。
+如果提示端口被占用，可以关闭其他正在运行的项目窗口，然后重新双击 `无限暖暖相册启动器.exe`。
 
 #### 问：为什么浏览器不让我选择某个文件夹？
 
@@ -365,10 +365,10 @@ npm run preview
 
 ```text
 .
-├─ 相册网站启动器           # 一键启动快捷方式
+├─ 无限暖暖相册启动器.exe    # Windows 一键启动程序
 ├─ start/                   # 启动器文件目录
-│  ├─ Start-Project.exe     # Windows 一键启动程序
-│  └─ Start-Project.bat     # Windows 启动脚本，负责检查依赖并启动本地网站
+│  ├─ Start-Project.bat     # Windows 启动脚本，负责检查依赖并启动本地网站
+│  └─ launcher/             # 启动器源码和构建脚本
 ├─ index.html               # 网页入口
 ├─ package.json             # 项目信息和 npm 命令
 ├─ src/                     # 源代码目录
@@ -417,7 +417,7 @@ Please prepare the following items first.
 
 #### 2.1 A computer
 
-This project includes the `相册网站启动器` shortcut. Double-click it to start the project.
+This project includes the root-level `无限暖暖相册启动器.exe` launcher. Double-click it to start the project.
 
 #### 2.2 Node.js
 
@@ -429,7 +429,7 @@ If Node.js is not installed:
 2. Visit the Node.js website: `https://nodejs.org/`
 3. Download the LTS version.
 4. Install it like a normal program.
-5. After installation, open the project folder again and double-click `相册网站启动器`.
+5. After installation, open the project folder again and double-click `无限暖暖相册启动器.exe`.
 
 If the launcher says `Node.js was not found` or `npm was not found`, Node.js is missing or not installed correctly.
 
@@ -450,7 +450,7 @@ If you are not familiar with Git, use the ZIP download method.
 3. Click `Download ZIP`.
 4. After downloading, right-click the ZIP file and choose `Extract All` or extract it to the current folder.
 5. Open the extracted project folder.
-6. Find `相册网站启动器`.
+6. Find `无限暖暖相册启动器.exe`.
 7. Double-click it.
 
 Do not run the BAT file directly inside the ZIP archive. Extract the ZIP first.
@@ -466,22 +466,22 @@ npm run dev
 
 ---
 
-### 4. Easiest way to start: double-click 相册网站启动器
+### 4. Easiest way to start: double-click 无限暖暖相册启动器.exe
 
 In the project root folder, find this file:
 
 ```text
-相册网站启动器
+无限暖暖相册启动器.exe
 ```
 
-It automatically calls `Start-Project.exe` and `Start-Project.bat` inside the `start` folder.
+It automatically calls `Start-Project.bat` inside the `start` folder.
 
-If the shortcut stops working, you can double-click `start\Start-Project.exe` instead.
+If the launcher stops working, you can double-click `start\Start-Project.bat` instead.
 
 Steps:
 
 1. Open the project folder.
-2. Find `相册网站启动器`.
+2. Find `无限暖暖相册启动器.exe`.
 3. Double-click it.
 4. On first run, it will automatically run `npm install`.
 5. After dependencies are installed, it will start the website.
@@ -506,7 +506,7 @@ Please remember:
 - The launcher window closes automatically after checks finish, the website starts, and the browser opens.
 - Do not close the `Dev Server` window while using the website.
 - If you close the dev server window, the website will stop working.
-- If that happens, simply double-click `相册网站启动器` again.
+- If that happens, simply double-click `无限暖暖相册启动器.exe` again.
 
 ---
 
@@ -619,16 +619,16 @@ Again: deleting in this app deletes the original file from your computer folder.
 
 ### 7. FAQ
 
-#### Q: Nothing happens when I double-click 相册网站启动器. What should I do?
+#### Q: Nothing happens when I double-click 无限暖暖相册启动器.exe. What should I do?
 
 Check these items in order:
 
 1. Did you extract the ZIP first? Do not run inside the ZIP archive.
 2. Is Node.js installed?
 3. Is the `start` folder still inside the project root folder?
-4. Do `start\Start-Project.exe` and `start\Start-Project.bat` both exist?
+4. Do `无限暖暖相册启动器.exe` and `start\Start-Project.bat` both exist?
 5. Did Windows security software block the shortcut, EXE, or BAT file?
-6. Try right-clicking `相册网站启动器` and choosing `Run as administrator`.
+6. Try right-clicking `无限暖暖相册启动器.exe` and choosing `Run as administrator`.
 
 #### Q: npm install failed. What should I do?
 
@@ -654,7 +654,7 @@ If it is open, manually visit:
 http://localhost:5173
 ```
 
-If port 5173 is already in use, close other running project windows and double-click `相册网站启动器` again.
+If port 5173 is already in use, close other running project windows and double-click `无限暖暖相册启动器.exe` again.
 
 #### Q: Why does the browser refuse to open a folder?
 
@@ -717,10 +717,10 @@ npm run preview
 
 ```text
 .
-├─ 相册网站启动器           # Windows one-click launcher shortcut
+├─ 无限暖暖相册启动器.exe    # Windows one-click launcher executable
 ├─ start/                   # Launcher files
-│  ├─ Start-Project.exe     # Windows one-click launcher executable
-│  └─ Start-Project.bat     # Windows startup script for dependency checks and local website startup
+│  ├─ Start-Project.bat     # Windows startup script for dependency checks and local website startup
+│  └─ launcher/             # Launcher source and build script
 ├─ index.html               # HTML entry
 ├─ package.json             # Project metadata and npm scripts
 ├─ src/                     # Source code

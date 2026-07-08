@@ -28,6 +28,11 @@ tmp/
 # TypeScript
 *.tsbuildinfo
 
+# .NET launcher build output
+bin/
+obj/
+start/launcher/publish/
+
 # IDE / editor
 .vscode/
 .idea/
