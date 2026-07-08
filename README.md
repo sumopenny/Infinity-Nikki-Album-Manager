@@ -10,11 +10,11 @@
 
 ## 使用方式 / How to Use
 
-本项目已经部署到 Vercel，可以直接访问（需要VPN）：`https://infinity-nikki-album-manager.vercel.app`
+本项目已经部署到 Vercel，可以直接访问（需要VPN）：[https://infinity-nikki-album-manager.vercel.app](https://infinity-nikki-album-manager.vercel.app)
 
 如果你觉得这个网站不错，欢迎在 GitHub 页面右上角点一个小星星 Star 支持一下。
 
-This project has been deployed on Vercel. You can visit it directly (requires VPN):  `https://infinity-nikki-album-manager.vercel.app`
+This project has been deployed on Vercel. You can visit it directly (requires VPN): [https://infinity-nikki-album-manager.vercel.app](https://infinity-nikki-album-manager.vercel.app)
 
 If you like this website, please give it a Star in the upper-right corner of the GitHub page.
 
