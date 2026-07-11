@@ -50,9 +50,11 @@ If you like this website, please give it a Star in the upper-right corner of the
 - 在大图预览里使用键盘左右方向键翻页。
 - 删除选中的照片，或删除当前预览的照片。
 - 调整缩略图比例，比如 1:1、半尺寸 1:1、16:9、4:3、9:16、3:4；选择半尺寸 1:1 前会提示页面可能卡顿，需要确认后才会切换。
-<img src="img/5.png" width="30%" />
-<img src="img/6.png" width="70%" />
-
+- 
+<div align="center">
+<img src="img/5.png" width="15%" />
+<img src="img/6.png" width="45%" />
+</div>
 - 浏览器会记住上次选择过的相册文件夹，下次可以尝试自动恢复。
 - 收藏夹状态会保存在当前浏览器本地，不会上传图片或收藏记录。
 
@@ -418,8 +420,10 @@ You can use it to:
 - Use keyboard shortcuts in the preview window.
 - Delete selected photos or delete the photo currently being previewed.
 - Change thumbnail ratios, including 1:1, Half 1:1, 16:9, 4:3, 9:16, and 3:4; Half 1:1 shows a lag warning and requires confirmation before switching.
-<img src="img/5.png" width="30%" />
-<img src="img/6.png" width="70%" />
+<div align="center">
+<img src="img/5.png" width="15%" />
+<img src="img/6.png" width="45%" />
+</div>
 - Let the browser remember the last selected album folder when possible.
 - Save Favorites locally in the current browser without uploading photos or favorite records.
 
