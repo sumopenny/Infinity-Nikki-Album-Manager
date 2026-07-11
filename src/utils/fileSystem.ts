@@ -6,11 +6,33 @@ const DB_NAME = 'infinity-nikki-album-manager'
 const DB_VERSION = 1
 const STORE_NAME = 'album-handles'
 const SAVED_DIRECTORY_KEY = 'current-album-directory'
+const SAVED_X6GAME_DIRECTORY_KEY = 'current-x6game-directory'
+const HIGH_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_HighQuality'
+const LOW_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_LowQuality'
+const SCREENSHOT_DIRECTORY_NAME = 'ScreenShot'
 
 export interface AlbumDirectoryResult {
   directoryName: string
   directoryHandle: FileSystemDirectoryHandle
   photos: PhotoItem[]
+}
+
+interface RelatedPhotoCleanupTarget {
+  directoryName: string
+  directoryHandle: FileSystemDirectoryHandle
+  photoNames: string[]
+}
+
+export interface RelatedPhotoCleanupPlan {
+  totalCount: number
+  missingDirectories: string[]
+  targets: RelatedPhotoCleanupTarget[]
+}
+
+export interface RelatedPhotoCleanupResult {
+  deletedCount: number
+  failedNames: string[]
+  missingDirectories: string[]
 }
 
 type FileSystemMessages = LocaleMessages['fileSystem']
@@ -114,6 +136,20 @@ export async function clearSavedAlbumDirectoryHandle(): Promise<void> {
   await runStoreTransaction('readwrite', (store) => store.delete(SAVED_DIRECTORY_KEY))
 }
 
+export async function getSavedX6GameDirectoryHandle(): Promise<FileSystemDirectoryHandle | null> {
+  try {
+    return await runStoreTransaction<FileSystemDirectoryHandle | null>('readonly', (store) =>
+      store.get(SAVED_X6GAME_DIRECTORY_KEY)
+    )
+  } catch {
+    return null
+  }
+}
+
+export async function clearSavedX6GameDirectoryHandle(): Promise<void> {
+  await runStoreTransaction('readwrite', (store) => store.delete(SAVED_X6GAME_DIRECTORY_KEY))
+}
+
 export async function readAlbumDirectory(
   directoryHandle: FileSystemDirectoryHandle,
   options: { requestPermission?: boolean; messages: FileSystemMessages }
@@ -183,6 +219,180 @@ export async function pickAlbumDirectory(messages: FileSystemMessages): Promise<
 export async function deletePhotoFile(photo: PhotoItem): Promise<void> {
   await photo.directoryHandle.removeEntry(photo.name)
   URL.revokeObjectURL(photo.url)
+}
+
+function isMissingDirectoryError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'NotFoundError'
+}
+
+async function getNestedDirectory(
+  rootHandle: FileSystemDirectoryHandle,
+  segments: string[]
+): Promise<FileSystemDirectoryHandle> {
+  let currentHandle = rootHandle
+
+  for (const segment of segments) {
+    currentHandle = await currentHandle.getDirectoryHandle(segment)
+  }
+
+  return currentHandle
+}
+
+async function resolveAccountDirectory(
+  x6GameHandle: FileSystemDirectoryHandle,
+  albumDirectoryHandle: FileSystemDirectoryHandle,
+  messages: FileSystemMessages
+): Promise<string> {
+  if (albumDirectoryHandle.name !== HIGH_QUALITY_DIRECTORY_NAME || x6GameHandle.name !== 'X6Game') {
+    throw new Error(messages.invalidX6GameDirectory)
+  }
+
+  const relativePath = await x6GameHandle.resolve(albumDirectoryHandle)
+  const accountDirectoryName = relativePath?.[2] ?? ''
+  const hasExpectedPath =
+    relativePath?.length === 4 &&
+    relativePath[0] === 'Saved' &&
+    relativePath[1] === 'GamePlayPhotos' &&
+    relativePath[3] === HIGH_QUALITY_DIRECTORY_NAME
+  const hasValidAccountDirectory =
+    Boolean(accountDirectoryName) && accountDirectoryName !== '.' && accountDirectoryName !== '..' && !/[\\/]/.test(accountDirectoryName)
+
+  if (!hasExpectedPath || !hasValidAccountDirectory) {
+    throw new Error(messages.invalidX6GameDirectory)
+  }
+
+  return accountDirectoryName
+}
+
+/**
+ * 提示用户选择并授权当前相册对应的 X6Game 文件夹。
+ * 参数：albumDirectoryHandle 为当前高画质相册句柄，messages 为文件系统提示文案。
+ * 返回：验证通过的 X6Game 目录句柄和当前账号目录名。
+ */
+async function pickValidatedX6GameDirectory(
+  albumDirectoryHandle: FileSystemDirectoryHandle,
+  messages: FileSystemMessages
+): Promise<{ directoryHandle: FileSystemDirectoryHandle; accountDirectoryName: string }> {
+  if (!window.showDirectoryPicker) {
+    throw new Error(messages.unsupportedBrowser)
+  }
+
+  window.alert(messages.selectX6GameDirectoryPrompt)
+
+  const directoryHandle = await window.showDirectoryPicker({
+    id: 'infinity-nikki-x6game',
+    mode: 'readwrite',
+    startIn: albumDirectoryHandle
+  })
+  const hasPermission = await ensureReadWritePermission(directoryHandle, true)
+
+  if (!hasPermission) {
+    throw new Error(messages.permissionRequired)
+  }
+
+  const accountDirectoryName = await resolveAccountDirectory(directoryHandle, albumDirectoryHandle, messages)
+  await runStoreTransaction('readwrite', (store) => store.put(directoryHandle, SAVED_X6GAME_DIRECTORY_KEY))
+  return { directoryHandle, accountDirectoryName }
+}
+
+async function getValidatedX6GameDirectory(
+  albumDirectoryHandle: FileSystemDirectoryHandle,
+  messages: FileSystemMessages
+): Promise<{ directoryHandle: FileSystemDirectoryHandle; accountDirectoryName: string }> {
+  if (albumDirectoryHandle.name !== HIGH_QUALITY_DIRECTORY_NAME) {
+    throw new Error(messages.invalidAlbumDirectory)
+  }
+
+  const savedHandle = await getSavedX6GameDirectoryHandle()
+
+  if (savedHandle && (await ensureReadWritePermission(savedHandle, true))) {
+    try {
+      const accountDirectoryName = await resolveAccountDirectory(savedHandle, albumDirectoryHandle, messages)
+      return { directoryHandle: savedHandle, accountDirectoryName }
+    } catch {
+      await clearSavedX6GameDirectoryHandle()
+    }
+  }
+
+  try {
+    return await pickValidatedX6GameDirectory(albumDirectoryHandle, messages)
+  } catch (error) {
+    throw normalizeDirectoryError(error, messages)
+  }
+}
+
+async function collectCleanupTarget(
+  directoryName: string,
+  getDirectoryHandle: () => Promise<FileSystemDirectoryHandle>,
+  targets: RelatedPhotoCleanupTarget[],
+  missingDirectories: string[]
+): Promise<void> {
+  try {
+    const directoryHandle = await getDirectoryHandle()
+    const photoNames: string[] = []
+
+    for await (const [name, handle] of directoryHandle.entries()) {
+      if (handle.kind === 'file' && isImageFile(name)) photoNames.push(name)
+    }
+
+    targets.push({ directoryName, directoryHandle, photoNames })
+  } catch (error) {
+    if (!isMissingDirectoryError(error)) throw error
+    missingDirectories.push(directoryName)
+  }
+}
+
+export async function prepareRelatedPhotoCleanup(
+  albumDirectoryHandle: FileSystemDirectoryHandle,
+  messages: FileSystemMessages
+): Promise<RelatedPhotoCleanupPlan> {
+  const { directoryHandle: x6GameHandle, accountDirectoryName } = await getValidatedX6GameDirectory(
+    albumDirectoryHandle,
+    messages
+  )
+  const targets: RelatedPhotoCleanupTarget[] = []
+  const missingDirectories: string[] = []
+
+  await collectCleanupTarget(
+    LOW_QUALITY_DIRECTORY_NAME,
+    () => getNestedDirectory(x6GameHandle, ['Saved', 'GamePlayPhotos', accountDirectoryName, LOW_QUALITY_DIRECTORY_NAME]),
+    targets,
+    missingDirectories
+  )
+  await collectCleanupTarget(
+    SCREENSHOT_DIRECTORY_NAME,
+    () => x6GameHandle.getDirectoryHandle(SCREENSHOT_DIRECTORY_NAME),
+    targets,
+    missingDirectories
+  )
+
+  return {
+    totalCount: targets.reduce((count, target) => count + target.photoNames.length, 0),
+    missingDirectories,
+    targets
+  }
+}
+
+export async function executeRelatedPhotoCleanup(plan: RelatedPhotoCleanupPlan): Promise<RelatedPhotoCleanupResult> {
+  let deletedCount = 0
+  const failedNames: string[] = []
+
+  for (const target of plan.targets) {
+    for (const photoName of target.photoNames) {
+      try {
+        await target.directoryHandle.removeEntry(photoName)
+        deletedCount += 1
+      } catch {
+        failedNames.push(`${target.directoryName}\\${photoName}`)
+      }
+    }
+  }
+
+  return {
+    deletedCount,
+    failedNames,
+    missingDirectories: plan.missingDirectories
+  }
 }
 
 export function releasePhotoUrls(photos: PhotoItem[]): void {

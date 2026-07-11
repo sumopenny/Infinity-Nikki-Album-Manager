@@ -15,6 +15,8 @@ export interface LocaleMessages {
     restorePathFailedStatus: string
     readFailedStatus: string
     clearedStatus: string
+    operationNoticeTitle: string
+    operationNoticeCloseAria: string
     statusEyebrow: string
     waitingTitle: string
     albumContentAria: string
@@ -28,6 +30,11 @@ export interface LocaleMessages {
     favoriteCount: (count: number) => string
     confirmDeleteSelected: (count: number) => string
     confirmDeleteCurrent: string
+    preparingRelatedCleanup: string
+    relatedCleanupCancelledStatus: string
+    confirmRelatedCleanup: (count: number, missingDirectories: string[]) => string
+    relatedCleanupStatus: (deletedCount: number, failedNames: string[], missingDirectories: string[]) => string
+    noRelatedPhotos: (missingDirectories: string[]) => string
   }
   topBar: {
     title: string
@@ -45,6 +52,8 @@ export interface LocaleMessages {
     clearDirectory: string
     thumbnail: string
     deleting: string
+    cleaningRelated: string
+    cleanRelatedPhotos: string
     cancelSelectAll: string
     selectAll: string
     deleteSelected: (count: number) => string
@@ -83,6 +92,9 @@ export interface LocaleMessages {
     abortSelection: string
     permissionRequired: string
     unsupportedBrowser: string
+    invalidAlbumDirectory: string
+    invalidX6GameDirectory: string
+    selectX6GameDirectoryPrompt: string
   }
 }
 
@@ -155,6 +167,8 @@ export const messages: Record<Language, LocaleMessages> = {
       restorePathFailedStatus: '上次记住的路径无法恢复，请重新选择相册文件夹。',
       readFailedStatus: '读取相册失败，请重试。',
       clearedStatus: '已清除记住的相册路径。需要继续管理相册时，请重新选择文件夹。',
+      operationNoticeTitle: '操作提示',
+      operationNoticeCloseAria: '关闭操作提示',
       statusEyebrow: 'Album Status',
       waitingTitle: '等待选择相册路径',
       albumContentAria: '图片展示区',
@@ -175,7 +189,22 @@ export const messages: Record<Language, LocaleMessages> = {
       totalPhotos: (count, favoritesOnly) => (favoritesOnly ? `收藏夹 ${count} 张照片` : `共 ${count} 张照片`),
       favoriteCount: (count) => `${count} 张收藏`,
       confirmDeleteSelected: (count) => `确定删除选中的 ${count} 张照片吗？这会同步删除电脑文件夹里的原图。`,
-      confirmDeleteCurrent: '确定删除当前预览的这张照片吗？这会同步删除电脑文件夹里的原图。'
+      confirmDeleteCurrent: '确定删除当前预览的这张照片吗？这会同步删除电脑文件夹里的原图。',
+      preparingRelatedCleanup: '正在定位低画质照片和游戏截图。首次使用时，请在弹出的窗口中选择 X6Game 文件夹。',
+      relatedCleanupCancelledStatus: '已取消清理，没有删除任何图片。',
+      confirmRelatedCleanup: (count, missingDirectories) => {
+        const missingText = missingDirectories.length ? `\n未找到并将跳过：${missingDirectories.join('、')}。` : ''
+        return `确定删除 NikkiPhotos_LowQuality 和 ScreenShot 文件夹中的 ${count} 张图片吗？文件夹和其他类型文件会保留。${missingText}`
+      },
+      relatedCleanupStatus: (deletedCount, failedNames, missingDirectories) => {
+        const failedText = failedNames.length ? `，${failedNames.length} 张删除失败：${failedNames.join('、')}` : ''
+        const missingText = missingDirectories.length ? `；未找到并已跳过：${missingDirectories.join('、')}` : ''
+        return `关联目录清理完成，已删除 ${deletedCount} 张图片${failedText}${missingText}。`
+      },
+      noRelatedPhotos: (missingDirectories) =>
+        missingDirectories.length
+          ? `没有找到可清理的图片；未找到并已跳过：${missingDirectories.join('、')}。`
+          : 'NikkiPhotos_LowQuality 和 ScreenShot 文件夹中没有可清理的图片。'
     },
     topBar: {
       title: '无限暖暖相册管理',
@@ -193,6 +222,8 @@ export const messages: Record<Language, LocaleMessages> = {
       clearDirectory: '清除路径',
       thumbnail: '缩略图',
       deleting: '删除中...',
+      cleaningRelated: '清理中...',
+      cleanRelatedPhotos: '一键清理低画质与截图',
       cancelSelectAll: '取消全选',
       selectAll: '全选照片',
       deleteSelected: (count) => `删除选中照片（${count}）`
@@ -230,7 +261,10 @@ export const messages: Record<Language, LocaleMessages> = {
       systemDirectory: '无法打开此文件夹：浏览器不允许网页访问包含系统文件或受保护的目录。请直接选择 NikkiPhotos_HighQuality 图片文件夹，不要选择游戏安装根目录、C 盘根目录、Windows、Program Files 等上级目录。',
       abortSelection: '已取消选择相册文件夹。',
       permissionRequired: '已记住上次相册路径，但浏览器需要重新授权。请点击“选择/恢复相册路径”完成授权。',
-      unsupportedBrowser: '当前浏览器不支持选择文件夹。请使用最新版 Chrome 或 Edge，并在 localhost/HTTPS 环境运行。'
+      unsupportedBrowser: '当前浏览器不支持选择文件夹。请使用最新版 Chrome 或 Edge，并在 localhost/HTTPS 环境运行。',
+      invalidAlbumDirectory: '一键清理需要先选择 NikkiPhotos_HighQuality 文件夹。',
+      invalidX6GameDirectory: '所选目录不是当前相册对应的 X6Game 文件夹，请选择路径中的 X6Game 文件夹后重试。',
+      selectX6GameDirectoryPrompt: '首次使用一键清理功能，需要授权当前游戏的 X6Game 文件夹。请在接下来的目录选择窗口中选择路径里的 X6Game 文件夹。授权会被保存，后续可直接一键清理。'
     }
   },
   en: {
@@ -243,6 +277,8 @@ export const messages: Record<Language, LocaleMessages> = {
       restorePathFailedStatus: 'The remembered folder cannot be restored. Please choose the album folder again.',
       readFailedStatus: 'Failed to read the album. Please try again.',
       clearedStatus: 'The remembered album folder has been cleared. Choose a folder again to continue managing your album.',
+      operationNoticeTitle: 'Operation update',
+      operationNoticeCloseAria: 'Close operation update',
       statusEyebrow: 'Album Status',
       waitingTitle: 'Waiting for an album folder',
       albumContentAria: 'Photo gallery',
@@ -263,7 +299,22 @@ export const messages: Record<Language, LocaleMessages> = {
       totalPhotos: (count, favoritesOnly) => (favoritesOnly ? `${count} favorite photos` : `${count} photos total`),
       favoriteCount: (count) => `${count} favorites`,
       confirmDeleteSelected: (count) => `Delete the selected ${count} photos? This also deletes the original files from your computer.`,
-      confirmDeleteCurrent: 'Delete the currently previewed photo? This also deletes the original file from your computer.'
+      confirmDeleteCurrent: 'Delete the currently previewed photo? This also deletes the original file from your computer.',
+      preparingRelatedCleanup: 'Locating low-quality photos and game screenshots. On first use, select the X6Game folder in the folder picker.',
+      relatedCleanupCancelledStatus: 'Cleanup cancelled. No images were deleted.',
+      confirmRelatedCleanup: (count, missingDirectories) => {
+        const missingText = missingDirectories.length ? `\nNot found and skipped: ${missingDirectories.join(', ')}.` : ''
+        return `Delete ${count} images from NikkiPhotos_LowQuality and ScreenShot? The folders and non-image files will be kept.${missingText}`
+      },
+      relatedCleanupStatus: (deletedCount, failedNames, missingDirectories) => {
+        const failedText = failedNames.length ? `; ${failedNames.length} failed: ${failedNames.join(', ')}` : ''
+        const missingText = missingDirectories.length ? `; not found and skipped: ${missingDirectories.join(', ')}` : ''
+        return `Related folders cleaned. Deleted ${deletedCount} images${failedText}${missingText}.`
+      },
+      noRelatedPhotos: (missingDirectories) =>
+        missingDirectories.length
+          ? `No images were available to clean; not found and skipped: ${missingDirectories.join(', ')}.`
+          : 'No images were found in NikkiPhotos_LowQuality or ScreenShot.'
     },
     topBar: {
       title: 'Infinity Nikki Album Manager',
@@ -281,6 +332,8 @@ export const messages: Record<Language, LocaleMessages> = {
       clearDirectory: 'Clear folder',
       thumbnail: 'Thumbnail',
       deleting: 'Deleting...',
+      cleaningRelated: 'Cleaning...',
+      cleanRelatedPhotos: 'Clean low-quality & screenshots',
       cancelSelectAll: 'Deselect all',
       selectAll: 'Select all',
       deleteSelected: (count) => `Delete selected (${count})`
@@ -318,7 +371,10 @@ export const messages: Record<Language, LocaleMessages> = {
       systemDirectory: 'Cannot open this folder: the browser does not allow web pages to access system or protected folders. Please choose NikkiPhotos_HighQuality directly instead of the game root folder, C drive root, Windows, Program Files, or other parent folders.',
       abortSelection: 'Album folder selection was canceled.',
       permissionRequired: 'The last album folder is remembered, but the browser needs permission again. Click “Choose / restore album folder” to authorize it.',
-      unsupportedBrowser: 'This browser does not support folder selection. Please use the latest Chrome or Edge and run on localhost/HTTPS.'
+      unsupportedBrowser: 'This browser does not support folder selection. Please use the latest Chrome or Edge and run on localhost/HTTPS.',
+      invalidAlbumDirectory: 'Choose NikkiPhotos_HighQuality before using related folder cleanup.',
+      invalidX6GameDirectory: 'The selected folder is not the X6Game folder that contains the current album. Select that X6Game folder and try again.',
+      selectX6GameDirectoryPrompt: 'To use related folder cleanup for the first time, authorize the X6Game folder for the current game installation. Select the X6Game folder in the next folder picker. The authorization will be remembered for future cleanup.'
     }
   }
 }

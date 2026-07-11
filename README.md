@@ -263,6 +263,16 @@ NikkiPhotos_HighQuality
 
 再次提醒：删除操作会删除电脑文件夹里的原图，不只是从网页上移除；如果删除的是收藏照片，它也会自动从收藏夹中移除。
 
+#### 6.7 一键清理低画质与截图
+
+选择 `NikkiPhotos_HighQuality` 相册后，可以点击粉色的“一键清理低画质与截图”按钮，清理同一账号下 `NikkiPhotos_LowQuality` 和当前游戏 `X6Game\ScreenShot` 文件夹中的图片。
+
+- 首次使用或原授权失效时，页面会先弹窗提示选择当前游戏安装目录中的 `X6Game` 文件夹。
+- 选择正确的 `X6Game` 文件夹后，浏览器会保存该目录授权；后续点击按钮时可直接定位并清理，不再重复显示选择提示。
+- 删除前会显示图片数量并再次确认。
+- 清理只删除目标文件夹内的图片，保留文件夹本身和其他类型文件。
+- 点击“清除路径”会同时清除已保存的相册路径和 `X6Game` 授权。
+
 ---
 
 ### 7. 常见问题
@@ -614,6 +624,16 @@ You can delete:
 The browser will ask for confirmation before deleting.
 
 Again: deleting in this app deletes the original file from your computer folder. If the deleted photo was favorited, it is also removed from Favorites automatically.
+
+#### 6.7 Clean low-quality photos and screenshots
+
+After selecting `NikkiPhotos_HighQuality`, click the pink “Clean low-quality & screenshots” button to remove images from the same account's `NikkiPhotos_LowQuality` folder and the current game's `X6Game\ScreenShot` folder.
+
+- On first use, or when the previous authorization is no longer valid, a prompt asks you to select the `X6Game` folder in the current game installation.
+- After the correct `X6Game` folder is selected, the browser remembers its authorization. Future cleanup can locate the folders directly without showing the selection prompt again.
+- The app displays the number of images and asks for confirmation before deletion.
+- Cleanup deletes only images inside the target folders; the folders and other file types are kept.
+- Clicking “Clear folder” also clears the remembered album folder and `X6Game` authorization.
 
 ---
 

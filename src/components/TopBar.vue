@@ -11,6 +11,8 @@ const props = defineProps<{
   allSelected: boolean
   isLoading: boolean
   isDeleting: boolean
+  isCleaningRelatedPhotos: boolean
+  hasAlbumDirectory: boolean
   thumbnailMode: ThumbnailMode
   thumbnailModeOptions: Array<{ value: ThumbnailMode; label: string }>
   themeMode: ThemeMode
@@ -22,6 +24,7 @@ const emit = defineEmits<{
   chooseDirectory: []
   clearDirectory: []
   toggleAll: []
+  cleanRelatedPhotos: []
   deleteSelected: []
   toggleLanguage: []
   toggleTheme: []
@@ -105,10 +108,20 @@ onBeforeUnmount(() => {
 
     <div class="control-row">
       <div class="path-row">
-        <button class="primary-button" type="button" :disabled="isLoading" @click="$emit('chooseDirectory')">
+        <button
+          class="primary-button"
+          type="button"
+          :disabled="isLoading || isDeleting || isCleaningRelatedPhotos"
+          @click="$emit('chooseDirectory')"
+        >
           {{ isLoading ? messages.loading : messages.chooseDirectory }}
         </button>
-        <button class="soft-button" type="button" :disabled="isLoading" @click="$emit('clearDirectory')">
+        <button
+          class="soft-button"
+          type="button"
+          :disabled="isLoading || isDeleting || isCleaningRelatedPhotos"
+          @click="$emit('clearDirectory')"
+        >
           {{ messages.clearDirectory }}
         </button>
         <div class="path-pill" :title="directoryName">{{ directoryName }}</div>
@@ -149,7 +162,20 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </div>
-        <button class="danger-button" type="button" :disabled="!selectedCount || isDeleting" @click="$emit('deleteSelected')">
+        <button
+          class="cleanup-button"
+          type="button"
+          :disabled="!hasAlbumDirectory || isLoading || isDeleting || isCleaningRelatedPhotos"
+          @click="$emit('cleanRelatedPhotos')"
+        >
+          {{ isCleaningRelatedPhotos ? messages.cleaningRelated : messages.cleanRelatedPhotos }}
+        </button>
+        <button
+          class="danger-button"
+          type="button"
+          :disabled="!selectedCount || isDeleting || isCleaningRelatedPhotos"
+          @click="$emit('deleteSelected')"
+        >
           {{ isDeleting ? messages.deleting : messages.deleteSelected(selectedCount) }}
         </button>
         <button class="soft-button" type="button" :disabled="!totalCount" @click="$emit('toggleAll')">

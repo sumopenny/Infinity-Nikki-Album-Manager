@@ -9,3 +9,15 @@
 - 状态：已解决
 - 技术/方法：先把 `Start-Project.bat` 末尾正常启动路径里的手动 `pause` 去掉，改成完成检查后提示 2 秒并自动结束窗口；报错路径里的 `pause` 保留，避免 Node.js、npm 或依赖安装失败时错误信息一闪而过。随后重新生成 `Start-Project.exe`，让它继续调用同目录下最新的 BAT 启动逻辑。本次因为 BAT/EXE 已移动到 `start` 文件夹，启动脚本不能再把自身目录当作项目根目录，所以改为从 `start` 目录向上一级定位项目根目录，再检查 `package.json`、安装依赖并启动 Vite 服务；同时确认快捷方式指向 `start\Start-Project.exe`。文档方面同步更新 `README.md` 的中英文启动说明、常见问题和项目结构，把推荐启动入口改为项目根目录的 `相册网站启动器.lnk`；后续又按用户习惯把 README 里的展示名称统一改为不带扩展名的 `相册网站启动器`，更贴近 Windows 默认看到的快捷方式名称。
 ---
+
+## 2026-07-10
+
+1.问题：增加“一键清理低画质与截图”功能，并在首次使用时先明确提示用户选择当前游戏的 `X6Game` 文件夹；授权保存后，后续点击需要直接清理，不再重复提示。
+- 状态：已解决
+- 技术/方法：浏览器无法从 `NikkiPhotos_HighQuality` 目录句柄直接取得 Windows 绝对路径或访问父目录，因此首次清理时让用户额外授权 `X6Game` 文件夹，再通过 `FileSystemDirectoryHandle.resolve()` 严格验证当前相册位于 `Saved\GamePlayPhotos\账号ID\NikkiPhotos_HighQuality`，从可信的 `X6Game` 句柄向下定位 `NikkiPhotos_LowQuality` 和 `ScreenShot`。授权句柄保存在 IndexedDB，已有且有效时直接复用；只有授权不存在、失效或与当前相册不匹配时，才先显示选择提示并重新打开目录选择器。清理过程仅逐个删除图片文件，保留目录和其他文件；README 已同步补充中英文使用说明。
+---
+
+2.问题：将相册状态卡片从右侧照片内容区移动到左侧收藏按钮下方。
+- 状态：已解决
+- 技术/方法：调整 `App.vue` 的模板层级，把 `.status-card` 移入 `.sidebar-column`，并放在 `.favorites-button` 后、日期侧栏前，使状态信息固定显示在收藏按钮正下方；保留原有响应式样式和数据绑定。README.md 已检查，本次仅调整界面布局，不影响使用说明，无需更新。
+---

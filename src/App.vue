@@ -4,12 +4,16 @@ import TopBar from './components/TopBar.vue'
 import DateSidebar from './components/DateSidebar.vue'
 import PhotoGrid from './components/PhotoGrid.vue'
 import Lightbox from './components/Lightbox.vue'
+import OperationNotice, { type OperationNoticeTone } from './components/OperationNotice.vue'
 import { groupDatesByYear, groupPhotosByDate, type PhotoItem } from './utils/dateGrouping'
 import {
   clearSavedAlbumDirectoryHandle,
+  clearSavedX6GameDirectoryHandle,
   deletePhotoFile,
+  executeRelatedPhotoCleanup,
   getSavedAlbumDirectoryHandle,
   pickAlbumDirectory,
+  prepareRelatedPhotoCleanup,
   readAlbumDirectory,
   releasePhotoUrls,
   type AlbumDirectoryResult
@@ -38,6 +42,8 @@ type DirectoryState =
   | { type: 'remembered'; name: string }
   | { type: 'selected'; name: string }
 
+type StatusTone = OperationNoticeTone
+
 type StatusState =
   | { type: 'initial' }
   | { type: 'reading' }
@@ -48,7 +54,7 @@ type StatusState =
   | { type: 'cleared' }
   | { type: 'success'; count: number; prefix: StatusPrefix; suffix?: StatusSuffix }
   | { type: 'deleted'; deletedCount: number; failedNames: string[] }
-  | { type: 'custom'; message: string }
+  | { type: 'custom'; message: string; tone?: StatusTone; loading?: boolean }
 
 const photos = ref<PhotoItem[]>([])
 const selectedIds = ref<Set<string>>(new Set())
@@ -58,13 +64,17 @@ const currentPreview = ref<PhotoItem | null>(null)
 const language = ref<Language>(DEFAULT_LANGUAGE)
 const directoryState = ref<DirectoryState>({ type: 'none' })
 const statusState = ref<StatusState>({ type: 'initial' })
+const isStatusNoticeVisible = ref(false)
 const isLoading = ref(false)
 const isDeleting = ref(false)
+const isCleaningRelatedPhotos = ref(false)
+const albumDirectoryHandle = ref<FileSystemDirectoryHandle | null>(null)
 const thumbnailMode = ref<ThumbnailMode>(isThumbnailMode(storedThumbnailMode) ? storedThumbnailMode : 'default')
 const themeMode = ref<ThemeMode>(isThemeMode(storedThemeMode) ? storedThemeMode : 'light')
 const appShellRef = ref<HTMLElement | null>(null)
 const topBarRef = ref<InstanceType<typeof TopBar> | null>(null)
 let topBarResizeObserver: ResizeObserver | null = null
+let statusNoticeTimer: number | undefined
 
 const locale = computed(() => messages[language.value])
 const favoritePhotos = computed(() => photos.value.filter((photo) => favoriteIds.value.has(photo.id)))
@@ -116,12 +126,60 @@ const statusMessage = computed(() => {
       return app.initialStatus
   }
 })
+const statusNoticeTone = computed<StatusTone>(() => {
+  const state = statusState.value
+
+  if (state.type === 'restoreFailed' || state.type === 'restorePathFailed' || state.type === 'readFailed') return 'error'
+  if (state.type === 'deleted') return state.failedNames.length ? 'warning' : 'success'
+  if (state.type === 'success' || state.type === 'cleared') return 'success'
+  if (state.type === 'custom') return state.tone ?? 'info'
+  return 'info'
+})
+const isStatusNoticeLoading = computed(() => {
+  const state = statusState.value
+  return state.type === 'reading' || state.type === 'restoring' || (state.type === 'custom' && Boolean(state.loading))
+})
 const currentPreviewIndex = computed(() => {
   if (!currentPreview.value) return -1
   return photos.value.findIndex((photo) => photo.id === currentPreview.value?.id)
 })
 const hasPreviousPreview = computed(() => currentPreviewIndex.value > 0)
 const hasNextPreview = computed(() => currentPreviewIndex.value >= 0 && currentPreviewIndex.value < photos.value.length - 1)
+
+function clearStatusNoticeTimer() {
+  if (statusNoticeTimer === undefined) return
+  window.clearTimeout(statusNoticeTimer)
+  statusNoticeTimer = undefined
+}
+
+function closeStatusNotice() {
+  clearStatusNoticeTimer()
+  isStatusNoticeVisible.value = false
+}
+
+function createErrorStatus(error: unknown, fallback: StatusState): StatusState {
+  if (!(error instanceof Error)) return fallback
+  const tone: StatusTone = error.message === locale.value.fileSystem.abortSelection ? 'info' : 'error'
+  return { type: 'custom', message: error.message, tone }
+}
+
+watch(statusState, (nextStatus) => {
+  clearStatusNoticeTimer()
+
+  if (nextStatus.type === 'initial') {
+    isStatusNoticeVisible.value = false
+    return
+  }
+
+  isStatusNoticeVisible.value = true
+  if (isStatusNoticeLoading.value) return
+
+  const duration = statusNoticeTone.value === 'error' || statusNoticeTone.value === 'warning' ? 7200 : 5200
+  statusNoticeTimer = window.setTimeout(() => {
+    isStatusNoticeVisible.value = false
+    statusNoticeTimer = undefined
+  }, duration)
+})
 
 watch(
   favoriteIds,
@@ -154,6 +212,7 @@ function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusState) {
   photos.value = result.photos
   favoriteIds.value = new Set(result.photos.filter((photo) => favoriteIds.value.has(photo.id)).map((photo) => photo.id))
   if (showFavoritesOnly.value && !favoriteIds.value.size) showFavoritesOnly.value = false
+  albumDirectoryHandle.value = result.directoryHandle
   directoryState.value = { type: 'selected', name: result.directoryName }
   statusState.value = nextStatus
 }
@@ -174,7 +233,7 @@ async function restoreSavedDirectory() {
     const result = await readAlbumDirectory(savedHandle, { requestPermission: false, messages: locale.value.fileSystem })
     replaceAlbum(result, { type: 'success', count: result.photos.length, prefix: 'restored' })
   } catch (error) {
-    statusState.value = error instanceof Error ? { type: 'custom', message: error.message } : { type: 'restoreFailed' }
+    statusState.value = createErrorStatus(error, { type: 'restoreFailed' })
   } finally {
     isLoading.value = false
   }
@@ -199,7 +258,7 @@ async function chooseDirectory() {
     const result = await pickAlbumDirectory(locale.value.fileSystem)
     replaceAlbum(result, { type: 'success', count: result.photos.length, prefix: 'read', suffix: 'remembered' })
   } catch (error) {
-    statusState.value = error instanceof Error ? { type: 'custom', message: error.message } : { type: 'readFailed' }
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
   } finally {
     isLoading.value = false
   }
@@ -207,10 +266,12 @@ async function chooseDirectory() {
 
 async function clearDirectory() {
   await clearSavedAlbumDirectoryHandle()
+  await clearSavedX6GameDirectoryHandle()
   releasePhotoUrls(photos.value)
   photos.value = []
   selectedIds.value = new Set()
   currentPreview.value = null
+  albumDirectoryHandle.value = null
   showFavoritesOnly.value = false
   directoryState.value = { type: 'none' }
   statusState.value = { type: 'cleared' }
@@ -282,7 +343,7 @@ function toggleDate(dateKey: string) {
 }
 
 async function deletePhotos(targets: PhotoItem[], confirmMessage: string, keepPreviewOpen = false) {
-  if (!targets.length || isDeleting.value) return
+  if (!targets.length || isDeleting.value || isCleaningRelatedPhotos.value) return
   if (!window.confirm(confirmMessage)) return
 
   isDeleting.value = true
@@ -326,6 +387,42 @@ async function deleteSelectedPhotos() {
 async function deleteCurrentPreview() {
   if (!currentPreview.value) return
   await deletePhotos([currentPreview.value], locale.value.app.confirmDeleteCurrent, true)
+}
+
+async function cleanRelatedPhotos() {
+  if (!albumDirectoryHandle.value || isLoading.value || isDeleting.value || isCleaningRelatedPhotos.value) return
+
+  isCleaningRelatedPhotos.value = true
+  statusState.value = { type: 'custom', message: locale.value.app.preparingRelatedCleanup, tone: 'info', loading: true }
+
+  try {
+    const plan = await prepareRelatedPhotoCleanup(albumDirectoryHandle.value, locale.value.fileSystem)
+
+    if (!plan.totalCount) {
+      statusState.value = {
+        type: 'custom',
+        message: locale.value.app.noRelatedPhotos(plan.missingDirectories),
+        tone: plan.missingDirectories.length ? 'warning' : 'info'
+      }
+      return
+    }
+
+    if (!window.confirm(locale.value.app.confirmRelatedCleanup(plan.totalCount, plan.missingDirectories))) {
+      statusState.value = { type: 'custom', message: locale.value.app.relatedCleanupCancelledStatus, tone: 'info' }
+      return
+    }
+
+    const result = await executeRelatedPhotoCleanup(plan)
+    statusState.value = {
+      type: 'custom',
+      message: locale.value.app.relatedCleanupStatus(result.deletedCount, result.failedNames, result.missingDirectories),
+      tone: result.failedNames.length || result.missingDirectories.length ? 'warning' : 'success'
+    }
+  } catch (error) {
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+  } finally {
+    isCleaningRelatedPhotos.value = false
+  }
 }
 
 function scrollToDate(dateKey: string) {
@@ -377,6 +474,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  clearStatusNoticeTimer()
   topBarResizeObserver?.disconnect()
   window.removeEventListener('resize', updateSidebarStickyOffset)
   releasePhotoUrls(photos.value)
@@ -393,6 +491,8 @@ onBeforeUnmount(() => {
       :all-selected="allSelected"
       :is-loading="isLoading"
       :is-deleting="isDeleting"
+      :is-cleaning-related-photos="isCleaningRelatedPhotos"
+      :has-album-directory="Boolean(albumDirectoryHandle)"
       :thumbnail-mode="thumbnailMode"
       :thumbnail-mode-options="thumbnailModeOptions"
       :theme-mode="themeMode"
@@ -401,6 +501,7 @@ onBeforeUnmount(() => {
       @choose-directory="chooseDirectory"
       @clear-directory="clearDirectory"
       @toggle-all="toggleAll"
+      @clean-related-photos="cleanRelatedPhotos"
       @delete-selected="deleteSelectedPhotos"
       @change-thumbnail-mode="changeThumbnailMode"
       @toggle-language="toggleLanguage"
@@ -420,18 +521,17 @@ onBeforeUnmount(() => {
           <small>{{ locale.app.favoriteCount(favoriteCount) }}</small>
         </button>
 
-        <DateSidebar :year-groups="yearGroups" :messages="locale.sidebar" @jump-to-date="scrollToDate" />
-      </div>
-
-      <section class="album-content" :aria-label="locale.app.albumContentAria">
         <div class="status-card">
           <div>
             <p class="eyebrow">{{ locale.app.statusEyebrow }}</p>
             <h2>{{ totalCount ? locale.app.totalPhotos(visibleCount, showFavoritesOnly) : locale.app.waitingTitle }}</h2>
           </div>
-          <p>{{ statusMessage }}</p>
         </div>
 
+        <DateSidebar :year-groups="yearGroups" :messages="locale.sidebar" @jump-to-date="scrollToDate" />
+      </div>
+
+      <section class="album-content" :aria-label="locale.app.albumContentAria">
         <PhotoGrid
           :date-groups="formattedDateGroups"
           :selected-ids="selectedIds"
@@ -458,6 +558,16 @@ onBeforeUnmount(() => {
       @previous="showPreviousPreview"
       @next="showNextPreview"
       @delete-current="deleteCurrentPreview"
+    />
+
+    <OperationNotice
+      :visible="isStatusNoticeVisible"
+      :title="locale.app.operationNoticeTitle"
+      :message="statusMessage"
+      :tone="statusNoticeTone"
+      :is-loading="isStatusNoticeLoading"
+      :close-label="locale.app.operationNoticeCloseAria"
+      @close="closeStatusNotice"
     />
   </div>
 </template>
