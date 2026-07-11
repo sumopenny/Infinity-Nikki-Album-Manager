@@ -47,7 +47,7 @@ If you like this website, please give it a Star in the upper-right corner of the
 
 - 在大图预览里使用键盘左右方向键翻页。
 - 删除选中的照片，或删除当前预览的照片。
-- 调整缩略图比例，比如 1:1、16:9、4:3、9:16、3:4。
+- 调整缩略图比例，比如 1:1、半尺寸 1:1、16:9、4:3、9:16、3:4；选择半尺寸 1:1 前会提示页面可能卡顿，需要确认后才会切换。
 ![项目截图](img/5.png)
 
 - 浏览器会记住上次选择过的相册文件夹，下次可以尝试自动恢复。
@@ -259,7 +259,7 @@ NikkiPhotos_HighQuality
 - 当前预览的单张照片。
 - 已选中的多张照片。
 
-删除前浏览器会弹出确认框，请认真确认。
+删除前页面会弹出与网页风格一致的自定义确认窗口，请认真确认。
 
 再次提醒：删除操作会删除电脑文件夹里的原图，不只是从网页上移除；如果删除的是收藏照片，它也会自动从收藏夹中移除。
 
@@ -412,7 +412,7 @@ You can use it to:
 ![Project Screenshot](img/4.png)
 - Use keyboard shortcuts in the preview window.
 - Delete selected photos or delete the photo currently being previewed.
-- Change thumbnail ratios, including 1:1, 16:9, 4:3, 9:16, and 3:4.
+- Change thumbnail ratios, including 1:1, Half 1:1, 16:9, 4:3, 9:16, and 3:4; Half 1:1 shows a lag warning and requires confirmation before switching.
 ![Project Screenshot](img/5.png)
 - Let the browser remember the last selected album folder when possible.
 - Save Favorites locally in the current browser without uploading photos or favorite records.
@@ -621,7 +621,7 @@ You can delete:
 - The current photo in preview.
 - Multiple selected photos.
 
-The browser will ask for confirmation before deleting.
+The app shows a custom confirmation dialog before deleting.
 
 Again: deleting in this app deletes the original file from your computer folder. If the deleted photo was favorited, it is also removed from Favorites automatically.
 
@@ -631,7 +631,7 @@ After selecting `NikkiPhotos_HighQuality`, click the pink “Clean low-quality &
 
 - On first use, or when the previous authorization is no longer valid, a prompt asks you to select the `X6Game` folder in the current game installation.
 - After the correct `X6Game` folder is selected, the browser remembers its authorization. Future cleanup can locate the folders directly without showing the selection prompt again.
-- The app displays the number of images and asks for confirmation before deletion.
+- The app displays the number of images in a custom confirmation dialog before deletion.
 - Cleanup deletes only images inside the target folders; the folders and other file types are kept.
 - Clicking “Clear folder” also clears the remembered album folder and `X6Game` authorization.
 

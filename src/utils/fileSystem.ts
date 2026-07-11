@@ -37,6 +37,10 @@ export interface RelatedPhotoCleanupResult {
 
 type FileSystemMessages = LocaleMessages['fileSystem']
 
+interface RelatedPhotoCleanupOptions {
+  beforePickX6GameDirectory?: () => boolean | Promise<boolean>
+}
+
 function isImageFile(fileName: string): boolean {
   const extension = fileName.split('.').pop()?.toLowerCase() ?? ''
   return IMAGE_EXTENSIONS.has(extension)
@@ -271,13 +275,16 @@ async function resolveAccountDirectory(
  */
 async function pickValidatedX6GameDirectory(
   albumDirectoryHandle: FileSystemDirectoryHandle,
-  messages: FileSystemMessages
+  messages: FileSystemMessages,
+  options: RelatedPhotoCleanupOptions = {}
 ): Promise<{ directoryHandle: FileSystemDirectoryHandle; accountDirectoryName: string }> {
   if (!window.showDirectoryPicker) {
     throw new Error(messages.unsupportedBrowser)
   }
 
-  window.alert(messages.selectX6GameDirectoryPrompt)
+  if (options.beforePickX6GameDirectory && !(await options.beforePickX6GameDirectory())) {
+    throw new Error(messages.abortSelection)
+  }
 
   const directoryHandle = await window.showDirectoryPicker({
     id: 'infinity-nikki-x6game',
@@ -297,7 +304,8 @@ async function pickValidatedX6GameDirectory(
 
 async function getValidatedX6GameDirectory(
   albumDirectoryHandle: FileSystemDirectoryHandle,
-  messages: FileSystemMessages
+  messages: FileSystemMessages,
+  options: RelatedPhotoCleanupOptions = {}
 ): Promise<{ directoryHandle: FileSystemDirectoryHandle; accountDirectoryName: string }> {
   if (albumDirectoryHandle.name !== HIGH_QUALITY_DIRECTORY_NAME) {
     throw new Error(messages.invalidAlbumDirectory)
@@ -315,7 +323,7 @@ async function getValidatedX6GameDirectory(
   }
 
   try {
-    return await pickValidatedX6GameDirectory(albumDirectoryHandle, messages)
+    return await pickValidatedX6GameDirectory(albumDirectoryHandle, messages, options)
   } catch (error) {
     throw normalizeDirectoryError(error, messages)
   }
@@ -344,11 +352,13 @@ async function collectCleanupTarget(
 
 export async function prepareRelatedPhotoCleanup(
   albumDirectoryHandle: FileSystemDirectoryHandle,
-  messages: FileSystemMessages
+  messages: FileSystemMessages,
+  options: RelatedPhotoCleanupOptions = {}
 ): Promise<RelatedPhotoCleanupPlan> {
   const { directoryHandle: x6GameHandle, accountDirectoryName } = await getValidatedX6GameDirectory(
     albumDirectoryHandle,
-    messages
+    messages,
+    options
   )
   const targets: RelatedPhotoCleanupTarget[] = []
   const missingDirectories: string[] = []

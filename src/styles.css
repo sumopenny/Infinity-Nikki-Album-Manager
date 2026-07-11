@@ -18,11 +18,11 @@
   --line-soft: rgba(234, 223, 218, 0.86);
   --button-line: #ead69c;
   --control-text: #8a7350;
-  --primary-bg: #f1cccb;
+  --primary-bg: #f6ccca;
   --primary-hover-bg: #d28f92;
   --primary-text: #fff;
   --primary-hover-text: #fff;
-  --primary-shadow: 0 0 10px rgba(100, 158, 192, 0.507);
+  --primary-shadow: 0 0 10px rgba(192, 109, 100, 0.507);
   --photo-shadow: 0 0px 9px rgba(150, 85, 41, 0.229);
   --photo-hover-shadow: 0 0px 15px rgba(199, 102, 36, 0.208);
   --scrollbar-track: rgba(255, 255, 255, 0.62);
@@ -74,7 +74,7 @@
   --control-text: #dfcfa4;
   --primary-bg: #775355;
   --primary-hover-bg: #d28f92;
-  --primary-text: #909091;
+  --primary-text: #ffffff;
   --primary-shadow: 0 0 10px rgba(244, 179, 163, 0.534);
   --photo-shadow: 0 0 3px rgba(255, 221, 221, 0.795);
   --photo-hover-shadow: 0 0 15px rgba(255, 221, 221, 0.795);
@@ -180,7 +180,7 @@ button:disabled {
   min-height: 100vh;
   width: 100%;
   --sidebar-sticky-top: 124px;
-  --sidebar-width: clamp(112px, 11vw, 148px);
+  --sidebar-width: clamp(112px, 10vw, 148px);
 }
 
 .top-module {
@@ -534,12 +534,12 @@ h1 {
   width: 100%;
   max-width: 2920px;
   margin: 0 auto;
-  padding: 10px clamp(8px, 1.8vw, 18px) 32px;
+  padding: 8px clamp(8px, 1.8vw, 18px) 32px;
 }
 
 .sidebar-column {
   position: fixed;
-  top: var(--sidebar-sticky-top);
+  /* top: var(--sidebar-sticky-top); */
   left: max(clamp(8px, 1.8vw, 18px), calc((100vw - 2920px) / 2 + clamp(8px, 1.8vw, 18px)));
   z-index: 20;
   width: var(--sidebar-width);
@@ -637,11 +637,11 @@ h1 {
 .date-link {
   width: 100%;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  margin: 4px 0;
-  padding: 7px 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin: 7px 0;
+  padding: 7px 6px;
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -655,8 +655,10 @@ h1 {
 }
 
 .date-link small {
+  flex: 0 0 auto;
   color: var(--muted);
   font-size: 10px;
+  white-space: nowrap;
 }
 
 .album-content {
@@ -807,6 +809,177 @@ h1 {
   transform: translateY(14px) scale(0.98);
 }
 
+.confirm-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: clamp(18px, 5vw, 42px);
+  background: var(--overlay-bg);
+  backdrop-filter: blur(4px);
+}
+
+.confirm-dialog-panel {
+  --dialog-accent: var(--notice-info);
+  position: relative;
+  width: min(440px, 100%);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 20px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--dialog-accent) 30%, var(--line-soft));
+  border-radius: 26px;
+  background: var(--surface);
+  box-shadow: 0 26px 80px rgba(45, 34, 34, 0.28);
+  backdrop-filter: blur(20px);
+}
+
+.confirm-dialog-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at top left, color-mix(in srgb, var(--dialog-accent) 18%, transparent), transparent 52%);
+}
+
+.confirm-dialog-panel.is-warning {
+  --dialog-accent: var(--notice-warning);
+}
+
+.confirm-dialog-panel.is-danger {
+  --dialog-accent: var(--notice-error);
+}
+
+.confirm-dialog-icon {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--dialog-accent) 14%, transparent);
+  color: var(--dialog-accent);
+}
+
+.confirm-dialog-icon svg,
+.confirm-dialog-close svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.confirm-dialog-content {
+  position: relative;
+  min-width: 0;
+}
+
+.confirm-dialog-kicker {
+  margin-bottom: 4px;
+  color: var(--dialog-accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.confirm-dialog-content h2 {
+  margin-bottom: 8px;
+  color: var(--heading);
+  font-size: clamp(18px, 3vw, 22px);
+}
+
+.confirm-dialog-content p:not(.confirm-dialog-kicker) {
+  margin-bottom: 0;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.confirm-dialog-close {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  margin: -6px -6px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.confirm-dialog-close:hover {
+  background: var(--soft-accent);
+  color: var(--pink-deep);
+  transform: rotate(4deg);
+}
+
+.confirm-dialog-actions {
+  position: relative;
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.confirm-dialog-button {
+  min-width: 96px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.confirm-dialog-button:hover {
+  transform: translateY(-1px);
+}
+
+.confirm-dialog-button.ghost {
+  border: 1px solid var(--line-soft);
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.confirm-dialog-button.primary {
+  border: 1px solid color-mix(in srgb, var(--dialog-accent) 36%, var(--button-line));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--dialog-accent) 74%, var(--primary-bg)), var(--primary-bg));
+  color: var(--primary-text);
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--dialog-accent) 24%, transparent);
+}
+
+.confirm-dialog-enter-active,
+.confirm-dialog-leave-active {
+  transition: opacity 0.24s ease;
+}
+
+.confirm-dialog-enter-active .confirm-dialog-panel,
+.confirm-dialog-leave-active .confirm-dialog-panel {
+  transition: opacity 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.confirm-dialog-enter-from,
+.confirm-dialog-leave-to {
+  opacity: 0;
+}
+
+.confirm-dialog-enter-from .confirm-dialog-panel,
+.confirm-dialog-leave-to .confirm-dialog-panel {
+  opacity: 0;
+  transform: translateY(18px) scale(0.96);
+}
+
 @keyframes operation-notice-spin {
   to {
     transform: rotate(360deg);
@@ -878,22 +1051,73 @@ h1 {
 }
 
 .date-check {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 8px 14px;
   border-radius: 999px;
-  background: var(--surface-soft);
+  background: linear-gradient(135deg, var(--surface-strong), var(--surface-soft));
   color: var(--pink-deep);
-  font-size: 12px;
-  font-weight: 700;
-  border: 1px solid rgba(199, 162, 140, 0.421);
+  font-size: 13px;
+  font-weight: 800;
+  border: 1px solid color-mix(in srgb, var(--pink-deep) 30%, var(--button-line));
+  box-shadow: 0 8px 20px rgba(150, 119, 98, 0.12);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.date-check::before {
+  content: '';
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--pink-deep) 38%, var(--line-soft));
+  border-radius: 40%;
+  background: var(--soft-accent);
+  color: var(--pink-deep);
+  font-size: 11px;
+  line-height: 1;
+  transform: scale(0.92);
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.date-check:hover {
+  transform: translateY(-1px);
+  background: var(--yellow-soft);
+  box-shadow: 0 12px 24px rgba(150, 119, 98, 0.16);
+}
+
+.date-check:has(input:focus-visible) {
+  outline: 2px solid color-mix(in srgb, var(--pink-deep) 58%, transparent);
+  outline-offset: 3px;
+}
+
+.date-check:has(input:checked) {
+  border-color: var(--pink-deep);
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  box-shadow: 0 12px 26px rgba(201, 132, 134, 0.24);
+}
+
+.date-check:has(input:checked)::before {
+  content: '✓';
+  border-color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--pink-deep);
+  transform: scale(1);
 }
 
 .date-check input {
-  width: 13px;
-  height: 13px;
-  accent-color: var(--pink-deep);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .photo-grid {

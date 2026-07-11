@@ -4,6 +4,7 @@ import TopBar from './components/TopBar.vue'
 import DateSidebar from './components/DateSidebar.vue'
 import PhotoGrid from './components/PhotoGrid.vue'
 import Lightbox from './components/Lightbox.vue'
+import ConfirmDialog, { type ConfirmDialogTone } from './components/ConfirmDialog.vue'
 import OperationNotice, { type OperationNoticeTone } from './components/OperationNotice.vue'
 import { groupDatesByYear, groupPhotosByDate, type PhotoItem } from './utils/dateGrouping'
 import {
@@ -44,6 +45,16 @@ type DirectoryState =
 
 type StatusTone = OperationNoticeTone
 
+interface ConfirmDialogState {
+  visible: boolean
+  title: string
+  message: string
+  tone: ConfirmDialogTone
+  confirmLabel: string
+  cancelLabel?: string
+  resolve?: (confirmed: boolean) => void
+}
+
 type StatusState =
   | { type: 'initial' }
   | { type: 'reading' }
@@ -68,6 +79,13 @@ const isStatusNoticeVisible = ref(false)
 const isLoading = ref(false)
 const isDeleting = ref(false)
 const isCleaningRelatedPhotos = ref(false)
+const confirmDialog = ref<ConfirmDialogState>({
+  visible: false,
+  title: '',
+  message: '',
+  tone: 'info',
+  confirmLabel: ''
+})
 const albumDirectoryHandle = ref<FileSystemDirectoryHandle | null>(null)
 const thumbnailMode = ref<ThumbnailMode>(isThumbnailMode(storedThumbnailMode) ? storedThumbnailMode : 'default')
 const themeMode = ref<ThemeMode>(isThemeMode(storedThemeMode) ? storedThemeMode : 'light')
@@ -155,6 +173,32 @@ function clearStatusNoticeTimer() {
 function closeStatusNotice() {
   clearStatusNoticeTimer()
   isStatusNoticeVisible.value = false
+}
+
+// 打开自定义确认弹窗。参数：options 为弹窗文案、风格和按钮设置。返回用户是否确认。
+function openConfirmDialog(options: Omit<ConfirmDialogState, 'visible' | 'resolve'>): Promise<boolean> {
+  if (confirmDialog.value.visible) return Promise.resolve(false)
+
+  return new Promise((resolve) => {
+    confirmDialog.value = {
+      ...options,
+      visible: true,
+      resolve
+    }
+  })
+}
+
+// 关闭自定义确认弹窗。参数：confirmed 表示用户是否点击确认按钮。
+function closeConfirmDialog(confirmed: boolean) {
+  const resolve = confirmDialog.value.resolve
+  confirmDialog.value = {
+    visible: false,
+    title: '',
+    message: '',
+    tone: 'info',
+    confirmLabel: ''
+  }
+  resolve?.(confirmed)
 }
 
 function createErrorStatus(error: unknown, fallback: StatusState): StatusState {
@@ -277,7 +321,19 @@ async function clearDirectory() {
   statusState.value = { type: 'cleared' }
 }
 
-function changeThumbnailMode(mode: ThumbnailMode) {
+// 切换缩略图尺寸。参数：mode 为目标缩略图模式，选择半尺寸时先提示性能风险。
+async function changeThumbnailMode(mode: ThumbnailMode) {
+  if (mode === 'half' && thumbnailMode.value !== 'half') {
+    const confirmed = await openConfirmDialog({
+      title: locale.value.app.halfThumbnailDialogTitle,
+      message: locale.value.app.halfThumbnailDialogMessage,
+      tone: 'warning',
+      confirmLabel: locale.value.app.dialogConfirmChange,
+      cancelLabel: locale.value.app.dialogCancel
+    })
+    if (!confirmed) return
+  }
+
   thumbnailMode.value = mode
   localStorage.setItem(THUMBNAIL_STORAGE_KEY, mode)
 }
@@ -344,7 +400,14 @@ function toggleDate(dateKey: string) {
 
 async function deletePhotos(targets: PhotoItem[], confirmMessage: string, keepPreviewOpen = false) {
   if (!targets.length || isDeleting.value || isCleaningRelatedPhotos.value) return
-  if (!window.confirm(confirmMessage)) return
+  const confirmed = await openConfirmDialog({
+    title: locale.value.app.deleteDialogTitle,
+    message: confirmMessage,
+    tone: 'danger',
+    confirmLabel: locale.value.app.dialogConfirm,
+    cancelLabel: locale.value.app.dialogCancel
+  })
+  if (!confirmed) return
 
   isDeleting.value = true
   const deletedIds = new Set<string>()
@@ -394,9 +457,22 @@ async function cleanRelatedPhotos() {
 
   isCleaningRelatedPhotos.value = true
   statusState.value = { type: 'custom', message: locale.value.app.preparingRelatedCleanup, tone: 'info', loading: true }
+  let didCancelDirectoryPrompt = false
 
   try {
-    const plan = await prepareRelatedPhotoCleanup(albumDirectoryHandle.value, locale.value.fileSystem)
+    const plan = await prepareRelatedPhotoCleanup(albumDirectoryHandle.value, locale.value.fileSystem, {
+      beforePickX6GameDirectory: async () => {
+        const confirmed = await openConfirmDialog({
+          title: locale.value.app.x6GameDirectoryDialogTitle,
+          message: locale.value.fileSystem.selectX6GameDirectoryPrompt,
+          tone: 'info',
+          confirmLabel: locale.value.app.dialogOk,
+          cancelLabel: locale.value.app.dialogCancel
+        })
+        didCancelDirectoryPrompt = !confirmed
+        return confirmed
+      }
+    })
 
     if (!plan.totalCount) {
       statusState.value = {
@@ -407,7 +483,15 @@ async function cleanRelatedPhotos() {
       return
     }
 
-    if (!window.confirm(locale.value.app.confirmRelatedCleanup(plan.totalCount, plan.missingDirectories))) {
+    const confirmed = await openConfirmDialog({
+      title: locale.value.app.relatedCleanupDialogTitle,
+      message: locale.value.app.confirmRelatedCleanup(plan.totalCount, plan.missingDirectories),
+      tone: 'warning',
+      confirmLabel: locale.value.app.dialogConfirm,
+      cancelLabel: locale.value.app.dialogCancel
+    })
+
+    if (!confirmed) {
       statusState.value = { type: 'custom', message: locale.value.app.relatedCleanupCancelledStatus, tone: 'info' }
       return
     }
@@ -419,6 +503,10 @@ async function cleanRelatedPhotos() {
       tone: result.failedNames.length || result.missingDirectories.length ? 'warning' : 'success'
     }
   } catch (error) {
+    if (didCancelDirectoryPrompt) {
+      statusState.value = { type: 'custom', message: locale.value.app.relatedCleanupCancelledStatus, tone: 'info' }
+      return
+    }
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
   } finally {
     isCleaningRelatedPhotos.value = false
@@ -558,6 +646,18 @@ onBeforeUnmount(() => {
       @previous="showPreviousPreview"
       @next="showNextPreview"
       @delete-current="deleteCurrentPreview"
+    />
+
+    <ConfirmDialog
+      :visible="confirmDialog.visible"
+      :title="confirmDialog.title"
+      :message="confirmDialog.message"
+      :tone="confirmDialog.tone"
+      :confirm-label="confirmDialog.confirmLabel"
+      :cancel-label="confirmDialog.cancelLabel"
+      :close-label="locale.app.dialogCloseAria"
+      @confirm="closeConfirmDialog(true)"
+      @cancel="closeConfirmDialog(false)"
     />
 
     <OperationNotice

@@ -17,6 +17,16 @@ export interface LocaleMessages {
     clearedStatus: string
     operationNoticeTitle: string
     operationNoticeCloseAria: string
+    dialogCloseAria: string
+    dialogCancel: string
+    dialogConfirm: string
+    dialogConfirmChange: string
+    dialogOk: string
+    deleteDialogTitle: string
+    halfThumbnailDialogTitle: string
+    halfThumbnailDialogMessage: string
+    relatedCleanupDialogTitle: string
+    x6GameDirectoryDialogTitle: string
     statusEyebrow: string
     waitingTitle: string
     albumContentAria: string
@@ -169,6 +179,16 @@ export const messages: Record<Language, LocaleMessages> = {
       clearedStatus: '已清除记住的相册路径。需要继续管理相册时，请重新选择文件夹。',
       operationNoticeTitle: '操作提示',
       operationNoticeCloseAria: '关闭操作提示',
+      dialogCloseAria: '关闭弹窗',
+      dialogCancel: '取消',
+      dialogConfirm: '确认删除',
+      dialogConfirmChange: '确认更改',
+      dialogOk: '我知道了',
+      deleteDialogTitle: '确认删除照片',
+      halfThumbnailDialogTitle: '确认切换半尺寸 1:1',
+      halfThumbnailDialogMessage: '选择该尺寸可能会因页面图片加载太多导致页面卡顿，确认更改吗？',
+      relatedCleanupDialogTitle: '确认清理关联图片',
+      x6GameDirectoryDialogTitle: '需要授权 X6Game 文件夹',
       statusEyebrow: 'Album Status',
       waitingTitle: '等待选择相册路径',
       albumContentAria: '图片展示区',
@@ -264,7 +284,7 @@ export const messages: Record<Language, LocaleMessages> = {
       unsupportedBrowser: '当前浏览器不支持选择文件夹。请使用最新版 Chrome 或 Edge，并在 localhost/HTTPS 环境运行。',
       invalidAlbumDirectory: '一键清理需要先选择 NikkiPhotos_HighQuality 文件夹。',
       invalidX6GameDirectory: '所选目录不是当前相册对应的 X6Game 文件夹，请选择路径中的 X6Game 文件夹后重试。',
-      selectX6GameDirectoryPrompt: '首次使用一键清理功能，需要授权当前游戏的 X6Game 文件夹。请在接下来的目录选择窗口中选择路径里的 X6Game 文件夹。授权会被保存，后续可直接一键清理。'
+      selectX6GameDirectoryPrompt: '首次使用一键清理功能，需要授权当前游戏的 X6Game 文件夹。请在接下来的目录选择窗口中选择路径里的 X6Game 文件夹（...\\InfinityNikki Launcher\\InfinityNikki\\X6Game）。授权会被保存，后续可直接一键清理。'
     }
   },
   en: {
@@ -279,6 +299,16 @@ export const messages: Record<Language, LocaleMessages> = {
       clearedStatus: 'The remembered album folder has been cleared. Choose a folder again to continue managing your album.',
       operationNoticeTitle: 'Operation update',
       operationNoticeCloseAria: 'Close operation update',
+      dialogCloseAria: 'Close dialog',
+      dialogCancel: 'Cancel',
+      dialogConfirm: 'Confirm delete',
+      dialogConfirmChange: 'Confirm change',
+      dialogOk: 'Got it',
+      deleteDialogTitle: 'Delete photos?',
+      halfThumbnailDialogTitle: 'Switch to Half 1:1?',
+      halfThumbnailDialogMessage: 'Choosing this size may load too many images on the page and cause lag. Confirm this change?',
+      relatedCleanupDialogTitle: 'Clean related images?',
+      x6GameDirectoryDialogTitle: 'X6Game folder authorization required',
       statusEyebrow: 'Album Status',
       waitingTitle: 'Waiting for an album folder',
       albumContentAria: 'Photo gallery',
@@ -374,7 +404,7 @@ export const messages: Record<Language, LocaleMessages> = {
       unsupportedBrowser: 'This browser does not support folder selection. Please use the latest Chrome or Edge and run on localhost/HTTPS.',
       invalidAlbumDirectory: 'Choose NikkiPhotos_HighQuality before using related folder cleanup.',
       invalidX6GameDirectory: 'The selected folder is not the X6Game folder that contains the current album. Select that X6Game folder and try again.',
-      selectX6GameDirectoryPrompt: 'To use related folder cleanup for the first time, authorize the X6Game folder for the current game installation. Select the X6Game folder in the next folder picker. The authorization will be remembered for future cleanup.'
+      selectX6GameDirectoryPrompt: 'To use related folder cleanup for the first time, authorize the X6Game folder for the current game installation. Select the X6Game folder in the next folder picker (...\\InfinityNikki Launcher\\InfinityNikki\\X6Game). The authorization will be remembered for future cleanup.'
     }
   }
 }
