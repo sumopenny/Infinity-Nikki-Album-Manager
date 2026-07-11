@@ -1340,13 +1340,16 @@ h1 {
   z-index: 82;
   width: clamp(40px, 7vw, 52px);
   height: clamp(54px, 9vw, 72px);
-  border: 1px solid rgba(255, 255, 255, 0.7);
+  border: 3px solid rgba(255, 255, 255, 0.7);
   border-radius: 999px;
   background: var(--lightbox-nav-bg);
   color: var(--pink-deep);
   font-size: clamp(38px, 8vw, 54px);
-  line-height: 0.8;
-  box-shadow: 0 18px 40px rgba(30, 20, 20, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 18px 40px rgba(59, 32, 32, 0.312);
   transform: translateY(-50%);
   transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
 }

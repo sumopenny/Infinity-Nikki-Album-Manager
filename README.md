@@ -39,6 +39,8 @@ If you like this website, please give it a Star in the upper-right corner of the
 - 选择电脑里的《无限暖暖》相册文件夹，推荐文件路径：文件所在盘和目录\InfinityNikki Launcher\InfinityNikki\X6Game\Saved\GamePlayPhotos\你的id\NikkiPhotos_HighQuality。
 ![项目截图](img/3.png)
 
+- <a href="#67-一键清理低画质与截图"><b>一键清理NikkiPhotos_LowQuality和ScreenShot文件夹中的低质量图片</b></a>
+![项目截图](img/7.png)
 - 按拍摄日期自动分组显示照片。
 - 点击日期快速跳转到某一天的照片。
 - 点击照片时间前的爱心图标，把喜欢的图片加入收藏夹；点击左侧收藏夹按钮，只展示收藏图片及对应拍摄日期。
@@ -48,7 +50,8 @@ If you like this website, please give it a Star in the upper-right corner of the
 - 在大图预览里使用键盘左右方向键翻页。
 - 删除选中的照片，或删除当前预览的照片。
 - 调整缩略图比例，比如 1:1、半尺寸 1:1、16:9、4:3、9:16、3:4；选择半尺寸 1:1 前会提示页面可能卡顿，需要确认后才会切换。
-![项目截图](img/5.png)
+<img src="img/5.png" width="30%" />
+<img src="img/6.png" width="70%" />
 
 - 浏览器会记住上次选择过的相册文件夹，下次可以尝试自动恢复。
 - 收藏夹状态会保存在当前浏览器本地，不会上传图片或收藏记录。
@@ -404,6 +407,8 @@ You can use it to:
 
 - Choose your local Infinity Nikki screenshot folder. Recommended path: `drive and directory\InfinityNikki Launcher\InfinityNikki\X6Game\Saved\GamePlayPhotos\your id\NikkiPhotos_HighQuality`.
 ![Project Screenshot](img/3.png)
+- <a href="#67-clean-low-quality-photos-and-screenshots"><b>Clean low-quality images from NikkiPhotos_LowQuality and ScreenShot with one click</b></a>
+![Project Screenshot](img/7.png)
 - Automatically group photos by date.
 - Jump to a specific date from the sidebar.
 - Click the heart icon before each photo time to add it to Favorites, then click the left Favorites button to show only favorite photos and their capture dates.
@@ -413,7 +418,8 @@ You can use it to:
 - Use keyboard shortcuts in the preview window.
 - Delete selected photos or delete the photo currently being previewed.
 - Change thumbnail ratios, including 1:1, Half 1:1, 16:9, 4:3, 9:16, and 3:4; Half 1:1 shows a lag warning and requires confirmation before switching.
-![Project Screenshot](img/5.png)
+<img src="img/5.png" width="30%" />
+<img src="img/6.png" width="70%" />
 - Let the browser remember the last selected album folder when possible.
 - Save Favorites locally in the current browser without uploading photos or favorite records.
 
