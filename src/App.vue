@@ -325,19 +325,8 @@ async function clearDirectory() {
   statusState.value = { type: 'cleared' }
 }
 
-// 切换缩略图尺寸。参数：mode 为目标缩略图模式，选择半尺寸时先提示性能风险。
-async function changeThumbnailMode(mode: ThumbnailMode) {
-  if (mode === 'half' && thumbnailMode.value !== 'half') {
-    const confirmed = await openConfirmDialog({
-      title: locale.value.app.halfThumbnailDialogTitle,
-      message: locale.value.app.halfThumbnailDialogMessage,
-      tone: 'warning',
-      confirmLabel: locale.value.app.dialogConfirmChange,
-      cancelLabel: locale.value.app.dialogCancel
-    })
-    if (!confirmed) return
-  }
-
+// 切换缩略图尺寸。参数：mode 为目标缩略图模式。
+function changeThumbnailMode(mode: ThumbnailMode) {
   thumbnailMode.value = mode
   localStorage.setItem(THUMBNAIL_STORAGE_KEY, mode)
 }

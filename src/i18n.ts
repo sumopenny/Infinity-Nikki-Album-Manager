@@ -20,12 +20,9 @@ export interface LocaleMessages {
     dialogCloseAria: string
     dialogCancel: string
     dialogConfirm: string
-    dialogConfirmChange: string
     dialogContinueAuthorization: string
     dialogOk: string
     deleteDialogTitle: string
-    halfThumbnailDialogTitle: string
-    halfThumbnailDialogMessage: string
     relatedCleanupDialogTitle: string
     x6GameDirectoryDialogTitle: string
     statusEyebrow: string
@@ -185,12 +182,9 @@ export const messages: Record<Language, LocaleMessages> = {
       dialogCloseAria: '关闭弹窗',
       dialogCancel: '取消',
       dialogConfirm: '确认删除',
-      dialogConfirmChange: '确认更改',
       dialogContinueAuthorization: '继续授权',
       dialogOk: '我知道了',
       deleteDialogTitle: '确认删除照片',
-      halfThumbnailDialogTitle: '确认切换半尺寸 1:1',
-      halfThumbnailDialogMessage: '选择该尺寸可能会因页面图片加载太多导致页面卡顿，确认更改吗？',
       relatedCleanupDialogTitle: '确认清理关联图片',
       x6GameDirectoryDialogTitle: '需要授权 X6Game 文件夹',
       statusEyebrow: 'Album Status',
@@ -308,12 +302,9 @@ export const messages: Record<Language, LocaleMessages> = {
       dialogCloseAria: 'Close dialog',
       dialogCancel: 'Cancel',
       dialogConfirm: 'Confirm delete',
-      dialogConfirmChange: 'Confirm change',
       dialogContinueAuthorization: 'Continue authorization',
       dialogOk: 'Got it',
       deleteDialogTitle: 'Delete photos?',
-      halfThumbnailDialogTitle: 'Switch to Half 1:1?',
-      halfThumbnailDialogMessage: 'Choosing this size may load too many images on the page and cause lag. Confirm this change?',
       relatedCleanupDialogTitle: 'Clean related images?',
       x6GameDirectoryDialogTitle: 'X6Game folder authorization required',
       statusEyebrow: 'Album Status',
