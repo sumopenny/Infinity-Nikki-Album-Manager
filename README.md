@@ -232,8 +232,8 @@ NikkiPhotos_HighQuality
 - 双击照片：打开大图预览。
 - 点击左侧日期：跳转到对应日期。
 - 点击左侧收藏夹：只显示收藏的图片，左侧日期同步切换为收藏图片的拍摄日期。
-- 点击“全选照片”：选中全部照片。
-- 再点一次“取消全选”：取消全部选中。
+- 点击“全选照片”：选中当前视图里的全部照片；在收藏夹中只会选中当前显示的收藏照片。
+- 再点一次“取消全选”：取消当前视图里的全部选中。
 
 #### 6.4 使用收藏夹
 
@@ -243,6 +243,7 @@ NikkiPhotos_HighQuality
 - 点击爱心图标后，照片会加入或移出收藏夹。
 - 点击左侧栏上方的“收藏夹”按钮后，图片展示区只显示已收藏照片。
 - 收藏夹模式下，左侧日期栏只显示收藏照片对应的拍摄日期。
+- 收藏夹模式下，大图预览的上一张、下一张只会在收藏照片之间切换。
 - 再次点击左侧栏上方的“全部照片”按钮，可以返回完整相册。
 - 收藏记录保存在当前浏览器本地；如果清理浏览器数据，收藏记录可能会被清除。
 
@@ -272,7 +273,8 @@ NikkiPhotos_HighQuality
 
 选择 `NikkiPhotos_HighQuality` 相册后，可以点击粉色的“一键清理低画质与截图”按钮，清理同一账号下 `NikkiPhotos_LowQuality` 和当前游戏 `X6Game\ScreenShot` 文件夹中的图片。
 
-- 首次使用或原授权失效时，页面会先弹窗提示选择当前游戏安装目录中的 `X6Game` 文件夹。
+- 首次使用时，页面会先弹窗提示选择当前游戏安装目录中的 `X6Game` 文件夹。
+- 已保存的授权失效时，页面会先用项目弹窗说明情况；确认继续后才触发浏览器安全授权窗口，无法恢复时再提示重新选择 `X6Game`。
 - 选择正确的 `X6Game` 文件夹后，浏览器会保存该目录授权；后续点击按钮时可直接定位并清理，不再重复显示选择提示。
 - 删除前会显示图片数量并再次确认。
 - 清理只删除目标文件夹内的图片，保留文件夹本身和其他类型文件。
@@ -599,8 +601,8 @@ Common actions:
 - Double-click a photo: open large preview.
 - Click a date in the sidebar: jump to that date.
 - Click Favorites in the left sidebar: show favorite photos only, with the sidebar dates limited to favorite photo capture dates.
-- Click `Select all`: select all photos.
-- Click `Deselect all`: clear all selected photos.
+- Click `Select all`: select every photo in the current view. In Favorites, this only selects the visible favorite photos.
+- Click `Deselect all`: clear selection in the current view.
 
 #### 6.4 Use Favorites
 
@@ -610,6 +612,7 @@ Favorites are useful for temporarily filtering and organizing photos you like.
 - Click the heart icon to add the photo to or remove it from Favorites.
 - Click the `Favorites` button above the left sidebar to show only favorited photos in the gallery.
 - In Favorites mode, the left date sidebar only shows capture dates that contain favorited photos.
+- In Favorites mode, Previous and Next in the large preview stay within favorite photos.
 - Click `All photos` above the left sidebar to return to the full album.
 - Favorite records are stored locally in the current browser; clearing browser data may remove them.
 
@@ -639,7 +642,8 @@ Again: deleting in this app deletes the original file from your computer folder.
 
 After selecting `NikkiPhotos_HighQuality`, click the pink “Clean low-quality & screenshots” button to remove images from the same account's `NikkiPhotos_LowQuality` folder and the current game's `X6Game\ScreenShot` folder.
 
-- On first use, or when the previous authorization is no longer valid, a prompt asks you to select the `X6Game` folder in the current game installation.
+- On first use, a project dialog asks you to select the `X6Game` folder in the current game installation.
+- If saved access expires, a project dialog explains the issue before the browser permission prompt appears. If access cannot be restored, the app then asks you to select `X6Game` again.
 - After the correct `X6Game` folder is selected, the browser remembers its authorization. Future cleanup can locate the folders directly without showing the selection prompt again.
 - The app displays the number of images in a custom confirmation dialog before deletion.
 - Cleanup deletes only images inside the target folders; the folders and other file types are kept.

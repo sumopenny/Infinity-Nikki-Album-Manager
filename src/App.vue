@@ -106,11 +106,13 @@ const formattedDateGroups = computed(() =>
   }))
 )
 const yearGroups = computed(() => groupDatesByYear(formattedDateGroups.value))
-const selectedCount = computed(() => selectedIds.value.size)
+const selectedCount = computed(() => visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id)).length)
 const totalCount = computed(() => photos.value.length)
 const visibleCount = computed(() => visiblePhotos.value.length)
 const favoriteCount = computed(() => favoritePhotos.value.length)
-const allSelected = computed(() => totalCount.value > 0 && selectedCount.value === totalCount.value)
+const allSelected = computed(
+  () => visibleCount.value > 0 && visiblePhotos.value.every((photo) => selectedIds.value.has(photo.id))
+)
 const thumbnailModeOptions = computed(() => getThumbnailModeOptions(language.value))
 const directoryName = computed(() => {
   if (directoryState.value.type === 'remembered') return locale.value.app.rememberedDirectory(directoryState.value.name)
@@ -159,10 +161,12 @@ const isStatusNoticeLoading = computed(() => {
 })
 const currentPreviewIndex = computed(() => {
   if (!currentPreview.value) return -1
-  return photos.value.findIndex((photo) => photo.id === currentPreview.value?.id)
+  return visiblePhotos.value.findIndex((photo) => photo.id === currentPreview.value?.id)
 })
 const hasPreviousPreview = computed(() => currentPreviewIndex.value > 0)
-const hasNextPreview = computed(() => currentPreviewIndex.value >= 0 && currentPreviewIndex.value < photos.value.length - 1)
+const hasNextPreview = computed(
+  () => currentPreviewIndex.value >= 0 && currentPreviewIndex.value < visiblePhotos.value.length - 1
+)
 
 function clearStatusNoticeTimer() {
   if (statusNoticeTimer === undefined) return
@@ -343,13 +347,16 @@ function toggleTheme() {
   localStorage.setItem(THEME_STORAGE_KEY, themeMode.value)
 }
 
+// 切换当前视图内照片的全选状态。参数：无。收藏视图只影响当前可见的收藏照片。
 function toggleAll() {
+  const visibleIds = new Set(visiblePhotos.value.map((photo) => photo.id))
+
   if (allSelected.value) {
-    selectedIds.value = new Set()
+    selectedIds.value = new Set([...selectedIds.value].filter((id) => !visibleIds.has(id)))
     return
   }
 
-  selectedIds.value = new Set(photos.value.map((photo) => photo.id))
+  selectedIds.value = new Set([...selectedIds.value, ...visibleIds])
 }
 
 function togglePhoto(photoId: string) {
@@ -413,6 +420,7 @@ async function deletePhotos(targets: PhotoItem[], confirmMessage: string, keepPr
   const deletedIds = new Set<string>()
   const failedNames: string[] = []
   const previewIndexBeforeDelete = currentPreviewIndex.value
+  const wasFavoritesView = showFavoritesOnly.value
 
   for (const photo of targets) {
     try {
@@ -432,8 +440,9 @@ async function deletePhotos(targets: PhotoItem[], confirmMessage: string, keepPr
   if (showFavoritesOnly.value && !favoriteIds.value.size) showFavoritesOnly.value = false
 
   if (deletedCurrentPreview) {
+    const remainingPreviewPhotos = wasFavoritesView ? favoritePhotos.value : photos.value
     currentPreview.value = keepPreviewOpen
-      ? remainingPhotos[Math.min(previewIndexBeforeDelete, remainingPhotos.length - 1)] ?? null
+      ? remainingPreviewPhotos[Math.min(previewIndexBeforeDelete, remainingPreviewPhotos.length - 1)] ?? null
       : null
   }
 
@@ -443,7 +452,7 @@ async function deletePhotos(targets: PhotoItem[], confirmMessage: string, keepPr
 }
 
 async function deleteSelectedPhotos() {
-  const targets = photos.value.filter((photo) => selectedIds.value.has(photo.id))
+  const targets = visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id))
   await deletePhotos(targets, locale.value.app.confirmDeleteSelected(targets.length))
 }
 
@@ -461,6 +470,17 @@ async function cleanRelatedPhotos() {
 
   try {
     const plan = await prepareRelatedPhotoCleanup(albumDirectoryHandle.value, locale.value.fileSystem, {
+      beforeRequestX6GamePermission: async () => {
+        const confirmed = await openConfirmDialog({
+          title: locale.value.app.x6GameDirectoryDialogTitle,
+          message: locale.value.fileSystem.restoreX6GamePermissionPrompt,
+          tone: 'info',
+          confirmLabel: locale.value.app.dialogContinueAuthorization,
+          cancelLabel: locale.value.app.dialogCancel
+        })
+        didCancelDirectoryPrompt = !confirmed
+        return confirmed
+      },
       beforePickX6GameDirectory: async () => {
         const confirmed = await openConfirmDialog({
           title: locale.value.app.x6GameDirectoryDialogTitle,
@@ -513,6 +533,7 @@ async function cleanRelatedPhotos() {
   }
 }
 
+// 跳转到指定日期。参数：dateKey 为目标日期。
 function scrollToDate(dateKey: string) {
   document.getElementById(`date-${dateKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
@@ -536,14 +557,16 @@ function updateSidebarStickyOffset() {
   appShell.style.setProperty('--sidebar-sticky-top', `${Math.ceil(topBarElement.getBoundingClientRect().height) + 10}px`)
 }
 
+// 显示当前筛选结果中的上一张照片。参数：无。
 function showPreviousPreview() {
   if (!hasPreviousPreview.value) return
-  currentPreview.value = photos.value[currentPreviewIndex.value - 1]
+  currentPreview.value = visiblePhotos.value[currentPreviewIndex.value - 1]
 }
 
+// 显示当前筛选结果中的下一张照片。参数：无。
 function showNextPreview() {
   if (!hasNextPreview.value) return
-  currentPreview.value = photos.value[currentPreviewIndex.value + 1]
+  currentPreview.value = visiblePhotos.value[currentPreviewIndex.value + 1]
 }
 
 onMounted(() => {
@@ -574,7 +597,7 @@ onBeforeUnmount(() => {
     <TopBar
       ref="topBarRef"
       :directory-name="directoryName"
-      :total-count="totalCount"
+      :total-count="visibleCount"
       :selected-count="selectedCount"
       :all-selected="allSelected"
       :is-loading="isLoading"

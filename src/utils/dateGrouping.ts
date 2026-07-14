@@ -30,9 +30,7 @@ export interface PhotoItem extends ParsedPhotoDate {
   id: string
   name: string
   url: string
-  file: File
   fileSizeText: string
-  fileHandle: FileSystemFileHandle
   directoryHandle: FileSystemDirectoryHandle
 }
 

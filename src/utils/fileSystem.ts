@@ -39,6 +39,7 @@ type FileSystemMessages = LocaleMessages['fileSystem']
 
 interface RelatedPhotoCleanupOptions {
   beforePickX6GameDirectory?: () => boolean | Promise<boolean>
+  beforeRequestX6GamePermission?: () => boolean | Promise<boolean>
 }
 
 function isImageFile(fileName: string): boolean {
@@ -82,6 +83,7 @@ async function ensureReadWritePermission(
     if (!requestPermission) return false
   }
 
+  if (!requestPermission && directoryHandle.requestPermission) return false
   if (!directoryHandle.requestPermission) return true
   return (await directoryHandle.requestPermission(options)) === 'granted'
 }
@@ -180,9 +182,7 @@ export async function readAlbumDirectory(
         id: `${parsed.dateKey}-${parsed.timeText}-${name}`,
         name,
         url,
-        file,
         fileSizeText: formatFileSize(file.size),
-        fileHandle,
         directoryHandle,
         ...parsed
       })
@@ -313,12 +313,23 @@ async function getValidatedX6GameDirectory(
 
   const savedHandle = await getSavedX6GameDirectoryHandle()
 
-  if (savedHandle && (await ensureReadWritePermission(savedHandle, true))) {
-    try {
-      const accountDirectoryName = await resolveAccountDirectory(savedHandle, albumDirectoryHandle, messages)
-      return { directoryHandle: savedHandle, accountDirectoryName }
-    } catch {
-      await clearSavedX6GameDirectoryHandle()
+  if (savedHandle) {
+    let hasPermission = await ensureReadWritePermission(savedHandle, false)
+
+    if (!hasPermission) {
+      if (options.beforeRequestX6GamePermission && !(await options.beforeRequestX6GamePermission())) {
+        throw new Error(messages.abortSelection)
+      }
+      hasPermission = await ensureReadWritePermission(savedHandle, true)
+    }
+
+    if (hasPermission) {
+      try {
+        const accountDirectoryName = await resolveAccountDirectory(savedHandle, albumDirectoryHandle, messages)
+        return { directoryHandle: savedHandle, accountDirectoryName }
+      } catch {
+        await clearSavedX6GameDirectoryHandle()
+      }
     }
   }
 

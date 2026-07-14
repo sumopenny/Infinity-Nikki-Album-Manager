@@ -21,6 +21,7 @@ export interface LocaleMessages {
     dialogCancel: string
     dialogConfirm: string
     dialogConfirmChange: string
+    dialogContinueAuthorization: string
     dialogOk: string
     deleteDialogTitle: string
     halfThumbnailDialogTitle: string
@@ -104,6 +105,7 @@ export interface LocaleMessages {
     unsupportedBrowser: string
     invalidAlbumDirectory: string
     invalidX6GameDirectory: string
+    restoreX6GamePermissionPrompt: string
     selectX6GameDirectoryPrompt: string
   }
 }
@@ -183,6 +185,7 @@ export const messages: Record<Language, LocaleMessages> = {
       dialogCancel: '取消',
       dialogConfirm: '确认删除',
       dialogConfirmChange: '确认更改',
+      dialogContinueAuthorization: '继续授权',
       dialogOk: '我知道了',
       deleteDialogTitle: '确认删除照片',
       halfThumbnailDialogTitle: '确认切换半尺寸 1:1',
@@ -284,6 +287,7 @@ export const messages: Record<Language, LocaleMessages> = {
       unsupportedBrowser: '当前浏览器不支持选择文件夹。请使用最新版 Chrome 或 Edge，并在 localhost/HTTPS 环境运行。',
       invalidAlbumDirectory: '一键清理需要先选择 NikkiPhotos_HighQuality 文件夹。',
       invalidX6GameDirectory: '所选目录不是当前相册对应的 X6Game 文件夹，请选择路径中的 X6Game 文件夹后重试。',
+      restoreX6GamePermissionPrompt: '已保存的 X6Game 文件夹授权已经失效。点击“继续授权”后，请在浏览器权限窗口中允许本站点编辑该文件夹；如果浏览器无法恢复授权，页面会再提示你重新选择 X6Game 文件夹。',
       selectX6GameDirectoryPrompt: '首次使用一键清理功能，需要授权当前游戏的 X6Game 文件夹。请在接下来的目录选择窗口中选择路径里的 X6Game 文件夹（...\\InfinityNikki Launcher\\InfinityNikki\\X6Game）。授权会被保存，后续可直接一键清理。'
     }
   },
@@ -303,6 +307,7 @@ export const messages: Record<Language, LocaleMessages> = {
       dialogCancel: 'Cancel',
       dialogConfirm: 'Confirm delete',
       dialogConfirmChange: 'Confirm change',
+      dialogContinueAuthorization: 'Continue authorization',
       dialogOk: 'Got it',
       deleteDialogTitle: 'Delete photos?',
       halfThumbnailDialogTitle: 'Switch to Half 1:1?',
@@ -404,6 +409,7 @@ export const messages: Record<Language, LocaleMessages> = {
       unsupportedBrowser: 'This browser does not support folder selection. Please use the latest Chrome or Edge and run on localhost/HTTPS.',
       invalidAlbumDirectory: 'Choose NikkiPhotos_HighQuality before using related folder cleanup.',
       invalidX6GameDirectory: 'The selected folder is not the X6Game folder that contains the current album. Select that X6Game folder and try again.',
+      restoreX6GamePermissionPrompt: 'The saved X6Game folder permission has expired. Click “Continue authorization”, then allow this site to edit the folder in the browser permission prompt. If the browser cannot restore access, the page will ask you to select X6Game again.',
       selectX6GameDirectoryPrompt: 'To use related folder cleanup for the first time, authorize the X6Game folder for the current game installation. Select the X6Game folder in the next folder picker (...\\InfinityNikki Launcher\\InfinityNikki\\X6Game). The authorization will be remembered for future cleanup.'
     }
   }
