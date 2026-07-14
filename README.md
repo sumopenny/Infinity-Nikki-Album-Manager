@@ -20,7 +20,10 @@
   <a href="#english"><strong>English</strong></a>
 </div>
 
-![项目界面](img/1.png)![项目界面](img/2.png)
+<div align="center">
+  <img src="img/1.png" alt="项目界面" width="49%">
+  <img src="img/2.png" alt="项目界面" width="49%">
+</div>
 
 ---
 
@@ -29,10 +32,8 @@
 ### 功能
 
 - 按拍摄日期分组，支持日期侧栏快速跳转。
-<div align="center">
-  <img src="img/3.png" alt="选择相册" width="38%">
-  <img src="img/4.png" alt="选择相册" width="38%">
-</div>
+
+![项目界面](img/3.png)![项目界面](img/4.png)
 
 - 原图按需懒加载，减少高分辨率照片造成的页面卡顿。
 - 收藏照片，并单独浏览收藏内容。
