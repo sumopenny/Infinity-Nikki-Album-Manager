@@ -225,6 +225,8 @@ NikkiPhotos_HighQuality
 
 选择正确的相册文件夹后，页面会显示照片。
 
+页面只会在照片接近当前可视区域时读取原图，并用同尺寸占位保持布局稳定；向下滚动或点击左侧日期跳转时，对应照片会自动加载。
+
 常用操作：
 
 - 单击照片：选中或取消选中。
@@ -593,6 +595,8 @@ The app groups photos by dates found in filenames.
 #### 6.3 Browse photos
 
 After choosing the correct folder, the page will display your photos.
+
+The app reads each original image only when it approaches the visible area. Same-size placeholders keep the layout stable, and photos load automatically while scrolling or after jumping to a date from the sidebar.
 
 Common actions:
 

@@ -10,6 +10,8 @@ const SAVED_X6GAME_DIRECTORY_KEY = 'current-x6game-directory'
 const HIGH_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_HighQuality'
 const LOW_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_LowQuality'
 const SCREENSHOT_DIRECTORY_NAME = 'ScreenShot'
+const pendingPhotoLoads = new WeakMap<PhotoItem, Promise<string>>()
+const releasedPhotos = new WeakSet<PhotoItem>()
 
 export interface AlbumDirectoryResult {
   directoryName: string
@@ -156,6 +158,11 @@ export async function clearSavedX6GameDirectoryHandle(): Promise<void> {
   await runStoreTransaction('readwrite', (store) => store.delete(SAVED_X6GAME_DIRECTORY_KEY))
 }
 
+/**
+ * 扫描相册目录并整理照片元数据，不在扫描阶段读取原图内容。
+ * 参数：directoryHandle 为相册目录句柄，options 为权限策略和错误提示文案。
+ * 返回：相册名称、目录句柄和按拍摄时间排序的照片列表。
+ */
 export async function readAlbumDirectory(
   directoryHandle: FileSystemDirectoryHandle,
   options: { requestPermission?: boolean; messages: FileSystemMessages }
@@ -174,15 +181,12 @@ export async function readAlbumDirectory(
       const parsed = parsePhotoDate(name)
       if (!parsed) continue
 
-      const fileHandle = handle as FileSystemFileHandle
-      const file = await fileHandle.getFile()
-      const url = URL.createObjectURL(file)
-
       photos.push({
         id: `${parsed.dateKey}-${parsed.timeText}-${name}`,
         name,
-        url,
-        fileSizeText: formatFileSize(file.size),
+        url: null,
+        fileSizeText: '--',
+        fileHandle: handle as FileSystemFileHandle,
         directoryHandle,
         ...parsed
       })
@@ -220,9 +224,68 @@ export async function pickAlbumDirectory(messages: FileSystemMessages): Promise<
   }
 }
 
+/**
+ * 删除照片原文件并释放对应的对象地址。
+ * 参数：photo 为需要永久删除的照片。
+ */
 export async function deletePhotoFile(photo: PhotoItem): Promise<void> {
   await photo.directoryHandle.removeEntry(photo.name)
-  URL.revokeObjectURL(photo.url)
+  releasePhotoUrl(photo)
+}
+
+/**
+ * 按需读取照片文件并创建可复用的对象地址。
+ * 参数：photo 为待加载照片，signal 用于在调用方失效时停止接收结果。
+ * 返回：照片对应的对象地址；同一照片的并发调用会共享读取任务。
+ */
+export async function ensurePhotoUrl(photo: PhotoItem, signal?: AbortSignal): Promise<string> {
+  if (signal?.aborted || releasedPhotos.has(photo)) throw new DOMException('Photo load cancelled', 'AbortError')
+  if (photo.url) return photo.url
+
+  let pendingLoad = pendingPhotoLoads.get(photo)
+  if (!pendingLoad) {
+    pendingLoad = (async () => {
+      const file = await photo.fileHandle.getFile()
+      if (releasedPhotos.has(photo)) throw new DOMException('Photo load cancelled', 'AbortError')
+
+      const url = URL.createObjectURL(file)
+      if (releasedPhotos.has(photo)) {
+        URL.revokeObjectURL(url)
+        throw new DOMException('Photo load cancelled', 'AbortError')
+      }
+
+      photo.fileSizeText = formatFileSize(file.size)
+      photo.url = url
+      return url
+    })().finally(() => {
+      pendingPhotoLoads.delete(photo)
+    })
+    pendingPhotoLoads.set(photo, pendingLoad)
+  }
+
+  const url = await pendingLoad
+  if (signal?.aborted || releasedPhotos.has(photo)) throw new DOMException('Photo load cancelled', 'AbortError')
+  return url
+}
+
+/**
+ * 清除一次失败加载产生的对象地址，允许后续重新读取。
+ * 参数：photo 为需要重试的照片。
+ */
+export function resetPhotoUrl(photo: PhotoItem): void {
+  if (photo.url) URL.revokeObjectURL(photo.url)
+  photo.url = null
+  photo.fileSizeText = '--'
+}
+
+/**
+ * 永久释放当前照片的对象地址，并阻止尚未完成的读取任务写回结果。
+ * 参数：photo 为不再使用的照片。
+ */
+export function releasePhotoUrl(photo: PhotoItem): void {
+  releasedPhotos.add(photo)
+  if (photo.url) URL.revokeObjectURL(photo.url)
+  photo.url = null
 }
 
 function isMissingDirectoryError(error: unknown): boolean {
@@ -416,8 +479,12 @@ export async function executeRelatedPhotoCleanup(plan: RelatedPhotoCleanupPlan):
   }
 }
 
+/**
+ * 批量释放不再使用的照片对象地址，并阻止旧任务写回。
+ * 参数：photos 为即将离开当前相册状态的照片列表。
+ */
 export function releasePhotoUrls(photos: PhotoItem[]): void {
   for (const photo of photos) {
-    URL.revokeObjectURL(photo.url)
+    releasePhotoUrl(photo)
   }
 }

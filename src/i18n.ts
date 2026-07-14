@@ -84,6 +84,7 @@ export interface LocaleMessages {
     selectDay: string
     addFavorite: string
     removeFavorite: string
+    imageLoadFailed: string
     photoCount: (count: number) => string
   }
   lightbox: {
@@ -266,6 +267,7 @@ export const messages: Record<Language, LocaleMessages> = {
       selectDay: '选择这一天',
       addFavorite: '加入收藏夹',
       removeFavorite: '取消收藏',
+      imageLoadFailed: '图片读取失败',
       photoCount: (count) => `${count} 张照片`
     },
     lightbox: {
@@ -388,6 +390,7 @@ export const messages: Record<Language, LocaleMessages> = {
       selectDay: 'Select this day',
       addFavorite: 'Add to Favorites',
       removeFavorite: 'Remove from Favorites',
+      imageLoadFailed: 'Failed to load image',
       photoCount: (count) => `${count} photos`
     },
     lightbox: {

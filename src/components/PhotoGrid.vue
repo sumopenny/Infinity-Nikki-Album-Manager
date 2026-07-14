@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { onBeforeUnmount } from 'vue'
 import type { LocaleMessages } from '../i18n'
 import type { DateGroup, PhotoItem } from '../utils/dateGrouping'
+import { createPhotoLoadQueue } from '../utils/photoLoader'
 import type { ThumbnailMode } from '../types/thumbnail'
+import LazyPhotoImage from './LazyPhotoImage.vue'
 
 const props = defineProps<{
   dateGroups: DateGroup[]
@@ -22,6 +25,12 @@ defineEmits<{
 function isDateSelected(group: DateGroup): boolean {
   return group.photos.length > 0 && group.photos.every((photo) => props.selectedIds.has(photo.id))
 }
+
+const photoLoadQueue = createPhotoLoadQueue(3)
+
+onBeforeUnmount(() => {
+  photoLoadQueue.cancel()
+})
 </script>
 
 <template>
@@ -63,7 +72,11 @@ function isDateSelected(group: DateGroup): boolean {
           @keydown.enter="$emit('togglePhoto', photo.id)"
         >
           <div class="photo-frame">
-            <img :src="photo.url" :alt="photo.name" loading="lazy" />
+            <LazyPhotoImage
+              :photo="photo"
+              :load-photo="photoLoadQueue.load"
+              :failure-text="messages.imageLoadFailed"
+            />
             <span class="selected-badge">✓</span>
           </div>
           <div class="photo-meta">

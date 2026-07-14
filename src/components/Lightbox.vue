@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { LocaleMessages } from '../i18n'
 import type { PhotoItem } from '../utils/dateGrouping'
+import { loadPhotoWithRetry } from '../utils/photoLoader'
 
 const props = defineProps<{
   photo: PhotoItem | null
@@ -23,6 +24,7 @@ const displayedPhoto = ref<PhotoItem | null>(null)
 const imageAspectRatio = ref<number | null>(null)
 const viewportSize = ref({ width: 0, height: 0 })
 let previewLoadToken = 0
+let previewAbortController: AbortController | null = null
 
 const isPreviewLoading = computed(() => Boolean(props.photo && displayedPhoto.value?.id !== props.photo.id))
 
@@ -65,24 +67,35 @@ function updateViewportSize() {
   }
 }
 
-function updateDisplayedPhoto(nextPhoto: PhotoItem) {
-  const image = new Image()
+/**
+ * 优先读取并显示用户主动打开的原图。
+ * 参数：nextPhoto 为需要在大图预览中显示的照片。
+ */
+async function updateDisplayedPhoto(nextPhoto: PhotoItem): Promise<void> {
   const currentToken = ++previewLoadToken
+  previewAbortController?.abort()
+  previewAbortController = new AbortController()
 
-  image.onload = () => {
+  try {
+    const url = await loadPhotoWithRetry(nextPhoto, previewAbortController.signal)
     if (currentToken !== previewLoadToken) return
-    if (image.naturalWidth && image.naturalHeight) {
-      imageAspectRatio.value = image.naturalWidth / image.naturalHeight
+
+    const image = new Image()
+    image.onload = () => {
+      if (currentToken !== previewLoadToken) return
+      if (image.naturalWidth && image.naturalHeight) {
+        imageAspectRatio.value = image.naturalWidth / image.naturalHeight
+      }
+      displayedPhoto.value = nextPhoto
     }
-    displayedPhoto.value = nextPhoto
+    image.onerror = () => {
+      if (currentToken !== previewLoadToken) return
+      displayedPhoto.value = nextPhoto
+    }
+    image.src = url
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') return
   }
-
-  image.onerror = () => {
-    if (currentToken !== previewLoadToken) return
-    displayedPhoto.value = nextPhoto
-  }
-
-  image.src = nextPhoto.url
 }
 
 watch(
@@ -92,12 +105,14 @@ watch(
 
     if (!nextPhoto) {
       previewLoadToken += 1
+      previewAbortController?.abort()
+      previewAbortController = null
       displayedPhoto.value = null
       imageAspectRatio.value = null
       return
     }
 
-    updateDisplayedPhoto(nextPhoto)
+    void updateDisplayedPhoto(nextPhoto)
   },
   { immediate: true }
 )
@@ -131,6 +146,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  previewAbortController?.abort()
   window.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('resize', updateViewportSize)
   window.visualViewport?.removeEventListener('resize', updateViewportSize)
@@ -152,7 +168,7 @@ onUnmounted(() => {
 
       <div class="lightbox-panel" :class="lightboxPanelClass" :style="lightboxPanelStyle">
         <button class="close-button" type="button" :aria-label="messages.closeAria" @click="$emit('close')">×</button>
-        <img :src="displayedPhoto.url" :alt="displayedPhoto.name" />
+        <img :src="displayedPhoto.url ?? undefined" :alt="displayedPhoto.name" />
         <div class="lightbox-footer">
           <div class="lightbox-caption">
             <strong>{{ dateMessages.displayDate(displayedPhoto.dateKey) }} {{ displayedPhoto.timeText }}</strong>
