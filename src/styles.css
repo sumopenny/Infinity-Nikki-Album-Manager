@@ -180,7 +180,7 @@ button:disabled {
   min-height: 100vh;
   width: 100%;
   --sidebar-sticky-top: 124px;
-  --sidebar-width: clamp(112px, 10vw, 148px);
+  --sidebar-width: clamp(154px, 11.5vw, 180px);
 }
 
 .top-module {
@@ -548,16 +548,22 @@ h1 {
   align-self: flex-start;
 }
 
-.favorites-button {
+.album-view-nav {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.album-view-button {
   width: 100%;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  margin-bottom: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 42px;
   padding: 9px 10px;
   border: 1px solid var(--favorite-button-border);
-  border-radius: 16px;
+  border-radius: 18px;
   background: var(--favorite-button-bg);
   color: var(--favorite-button-text);
   font-size: 13px;
@@ -566,27 +572,18 @@ h1 {
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
-.favorites-button::before {
-  content: '♡';
-  font-size: 18px;
-  line-height: 1;
-}
-
-.favorites-button.active {
+.album-view-button.active {
   background: var(--favorite-button-active-bg);
   border-color: var(--favorite-button-text);
 }
 
-.favorites-button.active::before {
-  content: '♥';
-}
-
-.favorites-button:hover {
+.album-view-button:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: var(--photo-hover-shadow);
 }
 
-.favorites-button small {
+.album-view-button small {
+  flex: 0 0 auto;
   color: var(--muted);
   font-size: 10px;
   font-weight: 700;
@@ -595,7 +592,7 @@ h1 {
 .date-sidebar {
   width: 100%;
   /* height: calc(100svh - var(--sidebar-sticky-top) - 100px); */
-  max-height: calc(100svh - var(--sidebar-sticky-top) - 151px);
+  max-height: calc(100svh - var(--sidebar-sticky-top) - 258px);
   overflow-x: hidden;
   overflow-y: auto;
   padding: 10px;
@@ -673,7 +670,7 @@ h1 {
   margin-bottom: 8px;
   padding: 10px 14px;
   border: 1px solid var(--line-soft);
-  border-radius: 20px;
+  border-radius: 18px;
   background: var(--surface);
   box-shadow: var(--shadow);
 }
@@ -1014,10 +1011,13 @@ h1 {
 }
 
 .empty-album p {
+  width: 100%;
+  min-width: 0;
   max-width: 960px;
   color: var(--muted);
   font-size: 17px;
   line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
 .date-block {
@@ -1195,6 +1195,92 @@ h1 {
   aspect-ratio: 1 / 1;
   border-radius: 14px;
   background: var(--frame-bg);
+}
+
+.trash-grid-wrap {
+  min-width: 0;
+}
+
+.trash-summary-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 10px 2px 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.trash-summary-bar h2,
+.trash-summary-bar p {
+  margin-bottom: 0;
+}
+
+.trash-summary-bar h2 {
+  color: var(--heading);
+  font-size: 20px;
+}
+
+.trash-summary-bar > div:first-child > p:last-child {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.trash-summary-actions,
+.lightbox-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.trash-summary-actions {
+  justify-content: flex-end;
+}
+
+.restore-button,
+.lightbox-restore {
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--button-line);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.restore-button,
+.lightbox-restore {
+  background: var(--yellow-soft);
+  color: var(--control-text);
+}
+
+.trash-photo-meta {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  margin-top: 7px;
+}
+
+.trash-photo-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trash-photo-meta span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.lightbox-actions {
+  justify-content: flex-end;
+}
+
+.lightbox-restore {
+  min-height: 36px;
+  border-radius: 999px;
+  padding-inline: 14px;
 }
 
 .lazy-photo-image,
@@ -1471,14 +1557,14 @@ h1 {
     flex: none;
   }
 
-  .favorites-button {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
+  .album-view-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .favorites-button::before {
-    margin-right: 4px;
+  .album-view-button {
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .date-sidebar {
@@ -1538,8 +1624,9 @@ h1 {
   .primary-button,
   .soft-button,
   .cleanup-button,
-  .danger-button,
-  .thumbnail-select-wrap {
+    .danger-button,
+    .restore-button,
+    .thumbnail-select-wrap {
     justify-content: center;
   }
 
@@ -1548,7 +1635,13 @@ h1 {
     gap: 6px;
   }
 
+  .path-row {
+    flex-wrap: wrap;
+  }
+
   .path-pill {
+    width: 100%;
+    flex: 1 1 100%;
     white-space: normal;
     overflow-wrap: anywhere;
   }
@@ -1567,9 +1660,14 @@ h1 {
   }
 
   .status-card,
-  .date-block-header {
+  .date-block-header,
+  .trash-summary-bar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .trash-summary-actions {
+    justify-content: flex-start;
   }
 
   .operation-notice {
@@ -1651,4 +1749,10 @@ h1 {
 
 .lightbox-delete:disabled {
   opacity: 0.55;
+}
+
+.lightbox-restore.is-preview-loading,
+.lightbox-delete.is-preview-loading {
+  pointer-events: none;
+  cursor: wait;
 }

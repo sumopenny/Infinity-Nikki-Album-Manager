@@ -36,7 +36,9 @@
 ![项目界面](img/3.png)![项目界面](img/4.png)
 
 - 原图按需懒加载，减少高分辨率照片造成的页面卡顿。
-- 收藏照片，并单独浏览收藏内容。
+- 使用“全部照片 / 收藏夹 / 最近删除”三个独立入口管理照片。
+- 手动刷新相册，并在页面重新获得焦点时自动发现新增或外部删除的照片。
+- 删除的高画质照片会移动到当前相册的 `trash` 文件夹，可预览、恢复或永久删除。
 - 单击选择、批量选择，双击打开大图预览。
 - 支持键盘翻页和删除当前预览照片。
 - 提供 1:1、半尺寸 1:1、16:9、4:3、9:16、3:4 缩略图比例。
@@ -105,10 +107,18 @@ npm -v
 | 点击左侧日期 | 跳转到对应日期 |
 | 左右方向键 | 在大图预览中切换照片 |
 | `Esc` | 关闭大图预览 |
-| `Delete` | 删除当前预览照片 |
+| `Delete` | 将当前预览照片移到最近删除 |
 | 全选 / 删除选中 | 批量管理当前视图照片 |
 
-> **删除操作会直接删除电脑中的原图，不是只从页面移除。**
+> 普通相册删除会把原图移动到当前相册的 `trash` 文件夹；最近删除中的“永久删除”和“一键清理低画质与截图”会直接删除电脑文件，无法恢复。
+
+### 最近删除与刷新
+
+- 点击“刷新相册”可立即同步目录；页面重新获得焦点时也会自动同步，并提示新增和外部移除数量。
+- 最近删除按删除时间倒序展示，顶部显示照片总数和总大小。
+- 支持单张或批量恢复、永久删除、全选、大图预览和永久清空全部。
+- 恢复时如果原相册已有同名文件，会自动使用 `_restored_1`、`_restored_2` 等后缀，不会覆盖现有照片。
+- 最近删除中的照片不会自动过期，会一直保留到恢复或手动永久删除。
 
 ### 一键清理低画质与截图
 
@@ -145,6 +155,7 @@ Chrome 和 Edge 会阻止网页访问系统目录。请直接选择 `NikkiPhotos
 ```bash
 npm install       # 安装依赖
 npm run dev       # 启动开发服务器
+npm test          # 运行自动化测试
 npm run build     # 类型检查并构建
 npm run preview   # 预览构建结果
 ```
@@ -171,6 +182,9 @@ npm run preview   # 预览构建结果
 </div>
 - Lazy-load original images to reduce lag from high-resolution photos.
 - Favorite photos and browse Favorites separately.
+- Use separate All photos, Favorites, and Recently deleted views.
+- Refresh manually or let the app detect new and externally removed photos when the page regains focus.
+- Deleted high-quality photos move to the album's `trash` folder for preview, restore, or permanent deletion.
 - Select photos, batch-select, and double-click for large preview.
 - Navigate previews with the keyboard and delete the current photo.
 - Choose 1:1, Half 1:1, 16:9, 4:3, 9:16, or 3:4 thumbnails.
@@ -238,10 +252,18 @@ Supported formats: `jpg`, `jpeg`, `png`, `webp`, `gif`, `bmp`, `avif`.
 | Click a sidebar date | Jump to that date |
 | Left / Right Arrow | Navigate the large preview |
 | `Esc` | Close the preview |
-| `Delete` | Delete the current preview photo |
+| `Delete` | Move the current preview photo to Recently deleted |
 | Select all / Delete selected | Batch-manage the current view |
 
-> **Deleting a photo removes the original file from your computer, not only from the page.**
+> Normal album deletion moves the original into the album's `trash` folder. Permanent deletion in Recently deleted and low-quality/screenshot cleanup remove computer files and cannot be undone.
+
+### Recently Deleted and Refresh
+
+- Use `Refresh album` to sync immediately. The app also syncs when the page regains focus and reports new or externally removed photos.
+- Recently deleted photos are sorted by deletion time, with total count and size shown above the grid.
+- Restore or permanently delete individual or selected photos, select all, preview full-size images, or permanently clear everything.
+- When restoring conflicts with an existing filename, `_restored_1`, `_restored_2`, and later suffixes are used without overwriting files.
+- Recently deleted photos do not expire automatically. They remain until restored or permanently deleted manually.
 
 ### Clean Low-quality Photos and Screenshots
 
@@ -278,6 +300,7 @@ Chrome and Edge block access to protected system folders. Select `NikkiPhotos_Hi
 ```bash
 npm install       # Install dependencies
 npm run dev       # Start the development server
+npm test          # Run automated tests
 npm run build     # Type-check and build
 npm run preview   # Preview the production build
 ```

@@ -58,6 +58,8 @@ export interface LocaleMessages {
     chooseDirectory: string
     loading: string
     clearDirectory: string
+    refreshAlbum: string
+    refreshing: string
     thumbnail: string
     deleting: string
     cleaningRelated: string
@@ -65,6 +67,13 @@ export interface LocaleMessages {
     cancelSelectAll: string
     selectAll: string
     deleteSelected: (count: number) => string
+  }
+  viewNav: {
+    aria: string
+    allPhotos: string
+    favorites: string
+    recentlyDeleted: string
+    count: (count: number) => string
   }
   sidebar: {
     aria: string
@@ -90,6 +99,32 @@ export interface LocaleMessages {
     closeAria: string
     deleting: string
     deleteCurrent: string
+    restoreCurrent: string
+    permanentlyDeleteCurrent: string
+  }
+  trash: {
+    title: string
+    emptyTitle: string
+    emptyDescription: string
+    totalSummary: (count: number, size: string) => string
+    deletedAt: (value: string) => string
+    selectAll: string
+    deselectAll: string
+    restore: string
+    restoreSelected: (count: number) => string
+    permanentlyDelete: string
+    permanentlyDeleteSelected: (count: number) => string
+    clearAll: string
+    moveDialogTitle: string
+    permanentDeleteDialogTitle: string
+    confirmMove: (count: number) => string
+    confirmPermanentDelete: (count: number) => string
+    movedStatus: (count: number, failedNames: string[]) => string
+    restoredStatus: (count: number, failedNames: string[]) => string
+    permanentlyDeletedStatus: (count: number, failedNames: string[]) => string
+    refreshStatus: (addedCount: number, removedCount: number) => string
+    upToDate: string
+    imageLoadFailed: string
   }
   date: {
     displayDate: (dateKey: string) => string
@@ -238,6 +273,8 @@ export const messages: Record<Language, LocaleMessages> = {
       chooseDirectory: '选择/恢复相册路径',
       loading: '正在读取...',
       clearDirectory: '清除路径',
+      refreshAlbum: '刷新相册',
+      refreshing: '刷新中...',
       thumbnail: '缩略图',
       deleting: '删除中...',
       cleaningRelated: '清理中...',
@@ -245,6 +282,13 @@ export const messages: Record<Language, LocaleMessages> = {
       cancelSelectAll: '取消全选',
       selectAll: '全选照片',
       deleteSelected: (count) => `删除选中照片（${count}）`
+    },
+    viewNav: {
+      aria: '相册视图',
+      allPhotos: '全部照片',
+      favorites: '收藏夹',
+      recentlyDeleted: '最近删除',
+      count: (count) => `${count} 张`
     },
     sidebar: {
       aria: '日期侧边栏',
@@ -269,7 +313,42 @@ export const messages: Record<Language, LocaleMessages> = {
       nextAria: '查看下一张图片',
       closeAria: '关闭预览',
       deleting: '删除中...',
-      deleteCurrent: '删除此图片'
+      deleteCurrent: '移到最近删除',
+      restoreCurrent: '恢复此图片',
+      permanentlyDeleteCurrent: '永久删除'
+    },
+    trash: {
+      title: '最近删除',
+      emptyTitle: '最近删除为空',
+      emptyDescription: '从相册删除的照片会移动到当前相册的 trash 文件夹，并显示在这里。',
+      totalSummary: (count, size) => `共 ${count} 张照片，合计 ${size}`,
+      deletedAt: (value) => `删除于 ${value}`,
+      selectAll: '全选照片',
+      deselectAll: '取消全选',
+      restore: '恢复',
+      restoreSelected: (count) => `恢复选中（${count}）`,
+      permanentlyDelete: '永久删除',
+      permanentlyDeleteSelected: (count) => `永久删除选中（${count}）`,
+      clearAll: '永久清空全部',
+      moveDialogTitle: '移到最近删除',
+      permanentDeleteDialogTitle: '永久删除照片',
+      confirmMove: (count) => `将把这 ${count} 张照片移到最近删除，可在最近删除中恢复。`,
+      confirmPermanentDelete: (count) => `将从电脑中永久删除这 ${count} 张照片，无法恢复。`,
+      movedStatus: (count, failedNames) =>
+        failedNames.length
+          ? `已将 ${count} 张照片移到最近删除，${failedNames.length} 张失败：${failedNames.join('、')}`
+          : `已将 ${count} 张照片移到最近删除。`,
+      restoredStatus: (count, failedNames) =>
+        failedNames.length
+          ? `已恢复 ${count} 张照片，${failedNames.length} 张失败：${failedNames.join('、')}`
+          : `已恢复 ${count} 张照片。`,
+      permanentlyDeletedStatus: (count, failedNames) =>
+        failedNames.length
+          ? `已永久删除 ${count} 张照片，${failedNames.length} 张失败：${failedNames.join('、')}`
+          : `已永久删除 ${count} 张照片。`,
+      refreshStatus: (addedCount, removedCount) => `发现 ${addedCount} 张新照片，另有 ${removedCount} 张已从文件夹移除。`,
+      upToDate: '相册已是最新。',
+      imageLoadFailed: '图片读取失败'
     },
     date: {
       displayDate: zhDisplayDate,
@@ -358,6 +437,8 @@ export const messages: Record<Language, LocaleMessages> = {
       chooseDirectory: 'Choose / restore album folder',
       loading: 'Reading...',
       clearDirectory: 'Clear folder',
+      refreshAlbum: 'Refresh album',
+      refreshing: 'Refreshing...',
       thumbnail: 'Thumbnail',
       deleting: 'Deleting...',
       cleaningRelated: 'Cleaning...',
@@ -365,6 +446,13 @@ export const messages: Record<Language, LocaleMessages> = {
       cancelSelectAll: 'Deselect all',
       selectAll: 'Select all',
       deleteSelected: (count) => `Delete selected (${count})`
+    },
+    viewNav: {
+      aria: 'Album views',
+      allPhotos: 'All photos',
+      favorites: 'Favorites',
+      recentlyDeleted: 'Recently deleted',
+      count: (count) => `${count} photos`
     },
     sidebar: {
       aria: 'Date sidebar',
@@ -389,7 +477,42 @@ export const messages: Record<Language, LocaleMessages> = {
       nextAria: 'View next photo',
       closeAria: 'Close preview',
       deleting: 'Deleting...',
-      deleteCurrent: 'Delete this photo'
+      deleteCurrent: 'Move to Recently deleted',
+      restoreCurrent: 'Restore this photo',
+      permanentlyDeleteCurrent: 'Delete permanently'
+    },
+    trash: {
+      title: 'Recently deleted',
+      emptyTitle: 'Recently deleted is empty',
+      emptyDescription: 'Photos deleted from the album are moved to its trash folder and appear here.',
+      totalSummary: (count, size) => `${count} photos, ${size} total`,
+      deletedAt: (value) => `Deleted ${value}`,
+      selectAll: 'Select all',
+      deselectAll: 'Deselect all',
+      restore: 'Restore',
+      restoreSelected: (count) => `Restore selected (${count})`,
+      permanentlyDelete: 'Delete permanently',
+      permanentlyDeleteSelected: (count) => `Delete selected permanently (${count})`,
+      clearAll: 'Permanently clear all',
+      moveDialogTitle: 'Move to Recently deleted',
+      permanentDeleteDialogTitle: 'Permanently delete photos',
+      confirmMove: (count) => `Move these ${count} photos to Recently deleted? They can be restored later.`,
+      confirmPermanentDelete: (count) => `Permanently delete these ${count} photos from this computer? This cannot be undone.`,
+      movedStatus: (count, failedNames) =>
+        failedNames.length
+          ? `Moved ${count} photos to Recently deleted; ${failedNames.length} failed: ${failedNames.join(', ')}`
+          : `Moved ${count} photos to Recently deleted.`,
+      restoredStatus: (count, failedNames) =>
+        failedNames.length
+          ? `Restored ${count} photos; ${failedNames.length} failed: ${failedNames.join(', ')}`
+          : `Restored ${count} photos.`,
+      permanentlyDeletedStatus: (count, failedNames) =>
+        failedNames.length
+          ? `Permanently deleted ${count} photos; ${failedNames.length} failed: ${failedNames.join(', ')}`
+          : `Permanently deleted ${count} photos.`,
+      refreshStatus: (addedCount, removedCount) => `Found ${addedCount} new photos; ${removedCount} were removed externally.`,
+      upToDate: 'The album is up to date.',
+      imageLoadFailed: 'Failed to load image'
     },
     date: {
       displayDate: enDisplayDate,

@@ -1,4 +1,4 @@
-import { parsePhotoDate, type PhotoItem } from './dateGrouping'
+import { parsePhotoDate, type PhotoItem, type RecentlyDeletedPhoto } from './dateGrouping'
 import type { LocaleMessages } from '../i18n'
 
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
@@ -10,6 +10,8 @@ const SAVED_X6GAME_DIRECTORY_KEY = 'current-x6game-directory'
 const HIGH_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_HighQuality'
 const LOW_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_LowQuality'
 const SCREENSHOT_DIRECTORY_NAME = 'ScreenShot'
+const TRASH_DIRECTORY_NAME = 'trash'
+const TRASH_FILE_PREFIX = 'inam-v1__'
 const pendingPhotoLoads = new WeakMap<PhotoItem, Promise<string>>()
 const releasedPhotos = new WeakSet<PhotoItem>()
 
@@ -42,6 +44,22 @@ type FileSystemMessages = LocaleMessages['fileSystem']
 interface RelatedPhotoCleanupOptions {
   beforePickX6GameDirectory?: () => boolean | Promise<boolean>
   beforeRequestX6GamePermission?: () => boolean | Promise<boolean>
+}
+
+export interface RefreshAlbumResult extends AlbumDirectoryResult {
+  addedCount: number
+  removedCount: number
+  removedPhotos: PhotoItem[]
+  recentlyDeleted: RecentlyDeletedPhoto[]
+}
+
+export interface TrashOperationResult<T> {
+  succeeded: T[]
+  failedNames: string[]
+}
+
+export interface RestoreTrashResult extends TrashOperationResult<RecentlyDeletedPhoto> {
+  restoredPhotos: PhotoItem[]
 }
 
 function isImageFile(fileName: string): boolean {
@@ -172,36 +190,234 @@ export async function readAlbumDirectory(
     throw new Error(options.messages.permissionRequired)
   }
 
-  const photos: PhotoItem[] = []
-
   try {
-    for await (const [name, handle] of directoryHandle.entries()) {
-      if (handle.kind !== 'file' || !isImageFile(name)) continue
-
-      const parsed = parsePhotoDate(name)
-      if (!parsed) continue
-
-      photos.push({
-        id: `${parsed.dateKey}-${parsed.timeText}-${name}`,
-        name,
-        url: null,
-        fileSizeText: '--',
-        fileHandle: handle as FileSystemFileHandle,
-        directoryHandle,
-        ...parsed
-      })
+    const photos = await scanAlbumPhotos(directoryHandle)
+    return {
+      directoryName: directoryHandle.name,
+      directoryHandle,
+      photos
     }
   } catch (error) {
     throw normalizeDirectoryError(error, options.messages)
   }
+}
 
-  photos.sort((a, b) => b.timestamp - a.timestamp)
-
-  return {
-    directoryName: directoryHandle.name,
-    directoryHandle,
-    photos
+/**
+ * 读取最近删除目录并计算每张图片大小。
+ * 参数：albumDirectoryHandle 为当前相册根目录。
+ * 返回：按删除时间倒序排列的最近删除照片；目录不存在时返回空数组。
+ */
+export async function listRecentlyDeleted(
+  albumDirectoryHandle: FileSystemDirectoryHandle
+): Promise<RecentlyDeletedPhoto[]> {
+  let trashDirectoryHandle: FileSystemDirectoryHandle
+  try {
+    trashDirectoryHandle = await albumDirectoryHandle.getDirectoryHandle(TRASH_DIRECTORY_NAME)
+  } catch (error) {
+    if (isMissingDirectoryError(error)) return []
+    throw error
   }
+
+  const deletedPhotos: RecentlyDeletedPhoto[] = []
+  for await (const [trashName, handle] of trashDirectoryHandle.entries()) {
+    if (handle.kind !== 'file' || !isImageFile(trashName)) continue
+    const metadata = parseTrashFileName(trashName)
+    if (!metadata) continue
+    const parsed = parsePhotoDate(metadata.originalName)
+    if (!parsed) continue
+
+    const fileHandle = handle as FileSystemFileHandle
+    let size: number | null = null
+    try {
+      size = (await fileHandle.getFile()).size
+    } catch {
+      // 单个文件大小读取失败不影响其余回收照片展示。
+    }
+
+    deletedPhotos.push({
+      id: `trash:${trashName}`,
+      name: metadata.originalName,
+      originalName: metadata.originalName,
+      trashName,
+      deletedAt: metadata.deletedAt,
+      wasFavorite: metadata.wasFavorite,
+      size,
+      url: null,
+      fileSizeText: size === null ? '--' : formatFileSize(size),
+      fileHandle,
+      directoryHandle: trashDirectoryHandle,
+      ...parsed
+    })
+  }
+
+  return deletedPhotos.sort((a, b) => b.deletedAt - a.deletedAt)
+}
+
+/**
+ * 增量刷新相册并复用未变化照片的对象地址。
+ * 参数：directoryHandle 为当前相册目录，currentPhotos 为页面已有照片，options 为权限和文案。
+ * 返回：合并后的照片、变化数量和最近删除列表。
+ */
+export async function refreshAlbumDirectory(
+  directoryHandle: FileSystemDirectoryHandle,
+  currentPhotos: PhotoItem[],
+  options: { requestPermission?: boolean; messages: FileSystemMessages }
+): Promise<RefreshAlbumResult> {
+  const hasPermission = await ensureReadWritePermission(directoryHandle, options.requestPermission ?? false)
+  if (!hasPermission) throw new Error(options.messages.permissionRequired)
+
+  try {
+    const scannedPhotos = await scanAlbumPhotos(directoryHandle)
+    const currentByName = new Map(currentPhotos.map((photo) => [photo.name, photo]))
+    const scannedNames = new Set(scannedPhotos.map((photo) => photo.name))
+    let addedCount = 0
+    const photos = scannedPhotos.map((photo) => {
+      const existing = currentByName.get(photo.name)
+      if (existing) return existing
+      addedCount += 1
+      return photo
+    })
+    const removedPhotos = currentPhotos.filter((photo) => !scannedNames.has(photo.name))
+
+    return {
+      directoryName: directoryHandle.name,
+      directoryHandle,
+      photos,
+      addedCount,
+      removedCount: removedPhotos.length,
+      removedPhotos,
+      recentlyDeleted: await listRecentlyDeleted(directoryHandle)
+    }
+  } catch (error) {
+    throw normalizeDirectoryError(error, options.messages)
+  }
+}
+
+/**
+ * 将相册照片移动到当前相册的 trash 子目录。
+ * 参数：photos 为目标照片，favoriteIds 为删除前的收藏集合。
+ * 返回：成功移动的照片和失败文件名。
+ */
+export async function movePhotosToRecentlyDeleted(
+  photos: PhotoItem[],
+  favoriteIds: Set<string>
+): Promise<TrashOperationResult<PhotoItem>> {
+  const succeeded: PhotoItem[] = []
+  const failedNames: string[] = []
+  if (!photos.length) return { succeeded, failedNames }
+
+  const albumDirectoryHandle = photos[0].directoryHandle
+  const trashDirectoryHandle = await albumDirectoryHandle.getDirectoryHandle(TRASH_DIRECTORY_NAME, { create: true })
+
+  for (const photo of photos) {
+    const trashName = createTrashFileName(photo, favoriteIds.has(photo.id), Date.now())
+    try {
+      const sourceFile = await photo.fileHandle.getFile()
+      const targetHandle = await trashDirectoryHandle.getFileHandle(trashName, { create: true })
+      try {
+        await copyFileToHandle(sourceFile, targetHandle)
+        await photo.directoryHandle.removeEntry(photo.name)
+      } catch (error) {
+        await rollbackFile(trashDirectoryHandle, trashName)
+        throw error
+      }
+      releasePhotoUrl(photo)
+      succeeded.push(photo)
+    } catch {
+      failedNames.push(photo.name)
+    }
+  }
+
+  return { succeeded, failedNames }
+}
+
+/**
+ * 查找不会覆盖现有照片的恢复文件名。
+ * 参数：directoryHandle 为相册目录，originalName 为原文件名。
+ * 返回：原名可用时返回原名，否则返回带递增 restored 后缀的名称。
+ */
+async function findAvailableRestoreName(
+  directoryHandle: FileSystemDirectoryHandle,
+  originalName: string
+): Promise<string> {
+  const dotIndex = originalName.lastIndexOf('.')
+  const baseName = dotIndex > 0 ? originalName.slice(0, dotIndex) : originalName
+  const extension = dotIndex > 0 ? originalName.slice(dotIndex) : ''
+
+  for (let index = 0; ; index += 1) {
+    const candidate = index === 0 ? originalName : `${baseName}_restored_${index}${extension}`
+    try {
+      await directoryHandle.getFileHandle(candidate)
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'NotFoundError') return candidate
+      throw error
+    }
+  }
+}
+
+/**
+ * 将最近删除照片恢复到当前相册。
+ * 参数：photos 为待恢复照片，albumDirectoryHandle 为当前相册目录。
+ * 返回：成功恢复的回收项、新照片状态和失败文件名。
+ */
+export async function restoreRecentlyDeletedPhotos(
+  photos: RecentlyDeletedPhoto[],
+  albumDirectoryHandle: FileSystemDirectoryHandle
+): Promise<RestoreTrashResult> {
+  const succeeded: RecentlyDeletedPhoto[] = []
+  const restoredPhotos: PhotoItem[] = []
+  const failedNames: string[] = []
+
+  for (const photo of photos) {
+    let restoreName = ''
+    try {
+      restoreName = await findAvailableRestoreName(albumDirectoryHandle, photo.originalName)
+      const sourceFile = await photo.fileHandle.getFile()
+      const targetHandle = await albumDirectoryHandle.getFileHandle(restoreName, { create: true })
+      try {
+        await copyFileToHandle(sourceFile, targetHandle)
+        await photo.directoryHandle.removeEntry(photo.trashName)
+      } catch (error) {
+        await rollbackFile(albumDirectoryHandle, restoreName)
+        throw error
+      }
+
+      const restoredPhoto = createPhotoItem(restoreName, targetHandle, albumDirectoryHandle)
+      if (!restoredPhoto) throw new Error(`Invalid restored photo name: ${restoreName}`)
+      restoredPhoto.fileSizeText = formatFileSize(sourceFile.size)
+      releasePhotoUrl(photo)
+      succeeded.push(photo)
+      restoredPhotos.push(restoredPhoto)
+    } catch {
+      failedNames.push(photo.originalName)
+    }
+  }
+
+  return { succeeded, restoredPhotos, failedNames }
+}
+
+/**
+ * 从电脑中永久删除最近删除照片。
+ * 参数：photos 为待永久删除的回收照片。
+ * 返回：成功删除的回收项和失败文件名。
+ */
+export async function permanentlyDeleteRecentlyDeleted(
+  photos: RecentlyDeletedPhoto[]
+): Promise<TrashOperationResult<RecentlyDeletedPhoto>> {
+  const succeeded: RecentlyDeletedPhoto[] = []
+  const failedNames: string[] = []
+
+  for (const photo of photos) {
+    try {
+      await photo.directoryHandle.removeEntry(photo.trashName)
+      releasePhotoUrl(photo)
+      succeeded.push(photo)
+    } catch {
+      failedNames.push(photo.originalName)
+    }
+  }
+
+  return { succeeded, failedNames }
 }
 
 export async function pickAlbumDirectory(messages: FileSystemMessages): Promise<AlbumDirectoryResult> {
@@ -224,13 +440,100 @@ export async function pickAlbumDirectory(messages: FileSystemMessages): Promise<
   }
 }
 
+export { formatFileSize }
+
 /**
- * 删除照片原文件并释放对应的对象地址。
- * 参数：photo 为需要永久删除的照片。
+ * 生成可持久解析的回收文件名。
+ * 参数：photo 为原照片，wasFavorite 表示删除前是否收藏，deletedAt 为删除时间。
+ * 返回：包含版本、删除时间、收藏状态和原文件名的回收文件名。
  */
-export async function deletePhotoFile(photo: PhotoItem): Promise<void> {
-  await photo.directoryHandle.removeEntry(photo.name)
-  releasePhotoUrl(photo)
+function createTrashFileName(photo: PhotoItem, wasFavorite: boolean, deletedAt: number): string {
+  const randomId = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).slice(2)
+  return `${TRASH_FILE_PREFIX}${deletedAt}__${wasFavorite ? '1' : '0'}__${randomId}__${photo.name}`
+}
+
+/**
+ * 解析应用创建的回收文件名。
+ * 参数：trashName 为 trash 目录中的真实文件名。
+ * 返回：可恢复元数据；非应用文件返回 null。
+ */
+function parseTrashFileName(trashName: string): { originalName: string; deletedAt: number; wasFavorite: boolean } | null {
+  const match = trashName.match(/^inam-v1__(\d+)__([01])__(?:[^_]|_(?!_))+__(.+)$/)
+  if (!match) return null
+
+  const deletedAt = Number(match[1])
+  if (!Number.isFinite(deletedAt) || !match[3] || /[\\/]/.test(match[3])) return null
+  return { originalName: match[3], deletedAt, wasFavorite: match[2] === '1' }
+}
+
+/**
+ * 将文件完整写入目标句柄，写入失败时中止流。
+ * 参数：sourceFile 为源文件，targetHandle 为目标文件句柄。
+ */
+async function copyFileToHandle(sourceFile: File, targetHandle: FileSystemFileHandle): Promise<void> {
+  const writable = await targetHandle.createWritable()
+  try {
+    await writable.write(sourceFile)
+    await writable.close()
+  } catch (error) {
+    try {
+      await writable.abort(error)
+    } catch {
+      // 浏览器可能已经自动关闭失败的写入流。
+    }
+    throw error
+  }
+}
+
+/**
+ * 尝试移除一次失败操作留下的目标文件。
+ * 参数：directoryHandle 为目标目录，fileName 为待回滚文件名。
+ */
+async function rollbackFile(directoryHandle: FileSystemDirectoryHandle, fileName: string): Promise<void> {
+  try {
+    await directoryHandle.removeEntry(fileName)
+  } catch {
+    // 回滚失败不覆盖触发回滚的原始错误。
+  }
+}
+
+/**
+ * 根据文件名和句柄创建相册照片状态。
+ * 参数：name 为文件名，fileHandle 为文件句柄，directoryHandle 为所属目录。
+ * 返回：符合游戏命名格式的照片；无法解析日期时返回 null。
+ */
+function createPhotoItem(
+  name: string,
+  fileHandle: FileSystemFileHandle,
+  directoryHandle: FileSystemDirectoryHandle
+): PhotoItem | null {
+  const parsed = parsePhotoDate(name)
+  if (!parsed) return null
+
+  return {
+    id: `${parsed.dateKey}-${parsed.timeText}-${name}`,
+    name,
+    url: null,
+    fileSizeText: '--',
+    fileHandle,
+    directoryHandle,
+    ...parsed
+  }
+}
+
+/**
+ * 扫描相册根目录中的有效图片，不进入任何子目录。
+ * 参数：directoryHandle 为当前相册目录。
+ * 返回：按拍摄时间倒序排列的照片列表。
+ */
+async function scanAlbumPhotos(directoryHandle: FileSystemDirectoryHandle): Promise<PhotoItem[]> {
+  const photos: PhotoItem[] = []
+  for await (const [name, handle] of directoryHandle.entries()) {
+    if (handle.kind !== 'file' || !isImageFile(name)) continue
+    const photo = createPhotoItem(name, handle as FileSystemFileHandle, directoryHandle)
+    if (photo) photos.push(photo)
+  }
+  return photos.sort((a, b) => b.timestamp - a.timestamp)
 }
 
 /**

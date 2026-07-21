@@ -12,6 +12,13 @@ interface FileSystemHandle {
 interface FileSystemFileHandle extends FileSystemHandle {
   readonly kind: 'file'
   getFile: () => Promise<File>
+  createWritable: () => Promise<FileSystemWritableFileStream>
+}
+
+interface FileSystemWritableFileStream extends WritableStream {
+  write: (data: BufferSource | Blob | string) => Promise<void>
+  close: () => Promise<void>
+  abort: (reason?: unknown) => Promise<void>
 }
 
 interface FileSystemDirectoryHandle extends FileSystemHandle {

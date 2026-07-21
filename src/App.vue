@@ -1,27 +1,36 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import TopBar from './components/TopBar.vue'
-import DateSidebar from './components/DateSidebar.vue'
-import PhotoGrid from './components/PhotoGrid.vue'
-import Lightbox from './components/Lightbox.vue'
+import AlbumViewNav, { type AlbumView } from './components/AlbumViewNav.vue'
 import ConfirmDialog, { type ConfirmDialogTone } from './components/ConfirmDialog.vue'
+import DateSidebar from './components/DateSidebar.vue'
+import Lightbox from './components/Lightbox.vue'
 import OperationNotice, { type OperationNoticeTone } from './components/OperationNotice.vue'
-import { groupDatesByYear, groupPhotosByDate, type PhotoItem } from './utils/dateGrouping'
+import PhotoGrid from './components/PhotoGrid.vue'
+import RecentlyDeletedGrid from './components/RecentlyDeletedGrid.vue'
+import TopBar from './components/TopBar.vue'
+import { DEFAULT_LANGUAGE, getThumbnailModeOptions, messages, type Language, type StatusPrefix, type StatusSuffix } from './i18n'
+import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
+import { isThemeMode, type ThemeMode } from './types/theme'
+import { groupDatesByYear, groupPhotosByDate, type PhotoItem, type RecentlyDeletedPhoto } from './utils/dateGrouping'
 import {
   clearSavedAlbumDirectoryHandle,
   clearSavedX6GameDirectoryHandle,
-  deletePhotoFile,
   executeRelatedPhotoCleanup,
+  formatFileSize,
   getSavedAlbumDirectoryHandle,
+  listRecentlyDeleted,
+  movePhotosToRecentlyDeleted,
+  permanentlyDeleteRecentlyDeleted,
   pickAlbumDirectory,
   prepareRelatedPhotoCleanup,
   readAlbumDirectory,
+  refreshAlbumDirectory,
+  releasePhotoUrl,
   releasePhotoUrls,
-  type AlbumDirectoryResult
+  restoreRecentlyDeletedPhotos,
+  type AlbumDirectoryResult,
+  type RefreshAlbumResult
 } from './utils/fileSystem'
-import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
-import { DEFAULT_LANGUAGE, getThumbnailModeOptions, messages, type Language, type StatusPrefix, type StatusSuffix } from './i18n'
-import { isThemeMode, type ThemeMode } from './types/theme'
 
 const THUMBNAIL_STORAGE_KEY = 'infinity-nikki-thumbnail-mode'
 const THEME_STORAGE_KEY = 'infinity-nikki-theme-mode'
@@ -29,6 +38,11 @@ const FAVORITES_STORAGE_KEY = 'infinity-nikki-favorite-photo-ids'
 const storedThumbnailMode = localStorage.getItem(THUMBNAIL_STORAGE_KEY)
 const storedThemeMode = localStorage.getItem(THEME_STORAGE_KEY)
 
+/**
+ * 读取浏览器保存的收藏照片 ID。
+ * 参数：无。
+ * 返回：过滤掉非法值后的收藏集合。
+ */
 function readStoredFavoriteIds(): Set<string> {
   try {
     const parsed = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) ?? '[]')
@@ -64,20 +78,23 @@ type StatusState =
   | { type: 'readFailed' }
   | { type: 'cleared' }
   | { type: 'success'; count: number; prefix: StatusPrefix; suffix?: StatusSuffix }
-  | { type: 'deleted'; deletedCount: number; failedNames: string[] }
   | { type: 'custom'; message: string; tone?: StatusTone; loading?: boolean }
 
 const photos = ref<PhotoItem[]>([])
+const recentlyDeleted = ref<RecentlyDeletedPhoto[]>([])
 const selectedIds = ref<Set<string>>(new Set())
+const trashSelectedIds = ref<Set<string>>(new Set())
 const favoriteIds = ref<Set<string>>(readStoredFavoriteIds())
-const showFavoritesOnly = ref(false)
+const activeView = ref<AlbumView>('all')
 const currentPreview = ref<PhotoItem | null>(null)
 const language = ref<Language>(DEFAULT_LANGUAGE)
 const directoryState = ref<DirectoryState>({ type: 'none' })
 const statusState = ref<StatusState>({ type: 'initial' })
 const isStatusNoticeVisible = ref(false)
 const isLoading = ref(false)
+const isRefreshing = ref(false)
 const isDeleting = ref(false)
+const isTrashBusy = ref(false)
 const isCleaningRelatedPhotos = ref(false)
 const confirmDialog = ref<ConfirmDialogState>({
   visible: false,
@@ -93,10 +110,12 @@ const appShellRef = ref<HTMLElement | null>(null)
 const topBarRef = ref<InstanceType<typeof TopBar> | null>(null)
 let topBarResizeObserver: ResizeObserver | null = null
 let statusNoticeTimer: number | undefined
+let focusRefreshTimer: number | undefined
 
 const locale = computed(() => messages[language.value])
 const favoritePhotos = computed(() => photos.value.filter((photo) => favoriteIds.value.has(photo.id)))
-const visiblePhotos = computed(() => (showFavoritesOnly.value ? favoritePhotos.value : photos.value))
+const visiblePhotos = computed(() => (activeView.value === 'favorites' ? favoritePhotos.value : photos.value))
+const previewPhotos = computed<PhotoItem[]>(() => (activeView.value === 'trash' ? recentlyDeleted.value : visiblePhotos.value))
 const dateGroups = computed(() => groupPhotosByDate(visiblePhotos.value))
 const formattedDateGroups = computed(() =>
   dateGroups.value.map((group) => ({
@@ -107,11 +126,18 @@ const formattedDateGroups = computed(() =>
 )
 const yearGroups = computed(() => groupDatesByYear(formattedDateGroups.value))
 const selectedCount = computed(() => visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id)).length)
-const totalCount = computed(() => photos.value.length)
 const visibleCount = computed(() => visiblePhotos.value.length)
 const favoriteCount = computed(() => favoritePhotos.value.length)
 const allSelected = computed(
   () => visibleCount.value > 0 && visiblePhotos.value.every((photo) => selectedIds.value.has(photo.id))
+)
+const allTrashSelected = computed(
+  () => recentlyDeleted.value.length > 0 && recentlyDeleted.value.every((photo) => trashSelectedIds.value.has(photo.id))
+)
+const trashTotalSize = computed(() => recentlyDeleted.value.reduce((total, photo) => total + (photo.size ?? 0), 0))
+const trashTotalSizeText = computed(() => formatFileSize(trashTotalSize.value))
+const isAnyFileOperationBusy = computed(
+  () => isLoading.value || isRefreshing.value || isDeleting.value || isTrashBusy.value || isCleaningRelatedPhotos.value
 )
 const thumbnailModeOptions = computed(() => getThumbnailModeOptions(language.value))
 const directoryName = computed(() => {
@@ -119,38 +145,29 @@ const directoryName = computed(() => {
   if (directoryState.value.type === 'selected') return directoryState.value.name
   return locale.value.app.noDirectory
 })
+const statusCardTitle = computed(() => {
+  if (!albumDirectoryHandle.value) return locale.value.app.waitingTitle
+  if (activeView.value === 'trash') return locale.value.trash.totalSummary(recentlyDeleted.value.length, trashTotalSizeText.value)
+  return locale.value.app.totalPhotos(visibleCount.value, activeView.value === 'favorites')
+})
 const statusMessage = computed(() => {
   const app = locale.value.app
   const state = statusState.value
-
   switch (state.type) {
-    case 'reading':
-      return app.readingStatus
-    case 'restoring':
-      return app.restoringStatus
-    case 'restoreFailed':
-      return app.restoreFailedStatus
-    case 'restorePathFailed':
-      return app.restorePathFailedStatus
-    case 'readFailed':
-      return app.readFailedStatus
-    case 'cleared':
-      return app.clearedStatus
-    case 'success':
-      return `${app.successStatus(state.count, state.prefix)}${state.suffix ? app.successSuffix(state.suffix) : ''}`
-    case 'deleted':
-      return app.deletedStatus(state.deletedCount, state.failedNames)
-    case 'custom':
-      return state.message
-    default:
-      return app.initialStatus
+    case 'reading': return app.readingStatus
+    case 'restoring': return app.restoringStatus
+    case 'restoreFailed': return app.restoreFailedStatus
+    case 'restorePathFailed': return app.restorePathFailedStatus
+    case 'readFailed': return app.readFailedStatus
+    case 'cleared': return app.clearedStatus
+    case 'success': return `${app.successStatus(state.count, state.prefix)}${state.suffix ? app.successSuffix(state.suffix) : ''}`
+    case 'custom': return state.message
+    default: return app.initialStatus
   }
 })
 const statusNoticeTone = computed<StatusTone>(() => {
   const state = statusState.value
-
   if (state.type === 'restoreFailed' || state.type === 'restorePathFailed' || state.type === 'readFailed') return 'error'
-  if (state.type === 'deleted') return state.failedNames.length ? 'warning' : 'success'
   if (state.type === 'success' || state.type === 'cleared') return 'success'
   if (state.type === 'custom') return state.tone ?? 'info'
   return 'info'
@@ -161,50 +178,42 @@ const isStatusNoticeLoading = computed(() => {
 })
 const currentPreviewIndex = computed(() => {
   if (!currentPreview.value) return -1
-  return visiblePhotos.value.findIndex((photo) => photo.id === currentPreview.value?.id)
+  return previewPhotos.value.findIndex((photo) => photo.id === currentPreview.value?.id)
 })
 const hasPreviousPreview = computed(() => currentPreviewIndex.value > 0)
 const hasNextPreview = computed(
-  () => currentPreviewIndex.value >= 0 && currentPreviewIndex.value < visiblePhotos.value.length - 1
+  () => currentPreviewIndex.value >= 0 && currentPreviewIndex.value < previewPhotos.value.length - 1
 )
 
+/** 清除操作通知计时器。参数：无。 */
 function clearStatusNoticeTimer() {
   if (statusNoticeTimer === undefined) return
   window.clearTimeout(statusNoticeTimer)
   statusNoticeTimer = undefined
 }
 
+/** 关闭操作通知。参数：无。 */
 function closeStatusNotice() {
   clearStatusNoticeTimer()
   isStatusNoticeVisible.value = false
 }
 
-// 打开自定义确认弹窗。参数：options 为弹窗文案、风格和按钮设置。返回用户是否确认。
+/** 打开自定义确认弹窗。参数：options 为弹窗文案和风格。返回用户是否确认。 */
 function openConfirmDialog(options: Omit<ConfirmDialogState, 'visible' | 'resolve'>): Promise<boolean> {
   if (confirmDialog.value.visible) return Promise.resolve(false)
-
   return new Promise((resolve) => {
-    confirmDialog.value = {
-      ...options,
-      visible: true,
-      resolve
-    }
+    confirmDialog.value = { ...options, visible: true, resolve }
   })
 }
 
-// 关闭自定义确认弹窗。参数：confirmed 表示用户是否点击确认按钮。
+/** 关闭自定义确认弹窗。参数：confirmed 表示用户是否确认。 */
 function closeConfirmDialog(confirmed: boolean) {
   const resolve = confirmDialog.value.resolve
-  confirmDialog.value = {
-    visible: false,
-    title: '',
-    message: '',
-    tone: 'info',
-    confirmLabel: ''
-  }
+  confirmDialog.value = { visible: false, title: '', message: '', tone: 'info', confirmLabel: '' }
   resolve?.(confirmed)
 }
 
+/** 将未知异常转换为页面状态。参数：error 为异常，fallback 为默认状态。 */
 function createErrorStatus(error: unknown, fallback: StatusState): StatusState {
   if (!(error instanceof Error)) return fallback
   const tone: StatusTone = error.message === locale.value.fileSystem.abortSelection ? 'info' : 'error'
@@ -213,15 +222,12 @@ function createErrorStatus(error: unknown, fallback: StatusState): StatusState {
 
 watch(statusState, (nextStatus) => {
   clearStatusNoticeTimer()
-
   if (nextStatus.type === 'initial') {
     isStatusNoticeVisible.value = false
     return
   }
-
   isStatusNoticeVisible.value = true
   if (isStatusNoticeLoading.value) return
-
   const duration = statusNoticeTone.value === 'error' || statusNoticeTone.value === 'warning' ? 7200 : 5200
   statusNoticeTimer = window.setTimeout(() => {
     isStatusNoticeVisible.value = false
@@ -229,57 +235,65 @@ watch(statusState, (nextStatus) => {
   }, duration)
 })
 
-watch(
-  favoriteIds,
-  (nextFavoriteIds) => {
-    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...nextFavoriteIds]))
-  },
-  { deep: true }
-)
+watch(favoriteIds, (ids) => localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...ids])), { deep: true })
+watch(language, (value) => { document.documentElement.lang = value === 'zh' ? 'zh-CN' : 'en' }, { immediate: true })
+watch(themeMode, (value) => { document.documentElement.dataset.theme = value }, { immediate: true })
 
-watch(
-  language,
-  (nextLanguage) => {
-    document.documentElement.lang = nextLanguage === 'zh' ? 'zh-CN' : 'en'
-  },
-  { immediate: true }
-)
+/**
+ * 合并最近删除扫描结果，复用未变化照片已加载的对象地址。
+ * 参数：nextPhotos 为最新扫描结果。
+ */
+function mergeRecentlyDeleted(nextPhotos: RecentlyDeletedPhoto[]) {
+  const currentByName = new Map(recentlyDeleted.value.map((photo) => [photo.trashName, photo]))
+  const nextNames = new Set(nextPhotos.map((photo) => photo.trashName))
+  for (const photo of recentlyDeleted.value) {
+    if (!nextNames.has(photo.trashName)) releasePhotoUrl(photo)
+  }
+  recentlyDeleted.value = nextPhotos.map((photo) => {
+    const existing = currentByName.get(photo.trashName)
+    if (!existing) return photo
+    existing.size = photo.size
+    existing.fileSizeText = photo.fileSizeText
+    return existing
+  })
+  const validIds = new Set(recentlyDeleted.value.map((photo) => photo.id))
+  trashSelectedIds.value = new Set([...trashSelectedIds.value].filter((id) => validIds.has(id)))
+}
 
-watch(
-  themeMode,
-  (nextThemeMode) => {
-    document.documentElement.dataset.theme = nextThemeMode
-  },
-  { immediate: true }
-)
-
-function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusState) {
+/**
+ * 替换当前相册并同步其最近删除目录。
+ * 参数：result 为新相册结果，nextStatus 为完成后的状态提示。
+ */
+async function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusState) {
   releasePhotoUrls(photos.value)
+  releasePhotoUrls(recentlyDeleted.value)
   selectedIds.value = new Set()
+  trashSelectedIds.value = new Set()
   currentPreview.value = null
   photos.value = result.photos
+  recentlyDeleted.value = await listRecentlyDeleted(result.directoryHandle)
   favoriteIds.value = new Set(result.photos.filter((photo) => favoriteIds.value.has(photo.id)).map((photo) => photo.id))
-  if (showFavoritesOnly.value && !favoriteIds.value.size) showFavoritesOnly.value = false
+  activeView.value = 'all'
   albumDirectoryHandle.value = result.directoryHandle
   directoryState.value = { type: 'selected', name: result.directoryName }
   statusState.value = nextStatus
 }
 
+/** 切换中英文。参数：无。 */
 function toggleLanguage() {
   language.value = language.value === 'zh' ? 'en' : 'zh'
 }
 
+/** 恢复浏览器记住的相册目录。参数：无。 */
 async function restoreSavedDirectory() {
   const savedHandle = await getSavedAlbumDirectoryHandle()
   if (!savedHandle) return
-
   directoryState.value = { type: 'remembered', name: savedHandle.name }
   isLoading.value = true
   statusState.value = { type: 'restoring' }
-
   try {
     const result = await readAlbumDirectory(savedHandle, { requestPermission: false, messages: locale.value.fileSystem })
-    replaceAlbum(result, { type: 'success', count: result.photos.length, prefix: 'restored' })
+    await replaceAlbum(result, { type: 'success', count: result.photos.length, prefix: 'restored' })
   } catch (error) {
     statusState.value = createErrorStatus(error, { type: 'restoreFailed' })
   } finally {
@@ -287,24 +301,24 @@ async function restoreSavedDirectory() {
   }
 }
 
+/** 选择或重新授权相册目录。参数：无。 */
 async function chooseDirectory() {
+  if (isAnyFileOperationBusy.value) return
   isLoading.value = true
   statusState.value = { type: 'reading' }
-
   try {
     const savedHandle = await getSavedAlbumDirectoryHandle()
     if (savedHandle && !photos.value.length) {
       try {
         const restored = await readAlbumDirectory(savedHandle, { requestPermission: true, messages: locale.value.fileSystem })
-        replaceAlbum(restored, { type: 'success', count: restored.photos.length, prefix: 'restored', suffix: 'continued' })
+        await replaceAlbum(restored, { type: 'success', count: restored.photos.length, prefix: 'restored', suffix: 'continued' })
         return
       } catch {
         statusState.value = { type: 'restorePathFailed' }
       }
     }
-
     const result = await pickAlbumDirectory(locale.value.fileSystem)
-    replaceAlbum(result, { type: 'success', count: result.photos.length, prefix: 'read', suffix: 'remembered' })
+    await replaceAlbum(result, { type: 'success', count: result.photos.length, prefix: 'read', suffix: 'remembered' })
   } catch (error) {
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
   } finally {
@@ -312,151 +326,289 @@ async function chooseDirectory() {
   }
 }
 
+/** 清除保存的目录授权和当前页面状态。参数：无。 */
 async function clearDirectory() {
+  if (isAnyFileOperationBusy.value) return
   await clearSavedAlbumDirectoryHandle()
   await clearSavedX6GameDirectoryHandle()
   releasePhotoUrls(photos.value)
+  releasePhotoUrls(recentlyDeleted.value)
   photos.value = []
+  recentlyDeleted.value = []
   selectedIds.value = new Set()
+  trashSelectedIds.value = new Set()
   currentPreview.value = null
   albumDirectoryHandle.value = null
-  showFavoritesOnly.value = false
+  activeView.value = 'all'
   directoryState.value = { type: 'none' }
   statusState.value = { type: 'cleared' }
 }
 
-// 切换缩略图尺寸。参数：mode 为目标缩略图模式。
+/**
+ * 应用增量刷新结果并清理失效状态。
+ * 参数：result 为文件系统扫描结果。
+ */
+function applyRefreshResult(result: RefreshAlbumResult) {
+  for (const photo of result.removedPhotos) releasePhotoUrl(photo)
+  photos.value = result.photos
+  mergeRecentlyDeleted(result.recentlyDeleted)
+  const validPhotoIds = new Set(photos.value.map((photo) => photo.id))
+  selectedIds.value = new Set([...selectedIds.value].filter((id) => validPhotoIds.has(id)))
+  favoriteIds.value = new Set([...favoriteIds.value].filter((id) => validPhotoIds.has(id)))
+  if (currentPreview.value && !previewPhotos.value.some((photo) => photo.id === currentPreview.value?.id)) currentPreview.value = null
+}
+
+/**
+ * 刷新相册和最近删除目录。
+ * 参数：manual 表示是否由用户点击触发；手动刷新可请求权限且无变化时也提示。
+ */
+async function refreshAlbum(manual: boolean) {
+  const directoryHandle = albumDirectoryHandle.value
+  if (!directoryHandle || isAnyFileOperationBusy.value || confirmDialog.value.visible) return
+  isRefreshing.value = true
+  if (manual) statusState.value = { type: 'custom', message: locale.value.topBar.refreshing, tone: 'info', loading: true }
+  try {
+    const result = await refreshAlbumDirectory(directoryHandle, photos.value, {
+      requestPermission: manual,
+      messages: locale.value.fileSystem
+    })
+    applyRefreshResult(result)
+    if (result.addedCount || result.removedCount) {
+      statusState.value = { type: 'custom', message: locale.value.trash.refreshStatus(result.addedCount, result.removedCount), tone: 'success' }
+    } else if (manual) {
+      statusState.value = { type: 'custom', message: locale.value.trash.upToDate, tone: 'success' }
+    }
+  } catch (error) {
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+  } finally {
+    isRefreshing.value = false
+  }
+}
+
+/** 切换缩略图尺寸。参数：mode 为目标模式。 */
 function changeThumbnailMode(mode: ThumbnailMode) {
   thumbnailMode.value = mode
   localStorage.setItem(THUMBNAIL_STORAGE_KEY, mode)
 }
 
+/** 切换亮暗主题。参数：无。 */
 function toggleTheme() {
   themeMode.value = themeMode.value === 'light' ? 'dark' : 'light'
   localStorage.setItem(THEME_STORAGE_KEY, themeMode.value)
 }
 
-// 切换当前视图内照片的全选状态。参数：无。收藏视图只影响当前可见的收藏照片。
+/** 切换全部照片、收藏夹或最近删除视图。参数：view 为目标视图。 */
+function changeAlbumView(view: AlbumView) {
+  activeView.value = view
+  currentPreview.value = null
+  if (view === 'trash') void refreshAlbum(false)
+}
+
+/** 切换普通照片当前视图的全选状态。参数：无。 */
 function toggleAll() {
   const visibleIds = new Set(visiblePhotos.value.map((photo) => photo.id))
-
   if (allSelected.value) {
     selectedIds.value = new Set([...selectedIds.value].filter((id) => !visibleIds.has(id)))
     return
   }
-
   selectedIds.value = new Set([...selectedIds.value, ...visibleIds])
 }
 
+/** 切换普通照片选中状态。参数：photoId 为照片 ID。 */
 function togglePhoto(photoId: string) {
   const next = new Set(selectedIds.value)
-  if (next.has(photoId)) {
-    next.delete(photoId)
-  } else {
-    next.add(photoId)
-  }
+  next.has(photoId) ? next.delete(photoId) : next.add(photoId)
   selectedIds.value = next
 }
 
-function toggleFavoritesOnly() {
-  showFavoritesOnly.value = !showFavoritesOnly.value
-  selectedIds.value = new Set()
-  currentPreview.value = null
+/** 切换最近删除照片选中状态。参数：photoId 为回收照片 ID。 */
+function toggleTrashPhoto(photoId: string) {
+  const next = new Set(trashSelectedIds.value)
+  next.has(photoId) ? next.delete(photoId) : next.add(photoId)
+  trashSelectedIds.value = next
 }
 
+/** 切换最近删除全选状态。参数：无。 */
+function toggleAllTrash() {
+  trashSelectedIds.value = allTrashSelected.value ? new Set() : new Set(recentlyDeleted.value.map((photo) => photo.id))
+}
+
+/** 切换收藏状态。参数：photoId 为照片 ID。 */
 function toggleFavorite(photoId: string) {
   const next = new Set(favoriteIds.value)
-  if (next.has(photoId)) {
-    next.delete(photoId)
-  } else {
-    next.add(photoId)
-  }
-
+  next.has(photoId) ? next.delete(photoId) : next.add(photoId)
   favoriteIds.value = next
-  if (showFavoritesOnly.value && !next.has(photoId)) selectedIds.value = new Set([...selectedIds.value].filter((id) => id !== photoId))
+  if (activeView.value === 'favorites' && !next.has(photoId)) {
+    selectedIds.value = new Set([...selectedIds.value].filter((id) => id !== photoId))
+  }
 }
 
+/** 切换某一天全部照片的选中状态。参数：dateKey 为日期键。 */
 function toggleDate(dateKey: string) {
   const group = dateGroups.value.find((item) => item.dateKey === dateKey)
   if (!group) return
-
   const next = new Set(selectedIds.value)
-  const isWholeDaySelected = group.photos.every((photo) => next.has(photo.id))
-
-  for (const photo of group.photos) {
-    if (isWholeDaySelected) {
-      next.delete(photo.id)
-    } else {
-      next.add(photo.id)
-    }
-  }
-
+  const selected = group.photos.every((photo) => next.has(photo.id))
+  for (const photo of group.photos) selected ? next.delete(photo.id) : next.add(photo.id)
   selectedIds.value = next
 }
 
-async function deletePhotos(targets: PhotoItem[], confirmMessage: string, keepPreviewOpen = false) {
-  if (!targets.length || isDeleting.value || isCleaningRelatedPhotos.value) return
+/**
+ * 将普通照片移动到最近删除。
+ * 参数：targets 为目标照片，keepPreviewOpen 表示删除预览图后是否继续预览相邻照片。
+ */
+async function movePhotosToTrash(targets: PhotoItem[], keepPreviewOpen = false) {
+  if (!targets.length || isAnyFileOperationBusy.value) return
   const confirmed = await openConfirmDialog({
-    title: locale.value.app.deleteDialogTitle,
-    message: confirmMessage,
-    tone: 'danger',
+    title: locale.value.trash.moveDialogTitle,
+    message: locale.value.trash.confirmMove(targets.length),
+    tone: 'warning',
     confirmLabel: locale.value.app.dialogConfirm,
     cancelLabel: locale.value.app.dialogCancel
   })
   if (!confirmed) return
 
   isDeleting.value = true
-  const deletedIds = new Set<string>()
-  const failedNames: string[] = []
-  const previewIndexBeforeDelete = currentPreviewIndex.value
-  const wasFavoritesView = showFavoritesOnly.value
+  const previewIndex = currentPreviewIndex.value
+  try {
+    const result = await movePhotosToRecentlyDeleted(targets, favoriteIds.value)
+    const movedIds = new Set(result.succeeded.map((photo) => photo.id))
+    photos.value = photos.value.filter((photo) => !movedIds.has(photo.id))
+    selectedIds.value = new Set([...selectedIds.value].filter((id) => !movedIds.has(id)))
+    favoriteIds.value = new Set([...favoriteIds.value].filter((id) => !movedIds.has(id)))
+    mergeRecentlyDeleted(await listRecentlyDeleted(targets[0].directoryHandle))
 
-  for (const photo of targets) {
-    try {
-      await deletePhotoFile(photo)
-      deletedIds.add(photo.id)
-    } catch {
-      failedNames.push(photo.name)
+    if (currentPreview.value && movedIds.has(currentPreview.value.id)) {
+      currentPreview.value = keepPreviewOpen
+        ? visiblePhotos.value[Math.min(previewIndex, visiblePhotos.value.length - 1)] ?? null
+        : null
     }
+    statusState.value = {
+      type: 'custom',
+      message: locale.value.trash.movedStatus(result.succeeded.length, result.failedNames),
+      tone: result.failedNames.length ? 'warning' : 'success'
+    }
+  } catch (error) {
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+  } finally {
+    isDeleting.value = false
   }
-
-  const remainingPhotos = photos.value.filter((photo) => !deletedIds.has(photo.id))
-  const deletedCurrentPreview = currentPreview.value ? deletedIds.has(currentPreview.value.id) : false
-
-  photos.value = remainingPhotos
-  selectedIds.value = new Set([...selectedIds.value].filter((id) => !deletedIds.has(id)))
-  favoriteIds.value = new Set([...favoriteIds.value].filter((id) => !deletedIds.has(id)))
-  if (showFavoritesOnly.value && !favoriteIds.value.size) showFavoritesOnly.value = false
-
-  if (deletedCurrentPreview) {
-    const remainingPreviewPhotos = wasFavoritesView ? favoritePhotos.value : photos.value
-    currentPreview.value = keepPreviewOpen
-      ? remainingPreviewPhotos[Math.min(previewIndexBeforeDelete, remainingPreviewPhotos.length - 1)] ?? null
-      : null
-  }
-
-  statusState.value = { type: 'deleted', deletedCount: deletedIds.size, failedNames }
-
-  isDeleting.value = false
 }
 
+/** 将当前普通视图的选中照片移到最近删除。参数：无。 */
 async function deleteSelectedPhotos() {
-  const targets = visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id))
-  await deletePhotos(targets, locale.value.app.confirmDeleteSelected(targets.length))
+  await movePhotosToTrash(visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id)))
 }
 
+/** 将当前预览照片移到最近删除。参数：无。 */
 async function deleteCurrentPreview() {
-  if (!currentPreview.value) return
-  await deletePhotos([currentPreview.value], locale.value.app.confirmDeleteCurrent, true)
+  if (!currentPreview.value || activeView.value === 'trash') return
+  await movePhotosToTrash([currentPreview.value], true)
 }
 
-async function cleanRelatedPhotos() {
-  if (!albumDirectoryHandle.value || isLoading.value || isDeleting.value || isCleaningRelatedPhotos.value) return
+/**
+ * 恢复最近删除照片。
+ * 参数：targets 为待恢复的回收照片，keepPreviewOpen 表示是否继续预览相邻回收照片。
+ */
+async function restoreTrashPhotos(targets: RecentlyDeletedPhoto[], keepPreviewOpen = false) {
+  const directoryHandle = albumDirectoryHandle.value
+  if (!directoryHandle || !targets.length || isAnyFileOperationBusy.value) return
+  isTrashBusy.value = true
+  const previewIndex = currentPreviewIndex.value
+  try {
+    const result = await restoreRecentlyDeletedPhotos(targets, directoryHandle)
+    const restoredTrashIds = new Set(result.succeeded.map((photo) => photo.id))
+    recentlyDeleted.value = recentlyDeleted.value.filter((photo) => !restoredTrashIds.has(photo.id))
+    trashSelectedIds.value = new Set([...trashSelectedIds.value].filter((id) => !restoredTrashIds.has(id)))
+    photos.value = [...photos.value, ...result.restoredPhotos].sort((a, b) => b.timestamp - a.timestamp)
+    result.succeeded.forEach((source, index) => {
+      const restored = result.restoredPhotos[index]
+      if (source.wasFavorite && restored) favoriteIds.value = new Set([...favoriteIds.value, restored.id])
+    })
+    if (currentPreview.value && restoredTrashIds.has(currentPreview.value.id)) {
+      currentPreview.value = keepPreviewOpen
+        ? recentlyDeleted.value[Math.min(previewIndex, recentlyDeleted.value.length - 1)] ?? null
+        : null
+    }
+    statusState.value = {
+      type: 'custom',
+      message: locale.value.trash.restoredStatus(result.succeeded.length, result.failedNames),
+      tone: result.failedNames.length ? 'warning' : 'success'
+    }
+  } catch (error) {
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+  } finally {
+    isTrashBusy.value = false
+  }
+}
 
+/**
+ * 永久删除最近删除照片并显示不可恢复影响范围。
+ * 参数：targets 为待删除照片，keepPreviewOpen 表示是否继续预览相邻照片。
+ */
+async function permanentlyDeleteTrashPhotos(targets: RecentlyDeletedPhoto[], keepPreviewOpen = false) {
+  if (!targets.length || isAnyFileOperationBusy.value) return
+  const confirmed = await openConfirmDialog({
+    title: locale.value.trash.permanentDeleteDialogTitle,
+    message: locale.value.trash.confirmPermanentDelete(targets.length),
+    tone: 'danger',
+    confirmLabel: locale.value.app.dialogConfirm,
+    cancelLabel: locale.value.app.dialogCancel
+  })
+  if (!confirmed) return
+
+  isTrashBusy.value = true
+  const previewIndex = currentPreviewIndex.value
+  try {
+    const result = await permanentlyDeleteRecentlyDeleted(targets)
+    const deletedIds = new Set(result.succeeded.map((photo) => photo.id))
+    recentlyDeleted.value = recentlyDeleted.value.filter((photo) => !deletedIds.has(photo.id))
+    trashSelectedIds.value = new Set([...trashSelectedIds.value].filter((id) => !deletedIds.has(id)))
+    if (currentPreview.value && deletedIds.has(currentPreview.value.id)) {
+      currentPreview.value = keepPreviewOpen
+        ? recentlyDeleted.value[Math.min(previewIndex, recentlyDeleted.value.length - 1)] ?? null
+        : null
+    }
+    statusState.value = {
+      type: 'custom',
+      message: locale.value.trash.permanentlyDeletedStatus(result.succeeded.length, result.failedNames),
+      tone: result.failedNames.length ? 'warning' : 'success'
+    }
+  } catch (error) {
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+  } finally {
+    isTrashBusy.value = false
+  }
+}
+
+/** 恢复当前选中的最近删除照片。参数：无。 */
+async function restoreSelectedTrash() {
+  await restoreTrashPhotos(recentlyDeleted.value.filter((photo) => trashSelectedIds.value.has(photo.id)))
+}
+
+/** 永久删除当前选中的最近删除照片。参数：无。 */
+async function permanentlyDeleteSelectedTrash() {
+  await permanentlyDeleteTrashPhotos(recentlyDeleted.value.filter((photo) => trashSelectedIds.value.has(photo.id)))
+}
+
+/** 恢复当前最近删除预览照片。参数：无。 */
+async function restoreCurrentTrashPreview() {
+  if (!currentPreview.value || activeView.value !== 'trash') return
+  await restoreTrashPhotos([currentPreview.value as RecentlyDeletedPhoto], true)
+}
+
+/** 永久删除当前最近删除预览照片。参数：无。 */
+async function permanentlyDeleteCurrentTrashPreview() {
+  if (!currentPreview.value || activeView.value !== 'trash') return
+  await permanentlyDeleteTrashPhotos([currentPreview.value as RecentlyDeletedPhoto], true)
+}
+
+/** 执行原有低画质和截图永久清理。参数：无。 */
+async function cleanRelatedPhotos() {
+  if (!albumDirectoryHandle.value || isAnyFileOperationBusy.value) return
   isCleaningRelatedPhotos.value = true
   statusState.value = { type: 'custom', message: locale.value.app.preparingRelatedCleanup, tone: 'info', loading: true }
   let didCancelDirectoryPrompt = false
-
   try {
     const plan = await prepareRelatedPhotoCleanup(albumDirectoryHandle.value, locale.value.fileSystem, {
       beforeRequestX6GamePermission: async () => {
@@ -482,7 +634,6 @@ async function cleanRelatedPhotos() {
         return confirmed
       }
     })
-
     if (!plan.totalCount) {
       statusState.value = {
         type: 'custom',
@@ -491,7 +642,6 @@ async function cleanRelatedPhotos() {
       }
       return
     }
-
     const confirmed = await openConfirmDialog({
       title: locale.value.app.relatedCleanupDialogTitle,
       message: locale.value.app.confirmRelatedCleanup(plan.totalCount, plan.missingDirectories),
@@ -499,12 +649,10 @@ async function cleanRelatedPhotos() {
       confirmLabel: locale.value.app.dialogConfirm,
       cancelLabel: locale.value.app.dialogCancel
     })
-
     if (!confirmed) {
       statusState.value = { type: 'custom', message: locale.value.app.relatedCleanupCancelledStatus, tone: 'info' }
       return
     }
-
     const result = await executeRelatedPhotoCleanup(plan)
     statusState.value = {
       type: 'custom',
@@ -522,62 +670,71 @@ async function cleanRelatedPhotos() {
   }
 }
 
-// 跳转到指定日期。参数：dateKey 为目标日期。
+/** 跳转到指定日期。参数：dateKey 为日期键。 */
 function scrollToDate(dateKey: string) {
   document.getElementById(`date-${dateKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+/** 打开照片大图。参数：photo 为目标照片。 */
 function openPreview(photo: PhotoItem) {
   currentPreview.value = photo
 }
 
+/** 关闭照片大图。参数：无。 */
 function closePreview() {
   currentPreview.value = null
 }
 
-// 更新侧栏吸顶偏移量。参数：无。根据顶部工具栏实际高度设置 CSS 变量，避免侧栏滚动时被顶部栏遮住。
+/** 更新左侧栏顶部偏移。参数：无。 */
 function updateSidebarStickyOffset() {
-  const appShell = appShellRef.value
   const topBarElement = topBarRef.value?.$el as HTMLElement | undefined
-
-  if (!appShell || !topBarElement) return
-
-  // 预留 10px 间距，让左侧栏始终停在顶部工具栏下方。
-  appShell.style.setProperty('--sidebar-sticky-top', `${Math.ceil(topBarElement.getBoundingClientRect().height) + 10}px`)
+  if (!appShellRef.value || !topBarElement) return
+  appShellRef.value.style.setProperty('--sidebar-sticky-top', `${Math.ceil(topBarElement.getBoundingClientRect().height) + 10}px`)
 }
 
-// 显示当前筛选结果中的上一张照片。参数：无。
+/** 显示当前视图上一张预览照片。参数：无。 */
 function showPreviousPreview() {
-  if (!hasPreviousPreview.value) return
-  currentPreview.value = visiblePhotos.value[currentPreviewIndex.value - 1]
+  if (hasPreviousPreview.value) currentPreview.value = previewPhotos.value[currentPreviewIndex.value - 1]
 }
 
-// 显示当前筛选结果中的下一张照片。参数：无。
+/** 显示当前视图下一张预览照片。参数：无。 */
 function showNextPreview() {
-  if (!hasNextPreview.value) return
-  currentPreview.value = visiblePhotos.value[currentPreviewIndex.value + 1]
+  if (hasNextPreview.value) currentPreview.value = previewPhotos.value[currentPreviewIndex.value + 1]
+}
+
+/** 合并窗口聚焦和页面可见事件后执行自动刷新。参数：无。 */
+function scheduleFocusRefresh() {
+  if (document.visibilityState === 'hidden' || !albumDirectoryHandle.value) return
+  if (focusRefreshTimer !== undefined) window.clearTimeout(focusRefreshTimer)
+  focusRefreshTimer = window.setTimeout(() => {
+    focusRefreshTimer = undefined
+    void refreshAlbum(false)
+  }, 400)
 }
 
 onMounted(() => {
-  restoreSavedDirectory()
+  void restoreSavedDirectory()
   nextTick(() => {
     updateSidebarStickyOffset()
-
     const topBarElement = topBarRef.value?.$el as HTMLElement | undefined
     if (!topBarElement || typeof ResizeObserver === 'undefined') return
-
-    // 监听顶部工具栏换行、语言切换和窗口宽度变化造成的高度变化。
     topBarResizeObserver = new ResizeObserver(updateSidebarStickyOffset)
     topBarResizeObserver.observe(topBarElement)
   })
   window.addEventListener('resize', updateSidebarStickyOffset)
+  window.addEventListener('focus', scheduleFocusRefresh)
+  document.addEventListener('visibilitychange', scheduleFocusRefresh)
 })
 
 onBeforeUnmount(() => {
   clearStatusNoticeTimer()
+  if (focusRefreshTimer !== undefined) window.clearTimeout(focusRefreshTimer)
   topBarResizeObserver?.disconnect()
   window.removeEventListener('resize', updateSidebarStickyOffset)
+  window.removeEventListener('focus', scheduleFocusRefresh)
+  document.removeEventListener('visibilitychange', scheduleFocusRefresh)
   releasePhotoUrls(photos.value)
+  releasePhotoUrls(recentlyDeleted.value)
 })
 </script>
 
@@ -590,9 +747,11 @@ onBeforeUnmount(() => {
       :selected-count="selectedCount"
       :all-selected="allSelected"
       :is-loading="isLoading"
-      :is-deleting="isDeleting"
+      :is-refreshing="isRefreshing"
+      :is-deleting="isDeleting || isTrashBusy"
       :is-cleaning-related-photos="isCleaningRelatedPhotos"
       :has-album-directory="Boolean(albumDirectoryHandle)"
+      :is-trash-view="activeView === 'trash'"
       :thumbnail-mode="thumbnailMode"
       :thumbnail-mode-options="thumbnailModeOptions"
       :theme-mode="themeMode"
@@ -600,6 +759,7 @@ onBeforeUnmount(() => {
       :messages="locale.topBar"
       @choose-directory="chooseDirectory"
       @clear-directory="clearDirectory"
+      @refresh-album="refreshAlbum(true)"
       @toggle-all="toggleAll"
       @clean-related-photos="cleanRelatedPhotos"
       @delete-selected="deleteSelectedPhotos"
@@ -610,34 +770,56 @@ onBeforeUnmount(() => {
 
     <main class="album-layout">
       <div class="sidebar-column">
-        <button
-          class="favorites-button"
-          type="button"
-          :class="{ active: showFavoritesOnly }"
-          :aria-pressed="showFavoritesOnly"
-          @click="toggleFavoritesOnly"
-        >
-          <span>{{ showFavoritesOnly ? locale.app.showAllPhotos : locale.app.favoritesButton }}</span>
-          <small>{{ locale.app.favoriteCount(favoriteCount) }}</small>
-        </button>
-
         <div class="status-card">
           <div>
             <p class="eyebrow">{{ locale.app.statusEyebrow }}</p>
-            <h2>{{ totalCount ? locale.app.totalPhotos(visibleCount, showFavoritesOnly) : locale.app.waitingTitle }}</h2>
+            <h2>{{ statusCardTitle }}</h2>
           </div>
         </div>
 
-        <DateSidebar :year-groups="yearGroups" :messages="locale.sidebar" @jump-to-date="scrollToDate" />
+        <AlbumViewNav
+          :active-view="activeView"
+          :all-count="photos.length"
+          :favorite-count="favoriteCount"
+          :trash-count="recentlyDeleted.length"
+          :disabled="!albumDirectoryHandle || isAnyFileOperationBusy"
+          :messages="locale.viewNav"
+          @change-view="changeAlbumView"
+        />
+
+        <DateSidebar
+          v-if="activeView !== 'trash'"
+          :year-groups="yearGroups"
+          :messages="locale.sidebar"
+          @jump-to-date="scrollToDate"
+        />
       </div>
 
       <section class="album-content" :aria-label="locale.app.albumContentAria">
+        <RecentlyDeletedGrid
+          v-if="activeView === 'trash'"
+          :photos="recentlyDeleted"
+          :selected-ids="trashSelectedIds"
+          :all-selected="allTrashSelected"
+          :total-size-text="trashTotalSizeText"
+          :thumbnail-mode="thumbnailMode"
+          :is-busy="isTrashBusy"
+          :language="language"
+          :messages="locale.trash"
+          @toggle-photo="toggleTrashPhoto"
+          @toggle-all="toggleAllTrash"
+          @restore-selected="restoreSelectedTrash"
+          @permanently-delete-selected="permanentlyDeleteSelectedTrash"
+          @clear-all="permanentlyDeleteTrashPhotos(recentlyDeleted)"
+          @open-preview="openPreview"
+        />
         <PhotoGrid
+          v-else
           :date-groups="formattedDateGroups"
           :selected-ids="selectedIds"
           :favorite-ids="favoriteIds"
           :thumbnail-mode="thumbnailMode"
-          :is-favorites-view="showFavoritesOnly"
+          :is-favorites-view="activeView === 'favorites'"
           :messages="locale.grid"
           @toggle-photo="togglePhoto"
           @toggle-favorite="toggleFavorite"
@@ -651,13 +833,16 @@ onBeforeUnmount(() => {
       :photo="currentPreview"
       :has-previous="hasPreviousPreview"
       :has-next="hasNextPreview"
-      :is-deleting="isDeleting"
+      :is-deleting="isDeleting || isTrashBusy"
+      :mode="activeView === 'trash' ? 'trash' : 'album'"
       :messages="locale.lightbox"
       :date-messages="locale.date"
       @close="closePreview"
       @previous="showPreviousPreview"
       @next="showNextPreview"
       @delete-current="deleteCurrentPreview"
+      @restore-current="restoreCurrentTrashPreview"
+      @permanently-delete-current="permanentlyDeleteCurrentTrashPreview"
     />
 
     <ConfirmDialog

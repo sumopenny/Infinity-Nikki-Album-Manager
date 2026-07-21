@@ -10,9 +10,11 @@ const props = defineProps<{
   selectedCount: number
   allSelected: boolean
   isLoading: boolean
+  isRefreshing: boolean
   isDeleting: boolean
   isCleaningRelatedPhotos: boolean
   hasAlbumDirectory: boolean
+  isTrashView: boolean
   thumbnailMode: ThumbnailMode
   thumbnailModeOptions: Array<{ value: ThumbnailMode; label: string }>
   themeMode: ThemeMode
@@ -23,6 +25,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   chooseDirectory: []
   clearDirectory: []
+  refreshAlbum: []
   toggleAll: []
   cleanRelatedPhotos: []
   deleteSelected: []
@@ -124,6 +127,14 @@ onBeforeUnmount(() => {
         >
           {{ messages.clearDirectory }}
         </button>
+        <button
+          class="soft-button"
+          type="button"
+          :disabled="!hasAlbumDirectory || isLoading || isRefreshing || isDeleting || isCleaningRelatedPhotos"
+          @click="$emit('refreshAlbum')"
+        >
+          {{ isRefreshing ? messages.refreshing : messages.refreshAlbum }}
+        </button>
         <div class="path-pill" :title="directoryName">{{ directoryName }}</div>
       </div>
 
@@ -162,26 +173,28 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </div>
-        <button
-          class="cleanup-button"
-          type="button"
-          :disabled="!hasAlbumDirectory || isLoading || isDeleting || isCleaningRelatedPhotos"
-          @click="$emit('cleanRelatedPhotos')"
-        >
-          {{ isCleaningRelatedPhotos ? messages.cleaningRelated : messages.cleanRelatedPhotos }}
-        </button>
-        <button
-          class="danger-button"
-          type="button"
-          :disabled="!selectedCount || isDeleting || isCleaningRelatedPhotos"
-          @click="$emit('deleteSelected')"
-        >
-          {{ isDeleting ? messages.deleting : messages.deleteSelected(selectedCount) }}
-        </button>
-        <button class="soft-button" type="button" :disabled="!totalCount" @click="$emit('toggleAll')">
-          {{ allSelected ? messages.cancelSelectAll : messages.selectAll }}
-        </button>
-        <span class="counter">{{ selectedCount }} / {{ totalCount }}</span>
+        <template v-if="!isTrashView">
+          <button
+            class="cleanup-button"
+            type="button"
+            :disabled="!hasAlbumDirectory || isLoading || isDeleting || isCleaningRelatedPhotos"
+            @click="$emit('cleanRelatedPhotos')"
+          >
+            {{ isCleaningRelatedPhotos ? messages.cleaningRelated : messages.cleanRelatedPhotos }}
+          </button>
+          <button
+            class="danger-button"
+            type="button"
+            :disabled="!selectedCount || isDeleting || isCleaningRelatedPhotos"
+            @click="$emit('deleteSelected')"
+          >
+            {{ isDeleting ? messages.deleting : messages.deleteSelected(selectedCount) }}
+          </button>
+          <button class="soft-button" type="button" :disabled="!totalCount" @click="$emit('toggleAll')">
+            {{ allSelected ? messages.cancelSelectAll : messages.selectAll }}
+          </button>
+          <span class="counter">{{ selectedCount }} / {{ totalCount }}</span>
+        </template>
       </div>
     </div>
   </header>

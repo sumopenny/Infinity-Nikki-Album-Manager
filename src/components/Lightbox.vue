@@ -9,6 +9,7 @@ const props = defineProps<{
   hasPrevious: boolean
   hasNext: boolean
   isDeleting: boolean
+  mode: 'album' | 'trash'
   messages: LocaleMessages['lightbox']
   dateMessages: LocaleMessages['date']
 }>()
@@ -18,6 +19,8 @@ const emit = defineEmits<{
   previous: []
   next: []
   deleteCurrent: []
+  restoreCurrent: []
+  permanentlyDeleteCurrent: []
 }>()
 
 const displayedPhoto = ref<PhotoItem | null>(null)
@@ -134,8 +137,28 @@ function handleKeydown(event: KeyboardEvent) {
 
   if (event.key === 'Delete' && !props.isDeleting && !isPreviewLoading.value) {
     event.preventDefault()
-    emit('deleteCurrent')
+    if (props.mode === 'trash') emit('permanentlyDeleteCurrent')
+    else emit('deleteCurrent')
   }
+}
+
+/**
+ * 在图片切换完成后恢复当前回收照片。
+ * 参数：无。切图加载期间忽略点击，避免操作尚未显示的下一张照片。
+ */
+function handleRestoreClick() {
+  if (props.isDeleting || isPreviewLoading.value) return
+  emit('restoreCurrent')
+}
+
+/**
+ * 删除当前大图对应的照片。
+ * 参数：无。普通相册移到最近删除，回收视图执行永久删除。
+ */
+function handleDeleteClick() {
+  if (props.isDeleting || isPreviewLoading.value) return
+  if (props.mode === 'trash') emit('permanentlyDeleteCurrent')
+  else emit('deleteCurrent')
 }
 
 onMounted(() => {
@@ -174,9 +197,29 @@ onUnmounted(() => {
             <strong>{{ dateMessages.displayDate(displayedPhoto.dateKey) }} {{ displayedPhoto.timeText }}</strong>
             <span>{{ displayedPhoto.fileSizeText }}</span>
           </div>
-          <button class="lightbox-delete" type="button" :disabled="isDeleting || isPreviewLoading" @click="$emit('deleteCurrent')">
-            {{ isDeleting ? messages.deleting : messages.deleteCurrent }}
-          </button>
+          <div class="lightbox-actions">
+            <button
+              v-if="mode === 'trash'"
+              class="lightbox-restore"
+              :class="{ 'is-preview-loading': isPreviewLoading }"
+              type="button"
+              :disabled="isDeleting"
+              :aria-disabled="isPreviewLoading || undefined"
+              @click="handleRestoreClick"
+            >
+              {{ messages.restoreCurrent }}
+            </button>
+            <button
+              class="lightbox-delete"
+              :class="{ 'is-preview-loading': isPreviewLoading }"
+              type="button"
+              :disabled="isDeleting"
+              :aria-disabled="isPreviewLoading || undefined"
+              @click="handleDeleteClick"
+            >
+              {{ isDeleting ? messages.deleting : mode === 'trash' ? messages.permanentlyDeleteCurrent : messages.deleteCurrent }}
+            </button>
+          </div>
         </div>
       </div>
 

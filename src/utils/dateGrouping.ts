@@ -35,6 +35,14 @@ export interface PhotoItem extends ParsedPhotoDate {
   directoryHandle: FileSystemDirectoryHandle
 }
 
+export interface RecentlyDeletedPhoto extends PhotoItem {
+  trashName: string
+  originalName: string
+  deletedAt: number
+  wasFavorite: boolean
+  size: number | null
+}
+
 export interface DateGroup {
   dateKey: string
   year: string
