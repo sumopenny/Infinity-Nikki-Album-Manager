@@ -1,5 +1,6 @@
 import type { ThumbnailMode } from './types/thumbnail'
 import type { ThemeMode } from './types/theme'
+import type { RelatedCleanupFailureReason } from './utils/fileSystem'
 
 export type Language = 'zh' | 'en'
 export type StatusPrefix = 'read' | 'restored'
@@ -22,54 +23,76 @@ export interface LocaleMessages {
     dialogConfirm: string
     dialogContinueAuthorization: string
     dialogOk: string
-    deleteDialogTitle: string
     relatedCleanupDialogTitle: string
     x6GameDirectoryDialogTitle: string
-    statusEyebrow: string
-    waitingTitle: string
     albumContentAria: string
-    favoritesButton: string
-    showAllPhotos: string
     rememberedDirectory: (name: string) => string
     successStatus: (count: number, prefix: StatusPrefix) => string
     successSuffix: (suffix: StatusSuffix) => string
-    deletedStatus: (deletedCount: number, failedNames: string[]) => string
-    totalPhotos: (count: number, favoritesOnly?: boolean) => string
-    favoriteCount: (count: number) => string
-    confirmDeleteSelected: (count: number) => string
-    confirmDeleteCurrent: string
     preparingRelatedCleanup: string
     relatedCleanupCancelledStatus: string
     confirmRelatedCleanup: (count: number, missingDirectories: string[]) => string
-    relatedCleanupStatus: (deletedCount: number, failedNames: string[], missingDirectories: string[]) => string
+    relatedCleanupStatus: (
+      deletedCount: number,
+      deletedBytes: number,
+      failures: Array<{ path: string; reason: RelatedCleanupFailureReason }>,
+      missingDirectories: string[]
+    ) => string
     noRelatedPhotos: (missingDirectories: string[]) => string
   }
   topBar: {
     title: string
     starHint: string
-    githubAria: string
     githubText: string
-    giteeAria: string
     giteeText: string
     languageButton: string
-    languageAria: string
     themeButton: (themeMode: ThemeMode) => string
-    themeAria: (themeMode: ThemeMode) => string
     chooseDirectory: string
     loading: string
     clearDirectory: string
     refreshAlbum: string
     refreshing: string
     thumbnail: string
-    deleting: string
     cleaningRelated: string
     cleanRelatedPhotos: string
-    cancelSelectAll: string
+    currentAlbum: string
+    view: string
+    more: string
+    albumMenuAria: string
+    viewMenuAria: string
+    moreMenuAria: string
+    help: string
+    helpTitle: string
+    helpMouseTitle: string
+    helpMouseItems: string[]
+    helpKeyboardTitle: string
+    helpKeyboardItems: string[]
+    helpPathTitle: string
+    helpPathText: string
+    helpSafetyTitle: string
+    helpSafetyText: string
+    closeHelp: string
+    author: string
+    xiaohongshu: string
+    xiaohongshuAuthor: string
+    douyin: string
+    douyinAuthor: string
+  }
+  selectionBar: {
+    selected: (count: number) => string
     selectAll: string
-    deleteSelected: (count: number) => string
+    deselectAll: string
+    favorite: string
+    unfavorite: string
+    delete: string
+    restore: string
+    permanentlyDelete: string
+    clearAll: string
+    cancel: string
   }
   viewNav: {
     aria: string
+    title: string
     allPhotos: string
     favorites: string
     recentlyDeleted: string
@@ -79,7 +102,6 @@ export interface LocaleMessages {
     aria: string
     title: string
     empty: string
-    photoCount: (count: number) => string
   }
   grid: {
     emptyTitle: string
@@ -97,24 +119,20 @@ export interface LocaleMessages {
     previousAria: string
     nextAria: string
     closeAria: string
-    deleting: string
     deleteCurrent: string
     restoreCurrent: string
     permanentlyDeleteCurrent: string
+    favorite: string
+    removeFavorite: string
+    zoomIn: string
+    zoomOut: string
+    resetZoom: string
   }
   trash: {
-    title: string
     emptyTitle: string
     emptyDescription: string
     totalSummary: (count: number, size: string) => string
     deletedAt: (value: string) => string
-    selectAll: string
-    deselectAll: string
-    restore: string
-    restoreSelected: (count: number) => string
-    permanentlyDelete: string
-    permanentlyDeleteSelected: (count: number) => string
-    clearAll: string
     moveDialogTitle: string
     permanentDeleteDialogTitle: string
     confirmMove: (count: number) => string
@@ -177,12 +195,12 @@ function splitDateKey(dateKey: string) {
 
 function zhDisplayDate(dateKey: string): string {
   const { year, month, day } = splitDateKey(dateKey)
-  return year && month && day ? `${year}年${month}月${day}日` : dateKey
+  return year && month && day ? `${year}年${Number(month)}月${Number(day)}日` : dateKey
 }
 
 function zhMonthDay(dateKey: string): string {
   const { month, day } = splitDateKey(dateKey)
-  return month && day ? `${month}月${day}日` : dateKey
+  return month && day ? `${Number(month)}月${Number(day)}日` : dateKey
 }
 
 function enDisplayDate(dateKey: string): string {
@@ -195,6 +213,14 @@ function enMonthDay(dateKey: string): string {
   const { monthIndex, dayNumber } = splitDateKey(dateKey)
   const monthName = englishMonths[monthIndex]
   return monthName ? `${monthName} ${dayNumber}` : dateKey
+}
+
+/** 格式化操作提示中的字节容量。参数：bytes 为字节数。 */
+function formatMessageFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`
 }
 
 export function getThumbnailModeOptions(language: Language): Array<{ value: ThumbnailMode; label: string }> {
@@ -219,40 +245,32 @@ export const messages: Record<Language, LocaleMessages> = {
       dialogConfirm: '确认删除',
       dialogContinueAuthorization: '继续授权',
       dialogOk: '我知道了',
-      deleteDialogTitle: '确认删除照片',
       relatedCleanupDialogTitle: '确认清理关联图片',
       x6GameDirectoryDialogTitle: '需要授权 X6Game 文件夹',
-      statusEyebrow: 'Album Status',
-      waitingTitle: '等待选择相册路径',
       albumContentAria: '图片展示区',
-      favoritesButton: '收藏夹',
-      showAllPhotos: '全部照片',
       rememberedDirectory: (name) => `已记住：${name}`,
       successStatus: (count, prefix) => {
         const prefixText = prefix === 'restored' ? '已恢复' : '已读取'
-        return count
-          ? `${prefixText} ${count} 张照片。点卡片左下角爱心可收藏，点左侧收藏夹只看收藏；单击选中，双击查看大图。`
-          : '这个文件夹里没有找到符合命名格式的图片。'
+        return count ? `${prefixText} ${count} 张照片，` : '这个文件夹里没有找到符合命名格式的图片。'
       },
       successSuffix: (suffix) => (suffix === 'continued' ? '已继续使用上次记住的相册文件夹。' : '已记住本次选择的相册文件夹。'),
-      deletedStatus: (deletedCount, failedNames) =>
-        failedNames.length
-          ? `已删除 ${deletedCount} 张，${failedNames.length} 张删除失败：${failedNames.join('、')}`
-          : `已删除 ${deletedCount} 张照片。`,
-      totalPhotos: (count, favoritesOnly) => (favoritesOnly ? `收藏夹 ${count} 张照片` : `共 ${count} 张照片`),
-      favoriteCount: (count) => `${count} 张收藏`,
-      confirmDeleteSelected: (count) => `确定删除选中的 ${count} 张照片吗？这会同步删除电脑文件夹里的原图。`,
-      confirmDeleteCurrent: '确定删除当前预览的这张照片吗？这会同步删除电脑文件夹里的原图。',
       preparingRelatedCleanup: '正在定位低画质照片和游戏截图。首次使用时，请在弹出的窗口中选择 X6Game 文件夹。',
       relatedCleanupCancelledStatus: '已取消清理，没有删除任何图片。',
       confirmRelatedCleanup: (count, missingDirectories) => {
         const missingText = missingDirectories.length ? `\n未找到并将跳过：${missingDirectories.join('、')}。` : ''
         return `确定删除 NikkiPhotos_LowQuality 和 ScreenShot 文件夹中的 ${count} 张图片吗？文件夹和其他类型文件会保留。${missingText}`
       },
-      relatedCleanupStatus: (deletedCount, failedNames, missingDirectories) => {
-        const failedText = failedNames.length ? `，${failedNames.length} 张删除失败：${failedNames.join('、')}` : ''
+      relatedCleanupStatus: (deletedCount, deletedBytes, failures, missingDirectories) => {
+        const released = formatMessageFileSize(deletedBytes)
+        const reasonText: Record<RelatedCleanupFailureReason, string> = {
+          'unreadable-size': '无法读取文件大小，已跳过删除',
+          'remove-failed': '文件可能被占用或目录权限已失效'
+        }
+        const failedText = failures.length
+          ? `；${failures.length} 张未清理：${failures.map((failure) => `${failure.path}（${reasonText[failure.reason]}）`).join('、')}`
+          : ''
         const missingText = missingDirectories.length ? `；未找到并已跳过：${missingDirectories.join('、')}` : ''
-        return `关联目录清理完成，已删除 ${deletedCount} 张图片${failedText}${missingText}。`
+        return `已清理 ${deletedCount} 张图片，释放 ${released}${failedText}${missingText}。`
       },
       noRelatedPhotos: (missingDirectories) =>
         missingDirectories.length
@@ -261,30 +279,57 @@ export const messages: Record<Language, LocaleMessages> = {
     },
     topBar: {
       title: '无限暖暖相册管理',
-      starHint: '觉得网站不错的话，欢迎在 GitHub 右上角点个小星星 Star⭐~',
-      githubAria: '访问GitHub仓库',
+      starHint: '觉得网站不错的话，欢迎在 GitHub/Gitee 右上角点个小星星 Star⭐~',
       githubText: '访问GitHub仓库',
-      giteeAria: '访问Gitee仓库',
       giteeText: '访问Gitee仓库',
       languageButton: '切换为英文版',
-      languageAria: '切换到英文版',
       themeButton: (themeMode) => (themeMode === 'light' ? '切换深色模式' : '切换白色主题'),
-      themeAria: (themeMode) => (themeMode === 'light' ? '切换到深色模式' : '切换到白色主题'),
       chooseDirectory: '选择/恢复相册路径',
       loading: '正在读取...',
       clearDirectory: '清除路径',
       refreshAlbum: '刷新相册',
       refreshing: '刷新中...',
       thumbnail: '缩略图',
-      deleting: '删除中...',
       cleaningRelated: '清理中...',
       cleanRelatedPhotos: '一键清理低画质与截图',
-      cancelSelectAll: '取消全选',
-      selectAll: '全选照片',
-      deleteSelected: (count) => `删除选中照片（${count}）`
+      currentAlbum: '当前相册',
+      view: '视图',
+      more: '更多',
+      albumMenuAria: '打开当前相册菜单',
+      viewMenuAria: '打开视图菜单',
+      moreMenuAria: '打开更多菜单',
+      help: '帮助',
+      helpTitle: '相册操作帮助',
+      helpMouseTitle: '鼠标操作',
+      helpMouseItems: ['单击照片可选择，双击打开大图预览。', '悬停照片可查看拍摄时间与文件大小。', '大图放大后可拖动查看，并可使用滚轮缩放。'],
+      helpKeyboardTitle: '快捷键',
+      helpKeyboardItems: ['方向键切换上一张或下一张。', 'Esc 关闭菜单、弹窗或大图预览。', 'Delete 删除当前预览照片。'],
+      helpPathTitle: '推荐路径',
+      helpPathText: '\\InfinityNikki Launcher\\InfinityNikki\\X6Game\\Saved\\GamePlayPhotos\\你的ID\\NikkiPhotos_HighQuality',
+      helpSafetyTitle: '删除安全',
+      helpSafetyText: '普通删除会移动到当前相册的 trash 文件夹；只有在最近删除中执行永久删除才无法恢复。',
+      closeHelp: '关闭帮助',
+      author: '作者：素茉penny',
+      xiaohongshu: '小红书',
+      xiaohongshuAuthor: '访问作者的小红书主页',
+      douyin: '抖音',
+      douyinAuthor: '访问作者的抖音主页'
+    },
+    selectionBar: {
+      selected: (count) => `已选择 ${count} 张`,
+      selectAll: '全选',
+      deselectAll: '取消全选',
+      favorite: '收藏',
+      unfavorite: '取消收藏',
+      delete: '删除',
+      restore: '恢复',
+      permanentlyDelete: '永久删除',
+      clearAll: '永久清空全部',
+      cancel: '取消选择'
     },
     viewNav: {
       aria: '相册视图',
+      title: '相册',
       allPhotos: '全部照片',
       favorites: '收藏夹',
       recentlyDeleted: '最近删除',
@@ -293,12 +338,11 @@ export const messages: Record<Language, LocaleMessages> = {
     sidebar: {
       aria: '日期侧边栏',
       title: '拍摄日期',
-      empty: '选择相册后，这里会按年份和日期展开。',
-      photoCount: (count) => `${count} 张`
+      empty: '选择相册后，这里会按年份和日期展开。'
     },
     grid: {
-      emptyTitle: '还没有照片',
-      emptyDescription: '点击上方“选择/恢复相册路径”，读取命名为 2026_06_26_11_22_58_6316602.jpeg 这类格式的图片。',
+      emptyTitle: '开始整理你的暖暖摄影作品',
+      emptyDescription: '选择高画质相册文件夹后，照片会按拍摄日期自动整理。',
       emptyFavoritesTitle: '收藏夹还是空的',
       emptyFavoritesDescription: '点击照片时间前的爱心，就能把喜欢的图片加入收藏夹。',
       recommendedPath: '推荐文件路径：\\InfinityNikki Launcher\\InfinityNikki\\X6Game\\Saved\\GamePlayPhotos\\你的id\\NikkiPhotos_HighQuality',
@@ -312,27 +356,23 @@ export const messages: Record<Language, LocaleMessages> = {
       previousAria: '查看上一张图片',
       nextAria: '查看下一张图片',
       closeAria: '关闭预览',
-      deleting: '删除中...',
       deleteCurrent: '移到最近删除',
       restoreCurrent: '恢复此图片',
       permanentlyDeleteCurrent: '永久删除'
+      ,favorite: '收藏当前图片'
+      ,removeFavorite: '取消收藏当前图片'
+      ,zoomIn: '放大图片'
+      ,zoomOut: '缩小图片'
+      ,resetZoom: '恢复 100% 缩放'
     },
     trash: {
-      title: '最近删除',
       emptyTitle: '最近删除为空',
       emptyDescription: '从相册删除的照片会移动到当前相册的 trash 文件夹，并显示在这里。',
       totalSummary: (count, size) => `共 ${count} 张照片，合计 ${size}`,
       deletedAt: (value) => `删除于 ${value}`,
-      selectAll: '全选照片',
-      deselectAll: '取消全选',
-      restore: '恢复',
-      restoreSelected: (count) => `恢复选中（${count}）`,
-      permanentlyDelete: '永久删除',
-      permanentlyDeleteSelected: (count) => `永久删除选中（${count}）`,
-      clearAll: '永久清空全部',
       moveDialogTitle: '移到最近删除',
       permanentDeleteDialogTitle: '永久删除照片',
-      confirmMove: (count) => `将把这 ${count} 张照片移到最近删除，可在最近删除中恢复。`,
+      confirmMove: (count) => `确定删除这 ${count} 张图片？可前往“最近删除”恢复或永久删除。`,
       confirmPermanentDelete: (count) => `将从电脑中永久删除这 ${count} 张照片，无法恢复。`,
       movedStatus: (count, failedNames) =>
         failedNames.length
@@ -383,40 +423,31 @@ export const messages: Record<Language, LocaleMessages> = {
       dialogConfirm: 'Confirm delete',
       dialogContinueAuthorization: 'Continue authorization',
       dialogOk: 'Got it',
-      deleteDialogTitle: 'Delete photos?',
       relatedCleanupDialogTitle: 'Clean related images?',
       x6GameDirectoryDialogTitle: 'X6Game folder authorization required',
-      statusEyebrow: 'Album Status',
-      waitingTitle: 'Waiting for an album folder',
       albumContentAria: 'Photo gallery',
-      favoritesButton: 'Favorites',
-      showAllPhotos: 'All photos',
       rememberedDirectory: (name) => `Remembered: ${name}`,
       successStatus: (count, prefix) => {
         const prefixText = prefix === 'restored' ? 'Restored' : 'Loaded'
-        return count
-          ? `${prefixText} ${count} photos. Click the heart before each time to favorite it, then use Favorites on the left to show saved photos only.`
-          : 'No images matching the filename pattern were found in this folder.'
+        return count ? `${prefixText} ${count} photos. ` : 'No images matching the filename pattern were found in this folder.'
       },
       successSuffix: (suffix) => (suffix === 'continued' ? 'Continued using the remembered album folder.' : 'Remembered this album folder.'),
-      deletedStatus: (deletedCount, failedNames) =>
-        failedNames.length
-          ? `Deleted ${deletedCount}; ${failedNames.length} failed: ${failedNames.join(', ')}`
-          : `Deleted ${deletedCount} photos.`,
-      totalPhotos: (count, favoritesOnly) => (favoritesOnly ? `${count} favorite photos` : `${count} photos total`),
-      favoriteCount: (count) => `${count} favorites`,
-      confirmDeleteSelected: (count) => `Delete the selected ${count} photos? This also deletes the original files from your computer.`,
-      confirmDeleteCurrent: 'Delete the currently previewed photo? This also deletes the original file from your computer.',
       preparingRelatedCleanup: 'Locating low-quality photos and game screenshots. On first use, select the X6Game folder in the folder picker.',
       relatedCleanupCancelledStatus: 'Cleanup cancelled. No images were deleted.',
       confirmRelatedCleanup: (count, missingDirectories) => {
         const missingText = missingDirectories.length ? `\nNot found and skipped: ${missingDirectories.join(', ')}.` : ''
         return `Delete ${count} images from NikkiPhotos_LowQuality and ScreenShot? The folders and non-image files will be kept.${missingText}`
       },
-      relatedCleanupStatus: (deletedCount, failedNames, missingDirectories) => {
-        const failedText = failedNames.length ? `; ${failedNames.length} failed: ${failedNames.join(', ')}` : ''
+      relatedCleanupStatus: (deletedCount, deletedBytes, failures, missingDirectories) => {
+        const reasonText: Record<RelatedCleanupFailureReason, string> = {
+          'unreadable-size': 'Could not read the file size, so deletion was skipped',
+          'remove-failed': 'The file may be in use or folder permission may have expired'
+        }
+        const failedText = failures.length
+          ? `; ${failures.length} skipped: ${failures.map((failure) => `${failure.path} (${reasonText[failure.reason]})`).join(', ')}`
+          : ''
         const missingText = missingDirectories.length ? `; not found and skipped: ${missingDirectories.join(', ')}` : ''
-        return `Related folders cleaned. Deleted ${deletedCount} images${failedText}${missingText}.`
+        return `Cleaned ${deletedCount} images and released ${formatMessageFileSize(deletedBytes)}${failedText}${missingText}.`
       },
       noRelatedPhotos: (missingDirectories) =>
         missingDirectories.length
@@ -425,30 +456,57 @@ export const messages: Record<Language, LocaleMessages> = {
     },
     topBar: {
       title: 'Infinity Nikki Album Manager',
-      starHint: 'Like this website? Please give it a Star⭐ on GitHub~',
-      githubAria: 'Open GitHub repository',
+      starHint: 'Like this website? Please give it a Star⭐ on GitHub/Gitee ~',
       githubText: 'GitHub',
-      giteeAria: 'Open Gitee repository',
       giteeText: 'Gitee',
       languageButton: 'Switch to Chinese',
-      languageAria: 'Switch to Chinese',
       themeButton: (themeMode) => (themeMode === 'light' ? 'Switch to dark mode' : 'Switch to white theme'),
-      themeAria: (themeMode) => (themeMode === 'light' ? 'Switch to dark mode' : 'Switch to white theme'),
       chooseDirectory: 'Choose / restore album folder',
       loading: 'Reading...',
       clearDirectory: 'Clear folder',
       refreshAlbum: 'Refresh album',
       refreshing: 'Refreshing...',
       thumbnail: 'Thumbnail',
-      deleting: 'Deleting...',
       cleaningRelated: 'Cleaning...',
       cleanRelatedPhotos: 'Clean low-quality & screenshots',
-      cancelSelectAll: 'Deselect all',
+      currentAlbum: 'Current album',
+      view: 'View',
+      more: 'More',
+      albumMenuAria: 'Open current album menu',
+      viewMenuAria: 'Open view menu',
+      moreMenuAria: 'Open more menu',
+      help: 'Help',
+      helpTitle: 'Album help',
+      helpMouseTitle: 'Mouse',
+      helpMouseItems: ['Click a photo to select it; double-click to open the preview.', 'Hover a photo to see its capture time and file size.', 'Drag a zoomed preview and use the mouse wheel to zoom.'],
+      helpKeyboardTitle: 'Keyboard',
+      helpKeyboardItems: ['Use the arrow keys to move between photos.', 'Press Esc to close a menu, dialog, or preview.', 'Press Delete to delete the current preview photo.'],
+      helpPathTitle: 'Recommended path',
+      helpPathText: '\\InfinityNikki Launcher\\InfinityNikki\\X6Game\\Saved\\GamePlayPhotos\\Your ID\\NikkiPhotos_HighQuality',
+      helpSafetyTitle: 'Deletion safety',
+      helpSafetyText: 'Normal deletion moves files into the album trash folder. Only permanent deletion in Recently deleted cannot be undone.',
+      closeHelp: 'Close help',
+      author: 'Author: 素茉Penny',
+      xiaohongshu: 'Xiaohongshu',
+      xiaohongshuAuthor: "Open the author's Xiaohongshu profile",
+      douyin: 'Douyin',
+      douyinAuthor: "Open the author's Douyin profile"
+    },
+    selectionBar: {
+      selected: (count) => `${count} selected`,
       selectAll: 'Select all',
-      deleteSelected: (count) => `Delete selected (${count})`
+      deselectAll: 'Deselect all',
+      favorite: 'Favorite',
+      unfavorite: 'Remove favorite',
+      delete: 'Delete',
+      restore: 'Restore',
+      permanentlyDelete: 'Delete permanently',
+      clearAll: 'Permanently clear all',
+      cancel: 'Clear selection'
     },
     viewNav: {
       aria: 'Album views',
+      title: 'Album',
       allPhotos: 'All photos',
       favorites: 'Favorites',
       recentlyDeleted: 'Recently deleted',
@@ -457,12 +515,11 @@ export const messages: Record<Language, LocaleMessages> = {
     sidebar: {
       aria: 'Date sidebar',
       title: 'Capture Dates',
-      empty: 'After choosing an album, dates will be grouped by year here.',
-      photoCount: (count) => `${count} photos`
+      empty: 'After choosing an album, dates will be grouped by year here.'
     },
     grid: {
-      emptyTitle: 'No photos yet',
-      emptyDescription: 'Click “Choose / restore album folder” above to load images named like 2026_06_26_11_22_58_6316602.jpeg.',
+      emptyTitle: 'Start organizing your Infinity Nikki photography',
+      emptyDescription: 'Choose the high-quality album folder to organize photos automatically by capture date.',
       emptyFavoritesTitle: 'No favorites yet',
       emptyFavoritesDescription: 'Click the heart before a photo time to add that image to Favorites.',
       recommendedPath: 'Recommended path: \\InfinityNikki Launcher\\InfinityNikki\\X6Game\\Saved\\GamePlayPhotos\\Your ID\\NikkiPhotos_HighQuality',
@@ -476,24 +533,20 @@ export const messages: Record<Language, LocaleMessages> = {
       previousAria: 'View previous photo',
       nextAria: 'View next photo',
       closeAria: 'Close preview',
-      deleting: 'Deleting...',
       deleteCurrent: 'Move to Recently deleted',
       restoreCurrent: 'Restore this photo',
       permanentlyDeleteCurrent: 'Delete permanently'
+      ,favorite: 'Favorite current photo'
+      ,removeFavorite: 'Remove current photo from favorites'
+      ,zoomIn: 'Zoom in'
+      ,zoomOut: 'Zoom out'
+      ,resetZoom: 'Reset zoom to 100%'
     },
     trash: {
-      title: 'Recently deleted',
       emptyTitle: 'Recently deleted is empty',
       emptyDescription: 'Photos deleted from the album are moved to its trash folder and appear here.',
       totalSummary: (count, size) => `${count} photos, ${size} total`,
       deletedAt: (value) => `Deleted ${value}`,
-      selectAll: 'Select all',
-      deselectAll: 'Deselect all',
-      restore: 'Restore',
-      restoreSelected: (count) => `Restore selected (${count})`,
-      permanentlyDelete: 'Delete permanently',
-      permanentlyDeleteSelected: (count) => `Delete selected permanently (${count})`,
-      clearAll: 'Permanently clear all',
       moveDialogTitle: 'Move to Recently deleted',
       permanentDeleteDialogTitle: 'Permanently delete photos',
       confirmMove: (count) => `Move these ${count} photos to Recently deleted? They can be restored later.`,

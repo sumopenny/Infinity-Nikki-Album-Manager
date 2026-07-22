@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { onBeforeUnmount } from 'vue'
+import { Check, Heart } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
+import type { ThumbnailMode } from '../types/thumbnail'
 import type { DateGroup, PhotoItem } from '../utils/dateGrouping'
 import { createPhotoLoadQueue } from '../utils/photoLoader'
-import type { ThumbnailMode } from '../types/thumbnail'
 import LazyPhotoImage from './LazyPhotoImage.vue'
 
 const props = defineProps<{
@@ -15,49 +16,58 @@ const props = defineProps<{
   messages: LocaleMessages['grid']
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   togglePhoto: [photoId: string]
   toggleFavorite: [photoId: string]
   toggleDate: [dateKey: string]
   openPreview: [photo: PhotoItem]
 }>()
 
+const photoLoadQueue = createPhotoLoadQueue(3)
+
+/** 判断某个日期组是否已完整选中。参数：group 为日期分组。 */
 function isDateSelected(group: DateGroup): boolean {
   return group.photos.length > 0 && group.photos.every((photo) => props.selectedIds.has(photo.id))
 }
 
-const photoLoadQueue = createPhotoLoadQueue(3)
+/** 返回卡片悬浮信息；半尺寸模式和未知元数据只显示时间。参数：photo 为照片。 */
+function getPhotoMeta(photo: PhotoItem): string {
+  return props.thumbnailMode !== 'half' && photo.fileSizeText && photo.fileSizeText !== '--'
+    ? `${photo.timeText} · ${photo.fileSizeText}`
+    : photo.timeText
+}
 
-onBeforeUnmount(() => {
-  photoLoadQueue.cancel()
-})
+/** 切换收藏后释放按钮焦点，避免取消收藏后因焦点状态持续显示。参数：photoId 为照片 ID，event 为点击事件。 */
+function handleFavoriteClick(photoId: string, event: MouseEvent) {
+  emit('toggleFavorite', photoId)
+  ;(event.currentTarget as HTMLButtonElement).blur()
+}
+
+onBeforeUnmount(() => photoLoadQueue.cancel())
 </script>
 
 <template>
   <div class="photo-grid-wrap" :class="`mode-${thumbnailMode}`">
-    <div v-if="!dateGroups.length" class="empty-album">
-      <div class="empty-icon">♡</div>
+    <div v-if="!dateGroups.length" class="empty-album inline-empty">
+      <Heart :size="30" aria-hidden="true" />
       <h2>{{ isFavoritesView ? messages.emptyFavoritesTitle : messages.emptyTitle }}</h2>
       <p>{{ isFavoritesView ? messages.emptyFavoritesDescription : messages.emptyDescription }}</p>
-      <p v-if="!isFavoritesView">{{ messages.recommendedPath }}</p>
     </div>
 
-    <section
-      v-for="(group, index) in dateGroups"
-      :id="`date-${group.dateKey}`"
-      :key="group.dateKey"
-      class="date-block"
-      :class="index % 2 === 0 ? 'block-white' : 'block-yellow'"
-    >
+    <section v-for="group in dateGroups" :id="`date-${group.dateKey}`" :key="group.dateKey" class="date-block">
       <div class="date-block-header">
-        <div>
-          <p class="eyebrow">{{ messages.photoCount(group.photos.length) }}</p>
-          <h2>{{ group.displayDate }}</h2>
-        </div>
-        <label class="date-check">
-          <input type="checkbox" :checked="isDateSelected(group)" @change="$emit('toggleDate', group.dateKey)" />
-          <span>{{ messages.selectDay }}</span>
-        </label>
+        <h2>{{ group.displayDate }} · {{ messages.photoCount(group.photos.length) }}</h2>
+        <button
+          class="date-select-button"
+          type="button"
+          :class="{ active: isDateSelected(group) }"
+          :aria-pressed="isDateSelected(group)"
+          :title="messages.selectDay"
+          :aria-label="messages.selectDay"
+          @click="$emit('toggleDate', group.dateKey)"
+        >
+          <Check :size="16" aria-hidden="true" />
+        </button>
       </div>
 
       <div class="photo-grid">
@@ -72,42 +82,21 @@ onBeforeUnmount(() => {
           @keydown.enter="$emit('togglePhoto', photo.id)"
         >
           <div class="photo-frame">
-            <LazyPhotoImage
-              :photo="photo"
-              :load-photo="photoLoadQueue.load"
-              :failure-text="messages.imageLoadFailed"
-            />
-            <span class="selected-badge">✓</span>
-          </div>
-          <div class="photo-meta">
-            <div class="photo-time">
-              <button
-                class="favorite-heart"
-                type="button"
-                :class="{ active: favoriteIds.has(photo.id) }"
-                :aria-label="favoriteIds.has(photo.id) ? messages.removeFavorite : messages.addFavorite"
-                :title="favoriteIds.has(photo.id) ? messages.removeFavorite : messages.addFavorite"
-                @click.stop="$emit('toggleFavorite', photo.id)"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#c98486"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  class="lucide lucide-heart"
-                  aria-hidden="true"
-                >
-                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
-                </svg>
-              </button>
-              <strong>{{ photo.timeText }}</strong>
+            <LazyPhotoImage :photo="photo" :load-photo="photoLoadQueue.load" :failure-text="messages.imageLoadFailed" />
+            <div class="photo-overlay">
+              <span>{{ getPhotoMeta(photo) }}</span>
             </div>
-            <span :title="photo.fileSizeText">{{ photo.fileSizeText }}</span>
+            <span class="selected-badge"><Check :size="15" aria-hidden="true" /></span>
+            <button
+              class="favorite-heart"
+              type="button"
+              :class="{ active: favoriteIds.has(photo.id) }"
+              :aria-label="favoriteIds.has(photo.id) ? messages.removeFavorite : messages.addFavorite"
+              :title="favoriteIds.has(photo.id) ? messages.removeFavorite : messages.addFavorite"
+              @click.stop="handleFavoriteClick(photo.id, $event)"
+            >
+              <Heart :size="17" :fill="favoriteIds.has(photo.id) ? 'currentColor' : 'none'" aria-hidden="true" />
+            </button>
           </div>
         </article>
       </div>

@@ -4,6 +4,7 @@ import type { PhotoItem } from './dateGrouping'
 import {
   listRecentlyDeleted,
   movePhotosToRecentlyDeleted,
+  executeRelatedPhotoCleanup,
   refreshAlbumDirectory,
   restoreRecentlyDeletedPhotos
 } from './fileSystem'
@@ -15,9 +16,14 @@ beforeAll(() => {
 class MemoryFileHandle {
   readonly kind = 'file' as const
 
-  constructor(public readonly name: string, private contents: Blob = new Blob(['photo'], { type: 'image/jpeg' })) {}
+  constructor(
+    public readonly name: string,
+    private contents: Blob = new Blob(['photo'], { type: 'image/jpeg' }),
+    private readonly failRead = false
+  ) {}
 
   async getFile(): Promise<File> {
+    if (this.failRead) throw new DOMException('Read failed', 'NotReadableError')
     return new File([this.contents], this.name, { type: this.contents.type })
   }
 
@@ -105,6 +111,32 @@ function createPhoto(directory: MemoryDirectoryHandle, name: string): PhotoItem 
 }
 
 describe('album refresh and recently deleted filesystem operations', () => {
+  it('counts only successfully removed bytes and returns readable failures', async () => {
+    const directory = new MemoryDirectoryHandle('ScreenShot')
+    directory.files.set('ok.png', new MemoryFileHandle('ok.png', new Blob(['1234'])))
+    directory.files.set('locked.png', new MemoryFileHandle('locked.png', new Blob(['123456'])))
+    directory.files.set('unreadable.png', new MemoryFileHandle('unreadable.png', new Blob(['12']), true))
+    directory.failRemoveName = 'locked.png'
+
+    const result = await executeRelatedPhotoCleanup({
+      totalCount: 3,
+      missingDirectories: [],
+      targets: [{
+        directoryName: 'ScreenShot',
+        directoryHandle: directory as unknown as FileSystemDirectoryHandle,
+        photoNames: ['ok.png', 'locked.png', 'unreadable.png']
+      }]
+    })
+
+    expect(result.deletedCount).toBe(1)
+    expect(result.deletedBytes).toBe(4)
+    expect(result.failures).toEqual([
+      { path: 'ScreenShot\\locked.png', reason: 'remove-failed' },
+      { path: 'ScreenShot\\unreadable.png', reason: 'unreadable-size' }
+    ])
+    expect(directory.files.has('unreadable.png')).toBe(true)
+  })
+
   it('reuses unchanged photo state and reports added and externally removed files', async () => {
     const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
     const kept = createPhoto(album, '2026_06_26_11_22_00.jpeg')

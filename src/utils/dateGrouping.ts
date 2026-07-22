@@ -53,7 +53,15 @@ export interface DateGroup {
 
 export interface YearGroup {
   year: string
+  months: MonthGroup[]
+  photoCount: number
+}
+
+export interface MonthGroup {
+  monthKey: string
+  month: string
   dates: DateGroup[]
+  photoCount: number
 }
 
 export function groupPhotosByDate(photos: PhotoItem[]): DateGroup[] {
@@ -80,16 +88,39 @@ export function groupPhotosByDate(photos: PhotoItem[]): DateGroup[] {
     .sort((a, b) => b.dateKey.localeCompare(a.dateKey))
 }
 
+/**
+ * 将日期分组整理为年份、月份、日期三级时间轴。
+ * 参数：groups 为按日期聚合的照片列表。
+ * 返回：按年份和月份倒序排列并带照片计数的时间轴。
+ */
 export function groupDatesByYear(groups: DateGroup[]): YearGroup[] {
-  const map = new Map<string, DateGroup[]>()
+  const yearMap = new Map<string, Map<string, DateGroup[]>>()
 
   for (const group of groups) {
-    const dates = map.get(group.year) ?? []
+    const month = group.dateKey.slice(5, 7)
+    const monthMap = yearMap.get(group.year) ?? new Map<string, DateGroup[]>()
+    const dates = monthMap.get(month) ?? []
     dates.push(group)
-    map.set(group.year, dates)
+    monthMap.set(month, dates)
+    yearMap.set(group.year, monthMap)
   }
 
-  return [...map.entries()]
-    .map(([year, dates]) => ({ year, dates }))
+  return [...yearMap.entries()]
+    .map(([year, monthMap]) => {
+      const months = [...monthMap.entries()]
+        .map(([month, dates]) => ({
+          monthKey: `${year}-${month}`,
+          month,
+          dates: [...dates].sort((a, b) => b.dateKey.localeCompare(a.dateKey)),
+          photoCount: dates.reduce((total, date) => total + date.photos.length, 0)
+        }))
+        .sort((a, b) => b.month.localeCompare(a.month))
+
+      return {
+        year,
+        months,
+        photoCount: months.reduce((total, month) => total + month.photoCount, 0)
+      }
+    })
     .sort((a, b) => b.year.localeCompare(a.year))
 }

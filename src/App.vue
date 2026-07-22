@@ -7,6 +7,7 @@ import Lightbox from './components/Lightbox.vue'
 import OperationNotice, { type OperationNoticeTone } from './components/OperationNotice.vue'
 import PhotoGrid from './components/PhotoGrid.vue'
 import RecentlyDeletedGrid from './components/RecentlyDeletedGrid.vue'
+import SelectionBar from './components/SelectionBar.vue'
 import TopBar from './components/TopBar.vue'
 import { DEFAULT_LANGUAGE, getThumbnailModeOptions, messages, type Language, type StatusPrefix, type StatusSuffix } from './i18n'
 import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
@@ -107,7 +108,6 @@ const albumDirectoryHandle = ref<FileSystemDirectoryHandle | null>(null)
 const thumbnailMode = ref<ThumbnailMode>(isThumbnailMode(storedThumbnailMode) ? storedThumbnailMode : 'default')
 const themeMode = ref<ThemeMode>(isThemeMode(storedThemeMode) ? storedThemeMode : 'light')
 const appShellRef = ref<HTMLElement | null>(null)
-const topBarRef = ref<InstanceType<typeof TopBar> | null>(null)
 let topBarResizeObserver: ResizeObserver | null = null
 let statusNoticeTimer: number | undefined
 let focusRefreshTimer: number | undefined
@@ -126,6 +126,7 @@ const formattedDateGroups = computed(() =>
 )
 const yearGroups = computed(() => groupDatesByYear(formattedDateGroups.value))
 const selectedCount = computed(() => visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id)).length)
+const trashSelectedCount = computed(() => recentlyDeleted.value.filter((photo) => trashSelectedIds.value.has(photo.id)).length)
 const visibleCount = computed(() => visiblePhotos.value.length)
 const favoriteCount = computed(() => favoritePhotos.value.length)
 const allSelected = computed(
@@ -145,10 +146,10 @@ const directoryName = computed(() => {
   if (directoryState.value.type === 'selected') return directoryState.value.name
   return locale.value.app.noDirectory
 })
-const statusCardTitle = computed(() => {
-  if (!albumDirectoryHandle.value) return locale.value.app.waitingTitle
-  if (activeView.value === 'trash') return locale.value.trash.totalSummary(recentlyDeleted.value.length, trashTotalSizeText.value)
-  return locale.value.app.totalPhotos(visibleCount.value, activeView.value === 'favorites')
+const viewTitle = computed(() => {
+  if (activeView.value === 'favorites') return locale.value.viewNav.favorites
+  if (activeView.value === 'trash') return locale.value.viewNav.recentlyDeleted
+  return locale.value.viewNav.allPhotos
 })
 const statusMessage = computed(() => {
   const app = locale.value.app
@@ -272,7 +273,7 @@ async function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusStat
   currentPreview.value = null
   photos.value = result.photos
   recentlyDeleted.value = await listRecentlyDeleted(result.directoryHandle)
-  favoriteIds.value = new Set(result.photos.filter((photo) => favoriteIds.value.has(photo.id)).map((photo) => photo.id))
+  // 收藏记录跨相册保留，切换相册时不再按当前照片裁剪，避免切回后丢失
   activeView.value = 'all'
   albumDirectoryHandle.value = result.directoryHandle
   directoryState.value = { type: 'selected', name: result.directoryName }
@@ -293,7 +294,7 @@ async function restoreSavedDirectory() {
   statusState.value = { type: 'restoring' }
   try {
     const result = await readAlbumDirectory(savedHandle, { requestPermission: false, messages: locale.value.fileSystem })
-    await replaceAlbum(result, { type: 'success', count: result.photos.length, prefix: 'restored' })
+    await replaceAlbum(result, { type: 'success', count: result.photos.length, prefix: 'restored', suffix: 'continued' })
   } catch (error) {
     statusState.value = createErrorStatus(error, { type: 'restoreFailed' })
   } finally {
@@ -354,7 +355,7 @@ function applyRefreshResult(result: RefreshAlbumResult) {
   mergeRecentlyDeleted(result.recentlyDeleted)
   const validPhotoIds = new Set(photos.value.map((photo) => photo.id))
   selectedIds.value = new Set([...selectedIds.value].filter((id) => validPhotoIds.has(id)))
-  favoriteIds.value = new Set([...favoriteIds.value].filter((id) => validPhotoIds.has(id)))
+  // 收藏记录不随刷新裁剪：其他相册的收藏必须保留，本相册临时缺失的文件重新出现后收藏仍生效
   if (currentPreview.value && !previewPhotos.value.some((photo) => photo.id === currentPreview.value?.id)) currentPreview.value = null
 }
 
@@ -441,6 +442,29 @@ function toggleFavorite(photoId: string) {
   if (activeView.value === 'favorites' && !next.has(photoId)) {
     selectedIds.value = new Set([...selectedIds.value].filter((id) => id !== photoId))
   }
+}
+
+/** 将当前选中的普通照片批量加入收藏，不取消已收藏项目。参数：无。 */
+function favoriteSelectedPhotos() {
+  const selectedPhotoIds = visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id)).map((photo) => photo.id)
+  favoriteIds.value = new Set([...favoriteIds.value, ...selectedPhotoIds])
+}
+
+/** 取消当前收藏夹中选中照片的收藏状态，并移除已不可见的选择。参数：无。 */
+function unfavoriteSelectedPhotos() {
+  const targetIds = new Set(visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id)).map((photo) => photo.id))
+  favoriteIds.value = new Set([...favoriteIds.value].filter((id) => !targetIds.has(id)))
+  selectedIds.value = new Set([...selectedIds.value].filter((id) => !targetIds.has(id)))
+}
+
+/** 清空当前普通视图的照片选择。参数：无。 */
+function clearAlbumSelection() {
+  selectedIds.value = new Set()
+}
+
+/** 清空最近删除视图的照片选择。参数：无。 */
+function clearTrashSelection() {
+  trashSelectedIds.value = new Set()
 }
 
 /** 切换某一天全部照片的选中状态。参数：dateKey 为日期键。 */
@@ -656,8 +680,13 @@ async function cleanRelatedPhotos() {
     const result = await executeRelatedPhotoCleanup(plan)
     statusState.value = {
       type: 'custom',
-      message: locale.value.app.relatedCleanupStatus(result.deletedCount, result.failedNames, result.missingDirectories),
-      tone: result.failedNames.length || result.missingDirectories.length ? 'warning' : 'success'
+      message: locale.value.app.relatedCleanupStatus(
+        result.deletedCount,
+        result.deletedBytes,
+        result.failures,
+        result.missingDirectories
+      ),
+      tone: result.failures.length || result.missingDirectories.length ? 'warning' : 'success'
     }
   } catch (error) {
     if (didCancelDirectoryPrompt) {
@@ -687,7 +716,7 @@ function closePreview() {
 
 /** 更新左侧栏顶部偏移。参数：无。 */
 function updateSidebarStickyOffset() {
-  const topBarElement = topBarRef.value?.$el as HTMLElement | undefined
+  const topBarElement = document.querySelector<HTMLElement>('.app-header')
   if (!appShellRef.value || !topBarElement) return
   appShellRef.value.style.setProperty('--sidebar-sticky-top', `${Math.ceil(topBarElement.getBoundingClientRect().height) + 10}px`)
 }
@@ -716,7 +745,7 @@ onMounted(() => {
   void restoreSavedDirectory()
   nextTick(() => {
     updateSidebarStickyOffset()
-    const topBarElement = topBarRef.value?.$el as HTMLElement | undefined
+    const topBarElement = document.querySelector<HTMLElement>('.app-header')
     if (!topBarElement || typeof ResizeObserver === 'undefined') return
     topBarResizeObserver = new ResizeObserver(updateSidebarStickyOffset)
     topBarResizeObserver.observe(topBarElement)
@@ -741,17 +770,12 @@ onBeforeUnmount(() => {
 <template>
   <div ref="appShellRef" class="app-shell">
     <TopBar
-      ref="topBarRef"
       :directory-name="directoryName"
-      :total-count="visibleCount"
-      :selected-count="selectedCount"
-      :all-selected="allSelected"
       :is-loading="isLoading"
       :is-refreshing="isRefreshing"
       :is-deleting="isDeleting || isTrashBusy"
       :is-cleaning-related-photos="isCleaningRelatedPhotos"
       :has-album-directory="Boolean(albumDirectoryHandle)"
-      :is-trash-view="activeView === 'trash'"
       :thumbnail-mode="thumbnailMode"
       :thumbnail-mode-options="thumbnailModeOptions"
       :theme-mode="themeMode"
@@ -760,23 +784,14 @@ onBeforeUnmount(() => {
       @choose-directory="chooseDirectory"
       @clear-directory="clearDirectory"
       @refresh-album="refreshAlbum(true)"
-      @toggle-all="toggleAll"
       @clean-related-photos="cleanRelatedPhotos"
-      @delete-selected="deleteSelectedPhotos"
       @change-thumbnail-mode="changeThumbnailMode"
       @toggle-language="toggleLanguage"
       @toggle-theme="toggleTheme"
     />
 
-    <main class="album-layout">
-      <div class="sidebar-column">
-        <div class="status-card">
-          <div>
-            <p class="eyebrow">{{ locale.app.statusEyebrow }}</p>
-            <h2>{{ statusCardTitle }}</h2>
-          </div>
-        </div>
-
+    <main class="album-layout" :class="{ 'without-album': !albumDirectoryHandle }">
+      <div v-if="albumDirectoryHandle" class="sidebar-column">
         <AlbumViewNav
           :active-view="activeView"
           :all-count="photos.length"
@@ -790,31 +805,44 @@ onBeforeUnmount(() => {
         <DateSidebar
           v-if="activeView !== 'trash'"
           :year-groups="yearGroups"
+          :language="language"
           :messages="locale.sidebar"
           @jump-to-date="scrollToDate"
         />
       </div>
 
       <section class="album-content" :aria-label="locale.app.albumContentAria">
+        <div v-if="!albumDirectoryHandle" class="empty-album-start">
+          <div class="empty-start-mark" aria-hidden="true"></div>
+          <h2>{{ locale.grid.emptyTitle }}</h2>
+          <p>{{ locale.grid.emptyDescription }}</p>
+          <button class="primary-button" type="button" :disabled="isLoading" @click="chooseDirectory">
+            {{ isLoading ? locale.topBar.loading : locale.topBar.chooseDirectory }}
+          </button>
+          <p class="recommended-path">{{ locale.grid.recommendedPath }}</p>
+        </div>
+
+        <header v-else class="gallery-header">
+          <div>
+            <p class="eyebrow">{{ activeView === 'trash' ? 'TRASH' : 'ALBUM' }}</p>
+            <h2>{{ viewTitle }}</h2>
+          </div>
+          <p v-if="activeView === 'trash'">{{ locale.trash.totalSummary(recentlyDeleted.length, trashTotalSizeText) }}</p>
+          <p v-else>{{ locale.viewNav.count(visibleCount) }}</p>
+        </header>
+
         <RecentlyDeletedGrid
-          v-if="activeView === 'trash'"
+          v-if="albumDirectoryHandle && activeView === 'trash'"
           :photos="recentlyDeleted"
           :selected-ids="trashSelectedIds"
-          :all-selected="allTrashSelected"
-          :total-size-text="trashTotalSizeText"
           :thumbnail-mode="thumbnailMode"
-          :is-busy="isTrashBusy"
           :language="language"
           :messages="locale.trash"
           @toggle-photo="toggleTrashPhoto"
-          @toggle-all="toggleAllTrash"
-          @restore-selected="restoreSelectedTrash"
-          @permanently-delete-selected="permanentlyDeleteSelectedTrash"
-          @clear-all="permanentlyDeleteTrashPhotos(recentlyDeleted)"
           @open-preview="openPreview"
         />
         <PhotoGrid
-          v-else
+          v-else-if="albumDirectoryHandle"
           :date-groups="formattedDateGroups"
           :selected-ids="selectedIds"
           :favorite-ids="favoriteIds"
@@ -829,18 +857,36 @@ onBeforeUnmount(() => {
       </section>
     </main>
 
+    <SelectionBar
+      :mode="activeView === 'trash' ? 'trash' : activeView === 'favorites' ? 'favorites' : 'album'"
+      :selected-count="activeView === 'trash' ? trashSelectedCount : selectedCount"
+      :all-selected="activeView === 'trash' ? allTrashSelected : allSelected"
+      :all-items-selected="activeView === 'trash' && allTrashSelected"
+      :is-busy="isDeleting || isTrashBusy"
+      :messages="locale.selectionBar"
+      @toggle-all="activeView === 'trash' ? toggleAllTrash() : toggleAll()"
+      @favorite="favoriteSelectedPhotos"
+      @unfavorite="unfavoriteSelectedPhotos"
+      @delete="activeView === 'trash' ? permanentlyDeleteSelectedTrash() : deleteSelectedPhotos()"
+      @restore="restoreSelectedTrash"
+      @cancel="activeView === 'trash' ? clearTrashSelection() : clearAlbumSelection()"
+    />
+
     <Lightbox
       :photo="currentPreview"
       :has-previous="hasPreviousPreview"
       :has-next="hasNextPreview"
       :is-deleting="isDeleting || isTrashBusy"
+      :keyboard-enabled="!confirmDialog.visible"
       :mode="activeView === 'trash' ? 'trash' : 'album'"
+      :is-favorite="Boolean(currentPreview && favoriteIds.has(currentPreview.id))"
       :messages="locale.lightbox"
       :date-messages="locale.date"
       @close="closePreview"
       @previous="showPreviousPreview"
       @next="showNextPreview"
       @delete-current="deleteCurrentPreview"
+      @toggle-favorite="currentPreview && toggleFavorite(currentPreview.id)"
       @restore-current="restoreCurrentTrashPreview"
       @permanently-delete-current="permanentlyDeleteCurrentTrashPreview"
     />

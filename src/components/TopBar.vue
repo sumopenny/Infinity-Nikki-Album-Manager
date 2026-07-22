@@ -1,20 +1,35 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import {
+  BookHeart,
+  ChevronDown,
+  CircleHelp,
+  Eraser,
+  FolderOpen,
+  Github,
+  Grid2X2,
+  Languages,
+  Music2,
+  Moon,
+  MoreHorizontal,
+  RefreshCw,
+  Sun,
+  Trash2,
+  X
+} from 'lucide-vue-next'
 import type { Language, LocaleMessages } from '../i18n'
 import type { ThumbnailMode } from '../types/thumbnail'
 import type { ThemeMode } from '../types/theme'
 
+type OpenMenu = 'album' | 'view' | 'more' | null
+
 const props = defineProps<{
   directoryName: string
-  totalCount: number
-  selectedCount: number
-  allSelected: boolean
   isLoading: boolean
   isRefreshing: boolean
   isDeleting: boolean
   isCleaningRelatedPhotos: boolean
   hasAlbumDirectory: boolean
-  isTrashView: boolean
   thumbnailMode: ThumbnailMode
   thumbnailModeOptions: Array<{ value: ThumbnailMode; label: string }>
   themeMode: ThemeMode
@@ -26,176 +41,240 @@ const emit = defineEmits<{
   chooseDirectory: []
   clearDirectory: []
   refreshAlbum: []
-  toggleAll: []
   cleanRelatedPhotos: []
-  deleteSelected: []
   toggleLanguage: []
   toggleTheme: []
   changeThumbnailMode: [mode: ThumbnailMode]
 }>()
 
-const isThumbnailDropdownOpen = ref(false)
-const thumbnailDropdownRef = ref<HTMLElement | null>(null)
+const openMenu = ref<OpenMenu>(null)
+const showHelp = ref(false)
+const headerRef = ref<HTMLElement | null>(null)
+const isBusy = computed(() => props.isLoading || props.isDeleting || props.isCleaningRelatedPhotos)
 
-const selectedThumbnailLabel = computed(() => {
-  return props.thumbnailModeOptions.find((option) => option.value === props.thumbnailMode)?.label ?? props.thumbnailModeOptions[0]?.label ?? ''
-})
-
-function toggleThumbnailDropdown() {
-  isThumbnailDropdownOpen.value = !isThumbnailDropdownOpen.value
+/** 切换顶部菜单，并保证同一时间只展开一个菜单。参数：menu 为目标菜单。 */
+async function toggleMenu(menu: Exclude<OpenMenu, null>) {
+  openMenu.value = openMenu.value === menu ? null : menu
+  await nextTick()
+  alignOpenMenu()
 }
 
-function closeThumbnailDropdown() {
-  isThumbnailDropdownOpen.value = false
+/** 让菜单优先在触发项下方居中，并在临近屏幕边缘时保持完整可见。参数：无。 */
+function alignOpenMenu() {
+  const dropdown = headerRef.value?.querySelector<HTMLElement>('.header-dropdown')
+  if (!dropdown) return
+  dropdown.style.setProperty('--menu-shift', '0px')
+  const rect = dropdown.getBoundingClientRect()
+  const safeInset = 12
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth
+  const shift = rect.left < safeInset
+    ? safeInset - rect.left
+    : rect.right > viewportWidth - safeInset
+      ? viewportWidth - safeInset - rect.right
+      : 0
+  dropdown.style.setProperty('--menu-shift', `${shift}px`)
 }
 
-function selectThumbnailMode(mode: ThumbnailMode) {
-  emit('changeThumbnailMode', mode)
-  closeThumbnailDropdown()
+/** 关闭全部顶部菜单。参数：无。 */
+function closeMenus() {
+  openMenu.value = null
 }
 
-function handleDocumentClick(event: MouseEvent) {
-  if (!thumbnailDropdownRef.value?.contains(event.target as Node)) {
-    closeThumbnailDropdown()
+/** 执行菜单动作后收起菜单。参数：action 为父组件提供的动作。 */
+function runMenuAction(action: () => void) {
+  closeMenus()
+  action()
+}
+
+/** 处理页面外点击和 Esc，关闭当前菜单或帮助弹窗。参数：event 为鼠标或键盘事件。 */
+function handleDocumentInteraction(event: MouseEvent | KeyboardEvent) {
+  if (event instanceof KeyboardEvent) {
+    if (event.key !== 'Escape') return
+    if (showHelp.value) showHelp.value = false
+    else closeMenus()
+    return
   }
+  if (!headerRef.value?.contains(event.target as Node)) closeMenus()
 }
 
 onMounted(() => {
-  document.addEventListener('click', handleDocumentClick)
+  document.addEventListener('click', handleDocumentInteraction)
+  document.addEventListener('keydown', handleDocumentInteraction)
+  window.addEventListener('resize', alignOpenMenu)
 })
 
 onBeforeUnmount(() => {
-  document.removeEventListener('click', handleDocumentClick)
+  document.removeEventListener('click', handleDocumentInteraction)
+  document.removeEventListener('keydown', handleDocumentInteraction)
+  window.removeEventListener('resize', alignOpenMenu)
 })
 </script>
 
 <template>
-  <header class="top-module">
-    <div class="brand-row">
-      <div>
-        <p class="site-kicker">Infinity Nikki Album</p>
-        <h1>{{ messages.title }}</h1>
-      </div>
-      <div class="brand-actions">
-        <span class="star-hint">{{ messages.starHint }}</span>
-        <a
-          class="github-link"
-          href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager"
-          target="_blank"
-          rel="noreferrer"
-          :aria-label="messages.githubAria"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              fill="currentColor"
-              d="M12 2C6.48 2 2 6.59 2 12.25c0 4.52 2.87 8.35 6.84 9.71.5.09.68-.22.68-.49 0-.24-.01-1.05-.01-1.9-2.78.62-3.37-1.21-3.37-1.21-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.93.86.09-.66.35-1.12.64-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.33 9.33 0 0 1 12 6.98c.85 0 1.7.12 2.5.34 1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.07.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.59.69.49A10.08 10.08 0 0 0 22 12.25C22 6.59 17.52 2 12 2Z"
-            />
-          </svg>
-          <span>{{ messages.githubText }}</span>
-        </a>
-        <a
-          class="github-link"
-          href="https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager"
-          target="_blank"
-          rel="noreferrer"
-          :aria-label="messages.giteeAria"
-        >
-          <span>{{ messages.giteeText }}</span>
-        </a>
-        <button class="language-button" type="button" :aria-label="messages.languageAria" @click="$emit('toggleLanguage')">
-          {{ messages.languageButton }}
-        </button>
-        <span class="signature">by 素茉penny</span>
-      </div>
+  <header ref="headerRef" class="app-header">
+    <div class="brand-lockup">
+      <p>INFINITY NIKKI ALBUM</p>
+      <h1>{{ messages.title }}</h1>
     </div>
 
-    <div class="control-row">
-      <div class="path-row">
+    <div class="header-actions">
+      <span class="header-star-hint" :title="messages.starHint">{{ messages.starHint }}</span>
+
+      <button
+        class="header-icon-button"
+        type="button"
+        :title="messages.refreshAlbum"
+        :aria-label="messages.refreshAlbum"
+        :disabled="!hasAlbumDirectory || isBusy || isRefreshing"
+        @click="emit('refreshAlbum')"
+      >
+        <RefreshCw :size="17" :class="{ spinning: isRefreshing }" aria-hidden="true" />
+        <span>{{ messages.refreshAlbum }}</span>
+      </button>
+
+      <div class="header-menu-wrap">
         <button
-          class="primary-button"
+          class="header-menu-button album-name-button"
           type="button"
-          :disabled="isLoading || isDeleting || isCleaningRelatedPhotos"
-          @click="$emit('chooseDirectory')"
+          :aria-label="messages.albumMenuAria"
+          aria-haspopup="menu"
+          :aria-expanded="openMenu === 'album'"
+          @click.stop="toggleMenu('album')"
         >
-          {{ isLoading ? messages.loading : messages.chooseDirectory }}
+          <FolderOpen :size="16" aria-hidden="true" />
+          <span>{{ hasAlbumDirectory ? directoryName : messages.currentAlbum }}</span>
+          <ChevronDown :size="14" aria-hidden="true" />
         </button>
-        <button
-          class="soft-button"
-          type="button"
-          :disabled="isLoading || isDeleting || isCleaningRelatedPhotos"
-          @click="$emit('clearDirectory')"
-        >
-          {{ messages.clearDirectory }}
-        </button>
-        <button
-          class="soft-button"
-          type="button"
-          :disabled="!hasAlbumDirectory || isLoading || isRefreshing || isDeleting || isCleaningRelatedPhotos"
-          @click="$emit('refreshAlbum')"
-        >
-          {{ isRefreshing ? messages.refreshing : messages.refreshAlbum }}
-        </button>
-        <div class="path-pill" :title="directoryName">{{ directoryName }}</div>
+        <div v-if="openMenu === 'album'" class="header-dropdown" role="menu">
+          <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('chooseDirectory'))">
+            <FolderOpen :size="16" />
+            <span>{{ messages.chooseDirectory }}</span>
+          </button>
+          <button type="button" role="menuitem" :disabled="!hasAlbumDirectory || isBusy" @click="runMenuAction(() => emit('clearDirectory'))">
+            <Trash2 :size="16" />
+            <span>{{ messages.clearDirectory }}</span>
+          </button>
+          <div class="menu-separator"></div>
+          <button type="button" role="menuitem" :disabled="!hasAlbumDirectory || isBusy" @click="runMenuAction(() => emit('cleanRelatedPhotos'))">
+            <Eraser :size="16" />
+            <span>{{ isCleaningRelatedPhotos ? messages.cleaningRelated : messages.cleanRelatedPhotos }}</span>
+          </button>
+        </div>
       </div>
 
-      <div class="action-row">
-        <button class="theme-button" type="button" :aria-label="messages.themeAria(themeMode)" @click="$emit('toggleTheme')">
-          <span class="theme-icon" aria-hidden="true">{{ themeMode === 'light' ? '🌙' : '☀️' }}</span>
-          <span>{{ messages.themeButton(themeMode) }}</span>
+      <div class="header-menu-wrap">
+        <button
+          class="header-menu-button"
+          type="button"
+          :aria-label="messages.viewMenuAria"
+          aria-haspopup="menu"
+          :aria-expanded="openMenu === 'view'"
+          @click.stop="toggleMenu('view')"
+        >
+          <Grid2X2 :size="16" aria-hidden="true" />
+          <span>{{ messages.view }}</span>
+          <ChevronDown :size="14" aria-hidden="true" />
         </button>
-        <div class="thumbnail-select-wrap">
-          <span>{{ messages.thumbnail }}</span>
-          <div ref="thumbnailDropdownRef" class="thumbnail-dropdown">
-            <button
-              class="thumbnail-select"
-              type="button"
-              aria-haspopup="listbox"
-              :aria-expanded="isThumbnailDropdownOpen"
-              @click.stop="toggleThumbnailDropdown"
-              @keydown.esc="closeThumbnailDropdown"
-            >
-              <span>{{ selectedThumbnailLabel }}</span>
-              <span class="thumbnail-select-arrow" aria-hidden="true">⌄</span>
-            </button>
-            <div v-if="isThumbnailDropdownOpen" class="thumbnail-options" role="listbox">
-              <button
-                v-for="option in thumbnailModeOptions"
-                :key="option.value"
-                class="thumbnail-option"
-                :class="{ active: option.value === thumbnailMode }"
-                type="button"
-                role="option"
-                :aria-selected="option.value === thumbnailMode"
-                @click="selectThumbnailMode(option.value)"
-              >
-                {{ option.label }}
-              </button>
-            </div>
+        <div v-if="openMenu === 'view'" class="header-dropdown view-dropdown" role="menu">
+          <button type="button" role="menuitem" @click="runMenuAction(() => emit('toggleTheme'))">
+            <Sun v-if="themeMode === 'dark'" :size="16" />
+            <Moon v-else :size="16" />
+            <span>{{ messages.themeButton(themeMode) }}</span>
+          </button>
+          <div class="menu-section-label">{{ messages.thumbnail }}</div>
+          <button
+            v-for="option in thumbnailModeOptions"
+            :key="option.value"
+            class="menu-radio"
+            :class="{ active: option.value === thumbnailMode }"
+            type="button"
+            role="menuitemradio"
+            :aria-checked="option.value === thumbnailMode"
+            @click="runMenuAction(() => emit('changeThumbnailMode', option.value))"
+          >
+            <span class="radio-mark"></span>
+            <span>{{ option.label }}</span>
+          </button>
+          <div class="menu-separator"></div>
+          <button type="button" role="menuitem" @click="runMenuAction(() => emit('toggleLanguage'))">
+            <Languages :size="16" />
+            <span>{{ messages.languageButton }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="header-menu-wrap">
+        <button
+          class="header-icon-button"
+          type="button"
+          :title="messages.more"
+          :aria-label="messages.moreMenuAria"
+          aria-haspopup="menu"
+          :aria-expanded="openMenu === 'more'"
+          @click.stop="toggleMenu('more')"
+        >
+          <MoreHorizontal :size="19" aria-hidden="true" />
+          <span>{{ messages.more }}</span>
+        </button>
+        <div v-if="openMenu === 'more'" class="header-dropdown header-dropdown-right" role="menu">
+          <button type="button" role="menuitem" @click="closeMenus(); showHelp = true">
+            <CircleHelp :size="16" />
+            <span>{{ messages.help }}</span>
+          </button>
+          <a href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager" target="_blank" rel="noreferrer" role="menuitem" @click="closeMenus">
+            <Github :size="16" />
+            <span>{{ messages.githubText }}</span>
+          </a>
+          <a href="https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager" target="_blank" rel="noreferrer" role="menuitem" @click="closeMenus">
+            <span class="text-icon">G</span>
+            <span>{{ messages.giteeText }}</span>
+          </a>
+          <div class="menu-author">{{ messages.author }}</div>
+          <div class="author-social-links">
+            <a class="author-social-link xiaohongshu-link" href="https://xhslink.com/m/3IEU0XhZ6e" target="_blank" rel="noopener noreferrer" role="menuitem" :title="messages.xiaohongshuAuthor" :aria-label="messages.xiaohongshuAuthor" @click="closeMenus">
+              <BookHeart :size="17" aria-hidden="true" />
+              <span>{{ messages.xiaohongshu }}</span>
+            </a>
+            <a class="author-social-link douyin-link" href="https://v.douyin.com/VdLd5oOXz8I/" target="_blank" rel="noopener noreferrer" role="menuitem" :title="messages.douyinAuthor" :aria-label="messages.douyinAuthor" @click="closeMenus">
+              <Music2 :size="17" aria-hidden="true" />
+              <span>{{ messages.douyin }}</span>
+            </a>
           </div>
         </div>
-        <template v-if="!isTrashView">
-          <button
-            class="cleanup-button"
-            type="button"
-            :disabled="!hasAlbumDirectory || isLoading || isDeleting || isCleaningRelatedPhotos"
-            @click="$emit('cleanRelatedPhotos')"
-          >
-            {{ isCleaningRelatedPhotos ? messages.cleaningRelated : messages.cleanRelatedPhotos }}
-          </button>
-          <button
-            class="danger-button"
-            type="button"
-            :disabled="!selectedCount || isDeleting || isCleaningRelatedPhotos"
-            @click="$emit('deleteSelected')"
-          >
-            {{ isDeleting ? messages.deleting : messages.deleteSelected(selectedCount) }}
-          </button>
-          <button class="soft-button" type="button" :disabled="!totalCount" @click="$emit('toggleAll')">
-            {{ allSelected ? messages.cancelSelectAll : messages.selectAll }}
-          </button>
-          <span class="counter">{{ selectedCount }} / {{ totalCount }}</span>
-        </template>
       </div>
     </div>
   </header>
+
+  <Teleport to="body">
+    <Transition name="confirm-dialog">
+      <div v-if="showHelp" class="help-dialog" role="dialog" aria-modal="true" :aria-label="messages.helpTitle" @click.self="showHelp = false">
+        <section class="help-dialog-panel">
+          <header>
+            <h2>{{ messages.helpTitle }}</h2>
+            <button type="button" :aria-label="messages.closeHelp" :title="messages.closeHelp" @click="showHelp = false">
+              <X :size="19" />
+            </button>
+          </header>
+          <div class="help-grid">
+            <section>
+              <h3>{{ messages.helpMouseTitle }}</h3>
+              <p v-for="item in messages.helpMouseItems" :key="item">{{ item }}</p>
+            </section>
+            <section>
+              <h3>{{ messages.helpKeyboardTitle }}</h3>
+              <p v-for="item in messages.helpKeyboardItems" :key="item">{{ item }}</p>
+            </section>
+            <section>
+              <h3>{{ messages.helpPathTitle }}</h3>
+              <p class="help-path">{{ messages.helpPathText }}</p>
+            </section>
+            <section>
+              <h3>{{ messages.helpSafetyTitle }}</h3>
+              <p>{{ messages.helpSafetyText }}</p>
+            </section>
+          </div>
+        </section>
+      </div>
+    </Transition>
+  </Teleport>
 </template>

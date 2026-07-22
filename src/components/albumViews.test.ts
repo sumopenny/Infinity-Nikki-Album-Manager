@@ -26,24 +26,21 @@ describe('album view controls', () => {
     expect(wrapper.emitted('changeView')).toEqual([['trash']])
   })
 
-  it('shows total size and exposes the empty recently deleted actions safely', () => {
+  it('keeps recently deleted cards free of names, sizes, and per-card actions', () => {
     const wrapper = mount(RecentlyDeletedGrid, {
       props: {
         photos: [],
         selectedIds: new Set<string>(),
-        allSelected: false,
-        totalSizeText: '0 B',
         thumbnailMode: 'default',
-        isBusy: false,
         language: 'zh',
         messages: messages.zh.trash
       },
       global: { stubs: { LazyPhotoImage: true } }
     })
 
-    expect(wrapper.text()).toContain('共 0 张照片，合计 0 B')
     expect(wrapper.text()).toContain('最近删除为空')
-    expect(wrapper.findAll('button').every((button) => button.attributes('disabled') !== undefined)).toBe(true)
+    expect(wrapper.findAll('.restore-button')).toHaveLength(0)
+    expect(wrapper.findAll('.danger-button')).toHaveLength(0)
   })
 
   it('uses the exact irreversible deletion impact wording', () => {

@@ -33,9 +33,13 @@ export interface RelatedPhotoCleanupPlan {
   targets: RelatedPhotoCleanupTarget[]
 }
 
+/** 清理失败原因代码，展示层按语言翻译。 */
+export type RelatedCleanupFailureReason = 'unreadable-size' | 'remove-failed'
+
 export interface RelatedPhotoCleanupResult {
   deletedCount: number
-  failedNames: string[]
+  deletedBytes: number
+  failures: Array<{ path: string; reason: RelatedCleanupFailureReason }>
   missingDirectories: string[]
 }
 
@@ -760,24 +764,43 @@ export async function prepareRelatedPhotoCleanup(
   }
 }
 
+/**
+ * 执行低画质与截图清理，并只累计实际成功删除的文件容量。
+ * 参数：plan 为已确认的清理计划；文件大小读取失败时保留原文件。
+ * 返回：成功数量、释放字节数、结构化失败原因和缺失目录。
+ */
 export async function executeRelatedPhotoCleanup(plan: RelatedPhotoCleanupPlan): Promise<RelatedPhotoCleanupResult> {
   let deletedCount = 0
-  const failedNames: string[] = []
+  let deletedBytes = 0
+  const failures: Array<{ path: string; reason: RelatedCleanupFailureReason }> = []
 
   for (const target of plan.targets) {
     for (const photoName of target.photoNames) {
+      const path = `${target.directoryName}\\${photoName}`
+      let fileSize: number
+
+      try {
+        const fileHandle = await target.directoryHandle.getFileHandle(photoName)
+        fileSize = (await fileHandle.getFile()).size
+      } catch {
+        failures.push({ path, reason: 'unreadable-size' })
+        continue
+      }
+
       try {
         await target.directoryHandle.removeEntry(photoName)
         deletedCount += 1
+        deletedBytes += fileSize
       } catch {
-        failedNames.push(`${target.directoryName}\\${photoName}`)
+        failures.push({ path, reason: 'remove-failed' })
       }
     }
   }
 
   return {
     deletedCount,
-    failedNames,
+    deletedBytes,
+    failures,
     missingDirectories: plan.missingDirectories
   }
 }

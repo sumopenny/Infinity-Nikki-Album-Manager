@@ -7,7 +7,8 @@ import Lightbox from './Lightbox.vue'
 const loadPhotoMock = vi.fn<(photo: PhotoItem) => Promise<string>>()
 
 vi.mock('../utils/photoLoader', () => ({
-  loadPhotoWithRetry: (photo: PhotoItem) => loadPhotoMock(photo)
+  loadPhotoWithRetry: (photo: PhotoItem) => loadPhotoMock(photo),
+  loadPhotoWithRetryAndSize: async (photo: PhotoItem) => ({ url: await loadPhotoMock(photo), width: 1600, height: 900 })
 }))
 
 /** 创建大图测试所需的最小照片状态。参数：name 为照片文件名。 */
@@ -31,16 +32,6 @@ function createPhoto(name: string): PhotoItem {
 describe('Lightbox preview navigation', () => {
   beforeEach(() => {
     loadPhotoMock.mockReset()
-    vi.stubGlobal('Image', class {
-      onload: (() => void) | null = null
-      onerror: (() => void) | null = null
-      naturalWidth = 1600
-      naturalHeight = 900
-
-      set src(_value: string) {
-        queueMicrotask(() => this.onload?.())
-      }
-    })
   })
 
   it('keeps the delete button visually enabled while the next image is loading', async () => {
@@ -57,6 +48,8 @@ describe('Lightbox preview navigation', () => {
         hasPrevious: false,
         hasNext: true,
         isDeleting: false,
+        isFavorite: false,
+        keyboardEnabled: true,
         mode: 'album',
         messages: messages.zh.lightbox,
         dateMessages: messages.zh.date
@@ -79,5 +72,120 @@ describe('Lightbox preview navigation', () => {
       expect(wrapper.get('.lightbox-delete').attributes('aria-disabled')).toBeUndefined()
     })
     wrapper.unmount()
+  })
+
+  it('clamps zoom and resets it whenever the photo changes', async () => {
+    const firstPhoto = createPhoto('2026_07_21_11_20_00.jpeg')
+    const nextPhoto = createPhoto('2026_07_21_11_21_00.jpeg')
+    loadPhotoMock.mockResolvedValue('blob:photo')
+    const wrapper = mount(Lightbox, {
+      props: {
+        photo: firstPhoto,
+        hasPrevious: false,
+        hasNext: true,
+        isDeleting: false,
+        isFavorite: false,
+        keyboardEnabled: true,
+        mode: 'album',
+        messages: messages.zh.lightbox,
+        dateMessages: messages.zh.date
+      },
+      global: { stubs: { Teleport: true } }
+    })
+    await flushPromises()
+
+    await wrapper.get('.lightbox-stage').trigger('wheel', { deltaY: -1 })
+    expect(wrapper.findAll('.lightbox-zoom-controls button')[1].text()).toBe('125%')
+    await wrapper.findAll('.lightbox-zoom-controls button')[2].trigger('pointerdown', { pointerId: 1 })
+    await wrapper.findAll('.lightbox-zoom-controls button')[2].trigger('click')
+    expect(wrapper.findAll('.lightbox-zoom-controls button')[1].text()).toBe('150%')
+    for (let index = 0; index < 10; index += 1) await wrapper.findAll('.lightbox-zoom-controls button')[2].trigger('click')
+    expect(wrapper.findAll('.lightbox-zoom-controls button')[1].text()).toBe('300%')
+    expect(wrapper.findAll('.lightbox-zoom-controls button')[2].attributes('disabled')).toBeDefined()
+
+    await wrapper.setProps({ photo: nextPhoto })
+    expect(wrapper.findAll('.lightbox-zoom-controls button')[1].text()).toBe('100%')
+    wrapper.unmount()
+  })
+
+  it('matches the preview stage aspect ratio to the loaded image', async () => {
+    loadPhotoMock.mockResolvedValue('blob:photo')
+    const wrapper = mount(Lightbox, {
+      props: {
+        photo: createPhoto('2026_07_21_11_20_00.jpeg'),
+        hasPrevious: false,
+        hasNext: false,
+        isDeleting: false,
+        isFavorite: false,
+        keyboardEnabled: true,
+        mode: 'album',
+        messages: messages.zh.lightbox,
+        dateMessages: messages.zh.date
+      },
+      global: { stubs: { Teleport: true } }
+    })
+    await flushPromises()
+
+    expect(wrapper.get('.lightbox-panel').attributes('style')).toContain('--lightbox-image-aspect-ratio: 1.7777777777777777')
+    wrapper.unmount()
+  })
+
+  it('ignores preview shortcuts while an upper dialog disables the keyboard', async () => {
+    loadPhotoMock.mockResolvedValue('blob:photo')
+    const wrapper = mount(Lightbox, {
+      props: {
+        photo: createPhoto('2026_07_21_11_20_00.jpeg'),
+        hasPrevious: true,
+        hasNext: true,
+        isDeleting: false,
+        isFavorite: false,
+        keyboardEnabled: false,
+        mode: 'album',
+        messages: messages.zh.lightbox,
+        dateMessages: messages.zh.date
+      },
+      global: { stubs: { Teleport: true } }
+    })
+    await flushPromises()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }))
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }))
+    expect(wrapper.emitted('close')).toBeUndefined()
+    expect(wrapper.emitted('previous')).toBeUndefined()
+    expect(wrapper.emitted('next')).toBeUndefined()
+
+    await wrapper.setProps({ keyboardEnabled: true })
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    expect(wrapper.emitted('close')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('locks background scroll while the preview is open and restores it on close', async () => {
+    loadPhotoMock.mockResolvedValue('blob:photo')
+    const wrapper = mount(Lightbox, {
+      props: {
+        photo: createPhoto('2026_07_21_11_20_00.jpeg'),
+        hasPrevious: false,
+        hasNext: false,
+        isDeleting: false,
+        isFavorite: false,
+        keyboardEnabled: true,
+        mode: 'album',
+        messages: messages.zh.lightbox,
+        dateMessages: messages.zh.date
+      },
+      global: { stubs: { Teleport: true } }
+    })
+    await flushPromises()
+
+    expect(document.body.style.overflow).toBe('hidden')
+    await wrapper.setProps({ photo: null })
+    expect(document.body.style.overflow).toBe('')
+
+    await wrapper.setProps({ photo: createPhoto('2026_07_21_11_21_00.jpeg') })
+    expect(document.body.style.overflow).toBe('hidden')
+    wrapper.unmount()
+    expect(document.body.style.overflow).toBe('')
   })
 })

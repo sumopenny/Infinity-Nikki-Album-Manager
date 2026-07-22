@@ -31,17 +31,19 @@
 
 ### 功能
 
-- 按拍摄日期分组，支持日期侧栏快速跳转。
+- 按“年份 > 月份 > 日期”分组，支持折叠时间轴和日期快速跳转。
 
 ![项目界面](img/3.png)![项目界面](img/4.png)
 
 - 原图按需懒加载，减少高分辨率照片造成的页面卡顿。
 - 使用“全部照片 / 收藏夹 / 最近删除”三个独立入口管理照片。
+- 顶部通过“当前相册 / 视图 / 更多”菜单集中管理目录、主题、缩略图、语言、帮助和项目链接。
 - 手动刷新相册，并在页面重新获得焦点时自动发现新增或外部删除的照片。
 - 删除的高画质照片会移动到当前相册的 `trash` 文件夹，可预览、恢复或永久删除。
-- 单击选择、批量选择，双击打开大图预览。
+- 单击选择后从页面底部显示批量收藏、删除、恢复或永久删除操作栏。
+- 双击打开大图预览，支持 50%–300% 缩放、滚轮缩放和放大后拖动。
 - 支持键盘翻页和删除当前预览照片。
-- 提供 1:1、半尺寸 1:1、16:9、4:3、9:16、3:4 缩略图比例。
+- 提供 1:1、半尺寸 1:1、16:9、4:3、9:16、3:4 缩略图比例；半尺寸模式的悬浮信息只显示拍摄时间。
 - 记住相册目录和收藏状态，支持中英文与亮暗主题。
 - 一键清理同账号的低画质照片与游戏截图。
 
@@ -106,9 +108,11 @@ npm -v
 | 点击爱心 | 加入或移出收藏夹 |
 | 点击左侧日期 | 跳转到对应日期 |
 | 左右方向键 | 在大图预览中切换照片 |
+| 滚轮 / 缩放按钮 | 在大图预览中按 25% 步长缩放 |
+| 拖动大图 | 放大后移动图片查看细节 |
 | `Esc` | 关闭大图预览 |
 | `Delete` | 将当前预览照片移到最近删除 |
-| 全选 / 删除选中 | 批量管理当前视图照片 |
+| 底部操作栏 | 全选、批量收藏、删除、恢复或永久删除 |
 
 > 普通相册删除会把原图移动到当前相册的 `trash` 文件夹；最近删除中的“永久删除”和“一键清理低画质与截图”会直接删除电脑文件，无法恢复。
 
@@ -127,7 +131,7 @@ npm -v
 - `NikkiPhotos_LowQuality` 中的图片。
 - 当前游戏 `X6Game\ScreenShot` 中的图片。
 
-首次使用需要额外选择并授权对应的 `X6Game` 文件夹。程序会验证相册路径，删除前显示数量并再次确认；只删除图片，保留文件夹和其他文件。
+首次使用需要额外选择并授权对应的 `X6Game` 文件夹。程序会验证相册路径，删除前显示数量并再次确认；只删除图片，保留文件夹和其他文件。完成后会显示实际清理数量和释放容量；无法读取或删除的文件会保留并列出具体原因。
 
 ![一键清理](img/7.png)
 
@@ -175,7 +179,7 @@ npm run preview   # 预览构建结果
 
 ### Features
 
-- Group photos by capture date and jump from the date sidebar.
+- Group photos by year, month, and date with a collapsible timeline and quick date jumps.
 <div align="center">
   <img src="img/3.png" alt="Choose an album" width="38%">
   <img src="img/4.png" alt="Choose an album" width="38%">
@@ -183,11 +187,13 @@ npm run preview   # 预览构建结果
 - Lazy-load original images to reduce lag from high-resolution photos.
 - Favorite photos and browse Favorites separately.
 - Use separate All photos, Favorites, and Recently deleted views.
+- Use the Current album, View, and More menus for folders, themes, thumbnails, language, help, and project links.
 - Refresh manually or let the app detect new and externally removed photos when the page regains focus.
 - Deleted high-quality photos move to the album's `trash` folder for preview, restore, or permanent deletion.
-- Select photos, batch-select, and double-click for large preview.
+- Select photos to reveal a fixed bottom bar for batch favorite, delete, restore, or permanent deletion.
+- Double-click for a large preview with 50%–300% zoom, wheel zooming, and drag-to-pan.
 - Navigate previews with the keyboard and delete the current photo.
-- Choose 1:1, Half 1:1, 16:9, 4:3, 9:16, or 3:4 thumbnails.
+- Choose 1:1, Half 1:1, 16:9, 4:3, 9:16, or 3:4 thumbnails; Half 1:1 hover metadata shows capture time only.
 - Remember album access and Favorites; includes Chinese/English and light/dark themes.
 - Clean low-quality photos and game screenshots with one action.
 
@@ -251,9 +257,11 @@ Supported formats: `jpg`, `jpeg`, `png`, `webp`, `gif`, `bmp`, `avif`.
 | Click the heart | Add to or remove from Favorites |
 | Click a sidebar date | Jump to that date |
 | Left / Right Arrow | Navigate the large preview |
+| Mouse wheel / zoom buttons | Zoom the preview in 25% steps |
+| Drag the preview | Pan a zoomed photo |
 | `Esc` | Close the preview |
 | `Delete` | Move the current preview photo to Recently deleted |
-| Select all / Delete selected | Batch-manage the current view |
+| Bottom action bar | Select all, favorite, delete, restore, or permanently delete |
 
 > Normal album deletion moves the original into the album's `trash` folder. Permanent deletion in Recently deleted and low-quality/screenshot cleanup remove computer files and cannot be undone.
 
@@ -272,7 +280,7 @@ After selecting `NikkiPhotos_HighQuality`, use `Clean low-quality & screenshots`
 - `NikkiPhotos_LowQuality` for the same account.
 - The current game's `X6Game\ScreenShot` folder.
 
-On first use, select and authorize the matching `X6Game` folder. The app validates the album path, displays the number of files, and asks for confirmation before deletion. Only image files are removed; folders and other file types remain.
+On first use, select and authorize the matching `X6Game` folder. The app validates the album path, displays the number of files, and asks for confirmation before deletion. Only image files are removed; folders and other file types remain. The result reports the actual released capacity and keeps unreadable or undeletable files with a clear failure reason.
 
 ![One-click cleanup](img/7.png)
 
