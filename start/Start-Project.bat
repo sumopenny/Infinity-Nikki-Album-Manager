@@ -42,7 +42,7 @@ if not exist "package.json" (
     exit /b 1
 )
 
-if not exist "node_modules\" (
+if not exist "node_modules\vite\bin\vite.js" (
     echo First run detected: installing dependencies.
     echo This may take a few minutes.
     echo.

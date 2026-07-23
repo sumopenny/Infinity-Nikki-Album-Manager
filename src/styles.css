@@ -3,17 +3,13 @@
   color: #5f5552;
   background: #fbf8f4;
   --white: #fffdf9;
-  --cream: #fbf8f4;
   --page-bg: radial-gradient(circle at bottom right, rgba(233, 185, 184, 0.18), transparent 34rem), linear-gradient(135deg, #fffdf9 0%, #fbf6f1 48%, #f7efe9 100%);
   --surface: rgba(255, 255, 255, 0.94);
   --surface-strong: #ffffff;
   --surface-soft: rgba(255, 255, 255, 0.82);
   --soft-accent: rgba(255, 239, 237, 0.92);
   --soft-accent-bottom: #fff6d9;
-  --warm-accent: #fffcf5;
-  --pink: #e9b9b8;
   --pink-deep: #c98486;
-  --yellow: #f3e6bd;
   --yellow-soft: #fff6d9;
   --line: #e4d5ce;
   --line-soft: rgba(234, 223, 218, 0.86);
@@ -23,7 +19,6 @@
   /* 浅粉底配深玫瑰字，保证文字对比度达到可读标准 */
   --primary-text: #ffffff;
   --primary-hover-text: #ffffff;
-  --primary-shadow: 0 0 10px rgba(192, 109, 100, 0.507);
   --photo-shadow: 0 4px 14px rgba(150, 85, 41, 0.16);
   --photo-hover-shadow: 0 8px 22px rgba(199, 102, 36, 0.18);
   --scrollbar-track: rgba(255, 255, 255, 0.62);
@@ -42,7 +37,6 @@
   --favorite-button-border: rgba(201, 132, 134, 0.32);
   --favorite-button-active-bg: var(--yellow-soft);
   --favorite-heart-bg: var(--soft-accent);
-  --favorite-heart-active-bg: rgba(56, 39, 28, 0.599);
   --favorite-heart-fill: var(--pink-deep);
   --notice-info: #6e91b8;
   --notice-success: #6c9f7c;
@@ -67,17 +61,13 @@
   color: #e9e1dd;
   background: #050506;
   --white: #111113;
-  --cream: #050506;
   --page-bg: radial-gradient(circle at bottom right, rgba(201, 132, 134, 0.16), transparent 34rem), linear-gradient(135deg, #050506 0%, #0d0d11 52%, #000 100%);
   --surface: rgba(18, 18, 21, 0.94);
   --surface-strong: #151519;
   --surface-soft: rgba(28, 28, 32, 0.82);
   --soft-accent: rgba(74, 70, 70, 0.7);
   --soft-accent-bottom: rgba(74, 70, 70, 0.7);
-  --warm-accent: #252015;
-  --pink: #d69a9c;
   --pink-deep: #efb0b2;
-  --yellow: #8d7a47;
   --yellow-soft: #242016;
   --line: #63575c;
   --line-soft: rgba(66, 61, 67, 0.86);
@@ -86,7 +76,6 @@
   /* 深色主题 hover 用稍亮的深粉，保持白字对比度 */
   --primary-hover-bg: #8f6668;
   --primary-text: #ffffff;
-  --primary-shadow: 0 0 10px rgba(244, 179, 163, 0.534);
   /* 深色下用淡描边 + 方向投影替代发光描边 */
   --photo-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 14px rgba(0, 0, 0, 0.5);
   --photo-hover-shadow: 0 0 0 1px rgba(255, 255, 255, 0.13), 0 8px 22px rgba(0, 0, 0, 0.62);
@@ -107,7 +96,6 @@
   --favorite-button-border: rgba(239, 176, 178, 0.5);
   --favorite-button-active-bg: rgba(239, 176, 178, 0.2);
   --favorite-heart-bg: rgba(239, 176, 178, 0.14);
-  --favorite-heart-active-bg: rgba(180, 151, 134, 0.545);
   --favorite-heart-fill: #ffb9bc;
   --notice-info: #8bb7e5;
   --notice-success: #91c9a0;
@@ -188,7 +176,7 @@ button:disabled {
 .app-shell {
   min-height: 100vh;
   width: 100%;
-  --sidebar-sticky-top: 124px;
+  --sidebar-sticky-top: 74px;
   --sidebar-width: clamp(154px, 11.5vw, 180px);
 }
 
@@ -222,7 +210,6 @@ h1 {
   color: transparent;
   font-size: clamp(22px, 3vw, 29px);
   letter-spacing: 0.04em;
-  text-shadow: 0 2px 2px var(--title-shadow);
   -webkit-background-clip: text;
   background-clip: text;
   animation: title-gradient-flow 4.8s ease-in-out infinite;
@@ -266,30 +253,9 @@ h1 {
   color: var(--primary-hover-text);
 }
 
-.album-layout {
-  align-items: flex-start;
-  gap: 12px;
-  width: 100%;
-  max-width: 2920px;
-  margin: 0 auto;
-  padding: 8px clamp(8px, 1.8vw, 18px) 32px;
-}
-
-.sidebar-column {
-  position: fixed;
-  /* top: var(--sidebar-sticky-top); */
-  left: max(clamp(8px, 1.8vw, 18px), calc((100vw - 2920px) / 2 + clamp(8px, 1.8vw, 18px)));
-  z-index: 20;
-  width: var(--sidebar-width);
-  flex: 0 0 var(--sidebar-width);
-  min-width: 0;
-  align-self: flex-start;
-}
-
 .album-view-nav {
   display: grid;
   gap: 7px;
-  /* margin-bottom: 8px; */
 }
 
 .album-view-button {
@@ -371,9 +337,6 @@ h1 {
 }
 
 .album-content {
-  flex: 1;
-  min-width: 0;
-  margin-left: calc(var(--sidebar-width) + 12px);
   font-size: 13px;
 }
 
@@ -703,11 +666,6 @@ h1 {
 
 .date-block {
   scroll-margin-top: clamp(112px, 16vh, 184px);
-  margin-bottom: 14px;
-  padding: clamp(10px, 1.8vw, 14px);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
 }
 
 .date-block-header {
@@ -897,7 +855,6 @@ h1 {
 .favorite-heart:hover,
 .favorite-heart.active {
   transform: scale(1.08);
-  /* background: var(--favorite-heart-active-bg); */
   background: rgba(86, 54, 32, 0.599);
 }
 
@@ -1054,38 +1011,9 @@ h1 {
   }
 }
 
-.lightbox-caption span {
-  color: var(--muted);
-}
-
-.lightbox-delete {
-  border: 0;
-  border-radius: 999px;
-  padding: 8px 14px;
-  background: #d28f92;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 800;
-  white-space: nowrap;
-  box-shadow: 0 8px 18px rgba(194, 114, 116, 0.2);
-}
-
-.lightbox-delete:disabled {
-  opacity: 0.55;
-}
-
 .lightbox-delete.is-preview-loading {
   pointer-events: none;
   cursor: wait;
-}
-
-body {
-  background: var(--page-bg);
-}
-
-.app-shell {
-  --sidebar-width: clamp(154px, 11.5vw, 180px);
-  --sidebar-sticky-top: 74px;
 }
 
 .app-header {
@@ -1430,6 +1358,7 @@ body {
 
 .sidebar-column {
   position: fixed;
+  z-index: 20;
   top: var(--sidebar-sticky-top);
   left: clamp(8px, 1vw, 20px);
   width: var(--sidebar-width);
