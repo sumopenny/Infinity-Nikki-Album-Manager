@@ -20,22 +20,21 @@
   <a href="#english"><strong>English</strong></a>
 </div>
 
+
+---
+> 网站界面
 <div align="center">
   <img src="img/1.png" alt="项目界面" width="49%">
   <img src="img/2.png" alt="项目界面" width="49%">
+  <img src="img/3.png" alt="项目界面">
+  
 </div>
-
----
 
 ## 简体中文
 
 ### 功能
 
 - 按“年份 > 月份 > 日期”分组，支持折叠时间轴和日期快速跳转。
-
-![项目界面](img/3.png)![项目界面](img/4.png)
-
-- 原图按需懒加载，减少高分辨率照片造成的页面卡顿。
 - 使用“全部照片 / 收藏夹 / 最近删除”三个独立入口管理照片。
 - 顶部通过“当前相册 / 视图 / 更多”菜单集中管理目录、主题、缩略图、语言、帮助和项目链接。
 - 手动刷新相册，并在页面重新获得焦点时自动发现新增或外部删除的照片。
@@ -133,7 +132,7 @@ npm -v
 
 首次使用需要额外选择并授权对应的 `X6Game` 文件夹。程序会验证相册路径，删除前显示数量并再次确认；只删除图片，保留文件夹和其他文件。完成后会显示实际清理数量和释放容量；无法读取或删除的文件会保留并列出具体原因。
 
-![一键清理](img/7.png)
+<img src="img/4.png" alt="一键清理" width="49%">
 
 ### 常见问题
 
@@ -180,11 +179,6 @@ npm run preview   # 预览构建结果
 ### Features
 
 - Group photos by year, month, and date with a collapsible timeline and quick date jumps.
-<div align="center">
-  <img src="img/3.png" alt="Choose an album" width="38%">
-  <img src="img/4.png" alt="Choose an album" width="38%">
-</div>
-- Lazy-load original images to reduce lag from high-resolution photos.
 - Favorite photos and browse Favorites separately.
 - Use separate All photos, Favorites, and Recently deleted views.
 - Use the Current album, View, and More menus for folders, themes, thumbnails, language, help, and project links.
@@ -282,7 +276,7 @@ After selecting `NikkiPhotos_HighQuality`, use `Clean low-quality & screenshots`
 
 On first use, select and authorize the matching `X6Game` folder. The app validates the album path, displays the number of files, and asks for confirmation before deletion. Only image files are removed; folders and other file types remain. The result reports the actual released capacity and keeps unreadable or undeletable files with a clear failure reason.
 
-![One-click cleanup](img/7.png)
+<img src="img/4.png" alt="One-click cleanup" width="49%">
 
 ### FAQ
 

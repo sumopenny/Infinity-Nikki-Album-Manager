@@ -38,6 +38,7 @@ const zoom = ref(100)
 const pan = ref({ x: 0, y: 0 })
 const dragging = ref(false)
 const dragOrigin = ref({ x: 0, y: 0 })
+const navigationButtonsHidden = ref(false)
 let previewLoadToken = 0
 let previewAbortController: AbortController | null = null
 
@@ -54,22 +55,26 @@ const imageTransform = computed(() => ({
   cursor: zoom.value > 100 ? (dragging.value ? 'grabbing' : 'grab') : 'default'
 }))
 
-const lightboxPanelWidth = computed(() => {
+const lightboxLayout = computed(() => {
   if (!imageAspectRatio.value || !viewportSize.value.width || !viewportSize.value.height) return null
   const viewportWidth = viewportSize.value.width
   const viewportHeight = viewportSize.value.height
-  const availableWidth = Math.max(0, viewportWidth - getClampedValue(16, viewportWidth * 0.04, 32))
+  const overlayPadding = getClampedValue(12, viewportWidth * 0.04, 32) * 2
+  const availableWidth = Math.max(0, viewportWidth - overlayPadding)
   const panelHorizontalChrome = 30
-  const imageHeightOffset = getClampedValue(112, viewportHeight * 0.14, 148)
-  const imageMaxHeight = Math.max(160, viewportHeight - imageHeightOffset)
+  const panelVerticalChrome = getClampedValue(104, viewportHeight * 0.14, 148)
+  const imageMaxHeight = Math.max(160, viewportHeight - overlayPadding - panelVerticalChrome)
   const preferredWidth = imageMaxHeight * imageAspectRatio.value + panelHorizontalChrome
   const minWidth = Math.min(availableWidth, imageOrientation.value === 'portrait' ? 300 : 420)
-  return Math.round(Math.min(Math.max(preferredWidth, minWidth), availableWidth, 1500))
+  const panelWidth = Math.round(Math.min(Math.max(preferredWidth, minWidth), availableWidth, 1500))
+  const stageHeight = Math.round(Math.min(imageMaxHeight, Math.max(160, (panelWidth - panelHorizontalChrome) / imageAspectRatio.value)))
+  return { panelWidth, stageHeight }
 })
 
-const lightboxPanelStyle = computed(() => lightboxPanelWidth.value && imageAspectRatio.value
+const lightboxPanelStyle = computed(() => lightboxLayout.value && imageAspectRatio.value
   ? {
-      '--lightbox-panel-width': `${lightboxPanelWidth.value}px`,
+      '--lightbox-panel-width': `${lightboxLayout.value.panelWidth}px`,
+      '--lightbox-stage-height': `${lightboxLayout.value.stageHeight}px`,
       '--lightbox-image-aspect-ratio': `${imageAspectRatio.value}`
     }
   : undefined)
@@ -125,6 +130,15 @@ function endDrag() {
   dragging.value = false
 }
 
+function hideNavigationButtons() {
+  navigationButtonsHidden.value = true
+  ;(document.activeElement as HTMLElement | null)?.blur()
+}
+
+function showNavigationButtons() {
+  navigationButtonsHidden.value = false
+}
+
 /** 优先读取并解码用户主动打开的原图；尺寸直接复用解码结果，不再二次探测。参数：nextPhoto 为待显示照片。 */
 async function updateDisplayedPhoto(nextPhoto: PhotoItem): Promise<void> {
   const currentToken = ++previewLoadToken
@@ -151,6 +165,7 @@ function setBodyScrollLocked(locked: boolean) {
 watch(() => props.photo, (nextPhoto) => {
   updateViewportSize()
   resetTransform()
+  navigationButtonsHidden.value = false
   setBodyScrollLocked(Boolean(nextPhoto))
   if (!nextPhoto) {
     previewLoadToken += 1
@@ -225,46 +240,46 @@ onUnmounted(() => {
           @pointercancel="endDrag"
         >
           <img :src="displayedPhoto.url ?? undefined" :alt="displayedPhoto.name" :style="imageTransform" draggable="false" />
-          <div class="lightbox-nav-zone lightbox-nav-zone--prev">
-            <button v-if="hasPrevious" class="lightbox-nav-button" type="button" :title="messages.previousAria" :aria-label="messages.previousAria" @click="emit('previous')">
+          <div class="lightbox-nav-zone lightbox-nav-zone--prev" :class="{ 'is-navigation-hidden': navigationButtonsHidden }" @pointerleave="showNavigationButtons">
+            <button v-if="hasPrevious" class="lightbox-nav-button" type="button" :title="messages.previousAria" :aria-label="messages.previousAria" @click="hideNavigationButtons(); emit('previous')">
               <ChevronLeft :size="22" />
             </button>
           </div>
-          <div class="lightbox-nav-zone lightbox-nav-zone--next">
-            <button v-if="hasNext" class="lightbox-nav-button" type="button" :title="messages.nextAria" :aria-label="messages.nextAria" @click="emit('next')">
+          <div class="lightbox-nav-zone lightbox-nav-zone--next" :class="{ 'is-navigation-hidden': navigationButtonsHidden }" @pointerleave="showNavigationButtons">
+            <button v-if="hasNext" class="lightbox-nav-button" type="button" :title="messages.nextAria" :aria-label="messages.nextAria" @click="hideNavigationButtons(); emit('next')">
               <ChevronRight :size="22" />
             </button>
           </div>
         </div>
 
-        <div class="lightbox-footer">
-          <div class="lightbox-toolbar">
-            <div class="lightbox-zoom-controls">
-              <button type="button" :title="messages.zoomOut" :aria-label="messages.zoomOut" :disabled="zoom <= MIN_ZOOM" @click="setZoom(zoom - ZOOM_STEP)">
-                <ZoomOut :size="17" />
-              </button>
-              <button type="button" :title="messages.resetZoom" :aria-label="messages.resetZoom" @click="resetTransform">{{ zoom }}%</button>
-              <button type="button" :title="messages.zoomIn" :aria-label="messages.zoomIn" :disabled="zoom >= MAX_ZOOM" @click="setZoom(zoom + ZOOM_STEP)">
-                <ZoomIn :size="17" />
-              </button>
-            </div>
-            <button
-              v-if="mode === 'album'"
-              type="button"
-              :class="{ active: isFavorite }"
-              :title="isFavorite ? messages.removeFavorite : messages.favorite"
-              :aria-label="isFavorite ? messages.removeFavorite : messages.favorite"
-              @click="emit('toggleFavorite')"
-            >
-              <Heart :size="18" :fill="isFavorite ? 'currentColor' : 'none'" />
+      </div>
+      <div class="lightbox-footer">
+        <div class="lightbox-toolbar">
+          <div class="lightbox-zoom-controls">
+            <button type="button" :title="messages.zoomOut" :aria-label="messages.zoomOut" :disabled="zoom <= MIN_ZOOM" @click="setZoom(zoom - ZOOM_STEP)">
+              <ZoomOut :size="17" />
             </button>
-            <button v-else type="button" :class="{ 'is-preview-loading': isPreviewLoading }" :disabled="isDeleting" :aria-disabled="isPreviewLoading || undefined" :title="messages.restoreCurrent" @click="handleRestoreClick">
-              <RotateCcw :size="18" />
-            </button>
-            <button class="lightbox-delete" type="button" :class="{ 'is-preview-loading': isPreviewLoading }" :disabled="isDeleting" :aria-disabled="isPreviewLoading || undefined" :title="mode === 'trash' ? messages.permanentlyDeleteCurrent : messages.deleteCurrent" @click="handleDeleteClick">
-              <Trash2 :size="18" />
+            <button type="button" :title="messages.resetZoom" :aria-label="messages.resetZoom" @click="resetTransform">{{ zoom }}%</button>
+            <button type="button" :title="messages.zoomIn" :aria-label="messages.zoomIn" :disabled="zoom >= MAX_ZOOM" @click="setZoom(zoom + ZOOM_STEP)">
+              <ZoomIn :size="17" />
             </button>
           </div>
+          <button
+            v-if="mode === 'album'"
+            type="button"
+            :class="{ active: isFavorite }"
+            :title="isFavorite ? messages.removeFavorite : messages.favorite"
+            :aria-label="isFavorite ? messages.removeFavorite : messages.favorite"
+            @click="emit('toggleFavorite')"
+          >
+            <Heart :size="18" :fill="isFavorite ? 'currentColor' : 'none'" />
+          </button>
+          <button v-else type="button" :class="{ 'is-preview-loading': isPreviewLoading }" :disabled="isDeleting" :aria-disabled="isPreviewLoading || undefined" :title="messages.restoreCurrent" @click="handleRestoreClick">
+            <RotateCcw :size="18" />
+          </button>
+          <button class="lightbox-delete" type="button" :class="{ 'is-preview-loading': isPreviewLoading }" :disabled="isDeleting" :aria-disabled="isPreviewLoading || undefined" :title="mode === 'trash' ? messages.permanentlyDeleteCurrent : messages.deleteCurrent" @click="handleDeleteClick">
+            <Trash2 :size="18" />
+          </button>
         </div>
       </div>
     </div>
