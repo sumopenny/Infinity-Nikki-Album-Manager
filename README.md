@@ -27,6 +27,7 @@
   <img src="img/1.png" alt="项目界面" width="49%">
   <img src="img/2.png" alt="项目界面" width="49%">
   <img src="img/3.png" alt="项目界面">
+  <img src="img/4.png" alt="项目界面">
   
 </div>
 
@@ -46,6 +47,9 @@
 - 记住相册目录和收藏状态，支持中英文与亮暗主题。
 - 一键清理同账号的低画质照片与游戏截图。
 
+<div align="center">
+  <img src="img/5.png" width="49%">
+</div>
 
 ### 快速开始
 
@@ -132,7 +136,7 @@ npm -v
 
 首次使用需要额外选择并授权对应的 `X6Game` 文件夹。程序会验证相册路径，删除前显示数量并再次确认；只删除图片，保留文件夹和其他文件。完成后会显示实际清理数量和释放容量；无法读取或删除的文件会保留并列出具体原因。
 
-<img src="img/4.png" alt="一键清理" width="49%">
+
 
 ### 常见问题
 
@@ -190,6 +194,10 @@ npm run preview   # 预览构建结果
 - Choose 1:1, Half 1:1, 16:9, 4:3, 9:16, or 3:4 thumbnails; Half 1:1 hover metadata shows capture time only.
 - Remember album access and Favorites; includes Chinese/English and light/dark themes.
 - Clean low-quality photos and game screenshots with one action.
+
+<div align="center">
+  <img src="img/5.png" width="49%">
+</div>
 
 ### Quick Start
 
