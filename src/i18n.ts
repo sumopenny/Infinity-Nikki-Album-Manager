@@ -18,6 +18,12 @@ export interface LocaleMessages {
     clearedStatus: string
     operationNoticeTitle: string
     operationNoticeCloseAria: string
+    preferencesUpdating: string
+    languageUpdated: string
+    themeUpdated: string
+    movingPhotosToTrash: string
+    restoringPhotos: string
+    permanentlyDeletingPhotos: string
     dialogCloseAria: string
     dialogCancel: string
     dialogConfirm: string
@@ -240,6 +246,12 @@ export const messages: Record<Language, LocaleMessages> = {
       clearedStatus: '已清除记住的相册路径。需要继续管理相册时，请重新选择文件夹。',
       operationNoticeTitle: '操作提示',
       operationNoticeCloseAria: '关闭操作提示',
+      preferencesUpdating: '正在应用设置...',
+      languageUpdated: '语言切换成功。',
+      themeUpdated: '主题切换成功。',
+      movingPhotosToTrash: '正在移入最近删除...',
+      restoringPhotos: '正在恢复照片...',
+      permanentlyDeletingPhotos: '正在永久删除照片...',
       dialogCloseAria: '关闭弹窗',
       dialogCancel: '取消',
       dialogConfirm: '确认删除',
@@ -418,6 +430,12 @@ export const messages: Record<Language, LocaleMessages> = {
       clearedStatus: 'The remembered album folder has been cleared. Choose a folder again to continue managing your album.',
       operationNoticeTitle: 'Operation update',
       operationNoticeCloseAria: 'Close operation update',
+      preferencesUpdating: 'Applying settings...',
+      languageUpdated: 'Language updated successfully.',
+      themeUpdated: 'Theme updated successfully.',
+      movingPhotosToTrash: 'Moving photos to Recently Deleted...',
+      restoringPhotos: 'Restoring photos...',
+      permanentlyDeletingPhotos: 'Permanently deleting photos...',
       dialogCloseAria: 'Close dialog',
       dialogCancel: 'Cancel',
       dialogConfirm: 'Confirm delete',

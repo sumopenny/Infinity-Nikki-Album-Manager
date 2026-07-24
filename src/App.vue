@@ -35,9 +35,15 @@ import {
 
 const THUMBNAIL_STORAGE_KEY = 'infinity-nikki-thumbnail-mode'
 const THEME_STORAGE_KEY = 'infinity-nikki-theme-mode'
+const LANGUAGE_STORAGE_KEY = 'infinity-nikki-language'
 const FAVORITES_STORAGE_KEY = 'infinity-nikki-favorite-photo-ids'
 const storedThumbnailMode = localStorage.getItem(THUMBNAIL_STORAGE_KEY)
 const storedThemeMode = localStorage.getItem(THEME_STORAGE_KEY)
+const storedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY)
+
+function isLanguage(value: string | null): value is Language {
+  return value === 'zh' || value === 'en'
+}
 
 /**
  * 读取浏览器保存的收藏照片 ID。
@@ -88,7 +94,7 @@ const trashSelectedIds = ref<Set<string>>(new Set())
 const favoriteIds = ref<Set<string>>(readStoredFavoriteIds())
 const activeView = ref<AlbumView>('all')
 const currentPreview = ref<PhotoItem | null>(null)
-const language = ref<Language>(DEFAULT_LANGUAGE)
+const language = ref<Language>(isLanguage(storedLanguage) ? storedLanguage : DEFAULT_LANGUAGE)
 const directoryState = ref<DirectoryState>({ type: 'none' })
 const statusState = ref<StatusState>({ type: 'initial' })
 const isStatusNoticeVisible = ref(false)
@@ -97,6 +103,7 @@ const isRefreshing = ref(false)
 const isDeleting = ref(false)
 const isTrashBusy = ref(false)
 const isCleaningRelatedPhotos = ref(false)
+const isPreferenceUpdating = ref(false)
 const confirmDialog = ref<ConfirmDialogState>({
   visible: false,
   title: '',
@@ -238,7 +245,10 @@ watch(statusState, (nextStatus) => {
 })
 
 watch(favoriteIds, (ids) => localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...ids])), { deep: true })
-watch(language, (value) => { document.documentElement.lang = value === 'zh' ? 'zh-CN' : 'en' }, { immediate: true })
+watch(language, (value) => {
+  document.documentElement.lang = value === 'zh' ? 'zh-CN' : 'en'
+  localStorage.setItem(LANGUAGE_STORAGE_KEY, value)
+}, { immediate: true })
 watch(themeMode, (value) => {
   const root = document.documentElement
   const isThemeChange = Boolean(root.dataset.theme && root.dataset.theme !== value)
@@ -297,9 +307,33 @@ async function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusStat
   statusState.value = nextStatus
 }
 
+/** 应用语言或主题偏好，并显示加载及完成提示。参数：preference 为要切换的偏好。 */
+async function applyPreference(preference: 'language' | 'theme') {
+  if (isPreferenceUpdating.value) return
+
+  isPreferenceUpdating.value = true
+  statusState.value = { type: 'custom', message: locale.value.app.preferencesUpdating, tone: 'info', loading: true }
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 280))
+
+  if (preference === 'language') {
+    language.value = language.value === 'zh' ? 'en' : 'zh'
+  } else {
+    themeMode.value = themeMode.value === 'light' ? 'dark' : 'light'
+    localStorage.setItem(THEME_STORAGE_KEY, themeMode.value)
+  }
+
+  await nextTick()
+  statusState.value = {
+    type: 'custom',
+    message: preference === 'language' ? locale.value.app.languageUpdated : locale.value.app.themeUpdated,
+    tone: 'success'
+  }
+  isPreferenceUpdating.value = false
+}
+
 /** 切换中英文。参数：无。 */
 function toggleLanguage() {
-  language.value = language.value === 'zh' ? 'en' : 'zh'
+  return applyPreference('language')
 }
 
 /** 恢复浏览器记住的相册目录。参数：无。 */
@@ -411,8 +445,7 @@ function changeThumbnailMode(mode: ThumbnailMode) {
 
 /** 切换亮暗主题。参数：无。 */
 function toggleTheme() {
-  themeMode.value = themeMode.value === 'light' ? 'dark' : 'light'
-  localStorage.setItem(THEME_STORAGE_KEY, themeMode.value)
+  return applyPreference('theme')
 }
 
 /** 切换全部照片、收藏夹或最近删除视图。参数：view 为目标视图。 */
@@ -510,6 +543,7 @@ async function movePhotosToTrash(targets: PhotoItem[], keepPreviewOpen = false) 
   if (!confirmed) return
 
   isDeleting.value = true
+  statusState.value = { type: 'custom', message: locale.value.app.movingPhotosToTrash, tone: 'info', loading: true }
   const previewIndex = currentPreviewIndex.value
   try {
     const result = await movePhotosToRecentlyDeleted(targets, favoriteIds.value)
@@ -555,6 +589,7 @@ async function restoreTrashPhotos(targets: RecentlyDeletedPhoto[], keepPreviewOp
   const directoryHandle = albumDirectoryHandle.value
   if (!directoryHandle || !targets.length || isAnyFileOperationBusy.value) return
   isTrashBusy.value = true
+  statusState.value = { type: 'custom', message: locale.value.app.restoringPhotos, tone: 'info', loading: true }
   const previewIndex = currentPreviewIndex.value
   try {
     const result = await restoreRecentlyDeletedPhotos(targets, directoryHandle)
@@ -599,6 +634,7 @@ async function permanentlyDeleteTrashPhotos(targets: RecentlyDeletedPhoto[], kee
   if (!confirmed) return
 
   isTrashBusy.value = true
+  statusState.value = { type: 'custom', message: locale.value.app.permanentlyDeletingPhotos, tone: 'info', loading: true }
   const previewIndex = currentPreviewIndex.value
   try {
     const result = await permanentlyDeleteRecentlyDeleted(targets)

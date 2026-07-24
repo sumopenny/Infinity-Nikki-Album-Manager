@@ -50,19 +50,33 @@ const emit = defineEmits<{
 const openMenu = ref<OpenMenu>(null)
 const showHelp = ref(false)
 const headerRef = ref<HTMLElement | null>(null)
+const dropdownRef = ref<HTMLElement | null>(null)
+const menuTrigger = ref<HTMLElement | null>(null)
+const menuPosition = ref({ top: 0, left: 0 })
 const isBusy = computed(() => props.isLoading || props.isDeleting || props.isCleaningRelatedPhotos)
 
 /** 切换顶部菜单，并保证同一时间只展开一个菜单。参数：menu 为目标菜单。 */
-async function toggleMenu(menu: Exclude<OpenMenu, null>) {
-  openMenu.value = openMenu.value === menu ? null : menu
+async function toggleMenu(menu: Exclude<OpenMenu, null>, event: MouseEvent) {
+  if (openMenu.value === menu) {
+    closeMenus()
+    return
+  }
+
+  menuTrigger.value = event.currentTarget as HTMLElement
+  openMenu.value = menu
   await nextTick()
-  alignOpenMenu()
+  await alignOpenMenu()
 }
 
 /** 让菜单优先在触发项下方居中，并在临近屏幕边缘时保持完整可见。参数：无。 */
-function alignOpenMenu() {
-  const dropdown = headerRef.value?.querySelector<HTMLElement>('.header-dropdown')
-  if (!dropdown) return
+async function alignOpenMenu() {
+  const dropdown = dropdownRef.value
+  const trigger = menuTrigger.value
+  if (!dropdown || !trigger) return
+
+  const triggerRect = trigger.getBoundingClientRect()
+  menuPosition.value = { top: triggerRect.bottom + 7, left: triggerRect.left + triggerRect.width / 2 }
+  await nextTick()
   dropdown.style.setProperty('--menu-shift', '0px')
   const rect = dropdown.getBoundingClientRect()
   const safeInset = 12
@@ -78,6 +92,7 @@ function alignOpenMenu() {
 /** 关闭全部顶部菜单。参数：无。 */
 function closeMenus() {
   openMenu.value = null
+  menuTrigger.value = null
 }
 
 /** 执行菜单动作后收起菜单。参数：action 为父组件提供的动作。 */
@@ -94,7 +109,8 @@ function handleDocumentInteraction(event: MouseEvent | KeyboardEvent) {
     else closeMenus()
     return
   }
-  if (!headerRef.value?.contains(event.target as Node)) closeMenus()
+  const target = event.target as Node
+  if (!headerRef.value?.contains(target) && !dropdownRef.value?.contains(target)) closeMenus()
 }
 
 onMounted(() => {
@@ -139,13 +155,14 @@ onBeforeUnmount(() => {
           :aria-label="messages.albumMenuAria"
           aria-haspopup="menu"
           :aria-expanded="openMenu === 'album'"
-          @click.stop="toggleMenu('album')"
+          @click.stop="toggleMenu('album', $event)"
         >
           <FolderOpen :size="16" aria-hidden="true" />
           <span>{{ hasAlbumDirectory ? directoryName : messages.currentAlbum }}</span>
           <ChevronDown :size="14" aria-hidden="true" />
         </button>
-        <div v-if="openMenu === 'album'" class="header-dropdown" role="menu">
+        <Teleport to="body">
+          <div v-if="openMenu === 'album'" ref="dropdownRef" class="header-dropdown" :style="{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }" role="menu">
           <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('chooseDirectory'))">
             <FolderOpen :size="16" />
             <span>{{ messages.chooseDirectory }}</span>
@@ -159,7 +176,8 @@ onBeforeUnmount(() => {
             <Eraser :size="16" />
             <span>{{ isCleaningRelatedPhotos ? messages.cleaningRelated : messages.cleanRelatedPhotos }}</span>
           </button>
-        </div>
+          </div>
+        </Teleport>
       </div>
 
       <div class="header-menu-wrap">
@@ -169,13 +187,14 @@ onBeforeUnmount(() => {
           :aria-label="messages.viewMenuAria"
           aria-haspopup="menu"
           :aria-expanded="openMenu === 'view'"
-          @click.stop="toggleMenu('view')"
+          @click.stop="toggleMenu('view', $event)"
         >
           <Grid2X2 :size="16" aria-hidden="true" />
           <span>{{ messages.view }}</span>
           <ChevronDown :size="14" aria-hidden="true" />
         </button>
-        <div v-if="openMenu === 'view'" class="header-dropdown view-dropdown" role="menu">
+        <Teleport to="body">
+          <div v-if="openMenu === 'view'" ref="dropdownRef" class="header-dropdown view-dropdown" :style="{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }" role="menu">
           <button type="button" role="menuitem" @click="runMenuAction(() => emit('toggleTheme'))">
             <Sun v-if="themeMode === 'dark'" :size="16" />
             <Moon v-else :size="16" />
@@ -200,7 +219,8 @@ onBeforeUnmount(() => {
             <Languages :size="16" />
             <span>{{ messages.languageButton }}</span>
           </button>
-        </div>
+          </div>
+        </Teleport>
       </div>
 
       <div class="header-menu-wrap">
@@ -211,12 +231,13 @@ onBeforeUnmount(() => {
           :aria-label="messages.moreMenuAria"
           aria-haspopup="menu"
           :aria-expanded="openMenu === 'more'"
-          @click.stop="toggleMenu('more')"
+          @click.stop="toggleMenu('more', $event)"
         >
           <MoreHorizontal :size="19" aria-hidden="true" />
           <span>{{ messages.more }}</span>
         </button>
-        <div v-if="openMenu === 'more'" class="header-dropdown header-dropdown-right" role="menu">
+        <Teleport to="body">
+          <div v-if="openMenu === 'more'" ref="dropdownRef" class="header-dropdown header-dropdown-right" :style="{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }" role="menu">
           <button type="button" role="menuitem" @click="closeMenus(); showHelp = true">
             <CircleHelp :size="16" />
             <span>{{ messages.help }}</span>
@@ -240,7 +261,8 @@ onBeforeUnmount(() => {
               <span>{{ messages.douyin }}</span>
             </a>
           </div>
-        </div>
+          </div>
+        </Teleport>
       </div>
     </div>
   </header>

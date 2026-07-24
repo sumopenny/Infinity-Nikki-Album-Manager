@@ -330,6 +330,12 @@ h1 {
   --notice-accent: var(--notice-error);
 }
 
+.operation-notice.is-loading {
+  background: color-mix(in srgb, var(--surface-strong) 92%, transparent);
+  backdrop-filter: none;
+  contain: layout paint;
+}
+
 .operation-notice-icon {
   width: 30px;
   height: 30px;
@@ -358,6 +364,7 @@ h1 {
   border-top-color: var(--notice-accent);
   border-radius: 50%;
   animation: operation-notice-spin 0.8s linear infinite;
+  will-change: transform;
 }
 
 .operation-notice-content {
@@ -850,19 +857,17 @@ h1 {
 
 /* 下拉菜单：毛玻璃 + 弹性入场，transform 必须保留居中的 translateX */
 .header-dropdown {
-  position: absolute;
+  position: fixed;
   z-index: 60;
-  top: calc(100% + 7px);
-  left: 50%;
   width: max-content;
   min-width: 230px;
   max-width: min(340px, calc(100vw - 24px));
   padding: 6px;
   border: 1px solid var(--line);
   border-radius: var(--ui-radius);
-  background: color-mix(in srgb, var(--surface-strong) 90%, transparent);
+  background: color-mix(in srgb, var(--surface-strong) 84%, transparent);
   box-shadow: 0 18px 44px rgba(45, 39, 35, 0.18);
-  backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(13px) saturate(1.5);
   transform: translateX(calc(-50% + var(--menu-shift, 0px)));
   animation: header-dropdown-in 0.18s var(--ease-spring);
   transform-origin: top center;
@@ -903,9 +908,11 @@ h1 {
 }
 
 .header-dropdown button:hover:not(:disabled),
-.header-dropdown a:hover,
-.header-dropdown .menu-radio.active {
-  background: var(--soft-accent);
+.header-dropdown a:hover
+/* .header-dropdown .menu-radio.active  */
+{
+  background: color-mix(in srgb, var(--soft-accent) 82%, transparent);
+  /* backdrop-filter: blur(18px) saturate(1.5); */
   color: var(--heading);
 }
 
