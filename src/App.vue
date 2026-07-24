@@ -111,6 +111,7 @@ const appShellRef = ref<HTMLElement | null>(null)
 let topBarResizeObserver: ResizeObserver | null = null
 let statusNoticeTimer: number | undefined
 let focusRefreshTimer: number | undefined
+let themeSwitchFrame: number | undefined
 
 const locale = computed(() => messages[language.value])
 const favoritePhotos = computed(() => photos.value.filter((photo) => favoriteIds.value.has(photo.id)))
@@ -238,7 +239,23 @@ watch(statusState, (nextStatus) => {
 
 watch(favoriteIds, (ids) => localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...ids])), { deep: true })
 watch(language, (value) => { document.documentElement.lang = value === 'zh' ? 'zh-CN' : 'en' }, { immediate: true })
-watch(themeMode, (value) => { document.documentElement.dataset.theme = value }, { immediate: true })
+watch(themeMode, (value) => {
+  const root = document.documentElement
+  const isThemeChange = Boolean(root.dataset.theme && root.dataset.theme !== value)
+
+  if (themeSwitchFrame !== undefined) window.cancelAnimationFrame(themeSwitchFrame)
+  if (isThemeChange) root.classList.add('is-theme-switching')
+  root.dataset.theme = value
+
+  if (isThemeChange) {
+    themeSwitchFrame = window.requestAnimationFrame(() => {
+      themeSwitchFrame = window.requestAnimationFrame(() => {
+        root.classList.remove('is-theme-switching')
+        themeSwitchFrame = undefined
+      })
+    })
+  }
+}, { immediate: true })
 
 /**
  * 合并最近删除扫描结果，复用未变化照片已加载的对象地址。
@@ -758,6 +775,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   clearStatusNoticeTimer()
   if (focusRefreshTimer !== undefined) window.clearTimeout(focusRefreshTimer)
+  if (themeSwitchFrame !== undefined) window.cancelAnimationFrame(themeSwitchFrame)
+  document.documentElement.classList.remove('is-theme-switching')
   topBarResizeObserver?.disconnect()
   window.removeEventListener('resize', updateSidebarStickyOffset)
   window.removeEventListener('focus', scheduleFocusRefresh)

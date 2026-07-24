@@ -19,8 +19,8 @@
   /* 浅粉底配深玫瑰字，保证文字对比度达到可读标准 */
   --primary-text: #ffffff;
   --primary-hover-text: #ffffff;
-  --photo-shadow: 0 4px 14px rgba(150, 85, 41, 0.16);
-  --photo-hover-shadow: 0 8px 22px rgba(199, 102, 36, 0.18);
+  --photo-shadow: 0 1px 2px rgba(92, 70, 58, 0.07);
+  --photo-hover-shadow: 0 1px 5px rgba(172, 60, 0, 0.12);
   --scrollbar-track: rgba(255, 255, 255, 0.62);
   --scrollbar-thumb: rgba(201, 132, 134, 0.42);
   --scrollbar-thumb-hover: rgba(201, 132, 134, 0.68);
@@ -55,16 +55,21 @@
   /* 大图两侧切换按钮的半透明底色，主题无关 */
   --lightbox-nav-bg: rgba(18, 18, 22, 0.38);
   --lightbox-nav-bg-hover: rgba(18, 18, 22, 0.56);
+  /* 统一的弹性缓动与主色渐变，让按钮、浮层和徽章动效更高级 */
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --primary-gradient: linear-gradient(135deg, #f4c7c7 0%, #e4a6a8 55%, #d88f95 100%);
+  --primary-gradient-hover: linear-gradient(135deg, #f0b9bb 0%, #dd989c 55%, #d1838b 100%);
+  --header-glow: linear-gradient(90deg, transparent, color-mix(in srgb, var(--pink-deep) 42%, transparent), transparent);
 }
 
 :root[data-theme='dark'] {
   color: #e9e1dd;
-  background: #050506;
-  --white: #111113;
-  --page-bg: radial-gradient(circle at bottom right, rgba(201, 132, 134, 0.16), transparent 34rem), linear-gradient(135deg, #050506 0%, #0d0d11 52%, #000 100%);
-  --surface: rgba(18, 18, 21, 0.94);
-  --surface-strong: #151519;
-  --surface-soft: rgba(28, 28, 32, 0.82);
+  background: #0d0d0f;
+  --white: #17171a;
+  --page-bg: radial-gradient(circle at bottom right, rgba(201, 132, 134, 0.12), transparent 34rem), linear-gradient(135deg, #0d0d0f 0%, #121216 52%, #0a0a0c 100%);
+  --surface: rgba(23, 23, 27, 0.95);
+  --surface-strong: #1b1b1f;
+  --surface-soft: rgba(32, 32, 37, 0.86);
   --soft-accent: rgba(74, 70, 70, 0.7);
   --soft-accent-bottom: rgba(74, 70, 70, 0.7);
   --pink-deep: #efb0b2;
@@ -77,19 +82,19 @@
   --primary-hover-bg: #8f6668;
   --primary-text: #ffffff;
   /* 深色下用淡描边 + 方向投影替代发光描边 */
-  --photo-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 14px rgba(0, 0, 0, 0.5);
-  --photo-hover-shadow: 0 0 0 1px rgba(255, 255, 255, 0.13), 0 8px 22px rgba(0, 0, 0, 0.62);
+  --photo-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --photo-hover-shadow: 0 2px 8px rgba(142, 90, 90, 0.38);
   --primary-hover-text: #fff;
-  --scrollbar-track: rgba(13, 13, 17, 0.72);
+  --scrollbar-track: rgba(18, 18, 22, 0.76);
   --scrollbar-thumb: rgba(239, 176, 178, 0.42);
   --scrollbar-thumb-hover: rgba(239, 176, 178, 0.68);
   --text: #eee7e2;
   --heading: #fff8f4;
   --muted: #b7aaa5;
   --shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
-  --top-bg: rgba(10, 10, 12, 0.7);
+  --top-bg: rgba(15, 15, 18, 0.82);
   --top-border: rgba(255, 255, 255, 0.08);
-  --frame-bg: #18181c;
+  --frame-bg: #202024;
   --overlay-bg: rgba(0, 0, 0, 0.76);
   --favorite-button-bg: rgba(28, 24, 28, 0.96);
   --favorite-button-text: #ffd0d2;
@@ -102,10 +107,28 @@
   --notice-warning: #e2bd72;
   --notice-error: #f09a9d;
   --title-gradient: linear-gradient(115deg, #efb0b2 5%, #ffd9c4 50%, #fff2a8 95%);
+  /* 深色主题下的主色渐变，比浅色整体压暗并保持白字对比度 */
+  --primary-gradient: linear-gradient(135deg, #96696b 0%, #835a5c 55%, #775355 100%);
+  --primary-gradient-hover: linear-gradient(135deg, #a27476 0%, #8f6668 55%, #83595b 100%);
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* 选中文本与键盘焦点统一使用主题色，提升细节质感 */
+::selection {
+  background: color-mix(in srgb, var(--pink-deep) 26%, transparent);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--pink-deep) 72%, transparent);
+  outline-offset: 2px;
 }
 
 body {
@@ -235,22 +258,33 @@ h1 {
   }
 }
 
+/* 主按钮：渐变底 + 顶部高光 + 粉色光晕，按压时回弹 */
 .primary-button {
   border: 0;
   border-radius: 999px;
   padding: 6px 10px;
-  background: var(--primary-bg);
+  background: var(--primary-gradient);
   color: var(--primary-text);
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
-  transition: transform var(--motion-base) ease, box-shadow var(--motion-base) ease, background var(--motion-base) ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 6px 18px color-mix(in srgb, var(--pink-deep) 26%, transparent);
+  transition: transform var(--motion-base) var(--ease-spring), box-shadow var(--motion-base) ease, background var(--motion-base) ease;
 }
 
 .primary-button:hover {
   transform: translateY(-1px);
-  background: var(--primary-hover-bg);
+  background: var(--primary-gradient-hover);
   color: var(--primary-hover-text);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    0 10px 24px color-mix(in srgb, var(--pink-deep) 34%, transparent);
+}
+
+.primary-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.97);
 }
 
 .empty-sidebar {
@@ -705,7 +739,19 @@ h1 {
   padding: 8px 20px;
   border-bottom: 1px solid var(--line);
   background: var(--top-bg);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(18px) saturate(1.6);
+}
+
+/* 顶栏底部的主题色微光，滚动时给内容分界一点高级感 */
+.app-header::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: var(--header-glow);
+  content: '';
+  pointer-events: none;
 }
 
 .brand-lockup {
@@ -757,6 +803,7 @@ h1 {
   font-size: 13px;
   font-weight: 650;
   text-decoration: none;
+  transition: border-color var(--motion-base) ease, background var(--motion-base) ease, color var(--motion-base) ease, transform var(--motion-base) var(--ease-spring), box-shadow var(--motion-base) ease;
 }
 
 .header-menu-button:hover,
@@ -766,6 +813,12 @@ h1 {
   border-color: var(--line);
   background: var(--surface-strong);
   color: var(--heading);
+  transform: translateY(-1px);
+}
+
+.header-menu-button:active:not(:disabled),
+.header-icon-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.97);
 }
 
 .header-star-hint {
@@ -795,6 +848,7 @@ h1 {
   position: relative;
 }
 
+/* 下拉菜单：毛玻璃 + 弹性入场，transform 必须保留居中的 translateX */
 .header-dropdown {
   position: absolute;
   z-index: 60;
@@ -806,9 +860,24 @@ h1 {
   padding: 6px;
   border: 1px solid var(--line);
   border-radius: var(--ui-radius);
-  background: var(--surface-strong);
-  box-shadow: 0 14px 34px rgba(45, 39, 35, 0.15);
+  background: color-mix(in srgb, var(--surface-strong) 90%, transparent);
+  box-shadow: 0 18px 44px rgba(45, 39, 35, 0.18);
+  backdrop-filter: blur(18px) saturate(1.5);
   transform: translateX(calc(-50% + var(--menu-shift, 0px)));
+  animation: header-dropdown-in 0.18s var(--ease-spring);
+  transform-origin: top center;
+}
+
+@keyframes header-dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(-50% + var(--menu-shift, 0px))) translateY(-6px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(calc(-50% + var(--menu-shift, 0px))) translateY(0) scale(1);
+  }
 }
 
 .header-dropdown-right {
@@ -1185,10 +1254,29 @@ h1 {
 }
 
 .date-link {
+  position: relative;
   min-width: 0;
   margin: 0;
   padding: 4px 7px;
   font-size: 12px;
+}
+
+/* 日期链接左侧的主题色指示条，悬停时展开 */
+.date-link::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 0;
+  border-radius: 999px;
+  background: var(--pink-deep);
+  content: '';
+  transform: translateY(-50%);
+  transition: height var(--motion-base) var(--ease-spring);
+}
+
+.date-link:hover::before {
+  height: 14px;
 }
 
 .date-link small {
@@ -1201,7 +1289,7 @@ h1 {
   width: 100%;
   min-width: 0;
   margin: 0;
-  padding: 13px 0 40px 24px;
+  padding: 13px 0 40px 20px;
   font-size: 13px;
 }
 
@@ -1277,9 +1365,11 @@ h1 {
 }
 
 .date-block {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 520px;
   scroll-margin-top: clamp(112px, 16vh, 184px);
   margin: 0;
-  padding: 13px 0 28px;
+  padding: 13px 5px  28px;
   border: 0;
   border-bottom: 1px solid var(--line);
   border-radius: 0;
@@ -1310,7 +1400,7 @@ h1 {
   margin-left: auto;
   place-items: center;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 11px;
   background: var(--surface-strong);
   color: transparent;
 }
@@ -1332,16 +1422,25 @@ h1 {
   border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
   border-radius: var(--radius-md);
   background: var(--surface-strong);
-  box-shadow: 0 2px 8px rgba(62, 52, 46, 0.08);
+  box-shadow: var(--photo-shadow);
   outline: none;
   transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+}
+
+:root.is-theme-switching .photo-card {
+  transition: none;
+}
+
+.trash-photo-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
 }
 
 .photo-card:hover,
 .photo-card:focus-visible {
   transform: none;
   border-color: color-mix(in srgb, var(--pink-deep) 55%, var(--line));
-  box-shadow: 0 5px 16px rgba(62, 52, 46, 0.13);
+  box-shadow: var(--photo-hover-shadow);
 }
 
 .photo-card.selected {
@@ -1398,7 +1497,7 @@ h1 {
   place-items: center;
   padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.38);
-  border-radius: 7px;
+  border-radius: 9px;
   background: rgba(25, 22, 22, 0.34);
   color: #fff;
   appearance: none;
@@ -1412,9 +1511,37 @@ h1 {
   opacity: 1;
 }
 
+/* 悬停时心形背景加深，未收藏和已收藏分别加深各自底色 */
+.favorite-heart:hover {
+  background: rgba(25, 22, 22, 0.56);
+}
+
 .favorite-heart.active {
-  background: rgba(183, 91, 96, 0.66);
+  background: rgba(207, 100, 105, 0.363);
   color: #fff;
+}
+
+.favorite-heart.active:hover {
+  background: rgba(197, 131, 133, 0.86);
+}
+
+/* 收藏点亮瞬间心形弹跳一下，给操作一个明确反馈 */
+.favorite-heart.active svg {
+  animation: favorite-heart-pop 0.32s var(--ease-spring);
+}
+
+@keyframes favorite-heart-pop {
+  0% {
+    transform: scale(0.4);
+  }
+
+  60% {
+    transform: scale(1.25);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .selected-badge {
@@ -1426,14 +1553,14 @@ h1 {
   width: 25px;
   height: 25px;
   place-items: center;
-  border-radius: 7px;
+  border-radius: 9px;
   background: var(--pink-deep);
   color: #fff;
   font-size: 12px;
   font-weight: 900;
   opacity: 0;
   transform: scale(0.75);
-  transition: opacity var(--motion-base) ease, transform var(--motion-base) ease;
+  transition: opacity var(--motion-base) ease, transform var(--motion-base) var(--ease-spring);
 }
 
 .trash-photo-grid {
@@ -1628,13 +1755,15 @@ h1 {
   backdrop-filter: blur(4px);
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease;
+  transform: scale(0.82);
+  transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease, transform var(--motion-base) var(--ease-spring);
 }
 
 .lightbox-nav-zone:hover .lightbox-nav-button,
 .lightbox-nav-zone:focus-within .lightbox-nav-button {
   opacity: 1;
   pointer-events: auto;
+  transform: scale(1);
 }
 
 .lightbox-nav-zone.is-navigation-hidden .lightbox-nav-button {
