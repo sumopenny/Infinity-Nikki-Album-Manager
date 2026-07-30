@@ -5,7 +5,6 @@
   <p><strong>在浏览器中整理、浏览、收藏和清理《无限暖暖》本地相册。</strong></p>
   <p>Browse, organize, favorite, preview, and clean local Infinity Nikki albums.</p>
   <p>
-    <a href="https://infinity-nikki-album-manager.vercel.app">在线使用（需要vpn）</a> ·
     <a href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases">GitHub Releases</a> ·
     <a href="https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager/releases">Gitee Releases</a> ·
     <a href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager">GitHub</a> ·
@@ -13,7 +12,9 @@
   </p>
 </div>
 
-> 新版本、更新内容和下载文件：[GitHub Releases](https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases) · [Gitee Releases](https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager/releases)
+> 普通使用请直接打开：https://infinity-nikki-album-manager.pages.dev/ 。或者访问 Vercel （需要VPN）：https://infinity-nikki-album-manager.vercel.app 。
+
+> 本地运行时再下载：[GitHub Releases](https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases) · [Gitee Releases](https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager/releases)
 
 <div align="center">
   <a href="#简体中文"><strong>简体中文</strong></a> ·
@@ -53,36 +54,9 @@
 
 ### 快速开始
 
-#### 在线使用（需要VPN）
+普通用户无需下载项目，直接打开 https://infinity-nikki-album-manager.pages.dev/ 即可使用。
 
-打开 [vercel在线版本](https://infinity-nikki-album-manager.vercel.app)
-
-#### Windows 本地启动
-
-环境要求：Windows、[Node.js LTS](https://nodejs.org/)、最新版 Chrome 或 Edge。
-
-#### 安装 Node.js
-
-1. 打开 [Node.js 官网](https://nodejs.org/)，下载标有 **LTS** 的 Windows 安装包，不要选择 Current 版本。
-2. 双击安装包，保持默认选项并继续安装；确保 `Add to PATH` 相关选项没有被取消。
-3. 安装完成后关闭并重新打开终端、项目文件夹和启动器窗口，让环境变量生效。
-4. 按 `Win + R`，输入 `cmd` 并回车，然后分别运行：
-
-```bash
-node -v
-npm -v
-```
-
-两个命令都能显示版本号，说明安装成功。如果提示“不是内部或外部命令”，请重启电脑后再试；仍然失败时，卸载 Node.js 并重新安装 LTS 版本。
-
-#### 启动项目
-
-1. 从 [GitHub Releases](https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases) 或 [Gitee Releases](https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager/releases) 下载并解压项目。
-2. 双击根目录的 `无限暖暖相册启动器.exe`。
-3. 首次运行会自动安装依赖并打开 `http://localhost:5173`。
-4. 使用期间不要关闭窗口。
-
-启动器不可用时，可双击 `start\Start-Project.bat`，或使用下方开发命令手动启动。
+如果国内直连地址临时不可用，可尝试 Vercel 备选地址：https://infinity-nikki-album-manager.vercel.app
 
 ### 选择相册
 
@@ -157,7 +131,43 @@ npm -v
 
 Chrome 和 Edge 会阻止网页访问系统目录。请直接选择 `NikkiPhotos_HighQuality`，不要选择磁盘根目录或游戏安装上级目录。
 
-### 开发命令
+### 隐私与安全
+
+- 照片在本地浏览器中读取，不会上传到项目服务器。
+- 相册目录授权和收藏记录保存在当前浏览器本地。
+- 浏览器可能因安全策略要求重新授权文件夹。
+- 删除和一键清理会修改电脑中的真实文件，请确认后操作。
+
+### 开发者本地运行
+
+普通用户优先使用在线版；只有需要研究代码、二次开发或本地调试时，才需要下载项目。
+
+环境要求：Windows、[Node.js LTS](https://nodejs.org/)、最新版 Chrome 或 Edge。
+
+#### 安装 Node.js
+
+1. 打开 [Node.js 官网](https://nodejs.org/)，下载标有 **LTS** 的 Windows 安装包，不要选择 Current 版本。
+2. 双击安装包，保持默认选项并继续安装；确保 `Add to PATH` 相关选项没有被取消。
+3. 安装完成后关闭并重新打开终端、项目文件夹和启动器窗口，让环境变量生效。
+4. 按 `Win + R`，输入 `cmd` 并回车，然后分别运行：
+
+```bash
+node -v
+npm -v
+```
+
+两个命令都能显示版本号，说明安装成功。如果提示“不是内部或外部命令”，请重启电脑后再试；仍然失败时，卸载 Node.js 并重新安装 LTS 版本。
+
+#### 研究代码或本地开发
+
+1. 从 [GitHub Releases](https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases) 或 [Gitee Releases](https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager/releases) 下载并解压项目，或从仓库克隆源码。
+2. 双击根目录的 `无限暖暖相册启动器.exe`。
+3. 首次运行会自动安装依赖并打开 `http://localhost:5173`。
+4. 使用期间不要关闭窗口。
+
+启动器不可用时，可双击 `start\Start-Project.bat`，或使用下方开发命令手动启动。
+
+#### 开发命令
 
 ```bash
 npm install       # 安装依赖
@@ -168,13 +178,6 @@ npm run preview   # 预览构建结果
 ```
 
 技术栈：Vue 3、TypeScript、Vite、File System Access API、IndexedDB。
-
-### 隐私与安全
-
-- 照片在本地浏览器中读取，不会上传到项目服务器。
-- 相册目录授权和收藏记录保存在当前浏览器本地。
-- 浏览器可能因安全策略要求重新授权文件夹。
-- 删除和一键清理会修改电脑中的真实文件，请确认后操作。
 
 ---
 
@@ -201,36 +204,9 @@ npm run preview   # 预览构建结果
 
 ### Quick Start
 
-#### Online (VPN Required)
+Most users do not need to download the project. Open https://infinity-nikki-album-manager.pages.dev/ and use it directly.
 
-Open the [Vercel online version](https://infinity-nikki-album-manager.vercel.app).
-
-#### Windows Local Setup
-
-Requirements: Windows, [Node.js LTS](https://nodejs.org/), and the latest Chrome or Edge.
-
-#### Install Node.js
-
-1. Open the [Node.js website](https://nodejs.org/) and download the Windows installer marked **LTS**, not Current.
-2. Run the installer with the default options and keep the option that adds Node.js to `PATH` enabled.
-3. Close and reopen terminals, project folders, and launcher windows after installation so the updated environment is loaded.
-4. Press `Win + R`, enter `cmd`, and run:
-
-```bash
-node -v
-npm -v
-```
-
-Both commands should print a version number. If Windows reports that either command is not recognized, restart the computer and try again. If it still fails, uninstall Node.js and reinstall the LTS version.
-
-#### Start the Project
-
-1. Download and extract the project from [GitHub Releases](https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases) or [Gitee Releases](https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager/releases).
-2. Double-click `无限暖暖相册启动器.exe` in the project root.
-3. On first run, dependencies are installed automatically and `http://localhost:5173` opens.
-4. Keep the launcher window open while using the app.
-
-If the launcher fails, run `start\Start-Project.bat` or use the development commands below.
+If the China-accessible site is temporarily unavailable, try the Vercel fallback: https://infinity-nikki-album-manager.vercel.app
 
 ### Choose an Album
 
@@ -305,7 +281,43 @@ On first use, select and authorize the matching `X6Game` folder. The app validat
 
 Chrome and Edge block access to protected system folders. Select `NikkiPhotos_HighQuality` directly instead of a drive root or high-level game directory.
 
-### Development
+### Privacy and Safety
+
+- Photos are read locally in your browser and are not uploaded to the project server.
+- Folder access and Favorites are stored in the current browser.
+- Browser security policies may require folder authorization again.
+- Delete and cleanup actions modify real files on your computer.
+
+### Local Setup for Developers
+
+Most users should use the online version first. Download the project only when you want to study the code, customize it, or debug it locally.
+
+Requirements: Windows, [Node.js LTS](https://nodejs.org/), and the latest Chrome or Edge.
+
+#### Install Node.js
+
+1. Open the [Node.js website](https://nodejs.org/) and download the Windows installer marked **LTS**, not Current.
+2. Run the installer with the default options and keep the option that adds Node.js to `PATH` enabled.
+3. Close and reopen terminals, project folders, and launcher windows after installation so the updated environment is loaded.
+4. Press `Win + R`, enter `cmd`, and run:
+
+```bash
+node -v
+npm -v
+```
+
+Both commands should print a version number. If Windows reports that either command is not recognized, restart the computer and try again. If it still fails, uninstall Node.js and reinstall the LTS version.
+
+#### Study Code or Run Locally
+
+1. Download and extract the project from [GitHub Releases](https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases) or [Gitee Releases](https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager/releases), or clone the source repository.
+2. Double-click `无限暖暖相册启动器.exe` in the project root.
+3. On first run, dependencies are installed automatically and `http://localhost:5173` opens.
+4. Keep the launcher window open while using the app.
+
+If the launcher fails, run `start\Start-Project.bat` or use the development commands below.
+
+#### Development Commands
 
 ```bash
 npm install       # Install dependencies
@@ -316,13 +328,6 @@ npm run preview   # Preview the production build
 ```
 
 Stack: Vue 3, TypeScript, Vite, File System Access API, IndexedDB.
-
-### Privacy and Safety
-
-- Photos are read locally in your browser and are not uploaded to the project server.
-- Folder access and Favorites are stored in the current browser.
-- Browser security policies may require folder authorization again.
-- Delete and cleanup actions modify real files on your computer.
 
 ---
 
