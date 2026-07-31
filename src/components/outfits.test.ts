@@ -1,0 +1,146 @@
+import { mount } from '@vue/test-utils'
+import { describe, expect, it } from 'vitest'
+import { getOutfitMessages } from '../outfitMessages'
+import type { OutfitItem } from '../utils/outfitFileSystem'
+import OutfitGrid from './OutfitGrid.vue'
+import OutfitGuideDialog from './OutfitGuideDialog.vue'
+import OutfitSidebar from './OutfitSidebar.vue'
+
+function outfit(id: string, code: string, tags: string[] = []): OutfitItem {
+  return {
+    id,
+    name: `${id}.webp`,
+    image: `${id}.webp`,
+    metadataName: `${id}.json`,
+    code,
+    tags,
+    createdAt: '2026-07-31T00:00:00.000Z',
+    dateKey: '2026-07-31',
+    year: '2026',
+    monthDay: '07月31日',
+    displayDate: '2026年07月31日',
+    timeText: '08:00',
+    timestamp: 1,
+    url: null,
+    fileSizeText: '1 KB',
+    fileHandle: {} as FileSystemFileHandle,
+    directoryHandle: {} as FileSystemDirectoryHandle
+  }
+}
+
+describe('outfit workspace components', () => {
+  it('renders system filters before user tags and emits the selected filter', async () => {
+    const wrapper = mount(OutfitSidebar, {
+      props: {
+        outfits: [outfit('1', ''), outfit('2', 'ABC', ['甜美'])],
+        tags: ['甜美', '清新'],
+        activeFilter: 'all',
+        disabled: false,
+        messages: getOutfitMessages('zh')
+      }
+    })
+
+    expect(wrapper.findAll('.outfit-filter-button').map((button) => button.text())).toEqual([
+      '全部2', '待填写1', '未分类1', '甜美1', '清新0'
+    ])
+    await wrapper.findAll('.outfit-filter-button')[3].trigger('click')
+    expect(wrapper.emitted('changeFilter')).toEqual([['tag:甜美']])
+  })
+
+  it('disables tag creation after forty user tags', () => {
+    const wrapper = mount(OutfitSidebar, {
+      props: {
+        outfits: [],
+        tags: Array.from({ length: 40 }, (_, index) => `T${index}`),
+        activeFilter: 'all',
+        disabled: false,
+        messages: getOutfitMessages('zh')
+      }
+    })
+
+    expect(wrapper.find('.outfit-add-tag-toggle').attributes('disabled')).toBeDefined()
+  })
+
+  it('closes the tag popover when the user clicks outside it', async () => {
+    const wrapper = mount(OutfitSidebar, {
+      attachTo: document.body,
+      props: {
+        outfits: [],
+        tags: [],
+        activeFilter: 'all',
+        disabled: false,
+        messages: getOutfitMessages('zh')
+      }
+    })
+
+    await wrapper.get('.outfit-add-tag-toggle').trigger('click')
+    expect(document.body.querySelector('.outfit-tag-editor-popover')).not.toBeNull()
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+    expect(document.body.querySelector('.outfit-tag-editor-popover')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('shows the standalone guide and emits the dismissal preference', async () => {
+    const wrapper = mount(OutfitGuideDialog, {
+      props: { visible: true, dismissed: false, messages: getOutfitMessages('zh') },
+      global: { stubs: { Teleport: true } }
+    })
+
+    expect(wrapper.text()).toContain('批量导入搭配图片')
+    expect(wrapper.text()).toContain('clothe')
+    expect(wrapper.text()).toContain('导入与导出')
+    await wrapper.get('input[type="checkbox"]').setValue(true)
+    await wrapper.get('.outfit-guide-panel > footer .primary-button').trigger('click')
+    expect(wrapper.emitted('close')).toEqual([[true]])
+    wrapper.unmount()
+  })
+
+  it('syncs the stored dismissal preference when reopened from help', () => {
+    const wrapper = mount(OutfitGuideDialog, {
+      props: { visible: true, dismissed: true, messages: getOutfitMessages('zh') },
+      global: { stubs: { Teleport: true } }
+    })
+
+    expect((wrapper.get('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('disables copying for pending outfits and opens them for editing from the status text', async () => {
+    const pending = outfit('1', '')
+    const wrapper = mount(OutfitGrid, {
+      props: {
+        outfits: [pending],
+        selectedIds: new Set<string>(),
+        thumbnailMode: 'portrait-standard',
+        messages: getOutfitMessages('zh'),
+        disabled: false
+      },
+      global: { stubs: { LazyPhotoImage: true } }
+    })
+
+    expect(wrapper.find('[title="复制搭配码"]').attributes('disabled')).toBeDefined()
+    await wrapper.find('.outfit-pending-code').trigger('click')
+    expect(wrapper.emitted('edit')).toEqual([[pending]])
+  })
+
+  it('selects an outfit card by single click without triggering card actions', async () => {
+    const item = outfit('1', 'ABC-123', ['甜美'])
+    const wrapper = mount(OutfitGrid, {
+      props: {
+        outfits: [item],
+        selectedIds: new Set<string>(),
+        thumbnailMode: 'portrait-standard',
+        messages: getOutfitMessages('zh'),
+        disabled: false
+      },
+      global: { stubs: { LazyPhotoImage: true } }
+    })
+
+    await wrapper.get('.outfit-card').trigger('click')
+    expect(wrapper.emitted('toggleOutfit')).toEqual([[item.id]])
+    await wrapper.get('[title="复制搭配码"]').trigger('click')
+    expect(wrapper.emitted('copy')).toEqual([[item]])
+    expect(wrapper.emitted('toggleOutfit')).toHaveLength(1)
+  })
+})

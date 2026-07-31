@@ -58,6 +58,7 @@ describe('redesigned album controls', () => {
     await wrapper.findAll('.header-dropdown button').find((button) => button.text() === messages.zh.topBar.help)?.trigger('click')
     expect(wrapper.find('.help-dialog').exists()).toBe(true)
     expect(wrapper.text()).toContain(messages.zh.topBar.helpSafetyText)
+    expect(wrapper.text()).not.toContain('搭配码操作')
     expect(wrapper.get('.header-star-hint').text()).toBe(messages.zh.topBar.starHint)
     expect(wrapper.find('.header-star-hint[href]').exists()).toBe(false)
     expect(wrapper.get(`[aria-label="${messages.zh.topBar.refreshAlbum}"]`).text()).toContain(messages.zh.topBar.refreshAlbum)
@@ -124,6 +125,23 @@ describe('redesigned album controls', () => {
     expect(wrapper.text()).not.toContain('永久删除')
     await wrapper.findAll('button').find((button) => button.text().includes('取消收藏'))?.trigger('click')
     expect(wrapper.emitted('unfavorite')).toHaveLength(1)
+  })
+
+  it('shows only permanent delete actions for outfit selections', () => {
+    const wrapper = mount(SelectionBar, {
+      props: {
+        mode: 'outfit',
+        selectedCount: 2,
+        allSelected: false,
+        allItemsSelected: false,
+        isBusy: false,
+        messages: messages.zh.selectionBar
+      }
+    })
+
+    expect(wrapper.text()).toContain('永久删除')
+    expect(wrapper.text()).not.toContain('收藏')
+    expect(wrapper.text()).not.toContain('恢复')
   })
 
   it('omits the unknown size from photo metadata while keeping the capture time', () => {

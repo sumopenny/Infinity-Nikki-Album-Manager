@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, Heart, RotateCcw, Trash2, X, ZoomIn, ZoomOut } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Copy, Edit3, Heart, RotateCcw, Trash2, X, ZoomIn, ZoomOut } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
+import type { OutfitMessages } from '../outfitMessages'
 import type { PhotoItem } from '../utils/dateGrouping'
+import type { OutfitItem } from '../utils/outfitFileSystem'
 import { loadPhotoWithRetryAndSize } from '../utils/photoLoader'
 
 const MIN_ZOOM = 50
@@ -16,7 +18,9 @@ const props = defineProps<{
   isDeleting: boolean
   isFavorite: boolean
   keyboardEnabled: boolean
-  mode: 'album' | 'trash'
+  mode: 'album' | 'trash' | 'outfit'
+  outfit?: OutfitItem | null
+  outfitMessages?: OutfitMessages
   messages: LocaleMessages['lightbox']
   dateMessages: LocaleMessages['date']
 }>()
@@ -29,6 +33,8 @@ const emit = defineEmits<{
   toggleFavorite: []
   restoreCurrent: []
   permanentlyDeleteCurrent: []
+  copyOutfit: []
+  editOutfit: []
 }>()
 
 const displayedPhoto = ref<PhotoItem | null>(null)
@@ -184,7 +190,7 @@ function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') emit('close')
   if (event.key === 'ArrowLeft' && props.hasPrevious) emit('previous')
   if (event.key === 'ArrowRight' && props.hasNext) emit('next')
-  if (event.key === 'Delete' && !props.isDeleting && !isPreviewLoading.value) {
+  if (event.key === 'Delete' && props.mode !== 'outfit' && !props.isDeleting && !isPreviewLoading.value) {
     event.preventDefault()
     props.mode === 'trash' ? emit('permanentlyDeleteCurrent') : emit('deleteCurrent')
   }
@@ -255,6 +261,11 @@ onUnmounted(() => {
       </div>
       <div class="lightbox-footer">
         <div class="lightbox-toolbar">
+          <div v-if="mode === 'outfit' && outfit && outfitMessages" class="lightbox-outfit-meta">
+            <span><strong>{{ outfitMessages.tagsTitle }}：</strong>{{ outfit.tags[0] || outfitMessages.uncategorized }}</span>
+            <span><strong>{{ outfitMessages.codeLabel }}：</strong>{{ outfit.code || outfitMessages.pending }}</span>
+          </div>
+          <div v-if="mode === 'outfit'" class="lightbox-toolbar-divider" aria-hidden="true"></div>
           <div class="lightbox-zoom-controls">
             <button type="button" :title="messages.zoomOut" :aria-label="messages.zoomOut" :disabled="zoom <= MIN_ZOOM" @click="setZoom(zoom - ZOOM_STEP)">
               <ZoomOut :size="17" />
@@ -264,6 +275,14 @@ onUnmounted(() => {
               <ZoomIn :size="17" />
             </button>
           </div>
+          <template v-if="mode === 'outfit' && outfitMessages">
+            <button type="button" :title="outfitMessages.copy" :aria-label="outfitMessages.copy" :disabled="!outfit?.code" @click="emit('copyOutfit')">
+              <Copy :size="18" />
+            </button>
+            <button type="button" :title="outfitMessages.edit" :aria-label="outfitMessages.edit" @click="emit('editOutfit')">
+              <Edit3 :size="18" />
+            </button>
+          </template>
           <button
             v-if="mode === 'album'"
             type="button"
@@ -274,10 +293,10 @@ onUnmounted(() => {
           >
             <Heart :size="18" :fill="isFavorite ? 'currentColor' : 'none'" />
           </button>
-          <button v-else type="button" :class="{ 'is-preview-loading': isPreviewLoading }" :disabled="isDeleting" :aria-disabled="isPreviewLoading || undefined" :title="messages.restoreCurrent" @click="handleRestoreClick">
+          <button v-else-if="mode === 'trash'" type="button" :class="{ 'is-preview-loading': isPreviewLoading }" :disabled="isDeleting" :aria-disabled="isPreviewLoading || undefined" :title="messages.restoreCurrent" @click="handleRestoreClick">
             <RotateCcw :size="18" />
           </button>
-          <button class="lightbox-delete" type="button" :class="{ 'is-preview-loading': isPreviewLoading }" :disabled="isDeleting" :aria-disabled="isPreviewLoading || undefined" :title="mode === 'trash' ? messages.permanentlyDeleteCurrent : messages.deleteCurrent" @click="handleDeleteClick">
+          <button v-if="mode !== 'outfit'" class="lightbox-delete" type="button" :class="{ 'is-preview-loading': isPreviewLoading }" :disabled="isDeleting" :aria-disabled="isPreviewLoading || undefined" :title="mode === 'trash' ? messages.permanentlyDeleteCurrent : messages.deleteCurrent" @click="handleDeleteClick">
             <Trash2 :size="18" />
           </button>
         </div>

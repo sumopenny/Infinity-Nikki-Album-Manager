@@ -2,6 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { messages } from '../i18n'
 import type { PhotoItem } from '../utils/dateGrouping'
+import { getOutfitMessages } from '../outfitMessages'
+import type { OutfitItem } from '../utils/outfitFileSystem'
 import Lightbox from './Lightbox.vue'
 
 const loadPhotoMock = vi.fn<(photo: PhotoItem) => Promise<string>>()
@@ -187,5 +189,36 @@ describe('Lightbox preview navigation', () => {
     expect(document.body.style.overflow).toBe('hidden')
     wrapper.unmount()
     expect(document.body.style.overflow).toBe('')
+  })
+
+  it('shows outfit metadata and emits copy and edit actions without closing the preview', async () => {
+    loadPhotoMock.mockResolvedValue('blob:outfit')
+    const outfit = { ...createPhoto('look.webp'), code: 'ABC-123', tags: ['甜美'] } as OutfitItem
+    const wrapper = mount(Lightbox, {
+      props: {
+        photo: outfit,
+        outfit,
+        outfitMessages: getOutfitMessages('zh'),
+        hasPrevious: false,
+        hasNext: false,
+        isDeleting: false,
+        isFavorite: false,
+        keyboardEnabled: true,
+        mode: 'outfit',
+        messages: messages.zh.lightbox,
+        dateMessages: messages.zh.date
+      },
+      global: { stubs: { Teleport: true } }
+    })
+    await flushPromises()
+
+    expect(wrapper.get('.lightbox-outfit-meta').text()).toContain('标签：甜美')
+    expect(wrapper.get('.lightbox-outfit-meta').text()).toContain('搭配码：ABC-123')
+    await wrapper.get('[aria-label="复制搭配码"]').trigger('click')
+    await wrapper.get('[aria-label="编辑方案"]').trigger('click')
+    expect(wrapper.emitted('copyOutfit')).toHaveLength(1)
+    expect(wrapper.emitted('editOutfit')).toHaveLength(1)
+    expect(wrapper.emitted('close')).toBeUndefined()
+    wrapper.unmount()
   })
 })

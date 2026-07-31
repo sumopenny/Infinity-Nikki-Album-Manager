@@ -5,13 +5,15 @@ import AlbumViewNav from './AlbumViewNav.vue'
 import RecentlyDeletedGrid from './RecentlyDeletedGrid.vue'
 
 describe('album view controls', () => {
-  it('renders the three separate entries in the required order', async () => {
+  it('renders the four separate entries in the required order', async () => {
     const wrapper = mount(AlbumViewNav, {
       props: {
         activeView: 'all',
         allCount: 12,
+        outfitsCount: 4,
         favoriteCount: 3,
         trashCount: 2,
+        outfitLabel: '搭配码',
         disabled: false,
         messages: messages.zh.viewNav
       }
@@ -19,10 +21,11 @@ describe('album view controls', () => {
 
     expect(wrapper.findAll('button').map((button) => button.text())).toEqual([
       '全部照片12 张',
+      '搭配码4 张',
       '收藏夹3 张',
       '最近删除2 张'
     ])
-    await wrapper.findAll('button')[2].trigger('click')
+    await wrapper.findAll('button')[3].trigger('click')
     expect(wrapper.emitted('changeView')).toEqual([['trash']])
   })
 

@@ -37,7 +37,7 @@
 ### 功能
 
 - 按“年份 > 月份 > 日期”分组，支持折叠时间轴和日期快速跳转。
-- 使用“全部照片 / 收藏夹 / 最近删除”三个独立入口管理照片。
+- 使用“全部照片 / 搭配码 / 收藏夹 / 最近删除”四个独立入口管理照片和搭配方案。
 - 顶部通过“当前相册 / 视图 / 更多”菜单集中管理目录、主题、缩略图、语言、帮助和项目链接。
 - 手动刷新相册，并在页面重新获得焦点时自动发现新增或外部删除的照片。
 - 删除的高画质照片会移动到当前相册的 `trash` 文件夹，可预览、恢复或永久删除。
@@ -46,6 +46,7 @@
 - 支持键盘翻页和删除当前预览照片。
 - 提供 1:1、半尺寸 1:1、16:9、4:3、9:16、3:4 缩略图比例；半尺寸模式的悬浮信息只显示拍摄时间。
 - 记住相册目录和收藏状态，支持中英文与亮暗主题。
+- 在本地保存搭配图片、搭配码和单选标签，支持待填写方案、自动接收图片以及 ZIP 导入导出。
 - 一键清理同账号的低画质照片与游戏截图。
 
 <div align="center">
@@ -92,6 +93,17 @@
 | 底部操作栏 | 全选、批量收藏、删除、恢复或永久删除 |
 
 > 普通相册删除会把原图移动到当前相册的 `trash` 文件夹；最近删除中的“永久删除”和“一键清理低画质与截图”会直接删除电脑文件，无法恢复。
+
+### 搭配码管理
+
+- 进入“搭配码”后会显示独立操作指南，标题旁的说明按钮可随时重新打开；左下角可勾选“不再提示”，从说明按钮重新打开时会同步显示当前勾选状态。未勾选时每次重新进入都会显示。左侧会切换为“全部 / 待填写 / 未分类 / 用户标签”筛选，方案默认按创建时间倒序并使用 3:4 缩略图；最多可创建 40 个用户标签，每个标签不超过 5 个字符。添加标签浮层可通过点击页面空白处关闭；删除使用中的标签只会让相关方案归入“未分类”。
+- 点击“添加方案”可选择、拖拽或粘贴图片（点击窗口空白处后按 `Ctrl+V`）；JPG 和 PNG 会在本地转换为 WebP，搭配码允许留空，标签最多选择一个，双击图片可打开预览。
+- 搭配方案大图预览的底部工具栏会显示当前标签和搭配码，并提供复制与编辑按钮；从大图打开编辑窗口后，保存或关闭编辑仍返回当前大图。
+- 网站会在当前相册中按需创建 `clothe` 文件夹来管理搭配码。批量导入时可直接把保存好的搭配图片放入该文件夹，打开、刷新或重新聚焦页面时会自动转为待填写方案。
+- 进入搭配码、刷新相册、关闭编辑窗口或页面重新获得焦点并扫描搭配方案时，顶部会显示“搭配码更新中”提示；完成后会提示已是最新状态或本次新增与失败数量。
+- “导出数据”会先提示 ZIP 将写入当前相册文件夹，确认后自动生成包含标签、方案 JSON 和图片的 ZIP；成功提示会显示文件名和保存位置。“导入数据”会校验后合并，不覆盖已有方案。
+- 单击搭配方案可进行多选并显示底部工具栏，支持全选、取消选择和批量永久删除；不提供收藏操作，删除不会进入最近删除。
+- 搭配方案删除后不会进入普通照片的 `trash`，确认前请核对方案信息。
 
 ### 最近删除与刷新
 
@@ -187,7 +199,7 @@ npm run preview   # 预览构建结果
 
 - Group photos by year, month, and date with a collapsible timeline and quick date jumps.
 - Favorite photos and browse Favorites separately.
-- Use separate All photos, Favorites, and Recently deleted views.
+- Use separate All photos, Outfit codes, Favorites, and Recently deleted views.
 - Use the Current album, View, and More menus for folders, themes, thumbnails, language, help, and project links.
 - Refresh manually or let the app detect new and externally removed photos when the page regains focus.
 - Deleted high-quality photos move to the album's `trash` folder for preview, restore, or permanent deletion.
@@ -196,6 +208,7 @@ npm run preview   # 预览构建结果
 - Navigate previews with the keyboard and delete the current photo.
 - Choose 1:1, Half 1:1, 16:9, 4:3, 9:16, or 3:4 thumbnails; Half 1:1 hover metadata shows capture time only.
 - Remember album access and Favorites; includes Chinese/English and light/dark themes.
+- Store outfit images, codes, and single-choice tags locally, including pending plans, automatic image intake, and ZIP import/export.
 - Clean low-quality photos and game screenshots with one action.
 
 <div align="center">
@@ -242,6 +255,17 @@ Supported formats: `jpg`, `jpeg`, `png`, `webp`, `gif`, `bmp`, `avif`.
 | Bottom action bar | Select all, favorite, delete, restore, or permanently delete |
 
 > Normal album deletion moves the original into the album's `trash` folder. Permanent deletion in Recently deleted and low-quality/screenshot cleanup remove computer files and cannot be undone.
+
+### Outfit Code Management
+
+- Entering Outfit codes opens a standalone guide. The help button beside the title can reopen it at any time, and the lower-left Don't show again checkbox reflects the currently saved preference. Without that setting, the guide appears each time you return. The view replaces the date timeline with All, Pending, Uncategorized, and user-tag filters. Plans are sorted newest first and default to 3:4 thumbnails. You can create up to 40 user tags with no more than 5 characters each. Click outside the add-tag popover to close it. Deleting a tag in use only moves matching plans to Uncategorized.
+- Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press `Ctrl+V`). JPG and PNG files are converted locally to WebP; the code is optional, each plan can use one tag, and double-clicking the image opens the preview.
+- The outfit preview toolbar shows the current tag and outfit code, with Copy and Edit actions. Opening the editor from the preview returns to the same image after saving or closing it.
+- The app creates a `clothe` folder inside the selected album to manage outfit codes. For bulk import, place saved outfit images directly in this folder; opening, refreshing, or refocusing the page imports them as pending plans.
+- When outfit plans are scanned after entering Outfit Codes, refreshing the album, closing the editor, or refocusing the page, the top notice shows that outfit codes are updating, followed by an up-to-date message or the added and failed counts.
+- Export first confirms that the ZIP will be written to the current album folder, then creates a backup containing tags, outfit JSON, and images there. The success notice shows the file name and saved location. Import validates and merges a backup without replacing current plans.
+- Single-click outfit cards to select multiple plans and open the bottom toolbar. It supports select all, cancel selection, and permanent batch deletion; there is no favorite action, and deleted outfits do not go to Recently Deleted.
+- Outfit deletion is permanent and does not use the normal photo `trash` folder.
 
 ### Recently Deleted and Refresh
 

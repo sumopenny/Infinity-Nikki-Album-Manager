@@ -1,0 +1,669 @@
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
+import type { PhotoItem } from './dateGrouping'
+
+export const DEFAULT_OUTFIT_TAGS = ['甜美', '性感', '帅气', '典雅', '清新', '古典']
+export const MAX_OUTFIT_TAGS = 40
+export const MAX_OUTFIT_TAG_LENGTH = 5
+export const MAX_OUTFIT_CODE_LENGTH = 30
+
+const CLOTHE_DIRECTORY_NAME = 'clothe'
+const TAGS_FILE_NAME = 'tags.json'
+const BACKUP_FORMAT = 'infinity-nikki-outfit-backup'
+const BACKUP_VERSION = 1
+const SUPPORTED_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
+const MAX_BACKUP_BYTES = 512 * 1024 * 1024
+const MAX_IMAGE_BYTES = 64 * 1024 * 1024
+const MAX_IMAGE_PIXELS = 40_000_000
+const MAX_BACKUP_ENTRIES = 2_000
+
+export interface OutfitItem extends PhotoItem {
+  image: string
+  code: string
+  tags: string[]
+  createdAt: string
+  metadataName: string
+}
+
+export interface OutfitLibraryResult {
+  outfits: OutfitItem[]
+  tags: string[]
+  importedExternalCount: number
+  failedCount: number
+}
+
+export interface SaveOutfitInput {
+  outfit?: OutfitItem
+  imageFile?: File
+  code: string
+  tag: string | null
+}
+
+export interface OutfitImportResult {
+  addedCount: number
+  duplicateCount: number
+  failedCount: number
+  rejectedTagCount: number
+}
+
+interface OutfitMetadata {
+  id: string
+  image: string
+  code: string
+  tags: string[]
+  createdAt: string
+}
+
+interface BackupManifest {
+  format: string
+  version: number
+  exportedAt: string
+  tags: string[]
+  outfits: OutfitMetadata[]
+}
+
+interface ScanResult {
+  outfits: OutfitItem[]
+  failedCount: number
+  pairedImageNames: Set<string>
+}
+
+function isMissingEntryError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'NotFoundError'
+}
+
+function imageExtension(fileName: string): string {
+  return fileName.split('.').pop()?.toLowerCase() ?? ''
+}
+
+function isSupportedImage(fileName: string): boolean {
+  return SUPPORTED_IMAGE_EXTENSIONS.has(imageExtension(fileName))
+}
+
+export function normalizeOutfitCode(value: unknown): string {
+  return (typeof value === 'string' ? value : '').replace(/\s/g, '').slice(0, MAX_OUTFIT_CODE_LENGTH)
+}
+
+export function normalizeOutfitTag(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+/** 校验用户标签长度。参数：待校验的标签；返回是否为 1 至 5 个字符。 */
+export function isValidOutfitTag(value: string): boolean {
+  return value.length > 0 && [...value].length <= MAX_OUTFIT_TAG_LENGTH
+}
+
+export function isReservedOutfitTag(value: string): boolean {
+  return new Set(['全部', '待填写', '未分类', 'all', 'pending', 'uncategorized']).has(value.toLowerCase())
+}
+
+function normalizeTags(value: unknown, allowedTags?: Set<string>): string[] {
+  if (!Array.isArray(value)) return []
+  const tag = normalizeOutfitTag(value[0])
+  if (!isValidOutfitTag(tag) || (allowedTags && !allowedTags.has(tag))) return []
+  return [tag]
+}
+
+function createOutfitId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  return `outfit-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function isSafeOutfitId(value: string): boolean {
+  return value.length > 0 && value.length <= 128 && value !== '.' && value !== '..' && !/[\\/\0]/.test(value)
+}
+
+async function createAvailableOutfitId(directory: FileSystemDirectoryHandle, preferred?: string): Promise<string> {
+  let candidate = preferred?.trim() ?? ''
+  if (!isSafeOutfitId(candidate) || await fileExists(directory, `${candidate}.webp`) || await fileExists(directory, `${candidate}.json`)) {
+    do {
+      candidate = createOutfitId()
+    } while (await fileExists(directory, `${candidate}.webp`) || await fileExists(directory, `${candidate}.json`))
+  }
+  return candidate
+}
+
+function dateParts(timestamp: number) {
+  const date = new Date(timestamp)
+  const year = String(date.getFullYear())
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hour = String(date.getHours()).padStart(2, '0')
+  const minute = String(date.getMinutes()).padStart(2, '0')
+  return {
+    dateKey: `${year}-${month}-${day}`,
+    year,
+    monthDay: `${month}月${day}日`,
+    displayDate: `${year}年${month}月${day}日`,
+    timeText: `${hour}:${minute}`,
+    timestamp
+  }
+}
+
+function formatFileSize(size: number): string {
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / 1024 / 1024).toFixed(1)} MB`
+}
+
+async function writeBlob(handle: FileSystemFileHandle, value: Blob | string | Uint8Array): Promise<void> {
+  const writable = await handle.createWritable()
+  try {
+    await writable.write(value)
+    await writable.close()
+  } catch (error) {
+    await writable.abort(error).catch(() => undefined)
+    throw error
+  }
+}
+
+async function writeJson(directory: FileSystemDirectoryHandle, name: string, value: unknown): Promise<void> {
+  const handle = await directory.getFileHandle(name, { create: true })
+  await writeBlob(handle, `${JSON.stringify(value, null, 2)}\n`)
+}
+
+async function fileExists(directory: FileSystemDirectoryHandle, name: string): Promise<boolean> {
+  try {
+    await directory.getFileHandle(name)
+    return true
+  } catch (error) {
+    if (isMissingEntryError(error)) return false
+    throw error
+  }
+}
+
+async function getClotheDirectory(
+  albumDirectory: FileSystemDirectoryHandle,
+  create: boolean
+): Promise<FileSystemDirectoryHandle | null> {
+  try {
+    return await albumDirectory.getDirectoryHandle(CLOTHE_DIRECTORY_NAME, { create })
+  } catch (error) {
+    if (!create && isMissingEntryError(error)) return null
+    throw error
+  }
+}
+
+async function readTags(directory: FileSystemDirectoryHandle): Promise<string[]> {
+  try {
+    const file = await (await directory.getFileHandle(TAGS_FILE_NAME)).getFile()
+    const parsed: unknown = JSON.parse(await file.text())
+    if (!Array.isArray(parsed)) throw new Error('Invalid tags file')
+    const result: string[] = []
+    for (const item of parsed) {
+      const tag = normalizeOutfitTag(item)
+      if (!isValidOutfitTag(tag) || isReservedOutfitTag(tag) || result.includes(tag)) continue
+      result.push(tag)
+      if (result.length === MAX_OUTFIT_TAGS) break
+    }
+    return result
+  } catch (error) {
+    if (!isMissingEntryError(error)) throw error
+    await writeJson(directory, TAGS_FILE_NAME, DEFAULT_OUTFIT_TAGS)
+    return [...DEFAULT_OUTFIT_TAGS]
+  }
+}
+
+export async function saveOutfitTags(albumDirectory: FileSystemDirectoryHandle, tags: string[]): Promise<string[]> {
+  const directory = await getClotheDirectory(albumDirectory, true)
+  if (!directory) throw new Error('Unable to create clothe directory')
+  const normalized: string[] = []
+  for (const value of tags) {
+    const tag = normalizeOutfitTag(value)
+    if (!isValidOutfitTag(tag) || isReservedOutfitTag(tag) || normalized.includes(tag)) continue
+    normalized.push(tag)
+    if (normalized.length === MAX_OUTFIT_TAGS) break
+  }
+  await writeJson(directory, TAGS_FILE_NAME, normalized)
+  return normalized
+}
+
+async function parseOutfit(
+  directory: FileSystemDirectoryHandle,
+  metadataName: string,
+  allowedTags: Set<string>
+): Promise<{ outfit: OutfitItem | null; pairedImage: string | null }> {
+  const metadataHandle = await directory.getFileHandle(metadataName)
+  const metadataFile = await metadataHandle.getFile()
+  const parsed = JSON.parse(await metadataFile.text()) as Partial<OutfitMetadata>
+  const pairedImage = typeof parsed.image === 'string' ? parsed.image : null
+  if (!pairedImage || !isSupportedImage(pairedImage) || typeof parsed.id !== 'string' || !parsed.id.trim()) {
+    return { outfit: null, pairedImage }
+  }
+
+  const imageHandle = await directory.getFileHandle(pairedImage)
+  const imageFile = await imageHandle.getFile()
+  if (!imageFile.size) return { outfit: null, pairedImage }
+
+  const parsedTimestamp = typeof parsed.createdAt === 'string' ? Date.parse(parsed.createdAt) : Number.NaN
+  const timestamp = Number.isFinite(parsedTimestamp) ? parsedTimestamp : metadataFile.lastModified
+  const createdAt = new Date(timestamp).toISOString()
+  const id = parsed.id.trim()
+  const outfit: OutfitItem = {
+    ...dateParts(timestamp),
+    id,
+    name: pairedImage,
+    image: pairedImage,
+    code: normalizeOutfitCode(parsed.code),
+    tags: normalizeTags(parsed.tags, allowedTags),
+    createdAt,
+    metadataName,
+    url: null,
+    fileSizeText: formatFileSize(imageFile.size),
+    fileHandle: imageHandle,
+    directoryHandle: directory
+  }
+  return { outfit, pairedImage }
+}
+
+async function scanOutfits(directory: FileSystemDirectoryHandle, tags: string[]): Promise<ScanResult> {
+  const metadataNames: string[] = []
+  const pairedImageNames = new Set<string>()
+  for await (const [name, handle] of directory.entries()) {
+    if (handle.kind === 'file' && name.endsWith('.json') && name !== TAGS_FILE_NAME) metadataNames.push(name)
+  }
+
+  const outfits: OutfitItem[] = []
+  let failedCount = 0
+  const seenIds = new Set<string>()
+  const allowedTags = new Set(tags)
+  for (const metadataName of metadataNames) {
+    try {
+      const result = await parseOutfit(directory, metadataName, allowedTags)
+      if (result.pairedImage) pairedImageNames.add(result.pairedImage)
+      if (!result.outfit || seenIds.has(result.outfit.id)) {
+        failedCount += 1
+        continue
+      }
+      seenIds.add(result.outfit.id)
+      outfits.push(result.outfit)
+    } catch {
+      failedCount += 1
+    }
+  }
+
+  outfits.sort((a, b) => b.timestamp - a.timestamp)
+  return { outfits, failedCount, pairedImageNames }
+}
+
+function canvasToWebp(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('WebP conversion failed')), 'image/webp', 0.9)
+  })
+}
+
+export async function convertImageToWebp(file: File): Promise<Blob> {
+  if (file.size > MAX_IMAGE_BYTES) throw new Error('Image is too large')
+  if (imageExtension(file.name) === 'webp' || file.type === 'image/webp') {
+    return new Blob([await file.arrayBuffer()], { type: 'image/webp' })
+  }
+  const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+  try {
+    const canvas = document.createElement('canvas')
+    canvas.width = bitmap.width
+    canvas.height = bitmap.height
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Canvas is unavailable')
+    context.drawImage(bitmap, 0, 0)
+    return await canvasToWebp(canvas)
+  } finally {
+    bitmap.close()
+  }
+}
+
+async function validateImageBlob(blob: Blob): Promise<void> {
+  if (!blob.size) throw new Error('Image is empty')
+  const bitmap = await createImageBitmap(blob)
+  try {
+    if (!bitmap.width || !bitmap.height) throw new Error('Image dimensions are invalid')
+    if (bitmap.width * bitmap.height > MAX_IMAGE_PIXELS) throw new Error('Image dimensions are too large')
+  } finally {
+    bitmap.close()
+  }
+}
+
+async function validateWrittenImage(directory: FileSystemDirectoryHandle, name: string): Promise<void> {
+  const file = await (await directory.getFileHandle(name)).getFile()
+  await validateImageBlob(file)
+}
+
+async function importExternalImages(directory: FileSystemDirectoryHandle, pairedImageNames: Set<string>): Promise<{ imported: number; failed: number }> {
+  const candidates: Array<{ name: string; handle: FileSystemFileHandle }> = []
+  for await (const [name, handle] of directory.entries()) {
+    if (handle.kind === 'file' && isSupportedImage(name) && !pairedImageNames.has(name)) {
+      candidates.push({ name, handle: handle as FileSystemFileHandle })
+    }
+  }
+
+  let imported = 0
+  let failed = 0
+  for (const candidate of candidates) {
+    const id = await createAvailableOutfitId(directory)
+    const imageName = `${id}.webp`
+    const metadataName = `${id}.json`
+    try {
+      const source = await candidate.handle.getFile()
+      const webp = await convertImageToWebp(source)
+      await writeBlob(await directory.getFileHandle(imageName, { create: true }), webp)
+      await validateWrittenImage(directory, imageName)
+      const metadata: OutfitMetadata = {
+        id,
+        image: imageName,
+        code: '',
+        tags: [],
+        createdAt: new Date().toISOString()
+      }
+      await writeJson(directory, metadataName, metadata)
+      if (candidate.name !== imageName) await directory.removeEntry(candidate.name)
+      imported += 1
+    } catch {
+      failed += 1
+      await directory.removeEntry(imageName).catch(() => undefined)
+      await directory.removeEntry(metadataName).catch(() => undefined)
+    }
+  }
+  return { imported, failed }
+}
+
+export async function readOutfitLibrary(
+  albumDirectory: FileSystemDirectoryHandle,
+  options: { importExternal?: boolean; create?: boolean } = {}
+): Promise<OutfitLibraryResult> {
+  const directory = await getClotheDirectory(albumDirectory, options.create ?? true)
+  if (!directory) return { outfits: [], tags: [...DEFAULT_OUTFIT_TAGS], importedExternalCount: 0, failedCount: 0 }
+  const tags = await readTags(directory)
+  let scan = await scanOutfits(directory, tags)
+  let importedExternalCount = 0
+  let externalFailures = 0
+  if (options.importExternal ?? true) {
+    const external = await importExternalImages(directory, scan.pairedImageNames)
+    importedExternalCount = external.imported
+    externalFailures = external.failed
+    if (external.imported) scan = await scanOutfits(directory, tags)
+  }
+  return {
+    outfits: scan.outfits,
+    tags,
+    importedExternalCount,
+    failedCount: scan.failedCount + externalFailures
+  }
+}
+
+export async function saveOutfit(
+  albumDirectory: FileSystemDirectoryHandle,
+  input: SaveOutfitInput
+): Promise<OutfitItem> {
+  const directory = await getClotheDirectory(albumDirectory, true)
+  if (!directory) throw new Error('Unable to create clothe directory')
+  if (!input.outfit && !input.imageFile) throw new Error('An image is required')
+
+  const id = input.outfit?.id ?? await createAvailableOutfitId(directory)
+  const imageName = `${id}.webp`
+  const metadataName = `${id}.json`
+  const previousImage = input.outfit ? await input.outfit.fileHandle.getFile() : null
+  const previousMetadata = input.outfit
+    ? await (await directory.getFileHandle(input.outfit.metadataName)).getFile()
+    : null
+  const tags = await readTags(directory)
+  const selectedTag = input.tag && tags.includes(input.tag) && isValidOutfitTag(input.tag) ? input.tag : null
+
+  try {
+    if (input.imageFile) {
+      const webp = await convertImageToWebp(input.imageFile)
+      await writeBlob(await directory.getFileHandle(imageName, { create: true }), webp)
+      await validateWrittenImage(directory, imageName)
+    }
+    const metadata: OutfitMetadata = {
+      id,
+      image: imageName,
+      code: normalizeOutfitCode(input.code),
+      tags: selectedTag ? [selectedTag] : [],
+      createdAt: input.outfit?.createdAt ?? new Date().toISOString()
+    }
+    await writeJson(directory, metadataName, metadata)
+    const parsed = await parseOutfit(directory, metadataName, new Set(tags))
+    if (!parsed.outfit) throw new Error('Saved outfit is invalid')
+    return parsed.outfit
+  } catch (error) {
+    if (input.outfit && previousImage && previousMetadata) {
+      await writeBlob(await directory.getFileHandle(imageName, { create: true }), previousImage).catch(() => undefined)
+      await writeBlob(await directory.getFileHandle(metadataName, { create: true }), previousMetadata).catch(() => undefined)
+    } else {
+      await directory.removeEntry(imageName).catch(() => undefined)
+      await directory.removeEntry(metadataName).catch(() => undefined)
+    }
+    throw error
+  }
+}
+
+export async function updateOutfitTag(
+  albumDirectory: FileSystemDirectoryHandle,
+  outfits: OutfitItem[],
+  removedTag: string
+): Promise<number> {
+  const directory = await getClotheDirectory(albumDirectory, false)
+  if (!directory) return 0
+  let updated = 0
+  const backups: Array<{ name: string; file: File }> = []
+  for (const outfit of outfits) {
+    if (outfit.tags[0] !== removedTag) continue
+    backups.push({ name: outfit.metadataName, file: await (await directory.getFileHandle(outfit.metadataName)).getFile() })
+  }
+  try {
+    for (const outfit of outfits) {
+      if (outfit.tags[0] !== removedTag) continue
+      await writeJson(directory, outfit.metadataName, {
+        id: outfit.id,
+        image: outfit.image,
+        code: outfit.code,
+        tags: [],
+        createdAt: outfit.createdAt
+      } satisfies OutfitMetadata)
+      updated += 1
+    }
+  } catch (error) {
+    for (const backup of backups) await writeBlob(await directory.getFileHandle(backup.name, { create: true }), backup.file).catch(() => undefined)
+    throw error
+  }
+  return updated
+}
+
+export async function deleteOutfit(outfit: OutfitItem): Promise<void> {
+  const image = await outfit.fileHandle.getFile()
+  const metadata = await (await outfit.directoryHandle.getFileHandle(outfit.metadataName)).getFile()
+  try {
+    await outfit.directoryHandle.removeEntry(outfit.metadataName)
+    await outfit.directoryHandle.removeEntry(outfit.image)
+  } catch (error) {
+    await writeBlob(await outfit.directoryHandle.getFileHandle(outfit.image, { create: true }), image).catch(() => undefined)
+    await writeBlob(await outfit.directoryHandle.getFileHandle(outfit.metadataName, { create: true }), metadata).catch(() => undefined)
+    throw error
+  }
+}
+
+function backupTimestamp(date = new Date()): string {
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+}
+
+async function availableBackupName(directory: FileSystemDirectoryHandle): Promise<string> {
+  const base = `无限暖暖搭配码备份_${backupTimestamp()}`
+  let suffix = 0
+  while (await fileExists(directory, `${base}${suffix ? `_${suffix}` : ''}.zip`)) suffix += 1
+  return `${base}${suffix ? `_${suffix}` : ''}.zip`
+}
+
+export async function exportOutfitBackup(
+  albumDirectory: FileSystemDirectoryHandle,
+  targetDirectory: FileSystemDirectoryHandle
+): Promise<{ fileName: string; count: number }> {
+  const library = await readOutfitLibrary(albumDirectory, { importExternal: false, create: true })
+  const manifest: BackupManifest = {
+    format: BACKUP_FORMAT,
+    version: BACKUP_VERSION,
+    exportedAt: new Date().toISOString(),
+    tags: library.tags,
+    outfits: library.outfits.map(({ id, image, code, tags, createdAt }) => ({
+      id,
+      image: `images/${image}`,
+      code,
+      tags,
+      createdAt
+    }))
+  }
+  const files: Record<string, Uint8Array> = {
+    'manifest.json': strToU8(`${JSON.stringify(manifest, null, 2)}\n`)
+  }
+  for (const outfit of library.outfits) {
+    const file = await outfit.fileHandle.getFile()
+    files[`images/${outfit.image}`] = new Uint8Array(await file.arrayBuffer())
+  }
+  const archive = zipSync(files, { level: 6 })
+  const fileName = await availableBackupName(targetDirectory)
+  await writeBlob(await targetDirectory.getFileHandle(fileName, { create: true }), archive)
+  return { fileName, count: library.outfits.length }
+}
+
+export function isSafeOutfitArchivePath(path: string): boolean {
+  if (!path || path.startsWith('/') || path.startsWith('\\') || path.includes('\\') || path.includes('\0')) return false
+  const segments = path.split('/')
+  return segments.every((segment) => segment.length > 0 && segment !== '.' && segment !== '..')
+}
+
+function parseBackup(file: File): Promise<{ manifest: BackupManifest; files: Record<string, Uint8Array> }> {
+  return file.arrayBuffer().then((buffer) => {
+    if (buffer.byteLength > MAX_BACKUP_BYTES) throw new Error('Backup is too large')
+    const files = unzipSync(new Uint8Array(buffer))
+    if (Object.keys(files).length > MAX_BACKUP_ENTRIES) throw new Error('Backup contains too many files')
+    let expandedBytes = 0
+    for (const [path, content] of Object.entries(files)) {
+      if (!isSafeOutfitArchivePath(path)) throw new Error('Backup contains an unsafe path')
+      if (path !== 'manifest.json' && (!path.startsWith('images/') || imageExtension(path) !== 'webp')) {
+        throw new Error('Backup contains an unsupported file')
+      }
+      if (content.byteLength > MAX_IMAGE_BYTES && path !== 'manifest.json') throw new Error('Backup image is too large')
+      expandedBytes += content.byteLength
+      if (expandedBytes > MAX_BACKUP_BYTES) throw new Error('Expanded backup is too large')
+    }
+    const manifestBytes = files['manifest.json']
+    if (!manifestBytes) throw new Error('Backup manifest is missing')
+    const manifest = JSON.parse(strFromU8(manifestBytes)) as BackupManifest
+    if (!manifest || typeof manifest !== 'object' || manifest.format !== BACKUP_FORMAT || manifest.version !== BACKUP_VERSION || !Array.isArray(manifest.outfits) || !Array.isArray(manifest.tags)) {
+      throw new Error('Unsupported backup format')
+    }
+    for (const raw of manifest.outfits) {
+      if (!raw || typeof raw !== 'object' || typeof raw.image !== 'string' || !isSafeOutfitArchivePath(raw.image) || !/^images\/[^/]+\.webp$/i.test(raw.image)) {
+        throw new Error('Backup contains invalid outfit metadata')
+      }
+      if (!files[raw.image]?.byteLength) throw new Error('Backup is missing an outfit image')
+    }
+    return { manifest, files }
+  })
+}
+
+function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.byteLength !== right.byteLength) return false
+  for (let index = 0; index < left.byteLength; index += 1) {
+    if (left[index] !== right[index]) return false
+  }
+  return true
+}
+
+async function isIdenticalOutfit(
+  existing: OutfitItem,
+  raw: OutfitMetadata,
+  code: string,
+  imageBytes: Uint8Array
+): Promise<boolean> {
+  const createdTimestamp = typeof raw.createdAt === 'string' ? Date.parse(raw.createdAt) : Number.NaN
+  const createdAt = Number.isFinite(createdTimestamp) ? new Date(createdTimestamp).toISOString() : ''
+  const rawTag = normalizeTags(raw.tags)[0] ?? ''
+  if (existing.code !== code || existing.createdAt !== createdAt || (existing.tags[0] ?? '') !== rawTag) return false
+  const existingBytes = new Uint8Array(await (await existing.fileHandle.getFile()).arrayBuffer())
+  return bytesEqual(existingBytes, imageBytes)
+}
+
+export async function importOutfitBackup(
+  albumDirectory: FileSystemDirectoryHandle,
+  backupFile: File
+): Promise<OutfitImportResult> {
+  const { manifest, files } = await parseBackup(backupFile)
+  const current = await readOutfitLibrary(albumDirectory, { importExternal: false, create: true })
+  const directory = await getClotheDirectory(albumDirectory, true)
+  if (!directory) throw new Error('Unable to create clothe directory')
+
+  const tags = [...current.tags]
+  let rejectedTagCount = 0
+  for (const rawTag of manifest.tags) {
+    const tag = normalizeOutfitTag(rawTag)
+    if (!isValidOutfitTag(tag) || isReservedOutfitTag(tag) || tags.length >= MAX_OUTFIT_TAGS) {
+      if (!tags.includes(tag)) rejectedTagCount += 1
+      continue
+    }
+    if (!tags.includes(tag)) tags.push(tag)
+  }
+  const existingIds = new Set(current.outfits.map((outfit) => outfit.id))
+  const existingById = new Map(current.outfits.map((outfit) => [outfit.id, outfit]))
+  const existingCodes = new Set(current.outfits.map((outfit) => outfit.code).filter(Boolean))
+  let addedCount = 0
+  let duplicateCount = 0
+  let failedCount = 0
+  const createdEntries: string[] = []
+
+  for (const raw of manifest.outfits) {
+    const code = normalizeOutfitCode(raw.code)
+    if (code && existingCodes.has(code)) {
+      duplicateCount += 1
+      continue
+    }
+    try {
+      if (typeof raw.image !== 'string' || !isSafeOutfitArchivePath(raw.image) || !raw.image.startsWith('images/')) throw new Error('Invalid image path')
+      const imageBytes = files[raw.image]
+      if (!imageBytes?.byteLength || imageBytes.byteLength > MAX_IMAGE_BYTES) throw new Error('Missing image')
+      const existing = typeof raw.id === 'string' ? existingById.get(raw.id.trim()) : undefined
+      if (existing && await isIdenticalOutfit(existing, raw, code, imageBytes)) {
+        duplicateCount += 1
+        continue
+      }
+      const preferredId = typeof raw.id === 'string' && raw.id.trim() && !existingIds.has(raw.id.trim()) ? raw.id.trim() : undefined
+      const id = await createAvailableOutfitId(directory, preferredId)
+      const imageName = `${id}.webp`
+      const metadataName = `${id}.json`
+      const createdTimestamp = typeof raw.createdAt === 'string' ? Date.parse(raw.createdAt) : Number.NaN
+      const tag = normalizeTags(raw.tags, new Set(tags))[0]
+      const metadata: OutfitMetadata = {
+        id,
+        image: imageName,
+        code,
+        tags: tag ? [tag] : [],
+        createdAt: Number.isFinite(createdTimestamp) ? new Date(createdTimestamp).toISOString() : new Date().toISOString()
+      }
+      try {
+        const imageBlob = new Blob([imageBytes], { type: 'image/webp' })
+        await validateImageBlob(imageBlob)
+        await writeBlob(await directory.getFileHandle(imageName, { create: true }), imageBlob)
+        await validateWrittenImage(directory, imageName)
+        await writeJson(directory, metadataName, metadata)
+      } catch (error) {
+        await directory.removeEntry(imageName).catch(() => undefined)
+        await directory.removeEntry(metadataName).catch(() => undefined)
+        throw error
+      }
+      existingIds.add(id)
+      if (code) existingCodes.add(code)
+      createdEntries.push(imageName, metadataName)
+      addedCount += 1
+    } catch {
+      failedCount += 1
+    }
+  }
+
+  try {
+    await saveOutfitTags(albumDirectory, tags)
+  } catch (error) {
+    for (const name of createdEntries) await directory.removeEntry(name).catch(() => undefined)
+    await saveOutfitTags(albumDirectory, current.tags).catch(() => undefined)
+    throw error
+  }
+
+  return { addedCount, duplicateCount, failedCount, rejectedTagCount }
+}

@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import type { LocaleMessages } from '../i18n'
 
-export type AlbumView = 'all' | 'favorites' | 'trash'
+export type AlbumView = 'all' | 'outfits' | 'favorites' | 'trash'
 
 defineProps<{
   activeView: AlbumView
   allCount: number
+  outfitsCount: number
   favoriteCount: number
   trashCount: number
+  outfitLabel: string
   disabled: boolean
   messages: LocaleMessages['viewNav']
 }>()
@@ -23,6 +25,7 @@ defineEmits<{
     <button
       v-for="item in [
         { view: 'all' as const, label: messages.allPhotos, count: allCount },
+        { view: 'outfits' as const, label: outfitLabel, count: outfitsCount },
         { view: 'favorites' as const, label: messages.favorites, count: favoriteCount },
         { view: 'trash' as const, label: messages.recentlyDeleted, count: trashCount }
       ]"
