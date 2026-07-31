@@ -48,7 +48,7 @@ const emit = defineEmits<{
           <p class="operation-notice-message">{{ message }}</p>
         </div>
 
-        <button class="operation-notice-close" type="button" :aria-label="closeLabel" @click="emit('close')">
+        <button v-if="!isLoading" class="operation-notice-close" type="button" :aria-label="closeLabel" @click="emit('close')">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="m7 7 10 10M17 7 7 17" />
           </svg>

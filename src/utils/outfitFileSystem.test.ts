@@ -3,6 +3,7 @@ import { strToU8, zipSync } from 'fflate'
 import {
   importOutfitBackup,
   deleteOutfit,
+  deleteOutfitTag,
   isReservedOutfitTag,
   isSafeOutfitArchivePath,
   isValidOutfitTag,
@@ -25,7 +26,25 @@ function browserFile(parts: BlobPart[], name: string, options?: FilePropertyBag)
   const file = new File(parts, name, options)
   Object.defineProperties(file, {
     arrayBuffer: { value: () => readBlob(file, 'buffer') as Promise<ArrayBuffer> },
-    text: { value: () => readBlob(file, 'text') as Promise<string> }
+    text: { value: () => readBlob(file, 'text') as Promise<string> },
+    stream: {
+      value: () => {
+        let consumed = false
+        return {
+          getReader: () => ({
+            read: async () => {
+              if (consumed) return { value: undefined, done: true }
+              consumed = true
+              return { value: new Uint8Array(await readBlob(file, 'buffer') as ArrayBuffer), done: false }
+            },
+            cancel: async () => {
+              consumed = true
+            },
+            releaseLock: () => undefined
+          })
+        }
+      }
+    }
   })
   return file
 }
@@ -71,7 +90,16 @@ class MemoryDirectoryHandle {
 
   async getFileHandle(name: string, options?: { create?: boolean }): Promise<FileSystemFileHandle> {
     const existing = this.files.get(name)
-    if (existing) return existing as unknown as FileSystemFileHandle
+    if (existing) {
+      if (this.failTagsWrites && name === 'tags.json') {
+        existing.createWritable = async () => ({
+          write: async () => { throw new Error('JSON write failed') },
+          close: async () => undefined,
+          abort: async () => undefined
+        }) as unknown as FileSystemWritableFileStream
+      }
+      return existing as unknown as FileSystemFileHandle
+    }
     if (!options?.create) throw new DOMException('Missing file', 'NotFoundError')
     const created = new MemoryFileHandle(name)
     if ((this.failJsonWrites && name.endsWith('.json') && name !== 'tags.json') || (this.failTagsWrites && name === 'tags.json')) {
@@ -230,5 +258,30 @@ describe('outfit filesystem', () => {
     await expect(deleteOutfit(saved)).rejects.toThrow()
     expect(clothe.files.has(saved.image)).toBe(true)
     expect(clothe.files.has(saved.metadataName)).toBe(true)
+  })
+
+  it('restores outfit metadata when the tag file commit fails', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    await saveOutfitTags(asDirectory(album), ['鐢滅編'])
+    const saved = await saveOutfit(asDirectory(album), {
+      imageFile: browserFile([new Blob(['webp'], { type: 'image/webp' })], 'look.webp', { type: 'image/webp' }),
+      code: 'ABC',
+      tag: '鐢滅編'
+    })
+    const clothe = album.directories.get('clothe')!
+    clothe.failTagsWrites = true
+
+    await expect(deleteOutfitTag(asDirectory(album), [saved], '鐢滅編')).rejects.toThrow('JSON write failed')
+    const metadata = JSON.parse(await clothe.files.get(saved.metadataName)!.getFile().then((file) => file.text()))
+    expect(metadata.tags).toEqual(['鐢滅編'])
+  })
+
+  it('stops streaming extraction after the backup entry limit', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    const extraFiles = Object.fromEntries(Array.from({ length: 2_000 }, (_, index) => [`images/${index}.webp`, new Uint8Array()]))
+    const file = backupFile([], extraFiles)
+
+    await expect(importOutfitBackup(asDirectory(album), file)).rejects.toThrow('too many files')
+    expect(album.directories.has('clothe')).toBe(false)
   })
 })

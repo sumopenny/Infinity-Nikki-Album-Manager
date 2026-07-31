@@ -7,7 +7,7 @@ import type { OutfitItem } from '../utils/outfitFileSystem'
 import { createPhotoLoadQueue } from '../utils/photoLoader'
 import LazyPhotoImage from './LazyPhotoImage.vue'
 
-defineProps<{
+const props = defineProps<{
   outfits: OutfitItem[]
   selectedIds: Set<string>
   thumbnailMode: ThumbnailMode
@@ -15,7 +15,7 @@ defineProps<{
   disabled: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   copy: [outfit: OutfitItem]
   edit: [outfit: OutfitItem]
   delete: [outfit: OutfitItem]
@@ -25,6 +25,16 @@ defineEmits<{
 
 const photoLoadQueue = createPhotoLoadQueue(3)
 onBeforeUnmount(() => photoLoadQueue.cancel())
+
+function toggleOutfit(outfitId: string) {
+  if (!props.disabled) emit('toggleOutfit', outfitId)
+}
+
+function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
+  if (event.target !== event.currentTarget || event.key !== 'Enter') return
+  event.preventDefault()
+  toggleOutfit(outfitId)
+}
 </script>
 
 <template>
@@ -42,10 +52,12 @@ onBeforeUnmount(() => photoLoadQueue.cancel())
         class="photo-card outfit-card"
         :class="{ selected: selectedIds.has(outfit.id) }"
         :aria-label="outfit.code || messages.pending"
+        :aria-checked="selectedIds.has(outfit.id)"
+        role="checkbox"
         tabindex="0"
-        @click="$emit('toggleOutfit', outfit.id)"
+        @click="toggleOutfit(outfit.id)"
         @dblclick.stop="$emit('openPreview', outfit)"
-        @keydown.enter="$emit('toggleOutfit', outfit.id)"
+        @keydown="handleCardKeydown($event, outfit.id)"
       >
         <div class="photo-frame">
           <LazyPhotoImage :photo="outfit" :load-photo="photoLoadQueue.load" :failure-text="messages.imageLoadFailed" />

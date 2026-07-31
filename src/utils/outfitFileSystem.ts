@@ -1,4 +1,4 @@
-import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
+import { strFromU8, strToU8, Unzip, UnzipInflate, zipSync } from 'fflate'
 import type { PhotoItem } from './dateGrouping'
 
 export const DEFAULT_OUTFIT_TAGS = ['甜美', '性感', '帅气', '典雅', '清新', '古典']
@@ -435,13 +435,15 @@ export async function saveOutfit(
   }
 }
 
-export async function updateOutfitTag(
+export async function deleteOutfitTag(
   albumDirectory: FileSystemDirectoryHandle,
   outfits: OutfitItem[],
   removedTag: string
-): Promise<number> {
+): Promise<{ tags: string[]; updatedCount: number }> {
   const directory = await getClotheDirectory(albumDirectory, false)
-  if (!directory) return 0
+  if (!directory) return { tags: [], updatedCount: 0 }
+  const currentTags = await readTags(directory)
+  const tagsBackup = await (await directory.getFileHandle(TAGS_FILE_NAME)).getFile()
   let updated = 0
   const backups: Array<{ name: string; file: File }> = []
   for (const outfit of outfits) {
@@ -460,11 +462,14 @@ export async function updateOutfitTag(
       } satisfies OutfitMetadata)
       updated += 1
     }
+    const tags = currentTags.filter((tag) => tag !== removedTag)
+    await writeJson(directory, TAGS_FILE_NAME, tags)
+    return { tags, updatedCount: updated }
   } catch (error) {
     for (const backup of backups) await writeBlob(await directory.getFileHandle(backup.name, { create: true }), backup.file).catch(() => undefined)
+    await writeBlob(await directory.getFileHandle(TAGS_FILE_NAME, { create: true }), tagsBackup).catch(() => undefined)
     throw error
   }
-  return updated
 }
 
 export async function deleteOutfit(outfit: OutfitItem): Promise<void> {
@@ -529,35 +534,100 @@ export function isSafeOutfitArchivePath(path: string): boolean {
   return segments.every((segment) => segment.length > 0 && segment !== '.' && segment !== '..')
 }
 
-function parseBackup(file: File): Promise<{ manifest: BackupManifest; files: Record<string, Uint8Array> }> {
-  return file.arrayBuffer().then((buffer) => {
-    if (buffer.byteLength > MAX_BACKUP_BYTES) throw new Error('Backup is too large')
-    const files = unzipSync(new Uint8Array(buffer))
-    if (Object.keys(files).length > MAX_BACKUP_ENTRIES) throw new Error('Backup contains too many files')
-    let expandedBytes = 0
-    for (const [path, content] of Object.entries(files)) {
-      if (!isSafeOutfitArchivePath(path)) throw new Error('Backup contains an unsafe path')
-      if (path !== 'manifest.json' && (!path.startsWith('images/') || imageExtension(path) !== 'webp')) {
+async function parseBackup(file: File): Promise<{ manifest: BackupManifest; files: Record<string, Uint8Array> }> {
+  if (file.size > MAX_BACKUP_BYTES) throw new Error('Backup is too large')
+  const files: Record<string, Uint8Array> = {}
+  let entryCount = 0
+  let declaredBytes = 0
+  let expandedBytes = 0
+  let extractionError: Error | null = null
+  const unzip = new Unzip((entry) => {
+    if (extractionError) return
+    try {
+      entryCount += 1
+      if (entryCount > MAX_BACKUP_ENTRIES) throw new Error('Backup contains too many files')
+      if (!isSafeOutfitArchivePath(entry.name)) throw new Error('Backup contains an unsafe path')
+      if (entry.name !== 'manifest.json' && (!entry.name.startsWith('images/') || imageExtension(entry.name) !== 'webp')) {
         throw new Error('Backup contains an unsupported file')
       }
-      if (content.byteLength > MAX_IMAGE_BYTES && path !== 'manifest.json') throw new Error('Backup image is too large')
-      expandedBytes += content.byteLength
-      if (expandedBytes > MAX_BACKUP_BYTES) throw new Error('Expanded backup is too large')
-    }
-    const manifestBytes = files['manifest.json']
-    if (!manifestBytes) throw new Error('Backup manifest is missing')
-    const manifest = JSON.parse(strFromU8(manifestBytes)) as BackupManifest
-    if (!manifest || typeof manifest !== 'object' || manifest.format !== BACKUP_FORMAT || manifest.version !== BACKUP_VERSION || !Array.isArray(manifest.outfits) || !Array.isArray(manifest.tags)) {
-      throw new Error('Unsupported backup format')
-    }
-    for (const raw of manifest.outfits) {
-      if (!raw || typeof raw !== 'object' || typeof raw.image !== 'string' || !isSafeOutfitArchivePath(raw.image) || !/^images\/[^/]+\.webp$/i.test(raw.image)) {
-        throw new Error('Backup contains invalid outfit metadata')
+      if (entry.originalSize !== undefined) {
+        if (entry.name !== 'manifest.json' && entry.originalSize > MAX_IMAGE_BYTES) throw new Error('Backup image is too large')
+        declaredBytes += entry.originalSize
+        if (declaredBytes > MAX_BACKUP_BYTES) throw new Error('Expanded backup is too large')
       }
-      if (!files[raw.image]?.byteLength) throw new Error('Backup is missing an outfit image')
+
+      const chunks: Uint8Array[] = []
+      let entryBytes = 0
+      entry.ondata = (error, chunk, final) => {
+        if (extractionError) return
+        if (error) {
+          extractionError = error
+          entry.terminate()
+          return
+        }
+        if (chunk?.length) {
+          entryBytes += chunk.length
+          expandedBytes += chunk.length
+          if (entry.name !== 'manifest.json' && entryBytes > MAX_IMAGE_BYTES) {
+            extractionError = new Error('Backup image is too large')
+            entry.terminate()
+            return
+          }
+          if (expandedBytes > MAX_BACKUP_BYTES) {
+            extractionError = new Error('Expanded backup is too large')
+            entry.terminate()
+            return
+          }
+          chunks.push(chunk)
+        }
+        if (final && !extractionError) {
+          const content = new Uint8Array(entryBytes)
+          let offset = 0
+          for (const part of chunks) {
+            content.set(part, offset)
+            offset += part.length
+          }
+          files[entry.name] = content
+        }
+      }
+      entry.start()
+    } catch (error) {
+      extractionError = error instanceof Error ? error : new Error('Unable to extract backup')
+      entry.terminate()
     }
-    return { manifest, files }
   })
+  unzip.register(UnzipInflate)
+
+  const stream = file.stream()
+  const reader = stream.getReader()
+  try {
+    while (true) {
+      const { value, done } = await reader.read()
+      if (extractionError) throw extractionError
+      unzip.push(value ?? new Uint8Array(), done)
+      if (extractionError) throw extractionError
+      if (done) break
+    }
+  } catch (error) {
+    await reader.cancel(error).catch(() => undefined)
+    throw error
+  } finally {
+    reader.releaseLock()
+  }
+
+  const manifestBytes = files['manifest.json']
+  if (!manifestBytes) throw new Error('Backup manifest is missing')
+  const manifest = JSON.parse(strFromU8(manifestBytes)) as BackupManifest
+  if (!manifest || typeof manifest !== 'object' || manifest.format !== BACKUP_FORMAT || manifest.version !== BACKUP_VERSION || !Array.isArray(manifest.outfits) || !Array.isArray(manifest.tags)) {
+    throw new Error('Unsupported backup format')
+  }
+  for (const raw of manifest.outfits) {
+    if (!raw || typeof raw !== 'object' || typeof raw.image !== 'string' || !isSafeOutfitArchivePath(raw.image) || !/^images\/[^/]+\.webp$/i.test(raw.image)) {
+      throw new Error('Backup contains invalid outfit metadata')
+    }
+    if (!files[raw.image]?.byteLength) throw new Error('Backup is missing an outfit image')
+  }
+  return { manifest, files }
 }
 
 function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {

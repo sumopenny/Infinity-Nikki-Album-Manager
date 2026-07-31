@@ -40,6 +40,7 @@ import {
 } from './utils/fileSystem'
 import {
   deleteOutfit,
+  deleteOutfitTag,
   exportOutfitBackup,
   importOutfitBackup,
   isValidOutfitTag,
@@ -49,7 +50,6 @@ import {
   readOutfitLibrary,
   saveOutfit,
   saveOutfitTags,
-  updateOutfitTag,
   type OutfitItem,
   type OutfitLibraryResult,
   type SaveOutfitInput
@@ -614,6 +614,11 @@ function showOutfitStatus(message: string, tone: StatusTone = 'success', loading
   statusState.value = { type: 'custom', message, tone, loading }
 }
 
+function changeOutfitFilter(filter: OutfitFilter) {
+  selectedOutfitIds.value = new Set()
+  activeOutfitFilter.value = filter
+}
+
 function openOutfitEditor(outfit: OutfitItem | null = null) {
   editingOutfit.value = outfit
   isOutfitEditorVisible.value = true
@@ -698,8 +703,8 @@ async function removeOutfitTag(tag: string) {
   }
   try {
     isOutfitMutationBusy.value = true
-    await updateOutfitTag(directoryHandle, outfits.value, tag)
-    outfitTags.value = await saveOutfitTags(directoryHandle, outfitTags.value.filter((item) => item !== tag))
+    const result = await deleteOutfitTag(directoryHandle, outfits.value, tag)
+    outfitTags.value = result.tags
     await refreshOutfitLibrary(false)
     showOutfitStatus(language.value === 'zh' ? '标签已删除。' : 'Tag deleted.')
   } catch (error) {
@@ -1297,7 +1302,7 @@ onBeforeUnmount(() => {
           :active-filter="activeOutfitFilter"
           :disabled="isAnyFileOperationBusy"
           :messages="outfitLocale"
-          @change-filter="activeOutfitFilter = $event"
+          @change-filter="changeOutfitFilter"
           @add-tag="addOutfitTag"
           @delete-tag="removeOutfitTag"
         />
@@ -1391,7 +1396,7 @@ onBeforeUnmount(() => {
       :selected-count="activeView === 'trash' ? trashSelectedCount : activeView === 'outfits' ? selectedOutfitCount : selectedCount"
       :all-selected="activeView === 'trash' ? allTrashSelected : activeView === 'outfits' ? allOutfitsSelected : allSelected"
       :all-items-selected="activeView === 'trash' && allTrashSelected"
-      :is-busy="isDeleting || isTrashBusy || isOutfitMutationBusy"
+      :is-busy="activeView === 'outfits' ? isAnyFileOperationBusy : isDeleting || isTrashBusy"
       :messages="locale.selectionBar"
       @toggle-all="activeView === 'trash' ? toggleAllTrash() : activeView === 'outfits' ? toggleAllOutfits() : toggleAll()"
       @favorite="favoriteSelectedPhotos"

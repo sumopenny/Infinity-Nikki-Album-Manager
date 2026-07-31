@@ -143,4 +143,25 @@ describe('outfit workspace components', () => {
     expect(wrapper.emitted('copy')).toEqual([[item]])
     expect(wrapper.emitted('toggleOutfit')).toHaveLength(1)
   })
+
+  it('does not select from nested keyboard actions or while disabled', async () => {
+    const item = outfit('1', 'ABC-123')
+    const wrapper = mount(OutfitGrid, {
+      props: {
+        outfits: [item],
+        selectedIds: new Set<string>(),
+        thumbnailMode: 'portrait-standard',
+        messages: getOutfitMessages('zh'),
+        disabled: false
+      },
+      global: { stubs: { LazyPhotoImage: true } }
+    })
+
+    await wrapper.get('.outfit-card-actions button').trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('toggleOutfit')).toBeUndefined()
+    await wrapper.setProps({ disabled: true })
+    await wrapper.get('.outfit-card').trigger('click')
+    await wrapper.get('.outfit-card').trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('toggleOutfit')).toBeUndefined()
+  })
 })

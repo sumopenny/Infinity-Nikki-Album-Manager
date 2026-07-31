@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { messages } from '../i18n'
 import type { DateGroup, PhotoItem, YearGroup } from '../utils/dateGrouping'
 import DateSidebar from './DateSidebar.vue'
+import OperationNotice from './OperationNotice.vue'
 import PhotoGrid from './PhotoGrid.vue'
 import SelectionBar from './SelectionBar.vue'
 import TopBar from './TopBar.vue'
@@ -26,6 +27,17 @@ function createPhoto(fileSizeText = '--'): PhotoItem {
 }
 
 describe('redesigned album controls', () => {
+  it('keeps loading notices visible until the operation finishes', async () => {
+    const wrapper = mount(OperationNotice, {
+      props: { visible: true, title: 'Operation', message: 'Working', tone: 'info', isLoading: true, closeLabel: 'Close' },
+      global: { stubs: { Teleport: true } }
+    })
+
+    expect(wrapper.find('.operation-notice-close').exists()).toBe(false)
+    await wrapper.setProps({ isLoading: false })
+    expect(wrapper.find('.operation-notice-close').exists()).toBe(true)
+  })
+
   it('keeps top menus mutually exclusive and opens help from More', async () => {
     const wrapper = mount(TopBar, {
       props: {
