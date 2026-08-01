@@ -8,6 +8,7 @@ export const MAX_OUTFIT_CODE_LENGTH = 30
 
 const CLOTHE_DIRECTORY_NAME = 'clothe'
 const TAGS_FILE_NAME = 'tags.json'
+const IGNORED_SHARE_CODES_FILE_NAME = 'ignored-sharecodes.json'
 const BACKUP_FORMAT = 'infinity-nikki-outfit-backup'
 const BACKUP_VERSION = 1
 const SUPPORTED_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
@@ -28,6 +29,17 @@ export interface OutfitLibraryResult {
   outfits: OutfitItem[]
   tags: string[]
   importedExternalCount: number
+  importedSharedCount: number
+  failedCount: number
+}
+
+export interface SharedOutfitSource {
+  x6GameDirectory: FileSystemDirectoryHandle
+}
+
+export interface SharedOutfitImportResult {
+  importedCount: number
+  duplicateCount: number
   failedCount: number
 }
 
@@ -203,6 +215,37 @@ async function readTags(directory: FileSystemDirectoryHandle): Promise<string[]>
   }
 }
 
+/** 读取用户删除后临时忽略的游戏搭配码。参数：directory 为 clothe 目录。 */
+async function readIgnoredShareCodes(directory: FileSystemDirectoryHandle): Promise<Set<string>> {
+  try {
+    const file = await (await directory.getFileHandle(IGNORED_SHARE_CODES_FILE_NAME)).getFile()
+    const parsed: unknown = JSON.parse(await file.text())
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed.map((item) => normalizeOutfitCode(item)).filter(Boolean))
+  } catch (error) {
+    if (isMissingEntryError(error)) return new Set()
+    return new Set()
+  }
+}
+
+/** 写入用户删除后临时忽略的游戏搭配码。参数：directory 为 clothe 目录，codes 为需要保留的忽略搭配码集合。 */
+async function writeIgnoredShareCodes(directory: FileSystemDirectoryHandle, codes: Set<string>): Promise<void> {
+  if (!codes.size) {
+    await directory.removeEntry(IGNORED_SHARE_CODES_FILE_NAME).catch(() => undefined)
+    return
+  }
+  await writeJson(directory, IGNORED_SHARE_CODES_FILE_NAME, [...codes])
+}
+
+/** 将搭配码加入临时忽略列表。参数：directory 为 clothe 目录，code 为用户刚删除的搭配码。 */
+async function ignoreShareCode(directory: FileSystemDirectoryHandle, code: string): Promise<void> {
+  const normalized = normalizeOutfitCode(code)
+  if (!normalized) return
+  const codes = await readIgnoredShareCodes(directory)
+  codes.add(normalized)
+  await writeIgnoredShareCodes(directory, codes)
+}
+
 export async function saveOutfitTags(albumDirectory: FileSystemDirectoryHandle, tags: string[]): Promise<string[]> {
   const directory = await getClotheDirectory(albumDirectory, true)
   if (!directory) throw new Error('Unable to create clothe directory')
@@ -259,7 +302,7 @@ async function scanOutfits(directory: FileSystemDirectoryHandle, tags: string[])
   const metadataNames: string[] = []
   const pairedImageNames = new Set<string>()
   for await (const [name, handle] of directory.entries()) {
-    if (handle.kind === 'file' && name.endsWith('.json') && name !== TAGS_FILE_NAME) metadataNames.push(name)
+    if (handle.kind === 'file' && name.endsWith('.json') && name !== TAGS_FILE_NAME && name !== IGNORED_SHARE_CODES_FILE_NAME) metadataNames.push(name)
   }
 
   const outfits: OutfitItem[] = []
@@ -326,6 +369,132 @@ async function validateWrittenImage(directory: FileSystemDirectoryHandle, name: 
   await validateImageBlob(file)
 }
 
+/** 逐级进入游戏目录的子文件夹。参数：rootHandle 为起点目录，segments 为路径片段；缺少目录时返回 null。 */
+async function getNestedDirectory(
+  rootHandle: FileSystemDirectoryHandle,
+  segments: string[]
+): Promise<FileSystemDirectoryHandle | null> {
+  let currentHandle = rootHandle
+  try {
+    for (const segment of segments) currentHandle = await currentHandle.getDirectoryHandle(segment)
+    return currentHandle
+  } catch (error) {
+    if (isMissingEntryError(error)) return null
+    throw error
+  }
+}
+
+/** 判断文件是否为游戏搭配码历史 JSON。参数：fileName 为文件名。 */
+function isShareCodeFileName(fileName: string): boolean {
+  const normalized = fileName.toLowerCase()
+  return normalized.includes('sharecode') && normalized.endsWith('.json')
+}
+
+/** 从 sharecode 文件名开头读取玩家 ID。参数：fileName 为 sharecode 文件名；返回玩家 ID 或 null。 */
+function playerIdFromShareCodeFileName(fileName: string): string | null {
+  const matched = fileName.match(/^(\d+)/)
+  return matched?.[1] ?? null
+}
+
+/** 从搭配码历史内容中读取最新记录。参数：content 为 JSON 文本，playerId 为 sharecode 文件名中读取的玩家 ID。 */
+function parseLatestShareCode(content: string, playerId: string): string | null {
+  const parsed: unknown = JSON.parse(content)
+  if (!Array.isArray(parsed)) return null
+  for (let index = parsed.length - 1; index >= 0; index -= 1) {
+    const item = parsed[index]
+    if (!item || typeof item !== 'object') continue
+    const record = item as Record<string, unknown>
+    const roleId = typeof record.RoleID === 'string' ? record.RoleID : String(record.RoleID ?? '')
+    if (roleId && roleId !== playerId) continue
+    const code = normalizeOutfitCode(record.ShareCode)
+    if (code) return code
+  }
+  return null
+}
+
+/** 找到最近修改且可解析的搭配码历史文件。参数：shareCodeDirectory 为 ShareCode 目录。 */
+async function findLatestShareCode(
+  shareCodeDirectory: FileSystemDirectoryHandle
+): Promise<{ code: string; playerId: string; timestamp: number } | null> {
+  const candidates: Array<{ file: File; playerId: string }> = []
+  for await (const [name, handle] of shareCodeDirectory.entries()) {
+    const playerId = playerIdFromShareCodeFileName(name)
+    if (handle.kind !== 'file' || !isShareCodeFileName(name) || !playerId) continue
+    candidates.push({ file: await (handle as FileSystemFileHandle).getFile(), playerId })
+  }
+
+  candidates.sort((a, b) => b.file.lastModified - a.file.lastModified)
+  for (const candidate of candidates) {
+    try {
+      const code = parseLatestShareCode(await candidate.file.text(), candidate.playerId)
+      if (code) return { code, playerId: candidate.playerId, timestamp: candidate.file.lastModified || Date.now() }
+    } catch {
+      // 单个 sharecode 文件损坏时继续尝试更早的候选文件。
+    }
+  }
+  return null
+}
+
+/** 在玩家 DIY 目录中找到最近修改的图片。参数：diyDirectory 为玩家 DIY 目录。 */
+async function findLatestDiyImage(
+  diyDirectory: FileSystemDirectoryHandle
+): Promise<{ file: File } | null> {
+  const candidates: Array<{ file: File }> = []
+  for await (const [name, handle] of diyDirectory.entries()) {
+    if (handle.kind !== 'file' || !isSupportedImage(name)) continue
+    candidates.push({ file: await (handle as FileSystemFileHandle).getFile() })
+  }
+  candidates.sort((a, b) => b.file.lastModified - a.file.lastModified)
+  return candidates[0] ?? null
+}
+
+/** 从游戏 ShareCode 与 DIY 目录导入最新搭配方案。参数：directory 为 clothe 目录，existingOutfits 为现有方案，source 为 X6Game 授权目录。 */
+async function importLatestSharedOutfit(
+  directory: FileSystemDirectoryHandle,
+  existingOutfits: OutfitItem[],
+  source: SharedOutfitSource
+): Promise<SharedOutfitImportResult> {
+  try {
+    const shareCodeDirectory = await getNestedDirectory(source.x6GameDirectory, ['Saved', 'ShareCode'])
+    if (!shareCodeDirectory) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
+    const latestShareCode = await findLatestShareCode(shareCodeDirectory)
+    if (!latestShareCode) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
+    const ignoredShareCodes = await readIgnoredShareCodes(directory)
+    if (ignoredShareCodes.has(latestShareCode.code)) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
+    if (ignoredShareCodes.size) await writeIgnoredShareCodes(directory, new Set())
+    if (existingOutfits.some((outfit) => outfit.code === latestShareCode.code)) {
+      return { importedCount: 0, duplicateCount: 1, failedCount: 0 }
+    }
+
+    const diyDirectory = await getNestedDirectory(source.x6GameDirectory, ['Saved', 'DIY', latestShareCode.playerId])
+    const latestImage = diyDirectory ? await findLatestDiyImage(diyDirectory) : null
+    if (!latestImage) return { importedCount: 0, duplicateCount: 0, failedCount: 1 }
+
+    const id = await createAvailableOutfitId(directory, `sharecode-${latestShareCode.playerId}-${Math.floor(latestShareCode.timestamp)}`)
+    const imageName = `${id}.webp`
+    const metadataName = `${id}.json`
+    try {
+      const webp = await convertImageToWebp(latestImage.file)
+      await writeBlob(await directory.getFileHandle(imageName, { create: true }), webp)
+      await validateWrittenImage(directory, imageName)
+      await writeJson(directory, metadataName, {
+        id,
+        image: imageName,
+        code: latestShareCode.code,
+        tags: [],
+        createdAt: new Date(latestShareCode.timestamp).toISOString()
+      } satisfies OutfitMetadata)
+      return { importedCount: 1, duplicateCount: 0, failedCount: 0 }
+    } catch (error) {
+      await directory.removeEntry(imageName).catch(() => undefined)
+      await directory.removeEntry(metadataName).catch(() => undefined)
+      throw error
+    }
+  } catch {
+    return { importedCount: 0, duplicateCount: 0, failedCount: 1 }
+  }
+}
+
 async function importExternalImages(directory: FileSystemDirectoryHandle, pairedImageNames: Set<string>): Promise<{ imported: number; failed: number }> {
   const candidates: Array<{ name: string; handle: FileSystemFileHandle }> = []
   for await (const [name, handle] of directory.entries()) {
@@ -366,25 +535,34 @@ async function importExternalImages(directory: FileSystemDirectoryHandle, paired
 
 export async function readOutfitLibrary(
   albumDirectory: FileSystemDirectoryHandle,
-  options: { importExternal?: boolean; create?: boolean } = {}
+  options: { importExternal?: boolean; create?: boolean; sharedSource?: SharedOutfitSource | null } = {}
 ): Promise<OutfitLibraryResult> {
   const directory = await getClotheDirectory(albumDirectory, options.create ?? true)
-  if (!directory) return { outfits: [], tags: [...DEFAULT_OUTFIT_TAGS], importedExternalCount: 0, failedCount: 0 }
+  if (!directory) return { outfits: [], tags: [...DEFAULT_OUTFIT_TAGS], importedExternalCount: 0, importedSharedCount: 0, failedCount: 0 }
   const tags = await readTags(directory)
   let scan = await scanOutfits(directory, tags)
   let importedExternalCount = 0
+  let importedSharedCount = 0
   let externalFailures = 0
+  let sharedFailures = 0
   if (options.importExternal ?? true) {
     const external = await importExternalImages(directory, scan.pairedImageNames)
     importedExternalCount = external.imported
     externalFailures = external.failed
     if (external.imported) scan = await scanOutfits(directory, tags)
   }
+  if (options.sharedSource) {
+    const shared = await importLatestSharedOutfit(directory, scan.outfits, options.sharedSource)
+    importedSharedCount = shared.importedCount
+    sharedFailures = shared.failedCount
+    if (shared.importedCount) scan = await scanOutfits(directory, tags)
+  }
   return {
     outfits: scan.outfits,
     tags,
     importedExternalCount,
-    failedCount: scan.failedCount + externalFailures
+    importedSharedCount,
+    failedCount: scan.failedCount + externalFailures + sharedFailures
   }
 }
 
@@ -478,6 +656,7 @@ export async function deleteOutfit(outfit: OutfitItem): Promise<void> {
   try {
     await outfit.directoryHandle.removeEntry(outfit.metadataName)
     await outfit.directoryHandle.removeEntry(outfit.image)
+    await ignoreShareCode(outfit.directoryHandle, outfit.code)
   } catch (error) {
     await writeBlob(await outfit.directoryHandle.getFileHandle(outfit.image, { create: true }), image).catch(() => undefined)
     await writeBlob(await outfit.directoryHandle.getFileHandle(outfit.metadataName, { create: true }), metadata).catch(() => undefined)

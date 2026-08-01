@@ -52,10 +52,14 @@ function browserFile(parts: BlobPart[], name: string, options?: FilePropertyBag)
 class MemoryFileHandle {
   readonly kind = 'file' as const
 
-  constructor(public readonly name: string, public contents: Blob = new Blob()) {}
+  constructor(
+    public readonly name: string,
+    public contents: Blob = new Blob(),
+    private readonly lastModified = Date.now()
+  ) {}
 
   async getFile(): Promise<File> {
-    return browserFile([this.contents], this.name, { type: this.contents.type, lastModified: Date.now() })
+    return browserFile([this.contents], this.name, { type: this.contents.type, lastModified: this.lastModified })
   }
 
   async createWritable(): Promise<FileSystemWritableFileStream> {
@@ -150,6 +154,16 @@ function backupFile(outfits: unknown[], extraFiles: Record<string, Uint8Array> =
 
 beforeAll(() => {
   vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 100, height: 140, close: () => undefined })))
+  Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+    configurable: true,
+    value: vi.fn(() => ({ drawImage: vi.fn() }))
+  })
+  Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
+    configurable: true,
+    value: vi.fn((callback: BlobCallback, type?: string) => {
+      callback(new Blob(['webp'], { type: type ?? 'image/webp' }))
+    })
+  })
 })
 
 describe('outfit filesystem', () => {
@@ -198,6 +212,127 @@ describe('outfit filesystem', () => {
     expect(result.outfits).toHaveLength(1)
     expect(result.outfits[0]).toMatchObject({ code: '', tags: [] })
     expect(clothe.files.has('new-look.webp')).toBe(false)
+  })
+
+  it('imports the latest in-game sharecode with the newest DIY image', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+    const saved = new MemoryDirectoryHandle('Saved')
+    const shareCode = new MemoryDirectoryHandle('ShareCode')
+    const diy = new MemoryDirectoryHandle('DIY')
+    const playerDiy = new MemoryDirectoryHandle('103203027')
+    x6Game.directories.set('Saved', saved)
+    saved.directories.set('ShareCode', shareCode)
+    saved.directories.set('DIY', diy)
+    diy.directories.set('103203027', playerDiy)
+    shareCode.files.set('old_sharecode.json', new MemoryFileHandle(
+      'old_sharecode.json',
+      new Blob([JSON.stringify([{ RoleID: '103203027', ShareCode: 'OLD#' }])], { type: 'application/json' }),
+      100
+    ))
+    shareCode.files.set('103203027diy_history_sharecode.json', new MemoryFileHandle(
+      '103203027diy_history_sharecode.json',
+      new Blob([JSON.stringify([
+        { RoleID: '103203027', ShareCode: '1x8qPjUTf6Y#' },
+        { RoleID: '103203027', ShareCode: '1xEX10emRxS#' }
+      ])], { type: 'application/json' }),
+      200
+    ))
+    playerDiy.files.set('older.png', new MemoryFileHandle('older.png', new Blob(['old-image'], { type: 'image/png' }), 150))
+    playerDiy.files.set('latest.png', new MemoryFileHandle('latest.png', new Blob(['new-image'], { type: 'image/png' }), 250))
+
+    const result = await readOutfitLibrary(asDirectory(album), {
+      importExternal: false,
+      sharedSource: { x6GameDirectory: asDirectory(x6Game) }
+    })
+
+    expect(result.importedSharedCount).toBe(1)
+    expect(result.failedCount).toBe(0)
+    expect(result.outfits[0]).toMatchObject({ code: '1xEX10emRxS#', createdAt: new Date(200).toISOString() })
+    const clothe = album.directories.get('clothe')!
+    expect(clothe.files.has(`${result.outfits[0].id}.webp`)).toBe(true)
+    expect(JSON.parse(await clothe.files.get(result.outfits[0].metadataName)!.getFile().then((file) => file.text())).code).toBe('1xEX10emRxS#')
+  })
+
+  it('skips an in-game sharecode that already exists locally', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    await saveOutfit(asDirectory(album), {
+      imageFile: browserFile([new Blob(['webp'], { type: 'image/webp' })], 'look.webp', { type: 'image/webp' }),
+      code: '1xEX10emRxS#',
+      tag: null
+    })
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+    const saved = new MemoryDirectoryHandle('Saved')
+    const shareCode = new MemoryDirectoryHandle('ShareCode')
+    const diy = new MemoryDirectoryHandle('DIY')
+    const playerDiy = new MemoryDirectoryHandle('103203027')
+    x6Game.directories.set('Saved', saved)
+    saved.directories.set('ShareCode', shareCode)
+    saved.directories.set('DIY', diy)
+    diy.directories.set('103203027', playerDiy)
+    shareCode.files.set('103203027diy_history_sharecode.json', new MemoryFileHandle(
+      '103203027diy_history_sharecode.json',
+      new Blob([JSON.stringify([{ RoleID: '103203027', ShareCode: '1xEX10emRxS#' }])], { type: 'application/json' }),
+      200
+    ))
+    playerDiy.files.set('latest.png', new MemoryFileHandle('latest.png', new Blob(['new-image'], { type: 'image/png' }), 250))
+
+    const result = await readOutfitLibrary(asDirectory(album), {
+      importExternal: false,
+      sharedSource: { x6GameDirectory: asDirectory(x6Game) }
+    })
+
+    expect(result.importedSharedCount).toBe(0)
+    expect(result.outfits).toHaveLength(1)
+  })
+
+  it('ignores a deleted latest in-game sharecode until the game writes a new one', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+    const saved = new MemoryDirectoryHandle('Saved')
+    const shareCode = new MemoryDirectoryHandle('ShareCode')
+    const diy = new MemoryDirectoryHandle('DIY')
+    const playerDiy = new MemoryDirectoryHandle('103203027')
+    x6Game.directories.set('Saved', saved)
+    saved.directories.set('ShareCode', shareCode)
+    saved.directories.set('DIY', diy)
+    diy.directories.set('103203027', playerDiy)
+    shareCode.files.set('103203027diy_history_sharecode.json', new MemoryFileHandle(
+      '103203027diy_history_sharecode.json',
+      new Blob([JSON.stringify([{ RoleID: '103203027', ShareCode: '1xEX10emRxS#' }])], { type: 'application/json' }),
+      200
+    ))
+    playerDiy.files.set('latest.png', new MemoryFileHandle('latest.png', new Blob(['new-image'], { type: 'image/png' }), 250))
+
+    const imported = await readOutfitLibrary(asDirectory(album), {
+      importExternal: false,
+      sharedSource: { x6GameDirectory: asDirectory(x6Game) }
+    })
+    await deleteOutfit(imported.outfits[0])
+
+    const skipped = await readOutfitLibrary(asDirectory(album), {
+      importExternal: false,
+      sharedSource: { x6GameDirectory: asDirectory(x6Game) }
+    })
+    expect(skipped.importedSharedCount).toBe(0)
+    expect(skipped.outfits).toHaveLength(0)
+
+    shareCode.files.set('103203027diy_history_sharecode.json', new MemoryFileHandle(
+      '103203027diy_history_sharecode.json',
+      new Blob([JSON.stringify([
+        { RoleID: '103203027', ShareCode: '1xEX10emRxS#' },
+        { RoleID: '103203027', ShareCode: 'NEWCODE#' }
+      ])], { type: 'application/json' }),
+      300
+    ))
+    const refreshed = await readOutfitLibrary(asDirectory(album), {
+      importExternal: false,
+      sharedSource: { x6GameDirectory: asDirectory(x6Game) }
+    })
+    expect(refreshed.importedSharedCount).toBe(1)
+    expect(refreshed.outfits[0].code).toBe('NEWCODE#')
+    const clothe = album.directories.get('clothe')!
+    expect(clothe.files.has('ignored-sharecodes.json')).toBe(false)
   })
 
   it('rejects unsupported ZIP content before creating the clothe directory', async () => {

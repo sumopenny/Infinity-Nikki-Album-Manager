@@ -21,6 +21,11 @@ export interface AlbumDirectoryResult {
   photos: PhotoItem[]
 }
 
+export interface X6GameDirectoryOptions {
+  beforePickX6GameDirectory?: () => boolean | Promise<boolean>
+  beforeRequestX6GamePermission?: () => boolean | Promise<boolean>
+}
+
 interface RelatedPhotoCleanupTarget {
   directoryName: string
   directoryHandle: FileSystemDirectoryHandle
@@ -45,10 +50,7 @@ export interface RelatedPhotoCleanupResult {
 
 type FileSystemMessages = LocaleMessages['fileSystem']
 
-interface RelatedPhotoCleanupOptions {
-  beforePickX6GameDirectory?: () => boolean | Promise<boolean>
-  beforeRequestX6GamePermission?: () => boolean | Promise<boolean>
-}
+type RelatedPhotoCleanupOptions = X6GameDirectoryOptions
 
 export interface RefreshAlbumResult extends AlbumDirectoryResult {
   addedCount: number
@@ -708,6 +710,15 @@ async function getValidatedX6GameDirectory(
   } catch (error) {
     throw normalizeDirectoryError(error, messages)
   }
+}
+
+/** 获取当前相册对应的 X6Game 目录授权。参数：albumDirectoryHandle 为当前相册，messages 为文案，options 为授权确认回调。 */
+export async function getX6GameDirectoryForAlbum(
+  albumDirectoryHandle: FileSystemDirectoryHandle,
+  messages: FileSystemMessages,
+  options: X6GameDirectoryOptions = {}
+): Promise<{ directoryHandle: FileSystemDirectoryHandle; accountDirectoryName: string }> {
+  return getValidatedX6GameDirectory(albumDirectoryHandle, messages, options)
 }
 
 async function collectCleanupTarget(

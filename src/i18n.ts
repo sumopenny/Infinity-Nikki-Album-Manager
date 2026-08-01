@@ -19,6 +19,13 @@ export interface LocaleMessages {
     operationNoticeTitle: string
     operationNoticeCloseAria: string
     preferencesUpdating: string
+    clearCacheDialogTitle: string
+    clearCacheConfirmMessage: string
+    clearCacheStatus: string
+    clearDataDialogTitle: string
+    clearDataFirstConfirmMessage: string
+    clearDataSecondConfirmMessage: string
+    clearDataStatus: string
     languageUpdated: string
     themeUpdated: string
     movingPhotosToTrash: string
@@ -67,6 +74,8 @@ export interface LocaleMessages {
     albumMenuAria: string
     viewMenuAria: string
     moreMenuAria: string
+    clearCache: string
+    clearData: string
     help: string
     helpTitle: string
     helpMouseTitle: string
@@ -247,6 +256,13 @@ export const messages: Record<Language, LocaleMessages> = {
       operationNoticeTitle: '操作提示',
       operationNoticeCloseAria: '关闭操作提示',
       preferencesUpdating: '正在应用设置...',
+      clearCacheDialogTitle: '清除缓存',
+      clearCacheConfirmMessage: '将清除 X6Game 授权和搭配码指南“不再提示”状态，保留当前相册文件夹授权。不会删除电脑里的文件。确认后会继续使用当前相册重新加载。',
+      clearCacheStatus: '缓存已清除，当前相册已重新加载。',
+      clearDataDialogTitle: '清除全部数据',
+      clearDataFirstConfirmMessage: '将清除所有网站本地记录，包括相册文件夹授权、X6Game 授权和搭配码指南“不再提示”状态。网站会回到第一次打开的状态，需要重新选择相册。不会删除电脑里的真实文件。',
+      clearDataSecondConfirmMessage: '请再次确认清除全部数据。这个操作只清除浏览器保存的网站状态和授权，不会删除电脑里的照片、clothe 或 trash 文件夹。',
+      clearDataStatus: '全部网站数据已清除。需要继续管理相册时，请重新选择文件夹。',
       languageUpdated: '语言切换成功。',
       themeUpdated: '主题切换成功。',
       movingPhotosToTrash: '正在移入最近删除...',
@@ -310,6 +326,8 @@ export const messages: Record<Language, LocaleMessages> = {
       albumMenuAria: '打开当前相册菜单',
       viewMenuAria: '打开视图菜单',
       moreMenuAria: '打开更多菜单',
+      clearCache: '清除缓存',
+      clearData: '清除数据',
       help: '帮助',
       helpTitle: '相册操作帮助',
       helpMouseTitle: '鼠标操作',
@@ -414,8 +432,8 @@ export const messages: Record<Language, LocaleMessages> = {
       unsupportedBrowser: '当前浏览器不支持选择文件夹。请使用最新版 Chrome 或 Edge，并在 localhost/HTTPS 环境运行。',
       invalidAlbumDirectory: '一键清理需要先选择 NikkiPhotos_HighQuality 文件夹。',
       invalidX6GameDirectory: '所选目录不是当前相册对应的 X6Game 文件夹，请选择路径中的 X6Game 文件夹后重试。',
-      restoreX6GamePermissionPrompt: '已保存的 X6Game 文件夹授权已经失效。点击“继续授权”后，请在浏览器权限窗口中允许本站点编辑该文件夹；如果浏览器无法恢复授权，页面会再提示你重新选择 X6Game 文件夹。',
-      selectX6GameDirectoryPrompt: '首次使用一键清理功能，需要授权当前游戏的 X6Game 文件夹。请在接下来的目录选择窗口中选择路径里的 X6Game 文件夹（...\\InfinityNikki Launcher\\InfinityNikki\\X6Game）。授权会被保存，后续可直接一键清理。'
+      restoreX6GamePermissionPrompt: '已保存的 X6Game 文件夹授权已经失效。点击“继续授权”后，请在浏览器权限窗口中允许本站点编辑该文件夹；如果浏览器无法恢复授权，页面会再提示你重新选择 X6Game 文件夹，用于一键清理和自动读取最新搭配码。',
+      selectX6GameDirectoryPrompt: '需要授权当前游戏的 X6Game 文件夹，用于一键清理低画质/截图，以及自动读取游戏最新搭配码。请在接下来的目录选择窗口中选择路径里的 X6Game 文件夹（...\\InfinityNikki Launcher\\InfinityNikki\\X6Game）。授权会被保存，后续可直接使用。'
     }
   },
   en: {
@@ -431,6 +449,13 @@ export const messages: Record<Language, LocaleMessages> = {
       operationNoticeTitle: 'Operation update',
       operationNoticeCloseAria: 'Close operation update',
       preferencesUpdating: 'Applying settings...',
+      clearCacheDialogTitle: 'Clear cache',
+      clearCacheConfirmMessage: 'This clears the X6Game authorization and the Outfit Guide “don’t show again” state, while keeping the current album folder authorization. It will not delete real photos, clothe, trash, or other files on your computer. The current album will reload afterward.',
+      clearCacheStatus: 'Cache cleared. The current album has been reloaded.',
+      clearDataDialogTitle: 'Clear all data',
+      clearDataFirstConfirmMessage: 'This clears all website local records, including the album folder authorization, X6Game authorization, and Outfit Guide “don’t show again” state. The website will return to first-open state and ask you to choose an album again. It will not delete real files on your computer.',
+      clearDataSecondConfirmMessage: 'Please confirm again to clear all data. This only clears website state and authorizations saved in the browser; it will not delete photos, clothe, or trash folders on your computer.',
+      clearDataStatus: 'All website data has been cleared. Choose a folder again to continue managing your album.',
       languageUpdated: 'Language updated successfully.',
       themeUpdated: 'Theme updated successfully.',
       movingPhotosToTrash: 'Moving photos to Recently Deleted...',
@@ -493,6 +518,8 @@ export const messages: Record<Language, LocaleMessages> = {
       albumMenuAria: 'Open current album menu',
       viewMenuAria: 'Open view menu',
       moreMenuAria: 'Open more menu',
+      clearCache: 'Clear cache',
+      clearData: 'Clear data',
       help: 'Help',
       helpTitle: 'Album help',
       helpMouseTitle: 'Mouse',
@@ -598,7 +625,7 @@ export const messages: Record<Language, LocaleMessages> = {
       invalidAlbumDirectory: 'Choose NikkiPhotos_HighQuality before using related folder cleanup.',
       invalidX6GameDirectory: 'The selected folder is not the X6Game folder that contains the current album. Select that X6Game folder and try again.',
       restoreX6GamePermissionPrompt: 'The saved X6Game folder permission has expired. Click “Continue authorization”, then allow this site to edit the folder in the browser permission prompt. If the browser cannot restore access, the page will ask you to select X6Game again.',
-      selectX6GameDirectoryPrompt: 'To use related folder cleanup for the first time, authorize the X6Game folder for the current game installation. Select the X6Game folder in the next folder picker (...\\InfinityNikki Launcher\\InfinityNikki\\X6Game). The authorization will be remembered for future cleanup.'
+      selectX6GameDirectoryPrompt: 'Authorize the X6Game folder for the current game installation to clean related images and automatically read the latest in-game outfit code. Select the X6Game folder in the next folder picker (...\\InfinityNikki Launcher\\InfinityNikki\\X6Game). The authorization will be remembered for future use.'
     }
   }
 }

@@ -25,6 +25,7 @@ import {
   executeRelatedPhotoCleanup,
   formatFileSize,
   getSavedAlbumDirectoryHandle,
+  getX6GameDirectoryForAlbum,
   listRecentlyDeleted,
   movePhotosToRecentlyDeleted,
   permanentlyDeleteRecentlyDeleted,
@@ -52,7 +53,8 @@ import {
   saveOutfitTags,
   type OutfitItem,
   type OutfitLibraryResult,
-  type SaveOutfitInput
+  type SaveOutfitInput,
+  type SharedOutfitSource
 } from './utils/outfitFileSystem'
 
 const THUMBNAIL_STORAGE_KEY = 'infinity-nikki-thumbnail-mode'
@@ -61,6 +63,15 @@ const OUTFIT_GUIDE_DISMISSED_KEY = 'infinity-nikki-outfit-guide-dismissed'
 const THEME_STORAGE_KEY = 'infinity-nikki-theme-mode'
 const LANGUAGE_STORAGE_KEY = 'infinity-nikki-language'
 const FAVORITES_STORAGE_KEY = 'infinity-nikki-favorite-photo-ids'
+const WEBSITE_LOCAL_STORAGE_KEYS = [
+  THUMBNAIL_STORAGE_KEY,
+  OUTFIT_THUMBNAIL_STORAGE_KEY,
+  OUTFIT_GUIDE_DISMISSED_KEY,
+  THEME_STORAGE_KEY,
+  LANGUAGE_STORAGE_KEY,
+  FAVORITES_STORAGE_KEY
+]
+let suppressLocalPersistence = false
 const storedThumbnailMode = localStorage.getItem(THUMBNAIL_STORAGE_KEY)
 const storedOutfitThumbnailMode = localStorage.getItem(OUTFIT_THUMBNAIL_STORAGE_KEY)
 const storedThemeMode = localStorage.getItem(THEME_STORAGE_KEY)
@@ -130,6 +141,7 @@ const trashSelectedIds = ref<Set<string>>(new Set())
 const favoriteIds = ref<Set<string>>(readStoredFavoriteIds())
 const activeView = ref<AlbumView>('all')
 const currentPreview = ref<PhotoItem | null>(null)
+const sharedOutfitSource = ref<SharedOutfitSource | null>(null)
 const language = ref<Language>(isLanguage(storedLanguage) ? storedLanguage : DEFAULT_LANGUAGE)
 const directoryState = ref<DirectoryState>({ type: 'none' })
 const statusState = ref<StatusState>({ type: 'initial' })
@@ -312,10 +324,12 @@ watch(statusState, (nextStatus) => {
   }, duration)
 })
 
-watch(favoriteIds, (ids) => localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...ids])), { deep: true })
+watch(favoriteIds, (ids) => {
+  if (!suppressLocalPersistence) localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...ids]))
+}, { deep: true })
 watch(language, (value) => {
   document.documentElement.lang = value === 'zh' ? 'zh-CN' : 'en'
-  localStorage.setItem(LANGUAGE_STORAGE_KEY, value)
+  if (!suppressLocalPersistence) localStorage.setItem(LANGUAGE_STORAGE_KEY, value)
 }, { immediate: true })
 watch(themeMode, (value) => {
   const root = document.documentElement
@@ -364,10 +378,14 @@ async function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusStat
   releasePhotoUrls(photos.value)
   releasePhotoUrls(outfits.value)
   releasePhotoUrls(recentlyDeleted.value)
+  sharedOutfitSource.value = null
   selectedIds.value = new Set()
   selectedOutfitIds.value = new Set()
   trashSelectedIds.value = new Set()
   currentPreview.value = null
+  editingOutfit.value = null
+  isOutfitEditorVisible.value = false
+  isOutfitGuideVisible.value = false
   photos.value = result.photos
   const outfitResult = await readOutfitLibrary(result.directoryHandle)
   outfits.value = outfitResult.outfits
@@ -394,7 +412,7 @@ async function applyPreference(preference: 'language' | 'theme') {
     language.value = language.value === 'zh' ? 'en' : 'zh'
   } else {
     themeMode.value = themeMode.value === 'light' ? 'dark' : 'light'
-    localStorage.setItem(THEME_STORAGE_KEY, themeMode.value)
+    if (!suppressLocalPersistence) localStorage.setItem(THEME_STORAGE_KEY, themeMode.value)
   }
 
   await nextTick()
@@ -453,11 +471,8 @@ async function chooseDirectory() {
   }
 }
 
-/** 清除保存的目录授权和当前页面状态。参数：无。 */
-async function clearDirectory() {
-  if (isAnyFileOperationBusy.value) return
-  await clearSavedAlbumDirectoryHandle()
-  await clearSavedX6GameDirectoryHandle()
+/** 清除页面内已加载的相册和选择状态。参数：无。 */
+function resetLoadedAlbumState() {
   releasePhotoUrls(photos.value)
   releasePhotoUrls(outfits.value)
   releasePhotoUrls(recentlyDeleted.value)
@@ -469,10 +484,96 @@ async function clearDirectory() {
   selectedOutfitIds.value = new Set()
   trashSelectedIds.value = new Set()
   currentPreview.value = null
+  editingOutfit.value = null
+  isOutfitEditorVisible.value = false
+  isOutfitGuideVisible.value = false
+  sharedOutfitSource.value = null
+}
+
+/** 清除保存的目录授权和当前页面状态。参数：无。 */
+async function clearDirectory() {
+  if (isAnyFileOperationBusy.value) return
+  await clearSavedAlbumDirectoryHandle()
+  await clearSavedX6GameDirectoryHandle()
+  resetLoadedAlbumState()
   albumDirectoryHandle.value = null
   activeView.value = 'all'
   directoryState.value = { type: 'none' }
   statusState.value = { type: 'cleared' }
+}
+
+/** 移除浏览器保存的网站本地键值。参数：无。 */
+function clearWebsiteLocalStorage() {
+  for (const key of WEBSITE_LOCAL_STORAGE_KEYS) localStorage.removeItem(key)
+}
+
+/** 清除缓存但保留当前相册授权。参数：无。 */
+async function clearCache() {
+  if (isAnyFileOperationBusy.value) return
+  const directoryHandle = albumDirectoryHandle.value
+  if (!directoryHandle) return
+  const confirmed = await openConfirmDialog({
+    title: locale.value.app.clearCacheDialogTitle,
+    message: locale.value.app.clearCacheConfirmMessage,
+    tone: 'warning',
+    confirmLabel: locale.value.topBar.clearCache,
+    cancelLabel: locale.value.app.dialogCancel
+  })
+  if (!confirmed) return
+
+  try {
+    await clearSavedX6GameDirectoryHandle()
+    localStorage.removeItem(OUTFIT_GUIDE_DISMISSED_KEY)
+    sharedOutfitSource.value = null
+    isOutfitGuideDismissed.value = false
+    const result = await readAlbumDirectory(directoryHandle, { requestPermission: false, messages: locale.value.fileSystem })
+    await replaceAlbum(result, { type: 'custom', message: locale.value.app.clearCacheStatus, tone: 'success' })
+  } catch (error) {
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+  }
+}
+
+/** 二次确认后清除所有网站本地数据和授权。参数：无。 */
+async function clearData() {
+  if (isAnyFileOperationBusy.value) return
+  const firstConfirmed = await openConfirmDialog({
+    title: locale.value.app.clearDataDialogTitle,
+    message: locale.value.app.clearDataFirstConfirmMessage,
+    tone: 'warning',
+    confirmLabel: locale.value.topBar.clearData,
+    cancelLabel: locale.value.app.dialogCancel
+  })
+  if (!firstConfirmed) return
+  const secondConfirmed = await openConfirmDialog({
+    title: locale.value.app.clearDataDialogTitle,
+    message: locale.value.app.clearDataSecondConfirmMessage,
+    tone: 'danger',
+    confirmLabel: locale.value.topBar.clearData,
+    cancelLabel: locale.value.app.dialogCancel
+  })
+  if (!secondConfirmed) return
+
+  suppressLocalPersistence = true
+  try {
+    await clearSavedAlbumDirectoryHandle()
+    await clearSavedX6GameDirectoryHandle()
+    clearWebsiteLocalStorage()
+    resetLoadedAlbumState()
+    favoriteIds.value = new Set()
+    activeOutfitFilter.value = 'all'
+    albumDirectoryHandle.value = null
+    activeView.value = 'all'
+    directoryState.value = { type: 'none' }
+    language.value = DEFAULT_LANGUAGE
+    thumbnailMode.value = 'default'
+    outfitThumbnailMode.value = 'portrait-standard'
+    themeMode.value = 'light'
+    isOutfitGuideDismissed.value = false
+    statusState.value = { type: 'custom', message: locale.value.app.clearDataStatus, tone: 'success' }
+    await nextTick()
+  } finally {
+    suppressLocalPersistence = false
+  }
 }
 
 /**
@@ -511,11 +612,12 @@ async function refreshAlbum(manual: boolean) {
       messages: locale.value.fileSystem
     })
     applyRefreshResult(result)
-    const outfitResult = await refreshOutfitLibrary(true)
-    if (outfitResult.importedExternalCount || outfitResult.failedCount) {
+    const outfitResult = await refreshOutfitLibrary(true, activeView.value === 'outfits')
+    const outfitAddedCount = outfitResult.importedExternalCount + outfitResult.importedSharedCount
+    if (outfitAddedCount || outfitResult.failedCount) {
       statusState.value = {
         type: 'custom',
-        message: outfitLocale.value.scanComplete(outfitResult.importedExternalCount, outfitResult.failedCount),
+        message: outfitLocale.value.scanComplete(outfitAddedCount, outfitResult.failedCount),
         tone: outfitResult.failedCount ? 'warning' : 'success'
       }
     } else if (result.addedCount || result.removedCount) {
@@ -536,11 +638,11 @@ async function refreshAlbum(manual: boolean) {
 function changeThumbnailMode(mode: ThumbnailMode) {
   if (activeView.value === 'outfits') {
     outfitThumbnailMode.value = mode
-    localStorage.setItem(OUTFIT_THUMBNAIL_STORAGE_KEY, mode)
+    if (!suppressLocalPersistence) localStorage.setItem(OUTFIT_THUMBNAIL_STORAGE_KEY, mode)
     return
   }
   thumbnailMode.value = mode
-  localStorage.setItem(THUMBNAIL_STORAGE_KEY, mode)
+  if (!suppressLocalPersistence) localStorage.setItem(THUMBNAIL_STORAGE_KEY, mode)
 }
 
 /** 切换亮暗主题。参数：无。 */
@@ -548,12 +650,56 @@ function toggleTheme() {
   return applyPreference('theme')
 }
 
-/** 重新扫描搭配方案，并释放已经失效的图片地址。 */
-async function refreshOutfitLibrary(importExternal: boolean): Promise<OutfitLibraryResult> {
+/** 获取或恢复当前相册对应的 X6Game 授权，用于自动读取游戏最新搭配码。参数：prompt 表示是否允许弹出授权说明。 */
+async function ensureSharedOutfitSource(prompt: boolean): Promise<SharedOutfitSource | null> {
   const directoryHandle = albumDirectoryHandle.value
-  if (!directoryHandle) return { outfits: [], tags: [], importedExternalCount: 0, failedCount: 0 }
+  if (!directoryHandle) return null
+  if (sharedOutfitSource.value) return sharedOutfitSource.value
+
+  let didCancelDirectoryPrompt = false
+  try {
+    const result = await getX6GameDirectoryForAlbum(directoryHandle, locale.value.fileSystem, {
+      beforeRequestX6GamePermission: async () => {
+        if (!prompt) return false
+        const confirmed = await openConfirmDialog({
+          title: locale.value.app.x6GameDirectoryDialogTitle,
+          message: locale.value.fileSystem.restoreX6GamePermissionPrompt,
+          tone: 'info',
+          confirmLabel: locale.value.app.dialogContinueAuthorization,
+          cancelLabel: locale.value.app.dialogCancel
+        })
+        didCancelDirectoryPrompt = !confirmed
+        return confirmed
+      },
+      beforePickX6GameDirectory: async () => {
+        if (!prompt) return false
+        const confirmed = await openConfirmDialog({
+          title: locale.value.app.x6GameDirectoryDialogTitle,
+          message: locale.value.fileSystem.selectX6GameDirectoryPrompt,
+          tone: 'info',
+          confirmLabel: locale.value.app.dialogOk,
+          cancelLabel: locale.value.app.dialogCancel
+        })
+        didCancelDirectoryPrompt = !confirmed
+        return confirmed
+      }
+    })
+    sharedOutfitSource.value = { x6GameDirectory: result.directoryHandle }
+    return sharedOutfitSource.value
+  } catch (error) {
+    if (didCancelDirectoryPrompt) return null
+    if (prompt) statusState.value = createErrorStatus(error, { type: 'readFailed' })
+    return null
+  }
+}
+
+/** 重新扫描搭配方案，并释放已经失效的图片地址。 */
+async function refreshOutfitLibrary(importExternal: boolean, promptSharedAccess = false): Promise<OutfitLibraryResult> {
+  const directoryHandle = albumDirectoryHandle.value
+  if (!directoryHandle) return { outfits: [], tags: [], importedExternalCount: 0, importedSharedCount: 0, failedCount: 0 }
   const previousPreviewId = activeView.value === 'outfits' ? currentPreview.value?.id : null
-  const result = await readOutfitLibrary(directoryHandle, { importExternal, create: true })
+  const sharedSource = await ensureSharedOutfitSource(promptSharedAccess)
+  const result = await readOutfitLibrary(directoryHandle, { importExternal, create: true, sharedSource })
   releasePhotoUrls(outfits.value)
   outfits.value = result.outfits
   outfitTags.value = result.tags
@@ -568,9 +714,10 @@ async function refreshOutfitLibrary(importExternal: boolean): Promise<OutfitLibr
 
 /** 显示搭配码更新结果。参数：result 为扫描结果；无新增和失败时提示已是最新状态。 */
 function showOutfitRefreshResult(result: OutfitLibraryResult) {
+  const addedCount = result.importedExternalCount + result.importedSharedCount
   showOutfitStatus(
-    result.importedExternalCount || result.failedCount
-      ? outfitLocale.value.scanComplete(result.importedExternalCount, result.failedCount)
+    addedCount || result.failedCount
+      ? outfitLocale.value.scanComplete(addedCount, result.failedCount)
       : outfitLocale.value.upToDate,
     result.failedCount ? 'warning' : 'success'
   )
@@ -582,7 +729,7 @@ async function updateOutfitLibrary(importExternal = true) {
   isUpdatingOutfits.value = true
   showOutfitStatus(outfitLocale.value.updating, 'info', true)
   try {
-    showOutfitRefreshResult(await refreshOutfitLibrary(importExternal))
+    showOutfitRefreshResult(await refreshOutfitLibrary(importExternal, true))
   } catch (error) {
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
   } finally {
@@ -605,8 +752,10 @@ function changeAlbumView(view: AlbumView) {
 /** 关闭搭配码操作指南。参数：dontShowAgain 表示后续进入模块时是否不再显示；同时同步本地偏好。 */
 function closeOutfitGuide(dontShowAgain: boolean) {
   isOutfitGuideDismissed.value = dontShowAgain
-  if (dontShowAgain) localStorage.setItem(OUTFIT_GUIDE_DISMISSED_KEY, 'true')
-  else localStorage.removeItem(OUTFIT_GUIDE_DISMISSED_KEY)
+  if (!suppressLocalPersistence) {
+    if (dontShowAgain) localStorage.setItem(OUTFIT_GUIDE_DISMISSED_KEY, 'true')
+    else localStorage.removeItem(OUTFIT_GUIDE_DISMISSED_KEY)
+  }
   isOutfitGuideVisible.value = false
 }
 
@@ -1275,6 +1424,8 @@ onBeforeUnmount(() => {
       @clear-directory="clearDirectory"
       @refresh-album="refreshAlbum(true)"
       @clean-related-photos="cleanRelatedPhotos"
+      @clear-cache="clearCache"
+      @clear-data="clearData"
       @change-thumbnail-mode="changeThumbnailMode"
       @toggle-language="toggleLanguage"
       @toggle-theme="toggleTheme"

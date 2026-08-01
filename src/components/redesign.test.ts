@@ -65,6 +65,8 @@ describe('redesigned album controls', () => {
     expect(wrapper.text()).toContain(messages.zh.topBar.thumbnail)
 
     await wrapper.get(`[aria-label="${messages.zh.topBar.moreMenuAria}"]`).trigger('click')
+    expect(wrapper.text()).toContain(messages.zh.topBar.clearCache)
+    expect(wrapper.text()).toContain(messages.zh.topBar.clearData)
     expect(wrapper.get('.xiaohongshu-link').attributes('href')).toBe('https://xhslink.com/m/3IEU0XhZ6e')
     expect(wrapper.get('.douyin-link').attributes('href')).toBe('https://v.douyin.com/VdLd5oOXz8I/')
     await wrapper.findAll('.header-dropdown button').find((button) => button.text() === messages.zh.topBar.help)?.trigger('click')

@@ -38,7 +38,7 @@
 
 - 按“年份 > 月份 > 日期”分组，支持折叠时间轴和日期快速跳转。
 - 使用“全部照片 / 搭配码 / 收藏夹 / 最近删除”四个独立入口管理照片和搭配方案。
-- 顶部通过“当前相册 / 视图 / 更多”菜单集中管理目录、主题、缩略图、语言、帮助和项目链接。
+- 顶部通过“当前相册 / 视图 / 更多”菜单集中管理目录、主题、缩略图、语言、缓存/数据清理、帮助和项目链接。
 - 手动刷新相册，并在页面重新获得焦点时自动发现新增或外部删除的照片。
 - 删除的高画质照片会移动到当前相册的 `trash` 文件夹，可预览、恢复或永久删除。
 - 单击选择后从页面底部显示批量收藏、删除、恢复或永久删除操作栏。
@@ -100,8 +100,9 @@
 - 点击“添加方案”可选择、拖拽或粘贴图片（点击窗口空白处后按 `Ctrl+V`）；JPG 和 PNG 会在本地转换为 WebP，搭配码允许留空，标签最多选择一个，双击图片可打开预览。
 - 搭配方案大图预览的底部工具栏会显示当前标签和搭配码，并提供复制与编辑按钮；从大图打开编辑窗口后，保存或关闭编辑仍返回当前大图。
 - 网站会在当前相册中按需创建 `clothe` 文件夹来管理搭配码。批量导入时可直接把保存好的搭配图片放入该文件夹，打开、刷新或重新聚焦页面时会自动转为待填写方案。
+- 使用自动更新搭配码的功能需要授权当前游戏的 `X6Game` 文件夹。在游戏内点击分享按钮，需要在搭配截图右下角点击框选按钮，框选完成后生成搭配码，再返回网页，网站会从 `Saved\ShareCode` 查找最新 `sharecode` JSON，从文件名开头读取玩家 ID（如 `103203027diy_history_sharecode.json` → `103203027`），再读取最后一条 `ShareCode`，并从 `Saved\DIY\该玩家ID` 取最新图片自动转成 WebP 写入 `clothe`。已有相同搭配码会跳过，避免重复；如果用户删除了当前游戏最新自动导入的搭配码，网站会在 `clothe` 中临时记录忽略，刷新不会重新导入，直到游戏生成新的最新搭配码后自动清理旧忽略。
 - 进入搭配码、刷新相册、关闭编辑窗口或页面重新获得焦点并扫描搭配方案时，顶部会显示“搭配码更新中”提示；完成后会提示已是最新状态或本次新增与失败数量。
-- “导出数据”会先提示 ZIP 将写入当前相册文件夹，确认后自动生成包含标签、方案 JSON 和图片的 ZIP；成功提示会显示文件名和保存位置。“导入数据”会校验后合并，不覆盖已有方案。
+- “导出数据”会先确认，并在当前相册文件夹中导出为 ZIP，成功提示会显示文件名和保存位置。“导入数据”会校验并合并 ZIP，不覆盖已有方案；重复或无效内容会跳过。删除搭配方案是永久删除，不会进入最近删除。
 - 单击搭配方案可进行多选并显示底部工具栏，支持全选、取消选择和批量永久删除；不提供收藏操作，删除不会进入最近删除。
 - 搭配方案删除后不会进入普通照片的 `trash`，确认前请核对方案信息。
 
@@ -146,9 +147,9 @@ Chrome 和 Edge 会阻止网页访问系统目录。请直接选择 `NikkiPhotos
 ### 隐私与安全
 
 - 照片在本地浏览器中读取，不会上传到项目服务器。
-- 相册目录授权和收藏记录保存在当前浏览器本地。
+- 相册目录授权和收藏记录保存在当前浏览器本地；“更多”里的“清除缓存”只清除 `X6Game` 授权和搭配码指南“不再提示”状态并保留当前相册授权，“清除数据”会二次确认后清除全部网站本地记录和授权，让网站回到首次打开状态。
 - 浏览器可能因安全策略要求重新授权文件夹。
-- 删除和一键清理会修改电脑中的真实文件，请确认后操作。
+- 删除和一键清理会修改电脑中的真实文件；“清除缓存”和“清除数据”不会删除电脑里的真实照片、`clothe`、`trash` 或其他文件。
 
 ### 开发者本地运行
 
@@ -200,7 +201,7 @@ npm run preview   # 预览构建结果
 - Group photos by year, month, and date with a collapsible timeline and quick date jumps.
 - Favorite photos and browse Favorites separately.
 - Use separate All photos, Outfit codes, Favorites, and Recently deleted views.
-- Use the Current album, View, and More menus for folders, themes, thumbnails, language, help, and project links.
+- Use the Current album, View, and More menus for folders, themes, thumbnails, language, cache/data cleanup, help, and project links.
 - Refresh manually or let the app detect new and externally removed photos when the page regains focus.
 - Deleted high-quality photos move to the album's `trash` folder for preview, restore, or permanent deletion.
 - Select photos to reveal a fixed bottom bar for batch favorite, delete, restore, or permanent deletion.
@@ -262,8 +263,9 @@ Supported formats: `jpg`, `jpeg`, `png`, `webp`, `gif`, `bmp`, `avif`.
 - Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press `Ctrl+V`). JPG and PNG files are converted locally to WebP; the code is optional, each plan can use one tag, and double-clicking the image opens the preview.
 - The outfit preview toolbar shows the current tag and outfit code, with Copy and Edit actions. Opening the editor from the preview returns to the same image after saving or closing it.
 - The app creates a `clothe` folder inside the selected album to manage outfit codes. For bulk import, place saved outfit images directly in this folder; opening, refreshing, or refocusing the page imports them as pending plans.
+- Using auto update for outfit codes requires authorizing the current game's `X6Game` folder. In the game, tap Share, then tap the selection button at the lower-right of the outfit screenshot. After the selection generates an outfit code, return to the web page and the app finds the latest `sharecode` JSON in `Saved\ShareCode`, reads the player ID from the beginning of the file name (for example, `103203027diy_history_sharecode.json` → `103203027`), then reads the last `ShareCode` and takes the latest image from `Saved\DIY\That player ID`, converts it to WebP, and writes it into `clothe`. Matching existing codes are skipped to avoid duplicates.
 - When outfit plans are scanned after entering Outfit Codes, refreshing the album, closing the editor, or refocusing the page, the top notice shows that outfit codes are updating, followed by an up-to-date message or the added and failed counts.
-- Export first confirms that the ZIP will be written to the current album folder, then creates a backup containing tags, outfit JSON, and images there. The success notice shows the file name and saved location. Import validates and merges a backup without replacing current plans.
+- Export asks for confirmation, then exports a ZIP in the current album folder. The success notice shows the file name and saved location. Import validates and merges a ZIP without replacing existing plans; duplicate or invalid content is skipped. Deleting an outfit is permanent and does not use Recently deleted.
 - Single-click outfit cards to select multiple plans and open the bottom toolbar. It supports select all, cancel selection, and permanent batch deletion; there is no favorite action, and deleted outfits do not go to Recently Deleted.
 - Outfit deletion is permanent and does not use the normal photo `trash` folder.
 
@@ -308,7 +310,7 @@ Chrome and Edge block access to protected system folders. Select `NikkiPhotos_Hi
 ### Privacy and Safety
 
 - Photos are read locally in your browser and are not uploaded to the project server.
-- Folder access and Favorites are stored in the current browser.
+- Folder access and Favorites are stored in the current browser. In More, Clear cache only clears the `X6Game` authorization and the Outfit Guide “don't show again” state while keeping the current album authorization; Clear data asks twice, then clears all website local records and authorizations so the website returns to first-open state.
 - Browser security policies may require folder authorization again.
 - Delete and cleanup actions modify real files on your computer.
 

@@ -87,6 +87,8 @@ describe('outfit workspace components', () => {
       global: { stubs: { Teleport: true } }
     })
 
+    expect(wrapper.text()).toContain('自动更新游戏搭配码')
+    expect(wrapper.text()).toContain('搭配截图右下角点击框选按钮')
     expect(wrapper.text()).toContain('批量导入搭配图片')
     expect(wrapper.text()).toContain('clothe')
     expect(wrapper.text()).toContain('导入与导出')

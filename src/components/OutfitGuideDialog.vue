@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { Archive, FolderOpen, ImagePlus, Tags, X } from 'lucide-vue-next'
+import { Archive, FolderOpen, ImagePlus, Sparkles, Tags, X } from 'lucide-vue-next'
 import type { OutfitMessages } from '../outfitMessages'
 
 const props = defineProps<{
@@ -17,6 +17,7 @@ const dontShowAgain = ref(false)
 const closeButtonRef = ref<HTMLButtonElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
 const sectionIcons = [ImagePlus, Tags, FolderOpen, Archive]
+const featuredIcon = Sparkles
 let previousBodyOverflow = ''
 let previousActiveElement: HTMLElement | null = null
 
@@ -97,6 +98,16 @@ onBeforeUnmount(() => {
           </header>
 
           <p class="outfit-guide-intro">{{ messages.guideIntro }}</p>
+
+          <section class="outfit-guide-featured">
+            <div class="outfit-guide-section-icon" aria-hidden="true">
+              <component :is="featuredIcon" :size="18" />
+            </div>
+            <div>
+              <h3>{{ messages.guideFeaturedSection.title }}</h3>
+              <p v-for="item in messages.guideFeaturedSection.items" :key="item">{{ item }}</p>
+            </div>
+          </section>
 
           <div class="outfit-guide-sections">
             <section v-for="(section, index) in messages.guideSections" :key="section.title">

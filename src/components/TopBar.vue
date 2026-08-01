@@ -13,6 +13,7 @@ import {
   Moon,
   MoreHorizontal,
   RefreshCw,
+  RotateCcw,
   Sun,
   Trash2,
   X
@@ -42,6 +43,8 @@ const emit = defineEmits<{
   clearDirectory: []
   refreshAlbum: []
   cleanRelatedPhotos: []
+  clearCache: []
+  clearData: []
   toggleLanguage: []
   toggleTheme: []
   changeThumbnailMode: [mode: ThumbnailMode]
@@ -238,6 +241,15 @@ onBeforeUnmount(() => {
         </button>
         <Teleport to="body">
           <div v-if="openMenu === 'more'" ref="dropdownRef" class="header-dropdown header-dropdown-right" :style="{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }" role="menu">
+          <button type="button" role="menuitem" :disabled="!hasAlbumDirectory || isBusy" @click="runMenuAction(() => emit('clearCache'))">
+            <RotateCcw :size="16" />
+            <span>{{ messages.clearCache }}</span>
+          </button>
+          <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('clearData'))">
+            <Trash2 :size="16" />
+            <span>{{ messages.clearData }}</span>
+          </button>
+          <div class="menu-separator"></div>
           <button type="button" role="menuitem" @click="closeMenus(); showHelp = true">
             <CircleHelp :size="16" />
             <span>{{ messages.help }}</span>

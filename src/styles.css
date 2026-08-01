@@ -2282,12 +2282,17 @@ h1 {
   grid-template-columns: 1fr 1fr;
 }
 
+.outfit-guide-featured,
 .outfit-guide-sections > section {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
   gap: 10px;
   padding: 16px 18px;
   border-bottom: 1px solid var(--line-soft);
+}
+
+.outfit-guide-featured {
+  background: color-mix(in srgb, var(--pink-deep) 7%, var(--surface));
 }
 
 .outfit-guide-sections > section:nth-child(odd) {
@@ -2305,12 +2310,14 @@ h1 {
   color: var(--pink-deep);
 }
 
+.outfit-guide-featured h3,
 .outfit-guide-sections h3 {
   margin: 3px 0 7px;
   color: var(--heading);
   font-size: 13px;
 }
 
+.outfit-guide-featured p,
 .outfit-guide-sections p {
   margin: 0 0 7px;
   color: var(--text);
@@ -2318,6 +2325,7 @@ h1 {
   line-height: 1.65;
 }
 
+.outfit-guide-featured p:last-child,
 .outfit-guide-sections p:last-child {
   margin-bottom: 0;
 }
@@ -2919,6 +2927,7 @@ h1 {
   }
 
   .outfit-guide-intro,
+  .outfit-guide-featured,
   .outfit-guide-sections > section {
     padding-inline: 14px;
   }
