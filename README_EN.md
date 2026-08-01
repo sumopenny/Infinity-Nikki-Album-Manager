@@ -34,7 +34,7 @@
 ## Features
 
 - Group photos by year, month, and date with a collapsible timeline and quick date jumps.
-- Use the Current album, View, and More menus to manage folders, themes, thumbnails, language, cache/data cleanup, help, and project links.
+- Use the Current album, View, and More menus to manage folders, `X6Game` authorization, themes, thumbnails, language, cache/data cleanup, help, and project links.
 - Deleted high-quality photos move to the current album's `trash` folder for preview, restore, or permanent deletion.
 - Single-click photos to show a bottom action bar for batch favorite, delete, restore, or permanent deletion.
 - Double-click to open the large preview with 50%–300% zoom, mouse-wheel zooming, and drag-to-pan after zooming in.

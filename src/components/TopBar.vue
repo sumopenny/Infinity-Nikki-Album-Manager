@@ -42,6 +42,7 @@ const emit = defineEmits<{
   chooseDirectory: []
   clearDirectory: []
   refreshAlbum: []
+  authorizeX6Game: []
   cleanRelatedPhotos: []
   clearCache: []
   clearData: []
@@ -173,6 +174,10 @@ onBeforeUnmount(() => {
           <button type="button" role="menuitem" :disabled="!hasAlbumDirectory || isBusy" @click="runMenuAction(() => emit('clearDirectory'))">
             <Trash2 :size="16" />
             <span>{{ messages.clearDirectory }}</span>
+          </button>
+          <button type="button" role="menuitem" :disabled="!hasAlbumDirectory || isBusy" @click="runMenuAction(() => emit('authorizeX6Game'))">
+            <FolderOpen :size="16" />
+            <span>{{ messages.authorizeX6Game }}</span>
           </button>
           <div class="menu-separator"></div>
           <button type="button" role="menuitem" :disabled="!hasAlbumDirectory || isBusy" @click="runMenuAction(() => emit('cleanRelatedPhotos'))">

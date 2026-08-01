@@ -22,6 +22,8 @@ export interface LocaleMessages {
     clearCacheDialogTitle: string
     clearCacheConfirmMessage: string
     clearCacheStatus: string
+    authorizeX6GameStatus: string
+    x6GameAuthorizationCancelledStatus: string
     clearDataDialogTitle: string
     clearDataFirstConfirmMessage: string
     clearDataSecondConfirmMessage: string
@@ -63,6 +65,7 @@ export interface LocaleMessages {
     chooseDirectory: string
     loading: string
     clearDirectory: string
+    authorizeX6Game: string
     refreshAlbum: string
     refreshing: string
     thumbnail: string
@@ -259,6 +262,8 @@ export const messages: Record<Language, LocaleMessages> = {
       clearCacheDialogTitle: '清除缓存',
       clearCacheConfirmMessage: '将清除 X6Game 授权和搭配码指南“不再提示”状态，保留当前相册文件夹授权。不会删除电脑里的文件。确认后会继续使用当前相册重新加载。',
       clearCacheStatus: '缓存已清除，当前相册已重新加载。',
+      authorizeX6GameStatus: 'X6Game 文件夹授权已完成。',
+      x6GameAuthorizationCancelledStatus: '已取消 X6Game 文件夹授权。后续进入搭配码界面将不再自动弹出授权窗口，可在当前相册下拉框中点击“授权 X6Game”手动授权。',
       clearDataDialogTitle: '清除全部数据',
       clearDataFirstConfirmMessage: '将清除所有网站本地记录，包括相册文件夹授权、X6Game 授权和搭配码指南“不再提示”状态。网站会回到第一次打开的状态，需要重新选择相册。不会删除电脑里的真实文件。',
       clearDataSecondConfirmMessage: '请再次确认清除全部数据。这个操作只清除浏览器保存的网站状态和授权，不会删除电脑里的照片、clothe 或 trash 文件夹。',
@@ -315,6 +320,7 @@ export const messages: Record<Language, LocaleMessages> = {
       chooseDirectory: '选择/恢复相册路径',
       loading: '正在读取...',
       clearDirectory: '清除路径',
+      authorizeX6Game: '授权 X6Game',
       refreshAlbum: '刷新相册',
       refreshing: '刷新中...',
       thumbnail: '缩略图',
@@ -452,6 +458,8 @@ export const messages: Record<Language, LocaleMessages> = {
       clearCacheDialogTitle: 'Clear cache',
       clearCacheConfirmMessage: 'This clears the X6Game authorization and the Outfit Guide “don’t show again” state, while keeping the current album folder authorization. It will not delete real photos, clothe, trash, or other files on your computer. The current album will reload afterward.',
       clearCacheStatus: 'Cache cleared. The current album has been reloaded.',
+      authorizeX6GameStatus: 'X6Game folder authorization completed.',
+      x6GameAuthorizationCancelledStatus: 'X6Game folder authorization was canceled. The authorization window will no longer open automatically when entering Outfit Codes; use Authorize X6Game from the Current album menu when needed.',
       clearDataDialogTitle: 'Clear all data',
       clearDataFirstConfirmMessage: 'This clears all website local records, including the album folder authorization, X6Game authorization, and Outfit Guide “don’t show again” state. The website will return to first-open state and ask you to choose an album again. It will not delete real files on your computer.',
       clearDataSecondConfirmMessage: 'Please confirm again to clear all data. This only clears website state and authorizations saved in the browser; it will not delete photos, clothe, or trash folders on your computer.',
@@ -507,6 +515,7 @@ export const messages: Record<Language, LocaleMessages> = {
       chooseDirectory: 'Choose / restore album folder',
       loading: 'Reading...',
       clearDirectory: 'Clear folder',
+      authorizeX6Game: 'Authorize X6Game',
       refreshAlbum: 'Refresh album',
       refreshing: 'Refreshing...',
       thumbnail: 'Thumbnail',

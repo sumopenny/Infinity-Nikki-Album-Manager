@@ -58,6 +58,11 @@ describe('redesigned album controls', () => {
 
     await wrapper.get(`[aria-label="${messages.zh.topBar.albumMenuAria}"]`).trigger('click')
     expect(wrapper.findAll('.header-dropdown')).toHaveLength(1)
+    expect(wrapper.text()).toContain(messages.zh.topBar.authorizeX6Game)
+    await wrapper.findAll('.header-dropdown button').find((button) => button.text() === messages.zh.topBar.authorizeX6Game)?.trigger('click')
+    expect(wrapper.emitted('authorizeX6Game')).toHaveLength(1)
+
+    await wrapper.get(`[aria-label="${messages.zh.topBar.albumMenuAria}"]`).trigger('click')
     expect(wrapper.text()).toContain(messages.zh.topBar.cleanRelatedPhotos)
 
     await wrapper.get(`[aria-label="${messages.zh.topBar.viewMenuAria}"]`).trigger('click')
