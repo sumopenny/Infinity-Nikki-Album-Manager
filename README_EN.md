@@ -24,12 +24,10 @@
 <div align="center">
   <img src="img/1.webp" alt="Project UI" width="49%">
   <img src="img/2.webp" alt="Project UI" width="49%">
-
-  <img src="img/搭配码.webp" alt="Project UI" width="49%">
-  <img src="img/搭配码编辑.webp" alt="Project UI" width="49%">
-
   <img src="img/3.webp" alt="Project UI" width="49%">
-  <img src="img/4.webp" alt="Project UI" width="49%">
+  <img src="img/搭配码编辑.webp" alt="Project UI" width="49%">
+  <img src="img/搭配码.webp" alt="Project UI" width="90%">
+
 </div>
 
 
@@ -45,10 +43,6 @@
 - Remember the album folder and favorite state, with Chinese/English and light/dark themes.
 - Store outfit images, outfit codes, and single-choice tags locally, with pending plans, automatic image intake, and ZIP import/export.
 - Clean low-quality photos and game screenshots for the same account with one action.
-
-<div>
-  <img src="img/5.webp" width="49%">
-</div>
 
 ## Quick Start
 

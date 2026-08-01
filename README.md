@@ -24,12 +24,10 @@
 <div align="center">
   <img src="img/1.webp" alt="项目界面" width="49%">
   <img src="img/2.webp" alt="项目界面" width="49%">
-
-  <img src="img/搭配码.webp" alt="项目界面" width="49%">
-  <img src="img/搭配码编辑.webp" alt="项目界面" width="49%">
-
   <img src="img/3.webp" alt="项目界面" width="49%">
-  <img src="img/4.webp" alt="项目界面" width="49%">
+  <img src="img/搭配码编辑.webp" alt="项目界面" width="49%">
+  <img src="img/搭配码.webp" alt="项目界面" width="90%">
+ 
 </div>
 
 
@@ -45,10 +43,6 @@
 - 记住相册目录和收藏状态，支持中英文与亮暗主题。
 - 在本地保存搭配图片、搭配码和单选标签，支持待填写方案、自动接收图片以及 ZIP 导入导出。
 - 一键清理同账号的低画质照片与游戏截图。
-
-<div>
-  <img src="img/5.webp" width="49%">
-</div>
 
 ## 快速开始
 
