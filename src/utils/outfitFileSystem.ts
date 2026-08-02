@@ -448,11 +448,12 @@ async function findLatestDiyImage(
   return candidates[0] ?? null
 }
 
-/** 从游戏 ShareCode 与 DIY 目录导入最新搭配方案。参数：directory 为 clothe 目录，existingOutfits 为现有方案，source 为 X6Game 授权目录。 */
+/** 从游戏 ShareCode 与 DIY 目录导入最新搭配方案。参数：directory 为 clothe 目录，existingOutfits 为现有方案，source 为 X6Game 授权目录，onImportStart 在确认开始写入新方案时触发。 */
 async function importLatestSharedOutfit(
   directory: FileSystemDirectoryHandle,
   existingOutfits: OutfitItem[],
-  source: SharedOutfitSource
+  source: SharedOutfitSource,
+  onImportStart?: () => void
 ): Promise<SharedOutfitImportResult> {
   try {
     const shareCodeDirectory = await getNestedDirectory(source.x6GameDirectory, ['Saved', 'ShareCode'])
@@ -470,6 +471,8 @@ async function importLatestSharedOutfit(
     const latestImage = diyDirectory ? await findLatestDiyImage(diyDirectory) : null
     if (!latestImage) return { importedCount: 0, duplicateCount: 0, failedCount: 1 }
 
+    // 确认要导入新方案时通知调用方，让后台静默扫描补显示“更新中”状态
+    onImportStart?.()
     const id = await createAvailableOutfitId(directory, `sharecode-${latestShareCode.playerId}-${Math.floor(latestShareCode.timestamp)}`)
     const imageName = `${id}.webp`
     const metadataName = `${id}.json`
@@ -495,13 +498,16 @@ async function importLatestSharedOutfit(
   }
 }
 
-async function importExternalImages(directory: FileSystemDirectoryHandle, pairedImageNames: Set<string>): Promise<{ imported: number; failed: number }> {
+/** 把未配对的外部图片导入为待填写方案。参数：directory 为 clothe 目录，pairedImageNames 为已有方案的图片名，onImportStart 在发现待导入图片时触发。 */
+async function importExternalImages(directory: FileSystemDirectoryHandle, pairedImageNames: Set<string>, onImportStart?: () => void): Promise<{ imported: number; failed: number }> {
   const candidates: Array<{ name: string; handle: FileSystemFileHandle }> = []
   for await (const [name, handle] of directory.entries()) {
     if (handle.kind === 'file' && isSupportedImage(name) && !pairedImageNames.has(name)) {
       candidates.push({ name, handle: handle as FileSystemFileHandle })
     }
   }
+  // 发现待导入图片时通知调用方，让后台静默扫描补显示“更新中”状态
+  if (candidates.length) onImportStart?.()
 
   let imported = 0
   let failed = 0
@@ -533,9 +539,10 @@ async function importExternalImages(directory: FileSystemDirectoryHandle, paired
   return { imported, failed }
 }
 
+/** 扫描并更新搭配码库。参数：albumDirectory 为相册目录，options.onImportStart 在检测到新增导入时触发，便于调用方补显示进度。 */
 export async function readOutfitLibrary(
   albumDirectory: FileSystemDirectoryHandle,
-  options: { importExternal?: boolean; create?: boolean; sharedSource?: SharedOutfitSource | null } = {}
+  options: { importExternal?: boolean; create?: boolean; sharedSource?: SharedOutfitSource | null; onImportStart?: () => void } = {}
 ): Promise<OutfitLibraryResult> {
   const directory = await getClotheDirectory(albumDirectory, options.create ?? true)
   if (!directory) return { outfits: [], tags: [...DEFAULT_OUTFIT_TAGS], importedExternalCount: 0, importedSharedCount: 0, failedCount: 0 }
@@ -546,13 +553,13 @@ export async function readOutfitLibrary(
   let externalFailures = 0
   let sharedFailures = 0
   if (options.importExternal ?? true) {
-    const external = await importExternalImages(directory, scan.pairedImageNames)
+    const external = await importExternalImages(directory, scan.pairedImageNames, options.onImportStart)
     importedExternalCount = external.imported
     externalFailures = external.failed
     if (external.imported) scan = await scanOutfits(directory, tags)
   }
   if (options.sharedSource) {
-    const shared = await importLatestSharedOutfit(directory, scan.outfits, options.sharedSource)
+    const shared = await importLatestSharedOutfit(directory, scan.outfits, options.sharedSource, options.onImportStart)
     importedSharedCount = shared.importedCount
     sharedFailures = shared.failedCount
     if (shared.importedCount) scan = await scanOutfits(directory, tags)

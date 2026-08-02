@@ -609,13 +609,14 @@ function applyRefreshResult(result: RefreshAlbumResult) {
 
 /**
  * 刷新相册和最近删除目录。
- * 参数：manual 表示是否由用户点击触发；手动刷新可请求权限且无变化时也提示。
+ * 参数：manual 表示是否由用户点击触发；手动刷新可请求权限，并始终显示“更新中”和结果提示；
+ * 后台自动刷新平时静默，检测到新增导入时补显示“更新中”，并在有新增、移除或失败时显示结果。
  */
 async function refreshAlbum(manual: boolean) {
   const directoryHandle = albumDirectoryHandle.value
   if (!directoryHandle || isAnyFileOperationBusy.value || confirmDialog.value.visible || isOutfitEditorVisible.value) return
   isRefreshing.value = true
-  if (manual || activeView.value === 'outfits') {
+  if (manual) {
     statusState.value = {
       type: 'custom',
       message: activeView.value === 'outfits' ? outfitLocale.value.updating : locale.value.topBar.refreshing,
@@ -629,7 +630,16 @@ async function refreshAlbum(manual: boolean) {
       messages: locale.value.fileSystem
     })
     applyRefreshResult(result)
-    const outfitResult = await refreshOutfitLibrary(true, activeView.value === 'outfits')
+    const outfitResult = await refreshOutfitLibrary(true, activeView.value === 'outfits', () => {
+      // 后台刷新检测到新增导入时补显示“更新中”；手动刷新的提示已在进入时显示
+      if (manual) return
+      statusState.value = {
+        type: 'custom',
+        message: activeView.value === 'outfits' ? outfitLocale.value.updating : locale.value.topBar.refreshing,
+        tone: 'info',
+        loading: true
+      }
+    })
     if (didCancelX6GameAutoPrompt.value) return
     const outfitAddedCount = outfitResult.importedExternalCount + outfitResult.importedSharedCount
     if (outfitAddedCount || outfitResult.failedCount) {
@@ -640,10 +650,13 @@ async function refreshAlbum(manual: boolean) {
       }
     } else if (result.addedCount || result.removedCount) {
       statusState.value = { type: 'custom', message: locale.value.trash.refreshStatus(result.addedCount, result.removedCount), tone: 'success' }
-    } else if (activeView.value === 'outfits') {
-      statusState.value = { type: 'custom', message: outfitLocale.value.upToDate, tone: 'success' }
     } else if (manual) {
-      statusState.value = { type: 'custom', message: locale.value.trash.upToDate, tone: 'success' }
+      // 仅用户手动刷新时提示“已是最新”，后台刷新无变化则完全静默
+      statusState.value = {
+        type: 'custom',
+        message: activeView.value === 'outfits' ? outfitLocale.value.upToDate : locale.value.trash.upToDate,
+        tone: 'success'
+      }
     }
   } catch (error) {
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
@@ -727,13 +740,13 @@ async function authorizeX6GameDirectory() {
   statusState.value = { type: 'custom', message: locale.value.app.authorizeX6GameStatus, tone: 'success' }
 }
 
-/** 重新扫描搭配方案，并释放已经失效的图片地址。 */
-async function refreshOutfitLibrary(importExternal: boolean, promptSharedAccess = false): Promise<OutfitLibraryResult> {
+/** 重新扫描搭配方案，并释放已经失效的图片地址。参数：importExternal 表示是否接收外部图片，promptSharedAccess 表示是否允许弹出授权，onImportStart 在检测到新增导入时触发。 */
+async function refreshOutfitLibrary(importExternal: boolean, promptSharedAccess = false, onImportStart?: () => void): Promise<OutfitLibraryResult> {
   const directoryHandle = albumDirectoryHandle.value
   if (!directoryHandle) return { outfits: [], tags: [], importedExternalCount: 0, importedSharedCount: 0, failedCount: 0 }
   const previousPreviewId = activeView.value === 'outfits' ? currentPreview.value?.id : null
   const sharedSource = await ensureSharedOutfitSource(promptSharedAccess)
-  const result = await readOutfitLibrary(directoryHandle, { importExternal, create: true, sharedSource })
+  const result = await readOutfitLibrary(directoryHandle, { importExternal, create: true, sharedSource, onImportStart })
   releasePhotoUrls(outfits.value)
   outfits.value = result.outfits
   outfitTags.value = result.tags
@@ -757,16 +770,28 @@ function showOutfitRefreshResult(result: OutfitLibraryResult) {
   )
 }
 
-/** 更新搭配码并显示完整进度。参数：importExternal 表示是否接收直接放入 clothe 的图片。 */
-async function updateOutfitLibrary(importExternal = true) {
+/**
+ * 更新搭配码库。
+ * 参数：importExternal 表示是否接收直接放入 clothe 的图片；
+ * announce 表示是否为用户明确触发，用户触发时立即显示“更新中”和完整结果；
+ * 后台扫描在检测到新增导入时才补显示“更新中”，无新增且无失败则完全静默。
+ */
+async function updateOutfitLibrary(importExternal = true, announce = true) {
   if (isUpdatingOutfits.value) return
   isUpdatingOutfits.value = true
-  showOutfitStatus(outfitLocale.value.updating, 'info', true)
+  // announced 标记“更新中”是否已弹出，避免后台扫描补提示时重复显示
+  let announced = announce
+  if (announce) showOutfitStatus(outfitLocale.value.updating, 'info', true)
   try {
     didCancelX6GameAutoPrompt.value = false
-    const result = await refreshOutfitLibrary(importExternal, true)
+    const result = await refreshOutfitLibrary(importExternal, true, () => {
+      if (announced) return
+      announced = true
+      showOutfitStatus(outfitLocale.value.updating, 'info', true)
+    })
     if (didCancelX6GameAutoPrompt.value) return
-    showOutfitRefreshResult(result)
+    const addedCount = result.importedExternalCount + result.importedSharedCount
+    if (announce || addedCount || result.failedCount) showOutfitRefreshResult(result)
   } catch (error) {
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
   } finally {
@@ -810,12 +835,13 @@ function openOutfitEditor(outfit: OutfitItem | null = null) {
   isOutfitEditorVisible.value = true
 }
 
+/** 关闭搭配码编辑窗口。参数：scan 表示关闭后是否自动重扫搭配码库；自动重扫属于后台行为，无变化时保持静默。 */
 async function closeOutfitEditor(scan = true) {
   if (isSavingOutfit.value) return
   isOutfitEditorVisible.value = false
   editingOutfit.value = null
   if (!scan) return
-  await updateOutfitLibrary(true)
+  await updateOutfitLibrary(true, false)
 }
 
 /** 保存搭配方案。参数：input 为图片、搭配码和标签；保存及重新扫描全部成功后才关闭编辑窗口。 */
