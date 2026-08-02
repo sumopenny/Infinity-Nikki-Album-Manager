@@ -913,13 +913,14 @@ async function copyOutfitCode(outfit: OutfitItem) {
   }
 }
 
+/** 删除单个搭配方案，先弹确认框再执行删除。参数：outfit 为待删除的搭配方案。 */
 async function removeOutfit(outfit: OutfitItem) {
   if (isAnyFileOperationBusy.value) return
   const confirmed = await openConfirmDialog({
     title: language.value === 'zh' ? '删除搭配方案' : 'Delete outfit',
     message: language.value === 'zh'
-      ? `确定永久删除“${outfit.code || '待填写'}”及其图片和 JSON 数据吗？此操作不会进入最近删除。`
-      : `Permanently delete “${outfit.code || 'Pending'}” and its image and JSON data? This cannot be restored from Recently Deleted.`,
+      ? '确定永久删除此条搭配码吗？删除后不可恢复。'
+      : 'Permanently delete this outfit code? This cannot be undone.',
     tone: 'danger',
     confirmLabel: language.value === 'zh' ? '永久删除' : 'Delete permanently',
     cancelLabel: locale.value.app.dialogCancel
@@ -949,8 +950,8 @@ async function deleteSelectedOutfits() {
   const confirmed = await openConfirmDialog({
     title: language.value === 'zh' ? '永久删除搭配方案' : 'Permanently delete outfits',
     message: language.value === 'zh'
-      ? `将永久删除选中的 ${targets.length} 个搭配方案、图片和 JSON 数据，不会进入最近删除且无法恢复。`
-      : `Permanently delete the selected ${targets.length} outfit(s), images, and JSON data. They will not go to Recently Deleted and cannot be restored.`,
+      ? `确定永久删除此条搭配码吗？删除后不可恢复。`
+      : `Permanently delete this outfit code? This cannot be undone.`,
     tone: 'danger',
     confirmLabel: language.value === 'zh' ? '永久删除' : 'Delete permanently',
     cancelLabel: locale.value.app.dialogCancel

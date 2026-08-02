@@ -180,3 +180,14 @@ Stack: Vue 3, TypeScript, Vite, File System Access API, IndexedDB.
 ---
 
 If this project helps you, consider giving it a Star on [GitHub](https://github.com/sumopenny/Infinity-Nikki-Album-Manager) or [Gitee](https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager).
+
+---
+
+## Support the Author
+
+This site is a labor of love and took real effort to build. If you find it useful, you can support me here~
+
+<div align="center">
+  <img src="img/wx.jpg" alt="WeChat Pay" width="30%">
+  <img src="img/zfb.jpg" alt="Alipay" width="30%">
+</div>

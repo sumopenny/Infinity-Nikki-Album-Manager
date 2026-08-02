@@ -180,3 +180,14 @@ npm run preview   # 预览构建结果
 ---
 
 如果这个项目对你有帮助，欢迎在 [GitHub](https://github.com/sumopenny/Infinity-Nikki-Album-Manager) 或者 [Gitee](https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager) 里点一个 Star。
+
+---
+
+## 打赏支持
+
+作者为爱发电，网站制作不易，觉得好用的话可以来支持我~
+
+<div align="center">
+  <img src="img/wx.jpg" alt="微信收款码" width="30%">
+  <img src="img/zfb.jpg" alt="支付宝收款码" width="30%">
+</div>

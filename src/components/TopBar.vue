@@ -8,6 +8,7 @@ import {
   FolderOpen,
   Github,
   Grid2X2,
+  Heart,
   Languages,
   Music2,
   Moon,
@@ -18,6 +19,9 @@ import {
   Trash2,
   X
 } from 'lucide-vue-next'
+// 收款码图片，通过 Vite 打包以保证构建后路径正确
+import wxQrCode from '../../img/wx.jpg'
+import zfbQrCode from '../../img/zfb.jpg'
 import type { Language, LocaleMessages } from '../i18n'
 import type { ThumbnailMode } from '../types/thumbnail'
 import type { ThemeMode } from '../types/theme'
@@ -53,6 +57,7 @@ const emit = defineEmits<{
 
 const openMenu = ref<OpenMenu>(null)
 const showHelp = ref(false)
+const showDonate = ref(false)
 const headerRef = ref<HTMLElement | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
 const menuTrigger = ref<HTMLElement | null>(null)
@@ -105,11 +110,12 @@ function runMenuAction(action: () => void) {
   action()
 }
 
-/** 处理页面外点击和 Esc，关闭当前菜单或帮助弹窗。参数：event 为鼠标或键盘事件。 */
+/** 处理页面外点击和 Esc，关闭当前菜单、帮助弹窗或打赏弹窗。参数：event 为鼠标或键盘事件。 */
 function handleDocumentInteraction(event: MouseEvent | KeyboardEvent) {
   if (event instanceof KeyboardEvent) {
     if (event.key !== 'Escape') return
     if (showHelp.value) showHelp.value = false
+    else if (showDonate.value) showDonate.value = false
     else closeMenus()
     return
   }
@@ -267,6 +273,10 @@ onBeforeUnmount(() => {
             <span class="text-icon">G</span>
             <span>{{ messages.giteeText }}</span>
           </a>
+          <button type="button" role="menuitem" @click="closeMenus(); showDonate = true">
+            <Heart :size="16" />
+            <span>{{ messages.donate }}</span>
+          </button>
           <div class="menu-author">{{ messages.author }}</div>
           <div class="author-social-links">
             <a class="author-social-link xiaohongshu-link" href="https://xhslink.com/m/3IEU0XhZ6e" target="_blank" rel="noopener noreferrer" role="menuitem" :title="messages.xiaohongshuAuthor" :aria-label="messages.xiaohongshuAuthor" @click="closeMenus">
@@ -311,6 +321,34 @@ onBeforeUnmount(() => {
               <h3>{{ messages.helpSafetyTitle }}</h3>
               <p>{{ messages.helpSafetyText }}</p>
             </section>
+          </div>
+        </section>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <Teleport to="body">
+    <Transition name="confirm-dialog">
+      <div v-if="showDonate" class="help-dialog" role="dialog" aria-modal="true" :aria-label="messages.donateTitle" @click.self="showDonate = false">
+        <section class="help-dialog-panel donate-dialog-panel">
+          <header>
+            <h2>{{ messages.donateTitle }}</h2>
+            <button type="button" :aria-label="messages.closeDonate" :title="messages.closeDonate" @click="showDonate = false">
+              <X :size="19" />
+            </button>
+          </header>
+          <div class="donate-dialog-body">
+            <p class="donate-description">{{ messages.donateDescription }}</p>
+            <div class="donate-qrcodes">
+              <figure>
+                <img :src="wxQrCode" :alt="messages.donateWechat" />
+                <figcaption>{{ messages.donateWechat }}</figcaption>
+              </figure>
+              <figure>
+                <img :src="zfbQrCode" :alt="messages.donateAlipay" />
+                <figcaption>{{ messages.donateAlipay }}</figcaption>
+              </figure>
+            </div>
           </div>
         </section>
       </div>

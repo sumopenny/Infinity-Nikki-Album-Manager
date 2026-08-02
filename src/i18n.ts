@@ -95,6 +95,12 @@ export interface LocaleMessages {
     xiaohongshuAuthor: string
     douyin: string
     douyinAuthor: string
+    donate: string
+    donateTitle: string
+    donateDescription: string
+    donateWechat: string
+    donateAlipay: string
+    closeDonate: string
   }
   selectionBar: {
     selected: (count: number) => string
@@ -349,7 +355,13 @@ export const messages: Record<Language, LocaleMessages> = {
       xiaohongshu: '小红书',
       xiaohongshuAuthor: '访问作者的小红书主页',
       douyin: '抖音',
-      douyinAuthor: '访问作者的抖音主页'
+      douyinAuthor: '访问作者的抖音主页',
+      donate: '打赏我',
+      donateTitle: '打赏支持',
+      donateDescription: '作者为爱发电，网站制作不易，觉得好用的话可以来支持我~',
+      donateWechat: '微信',
+      donateAlipay: '支付宝',
+      closeDonate: '关闭打赏窗口'
     },
     selectionBar: {
       selected: (count) => `已选择 ${count} 张`,
@@ -544,7 +556,13 @@ export const messages: Record<Language, LocaleMessages> = {
       xiaohongshu: 'Xiaohongshu',
       xiaohongshuAuthor: "Open the author's Xiaohongshu profile",
       douyin: 'Douyin',
-      douyinAuthor: "Open the author's Douyin profile"
+      douyinAuthor: "Open the author's Douyin profile",
+      donate: 'Tip me',
+      donateTitle: 'Support the author',
+      donateDescription: 'This site is a labor of love and took real effort to build. If you find it useful, you can support me here~',
+      donateWechat: 'WeChat',
+      donateAlipay: 'Alipay',
+      closeDonate: 'Close donation window'
     },
     selectionBar: {
       selected: (count) => `${count} selected`,
