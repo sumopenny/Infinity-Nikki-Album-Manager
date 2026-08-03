@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { CircleHelp, Download, FileUp, Plus } from 'lucide-vue-next'
+import { CircleHelp, Download, FileUp, Plus, Trash2 } from 'lucide-vue-next'
 import AboutDialog from './components/AboutDialog.vue'
 import AlbumViewNav, { type AlbumView } from './components/AlbumViewNav.vue'
 import ConfirmDialog, { type ConfirmDialogTone } from './components/ConfirmDialog.vue'
@@ -1349,6 +1349,20 @@ async function permanentlyDeleteSelectedTrash() {
   await permanentlyDeleteTrashPhotos(recentlyDeleted.value.filter((photo) => trashSelectedIds.value.has(photo.id)))
 }
 
+/** 一键清空全部最近删除。参数：无。 */
+async function deleteAllTrash() {
+  if (!recentlyDeleted.value.length) return
+  const confirmed = await openConfirmDialog({
+    title: locale.value.trash.permanentDeleteDialogTitle,
+    message: locale.value.trash.confirmDeleteAll(recentlyDeleted.value.length),
+    tone: 'danger',
+    confirmLabel: locale.value.app.dialogConfirm,
+    cancelLabel: locale.value.app.dialogCancel
+  })
+  if (!confirmed) return
+  await permanentlyDeleteTrashPhotos([...recentlyDeleted.value])
+}
+
 /** 恢复当前最近删除预览照片。参数：无。 */
 async function restoreCurrentTrashPreview() {
   if (!currentPreview.value || activeView.value !== 'trash') return
@@ -1593,7 +1607,11 @@ onBeforeUnmount(() => {
                 <CircleHelp :size="17" aria-hidden="true" />
               </button>
             </div>
-            <h2 v-else>{{ viewTitle }}</h2>
+            <h2 v-else class="trash-header-title">{{ viewTitle }}
+              <button v-if="activeView === 'trash' && recentlyDeleted.length" type="button" class="trash-clear-all-btn" :title="locale.trash.deleteAllTitle" :aria-label="locale.trash.deleteAllTitle" :disabled="isAnyFileOperationBusy" @click="deleteAllTrash">
+                <Trash2 :size="18" aria-hidden="true" />
+              </button>
+            </h2>
           </div>
           <div v-if="activeView === 'outfits'" class="outfit-header-actions">
             <button type="button" :disabled="isAnyFileOperationBusy" @click="chooseOutfitBackup">

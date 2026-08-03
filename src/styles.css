@@ -2529,6 +2529,33 @@ h1 {
   color: var(--pink-deep);
 }
 
+/* 最近删除头部"清空全部"按钮，紧贴标题右侧 */
+.trash-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trash-clear-all-btn {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--motion-fast) ease, border-color var(--motion-fast) ease, background var(--motion-fast) ease;
+}
+
+.trash-clear-all-btn:hover:not(:disabled) {
+  border-color: var(--notice-error);
+  background: color-mix(in srgb, var(--notice-error) 10%, var(--surface-strong));
+  color: var(--notice-error);
+}
+
 /* 关闭按钮与“关于网站”一致的悬浮圆形样式 */
 .outfit-guide-panel > header button {
   display: grid;

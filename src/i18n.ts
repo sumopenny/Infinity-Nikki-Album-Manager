@@ -170,6 +170,8 @@ export interface LocaleMessages {
     movedStatus: (count: number, failedNames: string[]) => string
     restoredStatus: (count: number, failedNames: string[]) => string
     permanentlyDeletedStatus: (count: number, failedNames: string[]) => string
+    deleteAllTitle: string
+    confirmDeleteAll: (count: number) => string
     refreshStatus: (addedCount: number, removedCount: number) => string
     upToDate: string
     imageLoadFailed: string
@@ -376,10 +378,10 @@ export const messages: Record<Language, LocaleMessages> = {
         '搭配码管理：管理星绘图册搭配方案，支持手动添加、批量导入 ZIP，并自动同步游戏内新搭配码。',
         '一键清理：快速清理低画质照片和游戏截图，释放磁盘空间。'
       ],
-      changelogTitle: '当前版本',
+      changelogTitle: '当前版本【2026.8.2更新】',
       // 更新日志按新版本在前的顺序排列，新增版本请加在数组开头，当前版本会自动带上“当前版本”标识
       changelog: [
-        { version: 'v1.2', text: '新增星绘图册搭配码管理模块，可手动添加、批量添加、自动同步游戏内新搭配码。' }
+        { version: 'v1.2', text: '新增星绘图册搭配码管理模块，可手动添加、批量添加、自动同步游戏内新搭配码。（拍照参数、家园码管理模块开发中）' }
       ],
       dontShowAgain: '不再提示',
       confirm: '我知道了',
@@ -456,6 +458,8 @@ export const messages: Record<Language, LocaleMessages> = {
         failedNames.length
           ? `已永久删除 ${count} 张照片，${failedNames.length} 张失败：${failedNames.join('、')}`
           : `已永久删除 ${count} 张照片。`,
+      deleteAllTitle: '清空全部最近删除',
+      confirmDeleteAll: (count) => `确定永久清空最近删除中的全部 ${count} 张照片吗？此操作不可恢复。`,
       refreshStatus: (addedCount, removedCount) => `发现 ${addedCount} 张新照片，另有 ${removedCount} 张已从文件夹移除。`,
       upToDate: '相册已是最新。',
       imageLoadFailed: '图片读取失败'
@@ -591,7 +595,7 @@ export const messages: Record<Language, LocaleMessages> = {
         'Outfit codes: manage Starry Gallery outfit plans with manual add, batch ZIP import, and auto sync of new in-game outfit codes.',
         'One-click cleanup: quickly clean low-quality photos and screenshots to free up disk space.'
       ],
-      changelogTitle: 'Changelog',
+      changelogTitle: 'Current version【2026.8.2 update】',
       changelog: [
         { version: 'v1.2', text: 'Added the Starry Gallery outfit code module: add manually, import in batches, and auto-sync new in-game outfit codes.' }
       ],
@@ -670,6 +674,8 @@ export const messages: Record<Language, LocaleMessages> = {
         failedNames.length
           ? `Permanently deleted ${count} photos; ${failedNames.length} failed: ${failedNames.join(', ')}`
           : `Permanently deleted ${count} photos.`,
+      deleteAllTitle: 'Permanently delete all',
+      confirmDeleteAll: (count) => `Permanently delete all ${count} photos from trash? This cannot be undone.`,
       refreshStatus: (addedCount, removedCount) => `Found ${addedCount} new photos; ${removedCount} were removed externally.`,
       upToDate: 'The album is up to date.',
       imageLoadFailed: 'Failed to load image'

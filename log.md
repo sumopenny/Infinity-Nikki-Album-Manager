@@ -393,3 +393,9 @@
 - 状态：已解决
 - 技术/方法：原因是关闭按钮 hover 时带有 `transform: scale(1.06)` 放大效果，鼠标移走时按钮缩小导致命中区域变化，在按钮边缘会反复触发 hover/取消 hover 造成背景色闪烁。修复方式为移除关于、打赏、确认、相册指南、搭配码编辑五个窗口关闭按钮 hover 时的 scale 放大，只保留背景色加深过渡。已运行 `npm run build`（类型检查与构建成功）验证。
 ---
+
+2026-08-03
+11.问题：用户要求在最近删除头部文字旁新增一键清空全部最近删除的按钮。
+- 状态：已解决
+- 技术/方法：在 `App.vue` 导入 Trash2 图标，最近删除标题 `<h2>` 改为 flex 布局，标题后追加红色色调的删除按钮（仅当有照片时显示，文件操作中禁用），点击弹出危险确认弹窗后调用已有的 `permanentlyDeleteTrashPhotos` 清空全部；`i18n.ts` 补充 `deleteAllTitle`/`confirmDeleteAll` 中英文文案及类型定义；`styles.css` 新增 `.trash-header-title` flex 容器与 `.trash-clear-all-btn` 按钮样式，悬停时变红色警示色调。已运行 `npm test`（45 个测试全部通过）和 `npm run build`（类型检查与构建成功）验证。
+---
