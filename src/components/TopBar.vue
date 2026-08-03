@@ -3,12 +3,12 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   BookHeart,
   ChevronDown,
-  CircleHelp,
   Eraser,
   FolderOpen,
   Github,
   Grid2X2,
   Heart,
+  Info,
   Languages,
   Music2,
   Moon,
@@ -53,10 +53,10 @@ const emit = defineEmits<{
   toggleLanguage: []
   toggleTheme: []
   changeThumbnailMode: [mode: ThumbnailMode]
+  openAbout: []
 }>()
 
 const openMenu = ref<OpenMenu>(null)
-const showHelp = ref(false)
 const showDonate = ref(false)
 const headerRef = ref<HTMLElement | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
@@ -110,12 +110,11 @@ function runMenuAction(action: () => void) {
   action()
 }
 
-/** 处理页面外点击和 Esc，关闭当前菜单、帮助弹窗或打赏弹窗。参数：event 为鼠标或键盘事件。 */
+/** 处理页面外点击和 Esc，关闭当前菜单或打赏弹窗。参数：event 为鼠标或键盘事件。 */
 function handleDocumentInteraction(event: MouseEvent | KeyboardEvent) {
   if (event instanceof KeyboardEvent) {
     if (event.key !== 'Escape') return
-    if (showHelp.value) showHelp.value = false
-    else if (showDonate.value) showDonate.value = false
+    if (showDonate.value) showDonate.value = false
     else closeMenus()
     return
   }
@@ -261,10 +260,6 @@ onBeforeUnmount(() => {
             <span>{{ messages.clearData }}</span>
           </button>
           <div class="menu-separator"></div>
-          <button type="button" role="menuitem" @click="closeMenus(); showHelp = true">
-            <CircleHelp :size="16" />
-            <span>{{ messages.help }}</span>
-          </button>
           <a href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager" target="_blank" rel="noreferrer" role="menuitem" @click="closeMenus">
             <Github :size="16" />
             <span>{{ messages.githubText }}</span>
@@ -276,6 +271,10 @@ onBeforeUnmount(() => {
           <button type="button" role="menuitem" @click="closeMenus(); showDonate = true">
             <Heart :size="16" />
             <span>{{ messages.donate }}</span>
+          </button>
+          <button type="button" role="menuitem" @click="runMenuAction(() => emit('openAbout'))">
+            <Info :size="16" />
+            <span>{{ messages.about }}</span>
           </button>
           <div class="menu-author">{{ messages.author }}</div>
           <div class="author-social-links">
@@ -293,39 +292,6 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </header>
-
-  <Teleport to="body">
-    <Transition name="confirm-dialog">
-      <div v-if="showHelp" class="help-dialog" role="dialog" aria-modal="true" :aria-label="messages.helpTitle" @click.self="showHelp = false">
-        <section class="help-dialog-panel">
-          <header>
-            <h2>{{ messages.helpTitle }}</h2>
-            <button type="button" :aria-label="messages.closeHelp" :title="messages.closeHelp" @click="showHelp = false">
-              <X :size="19" />
-            </button>
-          </header>
-          <div class="help-grid">
-            <section>
-              <h3>{{ messages.helpMouseTitle }}</h3>
-              <p v-for="item in messages.helpMouseItems" :key="item">{{ item }}</p>
-            </section>
-            <section>
-              <h3>{{ messages.helpKeyboardTitle }}</h3>
-              <p v-for="item in messages.helpKeyboardItems" :key="item">{{ item }}</p>
-            </section>
-            <section>
-              <h3>{{ messages.helpPathTitle }}</h3>
-              <p class="help-path">{{ messages.helpPathText }}</p>
-            </section>
-            <section>
-              <h3>{{ messages.helpSafetyTitle }}</h3>
-              <p>{{ messages.helpSafetyText }}</p>
-            </section>
-          </div>
-        </section>
-      </div>
-    </Transition>
-  </Teleport>
 
   <Teleport to="body">
     <Transition name="confirm-dialog">

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CircleHelp, Download, FileUp, Plus } from 'lucide-vue-next'
+import AboutDialog from './components/AboutDialog.vue'
 import AlbumViewNav, { type AlbumView } from './components/AlbumViewNav.vue'
 import ConfirmDialog, { type ConfirmDialogTone } from './components/ConfirmDialog.vue'
 import DateSidebar from './components/DateSidebar.vue'
@@ -14,7 +15,7 @@ import PhotoGrid from './components/PhotoGrid.vue'
 import RecentlyDeletedGrid from './components/RecentlyDeletedGrid.vue'
 import SelectionBar from './components/SelectionBar.vue'
 import TopBar from './components/TopBar.vue'
-import { DEFAULT_LANGUAGE, getThumbnailModeOptions, messages, type Language, type StatusPrefix, type StatusSuffix } from './i18n'
+import { ABOUT_VERSION, DEFAULT_LANGUAGE, getThumbnailModeOptions, messages, type Language, type StatusPrefix, type StatusSuffix } from './i18n'
 import { getOutfitMessages } from './outfitMessages'
 import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
 import { isThemeMode, type ThemeMode } from './types/theme'
@@ -64,6 +65,7 @@ const X6GAME_AUTO_PROMPT_DISMISSED_KEY = 'infinity-nikki-x6game-auto-prompt-dism
 const THEME_STORAGE_KEY = 'infinity-nikki-theme-mode'
 const LANGUAGE_STORAGE_KEY = 'infinity-nikki-language'
 const FAVORITES_STORAGE_KEY = 'infinity-nikki-favorite-photo-ids'
+const ABOUT_STATE_STORAGE_KEY = 'infinity-nikki-about-state'
 const WEBSITE_LOCAL_STORAGE_KEYS = [
   THUMBNAIL_STORAGE_KEY,
   OUTFIT_THUMBNAIL_STORAGE_KEY,
@@ -71,7 +73,8 @@ const WEBSITE_LOCAL_STORAGE_KEYS = [
   X6GAME_AUTO_PROMPT_DISMISSED_KEY,
   THEME_STORAGE_KEY,
   LANGUAGE_STORAGE_KEY,
-  FAVORITES_STORAGE_KEY
+  FAVORITES_STORAGE_KEY,
+  ABOUT_STATE_STORAGE_KEY
 ]
 let suppressLocalPersistence = false
 const storedThumbnailMode = localStorage.getItem(THUMBNAIL_STORAGE_KEY)
@@ -82,6 +85,23 @@ const storedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY)
 function isLanguage(value: string | null): value is Language {
   return value === 'zh' || value === 'en'
 }
+
+/**
+ * 读取本地保存的“关于网站”窗口状态。
+ * 参数：无。
+ * 返回：记录的版本号和“不再提示”勾选状态；没有记录或解析失败时返回 null。
+ */
+function readStoredAboutState(): { version: string; dismissed: boolean } | null {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ABOUT_STATE_STORAGE_KEY) ?? 'null') as { version?: unknown; dismissed?: unknown } | null
+    if (parsed && typeof parsed.version === 'string') return { version: parsed.version, dismissed: parsed.dismissed === true }
+  } catch {
+    // 解析失败按没有记录处理
+  }
+  return null
+}
+
+const storedAboutState = readStoredAboutState()
 
 /**
  * 读取浏览器保存的收藏照片 ID。
@@ -133,6 +153,9 @@ const editingOutfit = ref<OutfitItem | null>(null)
 const isOutfitEditorVisible = ref(false)
 const isOutfitGuideVisible = ref(false)
 const isOutfitGuideDismissed = ref(localStorage.getItem(OUTFIT_GUIDE_DISMISSED_KEY) === 'true')
+const isAboutDialogVisible = ref(false)
+// 版本号变化时本地记录失效，“不再提示”勾选状态随之重置
+const isAboutDialogDismissed = ref(storedAboutState?.version === ABOUT_VERSION && storedAboutState.dismissed === true)
 const isX6GameAutoPromptDismissed = ref(localStorage.getItem(X6GAME_AUTO_PROMPT_DISMISSED_KEY) === 'true')
 const didCancelX6GameAutoPrompt = ref(false)
 const isUpdatingOutfits = ref(false)
@@ -821,6 +844,20 @@ function closeOutfitGuide(dontShowAgain: boolean) {
   isOutfitGuideVisible.value = false
 }
 
+/** 从更多菜单打开“关于网站”窗口。参数：无。 */
+function openAboutDialog() {
+  isAboutDialogVisible.value = true
+}
+
+/** 关闭“关于网站”窗口。参数：dontShowAgain 表示当前版本是否不再自动弹出；同时把版本号和勾选状态保存到本地。 */
+function closeAboutDialog(dontShowAgain: boolean) {
+  isAboutDialogDismissed.value = dontShowAgain
+  if (!suppressLocalPersistence) {
+    localStorage.setItem(ABOUT_STATE_STORAGE_KEY, JSON.stringify({ version: ABOUT_VERSION, dismissed: dontShowAgain }))
+  }
+  isAboutDialogVisible.value = false
+}
+
 function showOutfitStatus(message: string, tone: StatusTone = 'success', loading = false) {
   statusState.value = { type: 'custom', message, tone, loading }
 }
@@ -945,7 +982,7 @@ async function removeOutfit(outfit: OutfitItem) {
   const confirmed = await openConfirmDialog({
     title: language.value === 'zh' ? '删除搭配方案' : 'Delete outfit',
     message: language.value === 'zh'
-      ? '确定永久删除此条搭配码吗？删除后不可恢复。'
+      ? '确定永久删除选中搭配码吗？删除后不可恢复。'
       : 'Permanently delete this outfit code? This cannot be undone.',
     tone: 'danger',
     confirmLabel: language.value === 'zh' ? '永久删除' : 'Delete permanently',
@@ -976,7 +1013,7 @@ async function deleteSelectedOutfits() {
   const confirmed = await openConfirmDialog({
     title: language.value === 'zh' ? '永久删除搭配方案' : 'Permanently delete outfits',
     message: language.value === 'zh'
-      ? `确定永久删除此条搭配码吗？删除后不可恢复。`
+      ? `确定永久删除选中搭配码吗？删除后不可恢复。`
       : `Permanently delete this outfit code? This cannot be undone.`,
     tone: 'danger',
     confirmLabel: language.value === 'zh' ? '永久删除' : 'Delete permanently',
@@ -1444,6 +1481,10 @@ function scheduleFocusRefresh() {
 
 onMounted(() => {
   void restoreSavedDirectory()
+  // 没有记录、版本号变化或未勾选“不再提示”时，打开网站自动显示“关于网站”窗口
+  if (!storedAboutState || storedAboutState.version !== ABOUT_VERSION || !storedAboutState.dismissed) {
+    isAboutDialogVisible.value = true
+  }
   nextTick(() => {
     updateSidebarStickyOffset()
     const topBarElement = document.querySelector<HTMLElement>('.app-header')
@@ -1494,6 +1535,7 @@ onBeforeUnmount(() => {
       @change-thumbnail-mode="changeThumbnailMode"
       @toggle-language="toggleLanguage"
       @toggle-theme="toggleTheme"
+      @open-about="openAboutDialog"
     />
 
     <main class="album-layout" :class="{ 'without-album': !albumDirectoryHandle }">
@@ -1660,6 +1702,14 @@ onBeforeUnmount(() => {
       :dismissed="isOutfitGuideDismissed"
       :messages="outfitLocale"
       @close="closeOutfitGuide"
+    />
+
+    <AboutDialog
+      :visible="isAboutDialogVisible"
+      :dismissed="isAboutDialogDismissed"
+      :messages="locale.about"
+      :top-bar-messages="locale.topBar"
+      @close="closeAboutDialog"
     />
 
     <input ref="outfitImportInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importOutfits" />

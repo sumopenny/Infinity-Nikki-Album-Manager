@@ -79,17 +79,10 @@ export interface LocaleMessages {
     moreMenuAria: string
     clearCache: string
     clearData: string
-    help: string
-    helpTitle: string
     helpMouseTitle: string
     helpMouseItems: string[]
     helpKeyboardTitle: string
     helpKeyboardItems: string[]
-    helpPathTitle: string
-    helpPathText: string
-    helpSafetyTitle: string
-    helpSafetyText: string
-    closeHelp: string
     author: string
     xiaohongshu: string
     xiaohongshuAuthor: string
@@ -101,6 +94,19 @@ export interface LocaleMessages {
     donateWechat: string
     donateAlipay: string
     closeDonate: string
+    about: string
+  }
+  about: {
+    title: string
+    introTitle: string
+    intro: string
+    featuresTitle: string
+    features: string[]
+    changelogTitle: string
+    changelog: Array<{ version: string; text: string }>
+    dontShowAgain: string
+    confirm: string
+    closeAria: string
   }
   selectionBar: {
     selected: (count: number) => string
@@ -186,6 +192,9 @@ export interface LocaleMessages {
 }
 
 export const DEFAULT_LANGUAGE: Language = 'zh'
+
+// 当前网站版本号；更新日志新增版本时同步修改，用于检测是否需要在打开网站时重新弹出“关于网站”窗口
+export const ABOUT_VERSION = '1.2'
 
 const thumbnailModeValues: ThumbnailMode[] = ['default', 'half', 'wide', 'standard', 'portrait-wide', 'portrait-standard']
 
@@ -340,17 +349,10 @@ export const messages: Record<Language, LocaleMessages> = {
       moreMenuAria: '打开更多菜单',
       clearCache: '清除缓存',
       clearData: '清除数据',
-      help: '帮助',
-      helpTitle: '相册操作帮助',
       helpMouseTitle: '鼠标操作',
       helpMouseItems: ['单击照片可选择，双击打开大图预览。', '悬停照片可查看拍摄时间与文件大小。', '大图放大后可拖动查看，并可使用滚轮缩放。'],
       helpKeyboardTitle: '快捷键',
       helpKeyboardItems: ['方向键切换上一张或下一张。', 'Esc 关闭菜单、弹窗或大图预览。', 'Delete 删除当前预览照片。'],
-      helpPathTitle: '推荐路径',
-      helpPathText: '\\InfinityNikki Launcher\\InfinityNikki\\X6Game\\Saved\\GamePlayPhotos\\你的ID\\NikkiPhotos_HighQuality',
-      helpSafetyTitle: '删除安全',
-      helpSafetyText: '普通删除会移动到当前相册的 trash 文件夹；只有在最近删除中执行永久删除才无法恢复。',
-      closeHelp: '关闭帮助',
       author: '作者：素茉penny',
       xiaohongshu: '小红书',
       xiaohongshuAuthor: '访问作者的小红书主页',
@@ -361,7 +363,27 @@ export const messages: Record<Language, LocaleMessages> = {
       donateDescription: '作者为爱发电，网站制作不易，觉得好用的话可以来支持我~',
       donateWechat: '微信',
       donateAlipay: '支付宝',
-      closeDonate: '关闭打赏窗口'
+      closeDonate: '关闭打赏窗口',
+      about: '关于网站'
+    },
+    about: {
+      title: '关于网站',
+      introTitle: '网站简介',
+      intro: '无限暖暖相册管理是一个纯本地运行的网站，照片和搭配码数据都只保存在你自己的设备上。',
+      featuresTitle: '主要功能',
+      features: [
+        '相册管理：按拍摄日期整理游戏截图，支持预览、复制、收藏和移入相册。',
+        '搭配码管理：管理星绘图册搭配方案，支持手动添加、批量导入 ZIP，并自动同步游戏内新搭配码。',
+        '一键清理：快速清理低画质照片和游戏截图，释放磁盘空间。'
+      ],
+      changelogTitle: '当前版本',
+      // 更新日志按新版本在前的顺序排列，新增版本请加在数组开头，当前版本会自动带上“当前版本”标识
+      changelog: [
+        { version: 'v1.2', text: '新增星绘图册搭配码管理模块，可手动添加、批量添加、自动同步游戏内新搭配码。' }
+      ],
+      dontShowAgain: '不再提示',
+      confirm: '我知道了',
+      closeAria: '关闭关于窗口'
     },
     selectionBar: {
       selected: (count) => `已选择 ${count} 张`,
@@ -541,17 +563,10 @@ export const messages: Record<Language, LocaleMessages> = {
       moreMenuAria: 'Open more menu',
       clearCache: 'Clear cache',
       clearData: 'Clear data',
-      help: 'Help',
-      helpTitle: 'Album help',
       helpMouseTitle: 'Mouse',
       helpMouseItems: ['Click a photo to select it; double-click to open the preview.', 'Hover a photo to see its capture time and file size.', 'Drag a zoomed preview and use the mouse wheel to zoom.'],
       helpKeyboardTitle: 'Keyboard',
       helpKeyboardItems: ['Use the arrow keys to move between photos.', 'Press Esc to close a menu, dialog, or preview.', 'Press Delete to delete the current preview photo.'],
-      helpPathTitle: 'Recommended path',
-      helpPathText: '\\InfinityNikki Launcher\\InfinityNikki\\X6Game\\Saved\\GamePlayPhotos\\Your ID\\NikkiPhotos_HighQuality',
-      helpSafetyTitle: 'Deletion safety',
-      helpSafetyText: 'Normal deletion moves files into the album trash folder. Only permanent deletion in Recently deleted cannot be undone.',
-      closeHelp: 'Close help',
       author: 'Author: 素茉Penny',
       xiaohongshu: 'Xiaohongshu',
       xiaohongshuAuthor: "Open the author's Xiaohongshu profile",
@@ -562,7 +577,27 @@ export const messages: Record<Language, LocaleMessages> = {
       donateDescription: 'This site is a labor of love and took real effort to build. If you find it useful, you can support me here~',
       donateWechat: 'WeChat',
       donateAlipay: 'Alipay',
-      closeDonate: 'Close donation window'
+      closeDonate: 'Close donation window',
+      about: 'About'
+    },
+    about: {
+      title: 'About',
+      introTitle: 'About this site',
+      intro: 'Infinity Nikki Album Manager runs entirely locally. Your photos and outfit code data stay on your own device.',
+      featuresTitle: 'Features',
+      features: [
+        'Album management: organize screenshots by capture date, with preview, copy, favorite and move-to-album.',
+        'Recently deleted: deleted photos go to the trash folder first and can be restored or deleted forever.',
+        'Outfit codes: manage Starry Gallery outfit plans with manual add, batch ZIP import, and auto sync of new in-game outfit codes.',
+        'One-click cleanup: quickly clean low-quality photos and screenshots to free up disk space.'
+      ],
+      changelogTitle: 'Changelog',
+      changelog: [
+        { version: 'v1.2', text: 'Added the Starry Gallery outfit code module: add manually, import in batches, and auto-sync new in-game outfit codes.' }
+      ],
+      dontShowAgain: "Don't show again",
+      confirm: 'Got it',
+      closeAria: 'Close about window'
     },
     selectionBar: {
       selected: (count) => `${count} selected`,
