@@ -399,3 +399,9 @@
 - 状态：已解决
 - 技术/方法：在 `App.vue` 导入 Trash2 图标，最近删除标题 `<h2>` 改为 flex 布局，标题后追加红色色调的删除按钮（仅当有照片时显示，文件操作中禁用），点击弹出危险确认弹窗后调用已有的 `permanentlyDeleteTrashPhotos` 清空全部；`i18n.ts` 补充 `deleteAllTitle`/`confirmDeleteAll` 中英文文案及类型定义；`styles.css` 新增 `.trash-header-title` flex 容器与 `.trash-clear-all-btn` 按钮样式，悬停时变红色警示色调。已运行 `npm test`（45 个测试全部通过）和 `npm run build`（类型检查与构建成功）验证。
 ---
+
+2026-08-04
+12.问题：用户要求“搭配码使用指南”窗口再拓宽一点。
+- 状态：已解决
+- 技术/方法：调整 `styles.css` 中 `.outfit-guide-panel` 宽度，从 `min(920px, 100%)` 拓宽到 `min(1080px, 100%)`，其余样式不变。已运行 `npm run build`（类型检查与构建成功）验证。
+---

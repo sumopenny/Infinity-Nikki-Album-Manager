@@ -2469,7 +2469,7 @@ h1 {
 }
 
 .outfit-guide-panel {
-  width: min(920px, 100%);
+  width: min(1080px, 100%);
   max-height: calc(100dvh - 28px);
   overflow: auto;
   border: 1px solid var(--line);
