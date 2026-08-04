@@ -5,7 +5,9 @@ import {
   listRecentlyDeleted,
   movePhotosToRecentlyDeleted,
   executeRelatedPhotoCleanup,
+  prepareRelatedPhotoCleanup,
   refreshAlbumDirectory,
+  resolveX6GameAccountDirectory,
   restoreRecentlyDeletedPhotos
 } from './fileSystem'
 
@@ -19,12 +21,13 @@ class MemoryFileHandle {
   constructor(
     public readonly name: string,
     private contents: Blob = new Blob(['photo'], { type: 'image/jpeg' }),
-    private readonly failRead = false
+    private readonly failRead = false,
+    public readonly lastModified = 1
   ) {}
 
   async getFile(): Promise<File> {
     if (this.failRead) throw new DOMException('Read failed', 'NotReadableError')
-    return new File([this.contents], this.name, { type: this.contents.type })
+    return new File([this.contents], this.name, { type: this.contents.type, lastModified: this.lastModified })
   }
 
   async createWritable(): Promise<FileSystemWritableFileStream> {
@@ -94,11 +97,14 @@ class MemoryDirectoryHandle {
 function createPhoto(directory: MemoryDirectoryHandle, name: string): PhotoItem {
   const fileHandle = new MemoryFileHandle(name)
   directory.files.set(name, fileHandle)
+  const photoFileSize = 5
   return {
     id: `2026-06-26-11:22-${name}`,
     name,
     url: 'blob:loaded-thumbnail',
     fileSizeText: '5 B',
+    fileSize: photoFileSize,
+    lastModified: fileHandle.lastModified,
     fileHandle: fileHandle as unknown as FileSystemFileHandle,
     directoryHandle: directory as unknown as FileSystemDirectoryHandle,
     dateKey: '2026-06-26',
@@ -111,6 +117,51 @@ function createPhoto(directory: MemoryDirectoryHandle, name: string): PhotoItem 
 }
 
 describe('album refresh and recently deleted filesystem operations', () => {
+  it('allows X6Game authorization for an unrelated album without an account path', async () => {
+    const album = new MemoryDirectoryHandle('MyPhotoCollection')
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+
+    await expect(resolveX6GameAccountDirectory(
+      x6Game as unknown as FileSystemDirectoryHandle,
+      album as unknown as FileSystemDirectoryHandle,
+      messages.zh.fileSystem,
+      true
+    )).resolves.toBe('')
+  })
+
+  it('keeps related photo cleanup restricted to NikkiPhotos_HighQuality', async () => {
+    const album = new MemoryDirectoryHandle('MyPhotoCollection')
+
+    await expect(prepareRelatedPhotoCleanup(
+      album as unknown as FileSystemDirectoryHandle,
+      messages.zh.fileSystem
+    )).rejects.toThrow(messages.zh.fileSystem.invalidAlbumDirectory)
+  })
+
+  it('rejects a non-X6Game folder even for unrelated album authorization', async () => {
+    const album = new MemoryDirectoryHandle('MyPhotoCollection')
+    const wrongDirectory = new MemoryDirectoryHandle('InfinityNikki')
+
+    await expect(resolveX6GameAccountDirectory(
+      wrongDirectory as unknown as FileSystemDirectoryHandle,
+      album as unknown as FileSystemDirectoryHandle,
+      messages.zh.fileSystem,
+      true
+    )).rejects.toThrow(messages.zh.fileSystem.invalidX6GameDirectory)
+  })
+
+  it('still validates the account path when the album is NikkiPhotos_HighQuality', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    const unrelatedX6Game = new MemoryDirectoryHandle('X6Game')
+
+    await expect(resolveX6GameAccountDirectory(
+      unrelatedX6Game as unknown as FileSystemDirectoryHandle,
+      album as unknown as FileSystemDirectoryHandle,
+      messages.zh.fileSystem,
+      true
+    )).rejects.toThrow(messages.zh.fileSystem.invalidX6GameDirectory)
+  })
+
   it('counts only successfully removed bytes and returns readable failures', async () => {
     const directory = new MemoryDirectoryHandle('ScreenShot')
     directory.files.set('ok.png', new MemoryFileHandle('ok.png', new Blob(['1234'])))
@@ -154,6 +205,25 @@ describe('album refresh and recently deleted filesystem operations', () => {
     expect(result.removedCount).toBe(1)
     expect(result.photos).toContain(kept)
     expect(result.photos.find((photo) => photo === kept)?.url).toBe('blob:loaded-thumbnail')
+  })
+
+  it('replaces a same-name photo when its file metadata changes', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    const currentHandle = new MemoryFileHandle('2026_06_26_11_22_00.jpeg', new Blob(['old']), false, 1)
+    album.files.set(currentHandle.name, currentHandle)
+    const current = createPhoto(album, currentHandle.name)
+    const replacementHandle = new MemoryFileHandle(currentHandle.name, new Blob(['new content']), false, 2)
+    album.files.set(replacementHandle.name, replacementHandle)
+
+    const result = await refreshAlbumDirectory(
+      album as unknown as FileSystemDirectoryHandle,
+      [current],
+      { messages: messages.zh.fileSystem }
+    )
+
+    expect(result.photos[0]).not.toBe(current)
+    expect(result.replacedPhotos).toEqual([current])
+    expect(result.removedCount).toBe(0)
   })
 
   it('moves a favorite photo into trash and reconstructs its metadata', async () => {

@@ -1,4 +1,4 @@
-import { strFromU8, strToU8, Unzip, UnzipInflate, zipSync } from 'fflate'
+import { strFromU8, strToU8, Unzip, UnzipInflate, Zip, ZipDeflate } from 'fflate'
 import type { PhotoItem } from './dateGrouping'
 
 export const DEFAULT_OUTFIT_TAGS = ['甜美', '性感', '帅气', '典雅', '清新', '古典']
@@ -701,17 +701,66 @@ export async function exportOutfitBackup(
       createdAt
     }))
   }
-  const files: Record<string, Uint8Array> = {
-    'manifest.json': strToU8(`${JSON.stringify(manifest, null, 2)}\n`)
-  }
-  for (const outfit of library.outfits) {
-    const file = await outfit.fileHandle.getFile()
-    files[`images/${outfit.image}`] = new Uint8Array(await file.arrayBuffer())
-  }
-  const archive = zipSync(files, { level: 6 })
   const fileName = await availableBackupName(targetDirectory)
-  await writeBlob(await targetDirectory.getFileHandle(fileName, { create: true }), archive)
-  return { fileName, count: library.outfits.length }
+  const targetHandle = await targetDirectory.getFileHandle(fileName, { create: true })
+  const writable = await targetHandle.createWritable()
+  let pendingWrite = Promise.resolve()
+  let resolveArchive!: () => void
+  let rejectArchive!: (error: Error) => void
+  const archiveComplete = new Promise<void>((resolve, reject) => {
+    resolveArchive = resolve
+    rejectArchive = reject
+  })
+  const archive = new Zip((error, chunk, final) => {
+    if (error) {
+      rejectArchive(error)
+      return
+    }
+    pendingWrite = pendingWrite.then(() => writable.write(chunk))
+    if (final) pendingWrite.then(resolveArchive, rejectArchive)
+  })
+
+  const addBytes = async (name: string, bytes: Uint8Array) => {
+    const entry = new ZipDeflate(name, { level: 6 })
+    archive.add(entry)
+    entry.push(bytes, true)
+    await pendingWrite
+  }
+
+  const addFile = async (name: string, file: File) => {
+    const entry = new ZipDeflate(name, { level: 6 })
+    archive.add(entry)
+    const reader = file.stream().getReader()
+    try {
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        entry.push(value)
+        await pendingWrite
+      }
+      entry.push(new Uint8Array(), true)
+      await pendingWrite
+    } finally {
+      reader.releaseLock()
+    }
+  }
+
+  try {
+    await addBytes('manifest.json', strToU8(`${JSON.stringify(manifest, null, 2)}\n`))
+    for (const outfit of library.outfits) {
+      await addFile(`images/${outfit.image}`, await outfit.fileHandle.getFile())
+    }
+    archive.end()
+    await archiveComplete
+    await writable.close()
+    return { fileName, count: library.outfits.length }
+  } catch (error) {
+    archive.terminate()
+    void archiveComplete.catch(() => undefined)
+    await writable.abort(error).catch(() => undefined)
+    await targetDirectory.removeEntry(fileName).catch(() => undefined)
+    throw error
+  }
 }
 
 export function isSafeOutfitArchivePath(path: string): boolean {

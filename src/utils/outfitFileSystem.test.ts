@@ -4,6 +4,7 @@ import {
   importOutfitBackup,
   deleteOutfit,
   deleteOutfitTag,
+  exportOutfitBackup,
   isReservedOutfitTag,
   isSafeOutfitArchivePath,
   isValidOutfitTag,
@@ -63,11 +64,12 @@ class MemoryFileHandle {
   }
 
   async createWritable(): Promise<FileSystemWritableFileStream> {
+    const chunks: Blob[] = []
     return {
       write: async (data: BufferSource | Blob | string) => {
-        this.contents = data instanceof Blob ? data : new Blob([data])
+        chunks.push(data instanceof Blob ? data : new Blob([data]))
       },
-      close: async () => undefined,
+      close: async () => { this.contents = new Blob(chunks, { type: this.contents.type }) },
       abort: async () => undefined
     } as FileSystemWritableFileStream
   }
@@ -418,5 +420,22 @@ describe('outfit filesystem', () => {
 
     await expect(importOutfitBackup(asDirectory(album), file)).rejects.toThrow('too many files')
     expect(album.directories.has('clothe')).toBe(false)
+  })
+
+  it('exports a valid ZIP by streaming image data instead of buffering the archive', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    await saveOutfit(asDirectory(album), {
+      imageFile: browserFile([new Blob(['webp image'])], 'look.webp', { type: 'image/webp' }),
+      code: 'ABC',
+      tag: null
+    })
+    const target = new MemoryDirectoryHandle('exports')
+    const result = await exportOutfitBackup(asDirectory(album), asDirectory(target))
+    const backup = await target.files.get(result.fileName)!.getFile()
+    const importedAlbum = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+
+    const imported = await importOutfitBackup(asDirectory(importedAlbum), backup)
+    expect(result.count).toBe(1)
+    expect(imported.addedCount).toBe(1)
   })
 })

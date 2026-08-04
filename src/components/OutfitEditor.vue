@@ -29,25 +29,32 @@ const isDragging = ref(false)
 let previousBodyOverflow = ''
 let isBodyScrollLockedByEditor = false
 let previousActiveElement: HTMLElement | null = null
+let previewRequestId = 0
 
 const hasImage = computed(() => Boolean(imageFile.value || props.outfit))
 
 function revokePreview() {
+  previewRequestId += 1
   if (previewUrl.value?.startsWith('blob:')) URL.revokeObjectURL(previewUrl.value)
   previewUrl.value = null
 }
 
 async function resetForm() {
   revokePreview()
+  const requestId = previewRequestId
+  const outfit = props.outfit
   imageFile.value = undefined
-  code.value = props.outfit?.code ?? ''
-  selectedTag.value = props.outfit?.tags[0] ?? null
+  code.value = outfit?.code ?? ''
+  selectedTag.value = outfit?.tags[0] ?? null
   errorMessage.value = ''
   isDragging.value = false
-  if (props.outfit) {
+  if (outfit) {
     try {
-      previewUrl.value = URL.createObjectURL(await props.outfit.fileHandle.getFile())
+      const file = await outfit.fileHandle.getFile()
+      if (requestId !== previewRequestId || !props.visible || props.outfit !== outfit) return
+      previewUrl.value = URL.createObjectURL(file)
     } catch {
+      if (requestId !== previewRequestId || !props.visible || props.outfit !== outfit) return
       errorMessage.value = props.messages.imageLoadFailed
     }
   }

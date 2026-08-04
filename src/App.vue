@@ -37,6 +37,7 @@ import {
   releasePhotoUrl,
   releasePhotoUrls,
   restoreRecentlyDeletedPhotos,
+  saveAlbumDirectoryHandle,
   type AlbumDirectoryResult,
   type RefreshAlbumResult
 } from './utils/fileSystem'
@@ -402,6 +403,12 @@ function mergeRecentlyDeleted(nextPhotos: RecentlyDeletedPhoto[]) {
  * 参数：result 为新相册结果，nextStatus 为完成后的状态提示。
  */
 async function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusState) {
+  const [outfitResult, nextRecentlyDeleted] = await Promise.all([
+    readOutfitLibrary(result.directoryHandle),
+    listRecentlyDeleted(result.directoryHandle)
+  ])
+  await saveAlbumDirectoryHandle(result.directoryHandle)
+
   releasePhotoUrls(photos.value)
   releasePhotoUrls(outfits.value)
   releasePhotoUrls(recentlyDeleted.value)
@@ -414,10 +421,9 @@ async function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusStat
   isOutfitEditorVisible.value = false
   isOutfitGuideVisible.value = false
   photos.value = result.photos
-  const outfitResult = await readOutfitLibrary(result.directoryHandle)
   outfits.value = outfitResult.outfits
   outfitTags.value = outfitResult.tags
-  recentlyDeleted.value = await listRecentlyDeleted(result.directoryHandle)
+  recentlyDeleted.value = nextRecentlyDeleted
   // 收藏记录跨相册保留，切换相册时不再按当前照片裁剪，避免切回后丢失
   activeView.value = 'all'
   albumDirectoryHandle.value = result.directoryHandle
@@ -571,25 +577,17 @@ async function clearCache() {
   }
 }
 
-/** 二次确认后清除所有网站本地数据和授权。参数：无。 */
+/** 确认后清除所有网站本地数据和授权。参数：无。 */
 async function clearData() {
   if (isAnyFileOperationBusy.value) return
-  const firstConfirmed = await openConfirmDialog({
+  const confirmed = await openConfirmDialog({
     title: locale.value.app.clearDataDialogTitle,
     message: locale.value.app.clearDataFirstConfirmMessage,
-    tone: 'warning',
-    confirmLabel: locale.value.topBar.clearData,
-    cancelLabel: locale.value.app.dialogCancel
-  })
-  if (!firstConfirmed) return
-  const secondConfirmed = await openConfirmDialog({
-    title: locale.value.app.clearDataDialogTitle,
-    message: locale.value.app.clearDataSecondConfirmMessage,
     tone: 'danger',
     confirmLabel: locale.value.topBar.clearData,
     cancelLabel: locale.value.app.dialogCancel
   })
-  if (!secondConfirmed) return
+  if (!confirmed) return
 
   suppressLocalPersistence = true
   try {
@@ -622,12 +620,16 @@ async function clearData() {
  */
 function applyRefreshResult(result: RefreshAlbumResult) {
   for (const photo of result.removedPhotos) releasePhotoUrl(photo)
+  for (const photo of result.replacedPhotos) releasePhotoUrl(photo)
   photos.value = result.photos
   mergeRecentlyDeleted(result.recentlyDeleted)
   const validPhotoIds = new Set(photos.value.map((photo) => photo.id))
   selectedIds.value = new Set([...selectedIds.value].filter((id) => validPhotoIds.has(id)))
   // 收藏记录不随刷新裁剪：其他相册的收藏必须保留，本相册临时缺失的文件重新出现后收藏仍生效
-  if (currentPreview.value && !previewPhotos.value.some((photo) => photo.id === currentPreview.value?.id)) currentPreview.value = null
+  if (currentPreview.value) {
+    const refreshedPreview = previewPhotos.value.find((photo) => photo.id === currentPreview.value?.id)
+    currentPreview.value = refreshedPreview ?? null
+  }
 }
 
 /**
@@ -714,6 +716,7 @@ async function ensureSharedOutfitSource(prompt: boolean, autoPrompt = prompt): P
   let didCancelDirectoryPrompt = false
   try {
     const result = await getX6GameDirectoryForAlbum(directoryHandle, locale.value.fileSystem, {
+      allowUnrelatedAlbum: true,
       beforeRequestX6GamePermission: async () => {
         if (!prompt) return false
         const confirmed = await openConfirmDialog({
@@ -1301,22 +1304,28 @@ async function restoreTrashPhotos(targets: RecentlyDeletedPhoto[], keepPreviewOp
 
 /**
  * 永久删除最近删除照片并显示不可恢复影响范围。
- * 参数：targets 为待删除照片，keepPreviewOpen 表示是否继续预览相邻照片。
+ * 参数：targets 为待删除照片，options 控制是否继续预览相邻照片及是否已在调用方完成确认。
  */
-async function permanentlyDeleteTrashPhotos(targets: RecentlyDeletedPhoto[], keepPreviewOpen = false) {
+async function permanentlyDeleteTrashPhotos(
+  targets: RecentlyDeletedPhoto[],
+  options: { keepPreviewOpen?: boolean; skipConfirmation?: boolean } = {}
+) {
   if (!targets.length || isAnyFileOperationBusy.value) return
-  const confirmed = await openConfirmDialog({
-    title: locale.value.trash.permanentDeleteDialogTitle,
-    message: locale.value.trash.confirmPermanentDelete(targets.length),
-    tone: 'danger',
-    confirmLabel: locale.value.app.dialogConfirm,
-    cancelLabel: locale.value.app.dialogCancel
-  })
-  if (!confirmed) return
+  if (!options.skipConfirmation) {
+    const confirmed = await openConfirmDialog({
+      title: locale.value.trash.permanentDeleteDialogTitle,
+      message: locale.value.trash.confirmPermanentDelete(targets.length),
+      tone: 'danger',
+      confirmLabel: locale.value.app.dialogConfirm,
+      cancelLabel: locale.value.app.dialogCancel
+    })
+    if (!confirmed) return
+  }
 
   isTrashBusy.value = true
   statusState.value = { type: 'custom', message: locale.value.app.permanentlyDeletingPhotos, tone: 'info', loading: true }
   const previewIndex = currentPreviewIndex.value
+  const keepPreviewOpen = options.keepPreviewOpen ?? false
   try {
     const result = await permanentlyDeleteRecentlyDeleted(targets)
     const deletedIds = new Set(result.succeeded.map((photo) => photo.id))
@@ -1360,7 +1369,7 @@ async function deleteAllTrash() {
     cancelLabel: locale.value.app.dialogCancel
   })
   if (!confirmed) return
-  await permanentlyDeleteTrashPhotos([...recentlyDeleted.value])
+  await permanentlyDeleteTrashPhotos([...recentlyDeleted.value], { skipConfirmation: true })
 }
 
 /** 恢复当前最近删除预览照片。参数：无。 */
@@ -1372,7 +1381,10 @@ async function restoreCurrentTrashPreview() {
 /** 永久删除当前最近删除预览照片。参数：无。 */
 async function permanentlyDeleteCurrentTrashPreview() {
   if (!currentPreview.value || activeView.value !== 'trash') return
-  await permanentlyDeleteTrashPhotos([currentPreview.value as RecentlyDeletedPhoto], true)
+  await permanentlyDeleteTrashPhotos(
+    [currentPreview.value as RecentlyDeletedPhoto],
+    { keepPreviewOpen: true }
+  )
 }
 
 /** 执行原有低画质和截图永久清理。参数：无。 */

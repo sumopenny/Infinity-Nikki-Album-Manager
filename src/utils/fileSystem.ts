@@ -24,6 +24,7 @@ export interface AlbumDirectoryResult {
 export interface X6GameDirectoryOptions {
   beforePickX6GameDirectory?: () => boolean | Promise<boolean>
   beforeRequestX6GamePermission?: () => boolean | Promise<boolean>
+  allowUnrelatedAlbum?: boolean
 }
 
 interface RelatedPhotoCleanupTarget {
@@ -50,12 +51,13 @@ export interface RelatedPhotoCleanupResult {
 
 type FileSystemMessages = LocaleMessages['fileSystem']
 
-type RelatedPhotoCleanupOptions = X6GameDirectoryOptions
+type RelatedPhotoCleanupOptions = Omit<X6GameDirectoryOptions, 'allowUnrelatedAlbum'>
 
 export interface RefreshAlbumResult extends AlbumDirectoryResult {
   addedCount: number
   removedCount: number
   removedPhotos: PhotoItem[]
+  replacedPhotos: PhotoItem[]
   recentlyDeleted: RecentlyDeletedPhoto[]
 }
 
@@ -277,9 +279,20 @@ export async function refreshAlbumDirectory(
     const currentByName = new Map(currentPhotos.map((photo) => [photo.name, photo]))
     const scannedNames = new Set(scannedPhotos.map((photo) => photo.name))
     let addedCount = 0
+    const replacedPhotos: PhotoItem[] = []
     const photos = scannedPhotos.map((photo) => {
       const existing = currentByName.get(photo.name)
-      if (existing) return existing
+      if (
+        existing &&
+        existing.fileSize !== undefined &&
+        existing.lastModified !== undefined &&
+        existing.fileSize === photo.fileSize &&
+        existing.lastModified === photo.lastModified
+      ) return existing
+      if (existing) {
+        replacedPhotos.push(existing)
+        return photo
+      }
       addedCount += 1
       return photo
     })
@@ -292,6 +305,7 @@ export async function refreshAlbumDirectory(
       addedCount,
       removedCount: removedPhotos.length,
       removedPhotos,
+      replacedPhotos,
       recentlyDeleted: await listRecentlyDeleted(directoryHandle)
     }
   } catch (error) {
@@ -388,7 +402,7 @@ export async function restoreRecentlyDeletedPhotos(
         throw error
       }
 
-      const restoredPhoto = createPhotoItem(restoreName, targetHandle, albumDirectoryHandle)
+      const restoredPhoto = await createPhotoItem(restoreName, targetHandle, albumDirectoryHandle)
       if (!restoredPhoto) throw new Error(`Invalid restored photo name: ${restoreName}`)
       restoredPhoto.fileSizeText = formatFileSize(sourceFile.size)
       releasePhotoUrl(photo)
@@ -438,9 +452,7 @@ export async function pickAlbumDirectory(messages: FileSystemMessages): Promise<
       startIn: 'pictures'
     })
 
-    const result = await readAlbumDirectory(directoryHandle, { requestPermission: true, messages })
-    await saveAlbumDirectoryHandle(directoryHandle)
-    return result
+    return await readAlbumDirectory(directoryHandle, { requestPermission: true, messages })
   } catch (error) {
     throw normalizeDirectoryError(error, messages)
   }
@@ -508,19 +520,31 @@ async function rollbackFile(directoryHandle: FileSystemDirectoryHandle, fileName
  * 参数：name 为文件名，fileHandle 为文件句柄，directoryHandle 为所属目录。
  * 返回：符合游戏命名格式的照片；无法解析日期时返回 null。
  */
-function createPhotoItem(
+async function createPhotoItem(
   name: string,
   fileHandle: FileSystemFileHandle,
   directoryHandle: FileSystemDirectoryHandle
-): PhotoItem | null {
+): Promise<PhotoItem | null> {
   const parsed = parsePhotoDate(name)
   if (!parsed) return null
+
+  let fileSize: number | undefined
+  let lastModified: number | undefined
+  try {
+    const file = await fileHandle.getFile()
+    fileSize = file.size
+    lastModified = file.lastModified
+  } catch {
+    // Keep unreadable files visible; loading the image will report the read failure later.
+  }
 
   return {
     id: `${parsed.dateKey}-${parsed.timeText}-${name}`,
     name,
     url: null,
-    fileSizeText: '--',
+    fileSizeText: fileSize === undefined ? '--' : formatFileSize(fileSize),
+    fileSize,
+    lastModified,
     fileHandle,
     directoryHandle,
     ...parsed
@@ -536,7 +560,7 @@ async function scanAlbumPhotos(directoryHandle: FileSystemDirectoryHandle): Prom
   const photos: PhotoItem[] = []
   for await (const [name, handle] of directoryHandle.entries()) {
     if (handle.kind !== 'file' || !isImageFile(name)) continue
-    const photo = createPhotoItem(name, handle as FileSystemFileHandle, directoryHandle)
+    const photo = await createPhotoItem(name, handle as FileSystemFileHandle, directoryHandle)
     if (photo) photos.push(photo)
   }
   return photos.sort((a, b) => b.timestamp - a.timestamp)
@@ -564,6 +588,8 @@ export async function ensurePhotoUrl(photo: PhotoItem, signal?: AbortSignal): Pr
       }
 
       photo.fileSizeText = formatFileSize(file.size)
+      photo.fileSize = file.size
+      photo.lastModified = file.lastModified
       photo.url = url
       return url
     })().finally(() => {
@@ -614,12 +640,18 @@ async function getNestedDirectory(
   return currentHandle
 }
 
-async function resolveAccountDirectory(
+export async function resolveX6GameAccountDirectory(
   x6GameHandle: FileSystemDirectoryHandle,
   albumDirectoryHandle: FileSystemDirectoryHandle,
-  messages: FileSystemMessages
+  messages: FileSystemMessages,
+  allowUnrelatedAlbum = false
 ): Promise<string> {
-  if (albumDirectoryHandle.name !== HIGH_QUALITY_DIRECTORY_NAME || x6GameHandle.name !== 'X6Game') {
+  if (x6GameHandle.name !== 'X6Game') {
+    throw new Error(messages.invalidX6GameDirectory)
+  }
+
+  if (albumDirectoryHandle.name !== HIGH_QUALITY_DIRECTORY_NAME) {
+    if (allowUnrelatedAlbum) return ''
     throw new Error(messages.invalidX6GameDirectory)
   }
 
@@ -648,7 +680,7 @@ async function resolveAccountDirectory(
 async function pickValidatedX6GameDirectory(
   albumDirectoryHandle: FileSystemDirectoryHandle,
   messages: FileSystemMessages,
-  options: RelatedPhotoCleanupOptions = {}
+  options: X6GameDirectoryOptions = {}
 ): Promise<{ directoryHandle: FileSystemDirectoryHandle; accountDirectoryName: string }> {
   if (!window.showDirectoryPicker) {
     throw new Error(messages.unsupportedBrowser)
@@ -669,7 +701,12 @@ async function pickValidatedX6GameDirectory(
     throw new Error(messages.permissionRequired)
   }
 
-  const accountDirectoryName = await resolveAccountDirectory(directoryHandle, albumDirectoryHandle, messages)
+  const accountDirectoryName = await resolveX6GameAccountDirectory(
+    directoryHandle,
+    albumDirectoryHandle,
+    messages,
+    options.allowUnrelatedAlbum
+  )
   await runStoreTransaction('readwrite', (store) => store.put(directoryHandle, SAVED_X6GAME_DIRECTORY_KEY))
   return { directoryHandle, accountDirectoryName }
 }
@@ -677,9 +714,9 @@ async function pickValidatedX6GameDirectory(
 async function getValidatedX6GameDirectory(
   albumDirectoryHandle: FileSystemDirectoryHandle,
   messages: FileSystemMessages,
-  options: RelatedPhotoCleanupOptions = {}
+  options: X6GameDirectoryOptions = {}
 ): Promise<{ directoryHandle: FileSystemDirectoryHandle; accountDirectoryName: string }> {
-  if (albumDirectoryHandle.name !== HIGH_QUALITY_DIRECTORY_NAME) {
+  if (albumDirectoryHandle.name !== HIGH_QUALITY_DIRECTORY_NAME && !options.allowUnrelatedAlbum) {
     throw new Error(messages.invalidAlbumDirectory)
   }
 
@@ -697,7 +734,12 @@ async function getValidatedX6GameDirectory(
 
     if (hasPermission) {
       try {
-        const accountDirectoryName = await resolveAccountDirectory(savedHandle, albumDirectoryHandle, messages)
+        const accountDirectoryName = await resolveX6GameAccountDirectory(
+          savedHandle,
+          albumDirectoryHandle,
+          messages,
+          options.allowUnrelatedAlbum
+        )
         return { directoryHandle: savedHandle, accountDirectoryName }
       } catch {
         await clearSavedX6GameDirectoryHandle()

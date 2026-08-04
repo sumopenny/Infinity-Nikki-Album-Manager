@@ -1,8 +1,9 @@
-import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
 import { getOutfitMessages } from '../outfitMessages'
 import type { OutfitItem } from '../utils/outfitFileSystem'
 import OutfitGrid from './OutfitGrid.vue'
+import OutfitEditor from './OutfitEditor.vue'
 import OutfitGuideDialog from './OutfitGuideDialog.vue'
 import OutfitSidebar from './OutfitSidebar.vue'
 
@@ -165,5 +166,32 @@ describe('outfit workspace components', () => {
     await wrapper.get('.outfit-card').trigger('click')
     await wrapper.get('.outfit-card').trigger('keydown', { key: 'Enter' })
     expect(wrapper.emitted('toggleOutfit')).toBeUndefined()
+  })
+
+  it('ignores an older asynchronous preview after the editor is reopened', async () => {
+    const files: Array<(file: File) => void> = []
+    const firstFile = new File(['first'], 'first.webp', { type: 'image/webp' })
+    const secondFile = new File(['second'], 'second.webp', { type: 'image/webp' })
+    const item = outfit('1', 'ABC')
+    item.fileHandle = { getFile: () => new Promise<File>((resolve) => files.push(resolve)) } as FileSystemFileHandle
+    const createObjectURL = vi.fn((file: File) => `blob:${file.name}`)
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })
+
+    const wrapper = mount(OutfitEditor, {
+      props: { visible: false, outfit: item, tags: [], busy: false, messages: getOutfitMessages('zh') }
+    })
+    await wrapper.setProps({ visible: true })
+    await wrapper.setProps({ visible: false })
+    await wrapper.setProps({ visible: true })
+
+    files[0](firstFile)
+    await flushPromises()
+    expect(document.body.querySelector('.outfit-editor img')).toBeNull()
+    files[1](secondFile)
+    await flushPromises()
+    expect(document.body.querySelector('.outfit-editor img')?.getAttribute('src')).toBe('blob:second.webp')
+    expect(createObjectURL).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
   })
 })
