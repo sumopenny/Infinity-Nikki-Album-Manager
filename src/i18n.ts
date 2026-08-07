@@ -379,10 +379,9 @@ export const messages: Record<Language, LocaleMessages> = {
         '一键清理：快速清理低画质照片和游戏截图，释放磁盘空间。'
       ],
       changelogTitle: '当前版本【2026.8.7更新】',
-      // 更新日志按新版本在前的顺序排列，新增版本请加在数组开头，当前版本会自动带上“当前版本”标识
+      // 更新日志只保留当前版本，发布新版本时替换该条内容，当前版本会自动带上“当前版本”标识
       changelog: [
-        { version: 'v1.2.1', text: '搭配码编辑窗口新增快捷创建标签功能：在标签区域点击“+”按钮即可直接新建标签，创建成功后会自动选中该标签。' },
-        { version: 'v1.2', text: '新增星绘图册搭配码管理模块，可手动添加、批量添加、自动同步游戏内新搭配码。（拍照参数、家园码管理模块开发中）' }
+        { version: 'v1.2.1', text: '搭配码编辑窗口新增快捷创建标签功能：在标签区域点击“+”按钮即可直接新建标签，创建成功后会自动选中该标签。' }
       ],
       dontShowAgain: '不再提示',
       confirm: '我知道了',
@@ -598,8 +597,7 @@ export const messages: Record<Language, LocaleMessages> = {
       ],
       changelogTitle: 'Current version【2026.8.7 update】',
       changelog: [
-        { version: 'v1.2.1', text: 'Added quick tag creation to the outfit editor: click the “+” button in the tag area to create a tag directly, which is selected automatically after creation.' },
-        { version: 'v1.2', text: 'Added the Starry Gallery outfit code module: add manually, import in batches, and auto-sync new in-game outfit codes.' }
+        { version: 'v1.2.1', text: 'Added quick tag creation to the outfit editor: click the “+” button in the tag area to create a tag directly, which is selected automatically after creation.' }
       ],
       dontShowAgain: "Don't show again",
       confirm: 'Got it',
