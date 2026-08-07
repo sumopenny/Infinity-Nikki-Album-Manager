@@ -161,6 +161,7 @@ const isX6GameAutoPromptDismissed = ref(localStorage.getItem(X6GAME_AUTO_PROMPT_
 const didCancelX6GameAutoPrompt = ref(false)
 const isUpdatingOutfits = ref(false)
 const outfitSidebarRef = ref<InstanceType<typeof OutfitSidebar> | null>(null)
+const outfitEditorRef = ref<InstanceType<typeof OutfitEditor> | null>(null)
 const outfitImportInput = ref<HTMLInputElement | null>(null)
 const recentlyDeleted = ref<RecentlyDeletedPhoto[]>([])
 const selectedIds = ref<Set<string>>(new Set())
@@ -908,7 +909,7 @@ async function handleSaveOutfit(input: Omit<SaveOutfitInput, 'outfit'>) {
 }
 
 /** 新增搭配标签。参数：用户输入的原始标签文本。 */
-async function addOutfitTag(rawTag: string) {
+async function addOutfitTag(rawTag: string, selectInEditor = false) {
   const directoryHandle = albumDirectoryHandle.value
   if (!directoryHandle || isAnyFileOperationBusy.value) return
   const tag = normalizeOutfitTag(rawTag)
@@ -929,6 +930,7 @@ async function addOutfitTag(rawTag: string) {
   try {
     outfitTags.value = await saveOutfitTags(directoryHandle, [...outfitTags.value, tag])
     outfitSidebarRef.value?.closeTagInput()
+    if (selectInEditor) outfitEditorRef.value?.selectCreatedTag(tag)
     showOutfitStatus(language.value === 'zh' ? '标签添加成功。' : 'Tag added.')
   } catch (error) {
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
@@ -1718,6 +1720,7 @@ onBeforeUnmount(() => {
     />
 
     <OutfitEditor
+      ref="outfitEditorRef"
       :visible="isOutfitEditorVisible"
       :outfit="editingOutfit"
       :tags="outfitTags"
@@ -1725,6 +1728,7 @@ onBeforeUnmount(() => {
       :messages="outfitLocale"
       @close="closeOutfitEditor()"
       @save="handleSaveOutfit"
+      @add-tag="addOutfitTag($event, true)"
     />
 
     <OutfitGuideDialog

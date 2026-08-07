@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { ImagePlus, Upload, X } from 'lucide-vue-next'
+import { ImagePlus, Plus, Upload, X } from 'lucide-vue-next'
 import type { OutfitMessages } from '../outfitMessages'
-import { MAX_OUTFIT_CODE_LENGTH, normalizeOutfitCode, type OutfitItem } from '../utils/outfitFileSystem'
+import {
+  MAX_OUTFIT_CODE_LENGTH,
+  MAX_OUTFIT_TAG_LENGTH,
+  MAX_OUTFIT_TAGS,
+  normalizeOutfitCode,
+  type OutfitItem
+} from '../utils/outfitFileSystem'
 
 const props = defineProps<{
   visible: boolean
@@ -15,6 +21,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   save: [input: { imageFile?: File; code: string; tag: string | null }]
+  addTag: [tag: string]
 }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -26,6 +33,13 @@ const code = ref('')
 const selectedTag = ref<string | null>(null)
 const errorMessage = ref('')
 const isDragging = ref(false)
+const isAddingTag = ref(false)
+const tagInput = ref('')
+const addTagToggleRef = ref<HTMLButtonElement | null>(null)
+const tagEditorRef = ref<HTMLFormElement | null>(null)
+const tagInputRef = ref<HTMLInputElement | null>(null)
+const tagEditorPosition = ref({ top: '0px', left: '0px' })
+const editorOverlayRef = ref<HTMLElement | null>(null)
 let previousBodyOverflow = ''
 let isBodyScrollLockedByEditor = false
 let previousActiveElement: HTMLElement | null = null
@@ -88,7 +102,10 @@ function handlePaste(event: ClipboardEvent) {
 }
 
 function handleKeydown(event: KeyboardEvent) {
-  if (props.visible && !props.busy && event.key === 'Escape') emit('close')
+  if (props.visible && !props.busy && event.key === 'Escape') {
+    if (isAddingTag.value) closeTagInput()
+    else emit('close')
+  }
   if (!props.visible || event.key !== 'Tab' || !panelRef.value) return
   const focusable = [...panelRef.value.querySelectorAll<HTMLElement>('button, input, [href], [tabindex]:not([tabindex="-1"])')]
     .filter((element) => !element.hasAttribute('disabled'))
@@ -108,6 +125,53 @@ function updateCode(event: Event) {
   code.value = normalizeOutfitCode((event.target as HTMLInputElement).value)
 }
 
+function updateTagEditorPosition() {
+  const toggle = addTagToggleRef.value
+  if (!toggle) return
+  const rect = toggle.getBoundingClientRect()
+  const width = Math.min(260, window.innerWidth - 24)
+  tagEditorPosition.value = {
+    top: `${Math.max(12, Math.min(rect.top, window.innerHeight - 64))}px`,
+    left: `${Math.max(12, Math.min(rect.right + 8, window.innerWidth - width - 12))}px`
+  }
+}
+
+function openTagInput() {
+  isAddingTag.value = true
+  void nextTick(() => {
+    updateTagEditorPosition()
+    tagInputRef.value?.focus()
+  })
+}
+
+function closeTagInput() {
+  isAddingTag.value = false
+  tagInput.value = ''
+}
+
+function submitTag() {
+  emit('addTag', tagInput.value)
+}
+
+function selectCreatedTag(tag: string) {
+  selectedTag.value = tag
+  closeTagInput()
+}
+
+function handleDocumentPointerDown(event: PointerEvent) {
+  if (!isAddingTag.value || !(event.target instanceof Node)) return
+  if (event.target === editorOverlayRef.value) return
+  if (addTagToggleRef.value?.contains(event.target) || tagEditorRef.value?.contains(event.target)) return
+  closeTagInput()
+}
+
+function handleEditorBackdropClick() {
+  if (isAddingTag.value) closeTagInput()
+  else emit('close')
+}
+
+defineExpose({ selectCreatedTag })
+
 function submit() {
   if (!hasImage.value) {
     errorMessage.value = props.messages.imageRequired
@@ -126,6 +190,7 @@ watch(() => props.visible, (visible) => {
     void resetForm()
     void nextTick(() => codeInput.value?.focus())
   } else {
+    closeTagInput()
     document.body.style.overflow = previousBodyOverflow
     isBodyScrollLockedByEditor = false
     revokePreview()
@@ -136,9 +201,15 @@ watch(() => props.visible, (visible) => {
 
 window.addEventListener('paste', handlePaste)
 window.addEventListener('keydown', handleKeydown)
+document.addEventListener('pointerdown', handleDocumentPointerDown)
+window.addEventListener('resize', updateTagEditorPosition)
+window.addEventListener('scroll', updateTagEditorPosition, true)
 onBeforeUnmount(() => {
   window.removeEventListener('paste', handlePaste)
   window.removeEventListener('keydown', handleKeydown)
+  document.removeEventListener('pointerdown', handleDocumentPointerDown)
+  window.removeEventListener('resize', updateTagEditorPosition)
+  window.removeEventListener('scroll', updateTagEditorPosition, true)
   if (isBodyScrollLockedByEditor) document.body.style.overflow = previousBodyOverflow
   revokePreview()
 })
@@ -147,7 +218,7 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <Transition name="confirm-dialog">
-      <div v-if="visible" class="outfit-editor" role="dialog" aria-modal="true" :aria-label="messages.editTitle" @click.self="$emit('close')">
+      <div ref="editorOverlayRef" v-if="visible" class="outfit-editor" role="dialog" aria-modal="true" :aria-label="messages.editTitle" @click.self="handleEditorBackdropClick">
         <section ref="panelRef" class="outfit-editor-panel">
           <header>
             <h2>{{ messages.editTitle }}</h2>
@@ -210,8 +281,41 @@ onBeforeUnmount(() => {
                   >
                     {{ tag }}
                   </button>
+                  <button
+                    ref="addTagToggleRef"
+                    class="outfit-editor-add-tag"
+                    type="button"
+                    :title="messages.addTag"
+                    :aria-label="messages.addTag"
+                    :disabled="busy || tags.length >= MAX_OUTFIT_TAGS"
+                    @click="isAddingTag ? closeTagInput() : openTagInput()"
+                  >
+                    <X v-if="isAddingTag" :size="15" aria-hidden="true" />
+                    <Plus v-else :size="15" aria-hidden="true" />
+                  </button>
                 </div>
                 <p v-if="!tags.length">{{ messages.noTag }}</p>
+                <Teleport to="body">
+                  <Transition name="outfit-tag-editor">
+                    <form
+                      v-if="isAddingTag"
+                      ref="tagEditorRef"
+                      class="outfit-tag-editor outfit-tag-editor-popover"
+                      :style="tagEditorPosition"
+                      @submit.prevent="submitTag"
+                    >
+                      <input
+                        ref="tagInputRef"
+                        v-model="tagInput"
+                        :maxlength="MAX_OUTFIT_TAG_LENGTH"
+                        :placeholder="messages.tagPlaceholder"
+                        :disabled="busy"
+                        autocomplete="off"
+                      />
+                      <button type="submit" :disabled="busy">{{ messages.confirmAddTag }}</button>
+                    </form>
+                  </Transition>
+                </Teleport>
               </fieldset>
               <p v-if="errorMessage" class="outfit-editor-error">{{ errorMessage }}</p>
             </div>

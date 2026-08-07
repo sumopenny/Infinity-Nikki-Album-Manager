@@ -194,4 +194,59 @@ describe('outfit workspace components', () => {
     expect(createObjectURL).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })
+
+  it('opens the inline tag creation popover and closes it with Escape', async () => {
+    const wrapper = mount(OutfitEditor, {
+      attachTo: document.body,
+      props: { visible: true, outfit: null, tags: ['甜美'], busy: false, messages: getOutfitMessages('zh') }
+    })
+
+    ;(document.body.querySelector('.outfit-editor-add-tag') as HTMLButtonElement).click()
+    await wrapper.vm.$nextTick()
+    expect(document.body.querySelector('.outfit-tag-editor-popover')).not.toBeNull()
+    expect(document.activeElement).toBe(document.body.querySelector('.outfit-tag-editor-popover input'))
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await wrapper.vm.$nextTick()
+    expect(document.body.querySelector('.outfit-tag-editor-popover')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('keeps the editor open when the backdrop closes the tag popover', async () => {
+    const wrapper = mount(OutfitEditor, {
+      attachTo: document.body,
+      props: { visible: true, outfit: null, tags: ['甜美'], busy: false, messages: getOutfitMessages('zh') }
+    })
+
+    ;(document.body.querySelector('.outfit-editor-add-tag') as HTMLButtonElement).click()
+    await wrapper.vm.$nextTick()
+    const editorBackdrop = document.body.querySelector('.outfit-editor') as HTMLElement
+    editorBackdrop.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    editorBackdrop.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+    expect(document.body.querySelector('.outfit-tag-editor-popover')).toBeNull()
+    expect(document.body.querySelector('.outfit-editor')).not.toBeNull()
+    expect(wrapper.emitted('close')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('selects a newly created tag after the parent confirms persistence', async () => {
+    const wrapper = mount(OutfitEditor, {
+      attachTo: document.body,
+      props: { visible: true, outfit: null, tags: ['甜美'], busy: false, messages: getOutfitMessages('zh') }
+    })
+
+    ;(document.body.querySelector('.outfit-editor-add-tag') as HTMLButtonElement).click()
+    await wrapper.vm.$nextTick()
+    const tagInput = document.body.querySelector('.outfit-tag-editor-popover input') as HTMLInputElement
+    tagInput.value = '清新'
+    tagInput.dispatchEvent(new Event('input', { bubbles: true }))
+    ;(document.body.querySelector('.outfit-tag-editor-popover') as HTMLFormElement).requestSubmit()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.emitted('addTag')).toEqual([['清新']])
+    ;(wrapper.vm as unknown as { selectCreatedTag: (tag: string) => void }).selectCreatedTag('清新')
+    await wrapper.setProps({ tags: ['甜美', '清新'] })
+    expect(document.body.querySelectorAll('.outfit-tag-choices button')[1].classList).toContain('active')
+    expect(document.body.querySelector('.outfit-tag-editor-popover')).toBeNull()
+    wrapper.unmount()
+  })
 })
