@@ -53,6 +53,10 @@ type FileSystemMessages = LocaleMessages['fileSystem']
 
 type RelatedPhotoCleanupOptions = Omit<X6GameDirectoryOptions, 'allowUnrelatedAlbum'>
 
+function isCleanupTargetDirectory(directoryName: string): boolean {
+  return directoryName === LOW_QUALITY_DIRECTORY_NAME || directoryName === SCREENSHOT_DIRECTORY_NAME
+}
+
 export interface RefreshAlbumResult extends AlbumDirectoryResult {
   addedCount: number
   removedCount: number
@@ -650,10 +654,10 @@ export async function resolveX6GameAccountDirectory(
     throw new Error(messages.invalidX6GameDirectory)
   }
 
-  if (albumDirectoryHandle.name !== HIGH_QUALITY_DIRECTORY_NAME) {
-    if (allowUnrelatedAlbum) return ''
+  if (isCleanupTargetDirectory(albumDirectoryHandle.name)) {
     throw new Error(messages.invalidX6GameDirectory)
   }
+  if (albumDirectoryHandle.name !== HIGH_QUALITY_DIRECTORY_NAME && allowUnrelatedAlbum) return ''
 
   const relativePath = await x6GameHandle.resolve(albumDirectoryHandle)
   const accountDirectoryName = relativePath?.[2] ?? ''
@@ -661,7 +665,7 @@ export async function resolveX6GameAccountDirectory(
     relativePath?.length === 4 &&
     relativePath[0] === 'Saved' &&
     relativePath[1] === 'GamePlayPhotos' &&
-    relativePath[3] === HIGH_QUALITY_DIRECTORY_NAME
+    relativePath[3] === albumDirectoryHandle.name
   const hasValidAccountDirectory =
     Boolean(accountDirectoryName) && accountDirectoryName !== '.' && accountDirectoryName !== '..' && !/[\\/]/.test(accountDirectoryName)
 
@@ -716,7 +720,7 @@ async function getValidatedX6GameDirectory(
   messages: FileSystemMessages,
   options: X6GameDirectoryOptions = {}
 ): Promise<{ directoryHandle: FileSystemDirectoryHandle; accountDirectoryName: string }> {
-  if (albumDirectoryHandle.name !== HIGH_QUALITY_DIRECTORY_NAME && !options.allowUnrelatedAlbum) {
+  if (isCleanupTargetDirectory(albumDirectoryHandle.name) && !options.allowUnrelatedAlbum) {
     throw new Error(messages.invalidAlbumDirectory)
   }
 

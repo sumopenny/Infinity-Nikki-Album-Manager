@@ -93,7 +93,7 @@ const outfitMessages: Record<Language, OutfitMessages> = {
     guideFeaturedSection: {
       title: '自动更新游戏搭配码',
       items: [
-        '使用自动更新搭配码的功能需要授权当前游戏的 X6Game 文件夹。',
+        '使用自动更新搭配码的功能需要授权当前游戏的 X6Game 文件夹。可前往页面右上角相册下拉栏进行文件夹授权。',
         '在游戏内点击分享按钮，需要在搭配截图右下角点击框选按钮，框选完成后生成搭配码，再返回网页，网站会自动更新该条搭配码数据。'
       ]
     },

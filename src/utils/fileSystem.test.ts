@@ -46,6 +46,7 @@ class MemoryDirectoryHandle {
   readonly files = new Map<string, MemoryFileHandle>()
   readonly directories = new Map<string, MemoryDirectoryHandle>()
   failRemoveName: string | null = null
+  readonly resolvedPaths = new Map<MemoryDirectoryHandle, string[]>()
 
   constructor(public readonly name: string) {}
 
@@ -85,8 +86,8 @@ class MemoryDirectoryHandle {
     if (!this.files.delete(name) && !this.directories.delete(name)) throw new DOMException('Missing entry', 'NotFoundError')
   }
 
-  async resolve(): Promise<string[] | null> {
-    return null
+  async resolve(possibleDescendant: FileSystemHandle): Promise<string[] | null> {
+    return this.resolvedPaths.get(possibleDescendant as unknown as MemoryDirectoryHandle) ?? null
   }
 
   async queryPermission(): Promise<PermissionState> {
@@ -129,14 +130,17 @@ describe('album refresh and recently deleted filesystem operations', () => {
     )).resolves.toBe('')
   })
 
-  it('keeps related photo cleanup restricted to NikkiPhotos_HighQuality', async () => {
-    const album = new MemoryDirectoryHandle('MyPhotoCollection')
+  it.each(['NikkiPhotos_LowQuality', 'ScreenShot'])(
+    'rejects cleanup when the selected folder is %s',
+    async (directoryName) => {
+      const album = new MemoryDirectoryHandle(directoryName)
 
-    await expect(prepareRelatedPhotoCleanup(
-      album as unknown as FileSystemDirectoryHandle,
-      messages.zh.fileSystem
-    )).rejects.toThrow(messages.zh.fileSystem.invalidAlbumDirectory)
-  })
+      await expect(prepareRelatedPhotoCleanup(
+        album as unknown as FileSystemDirectoryHandle,
+        messages.zh.fileSystem
+      )).rejects.toThrow(messages.zh.fileSystem.invalidAlbumDirectory)
+    }
+  )
 
   it('rejects a non-X6Game folder even for unrelated album authorization', async () => {
     const album = new MemoryDirectoryHandle('MyPhotoCollection')
@@ -160,6 +164,18 @@ describe('album refresh and recently deleted filesystem operations', () => {
       messages.zh.fileSystem,
       true
     )).rejects.toThrow(messages.zh.fileSystem.invalidX6GameDirectory)
+  })
+
+  it('accepts another selected folder at the expected account path', async () => {
+    const album = new MemoryDirectoryHandle('MyPhotoCollection')
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+    x6Game.resolvedPaths.set(album, ['Saved', 'GamePlayPhotos', '123456789', 'MyPhotoCollection'])
+
+    await expect(resolveX6GameAccountDirectory(
+      x6Game as unknown as FileSystemDirectoryHandle,
+      album as unknown as FileSystemDirectoryHandle,
+      messages.zh.fileSystem
+    )).resolves.toBe('123456789')
   })
 
   it('counts only successfully removed bytes and returns readable failures', async () => {
