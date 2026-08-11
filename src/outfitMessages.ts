@@ -38,6 +38,33 @@ export interface OutfitMessages {
   imageRequired: string
   unsupportedImage: string
   imageLoadFailed: string
+  operations: {
+    albumOpenedWithFailures: (failed: number) => string
+    saveSucceeded: (wasEditing: boolean) => string
+    invalidTag: (maxLength: number) => string
+    duplicateOrReservedTag: string
+    tagLimitReached: (maxTags: number) => string
+    tagAdded: string
+    deleteTagTitle: string
+    deleteTagMessage: (tag: string, usedCount: number) => string
+    tagDeleted: string
+    copySucceeded: string
+    copyFailed: (code: string) => string
+    deleteOutfitTitle: string
+    deleteSelectedTitle: string
+    confirmPermanentDelete: string
+    permanentlyDelete: string
+    outfitDeleted: string
+    deleteIncomplete: string
+    deletingSelected: string
+    deletedSelected: (deletedCount: number, failedCount: number) => string
+    exportTitle: string
+    exportConfirm: (directoryName: string) => string
+    exportAction: string
+    exportSucceeded: (fileName: string, count: number) => string
+    rejectedTags: (count: number) => string
+    importCompleted: (added: number, duplicates: number, failed: number, tagNote: string) => string
+  }
   guideTitle: string
   guideIntro: string
   guideFeaturedSection: { title: string; items: string[] }
@@ -88,6 +115,33 @@ const outfitMessages: Record<Language, OutfitMessages> = {
     imageRequired: '请先选择一张搭配图片。',
     unsupportedImage: '请选择 JPG、JPEG、PNG 或 WebP 图片。',
     imageLoadFailed: '搭配图片读取失败',
+    operations: {
+      albumOpenedWithFailures: (failed) => `相册已打开，${failed} 个搭配方案读取或导入失败。`,
+      saveSucceeded: (wasEditing) => wasEditing ? '保存成功。' : '添加成功。',
+      invalidTag: (maxLength) => `标签不能为空，且最多为${maxLength}个字符。`,
+      duplicateOrReservedTag: '标签名称已存在或属于系统筛选项。',
+      tagLimitReached: (maxTags) => `最多只能创建${maxTags}个用户标签。`,
+      tagAdded: '标签添加成功。',
+      deleteTagTitle: '删除标签',
+      deleteTagMessage: (tag, usedCount) => `“${tag}”正用于 ${usedCount} 个方案。删除后这些方案会归入“未分类”，图片和方案不会删除。`,
+      tagDeleted: '标签已删除。',
+      copySucceeded: '复制成功。',
+      copyFailed: (code) => `复制失败，请手动复制：${code}`,
+      deleteOutfitTitle: '删除搭配方案',
+      deleteSelectedTitle: '永久删除搭配方案',
+      confirmPermanentDelete: '确定永久删除选中搭配码吗？删除后不可恢复。',
+      permanentlyDelete: '永久删除',
+      outfitDeleted: '删除成功。',
+      deleteIncomplete: '方案未能完整清理，请检查 clothe 文件夹中的残留文件。',
+      deletingSelected: '正在永久删除搭配方案…',
+      deletedSelected: (deletedCount, failedCount) => `已永久删除 ${deletedCount} 个搭配方案${failedCount ? `，${failedCount} 个删除失败。` : '。'}`,
+      exportTitle: '导出搭配码数据',
+      exportConfirm: (directoryName) => `导出的 ZIP 将自动保存在当前相册文件夹“${directoryName}”中。是否继续？`,
+      exportAction: '开始导出',
+      exportSucceeded: (fileName, count) => `导出成功：${fileName}（${count} 个方案），文件位于当前相册文件夹。`,
+      rejectedTags: (count) => `另有 ${count} 个标签因超过限制未添加。`,
+      importCompleted: (added, duplicates, failed, tagNote) => `导入完成：新增 ${added} 个方案，跳过 ${duplicates} 个重复方案，${failed} 个方案导入失败。${tagNote}`
+    },
     guideTitle: '搭配码使用指南',
     guideIntro: '搭配图片、搭配码和标签都保存在当前相册本地，不会上传到网站服务器。',
     guideFeaturedSection: {
@@ -147,6 +201,33 @@ const outfitMessages: Record<Language, OutfitMessages> = {
     imageRequired: 'Choose an outfit image first.',
     unsupportedImage: 'Choose a JPG, JPEG, PNG, or WebP image.',
     imageLoadFailed: 'Unable to read outfit image',
+    operations: {
+      albumOpenedWithFailures: (failed) => `Album opened; ${failed} outfit item(s) could not be read or imported.`,
+      saveSucceeded: (wasEditing) => wasEditing ? 'Outfit saved.' : 'Outfit added.',
+      invalidTag: (maxLength) => `A tag must contain 1 to ${maxLength} characters.`,
+      duplicateOrReservedTag: 'That name is already used or reserved.',
+      tagLimitReached: (maxTags) => `You can create up to ${maxTags} user tags.`,
+      tagAdded: 'Tag added.',
+      deleteTagTitle: 'Delete tag',
+      deleteTagMessage: (tag, usedCount) => `“${tag}” is used by ${usedCount} outfit(s). They will become uncategorized; no outfits or images will be deleted.`,
+      tagDeleted: 'Tag deleted.',
+      copySucceeded: 'Outfit code copied.',
+      copyFailed: (code) => `Copy failed. Copy manually: ${code}`,
+      deleteOutfitTitle: 'Delete outfit',
+      deleteSelectedTitle: 'Permanently delete outfits',
+      confirmPermanentDelete: 'Permanently delete this outfit code? This cannot be undone.',
+      permanentlyDelete: 'Delete permanently',
+      outfitDeleted: 'Outfit deleted.',
+      deleteIncomplete: 'The outfit could not be fully removed. Check the clothe folder for leftover files.',
+      deletingSelected: 'Permanently deleting outfits…',
+      deletedSelected: (deletedCount, failedCount) => `Permanently deleted ${deletedCount} outfit(s)${failedCount ? `; ${failedCount} failed.` : '.'}`,
+      exportTitle: 'Export outfit code data',
+      exportConfirm: (directoryName) => `The exported ZIP will be saved automatically in the current album folder “${directoryName}”. Continue?`,
+      exportAction: 'Export',
+      exportSucceeded: (fileName, count) => `Exported ${count} outfit(s) to ${fileName} in the current album folder.`,
+      rejectedTags: (count) => ` ${count} tag(s) were rejected by the limits.`,
+      importCompleted: (added, duplicates, failed, tagNote) => `Import complete: ${added} added, ${duplicates} duplicate(s) skipped, ${failed} failed.${tagNote}`
+    },
     guideTitle: 'Outfit Code Guide',
     guideIntro: 'Outfit images, codes, and tags stay in the current album on your device and are not uploaded to the website server.',
     guideFeaturedSection: {

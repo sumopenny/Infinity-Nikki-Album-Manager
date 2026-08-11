@@ -55,7 +55,7 @@
 - 点击“添加方案”可选择、拖拽或粘贴图片（点击窗口空白处后按 `Ctrl+V`）；JPG 和 PNG 会在本地转换为 WebP，搭配码允许留空，标签最多选择一个，双击图片可打开预览。
 - 搭配方案大图预览的底部工具栏会显示当前标签和搭配码，并提供复制与编辑按钮；从大图打开编辑窗口后，保存或关闭编辑仍返回当前大图。
 - 网站会在当前相册中按需创建 `clothe` 文件夹来管理搭配码。<span style="color: red;">批量导入时可直接把保存好的搭配图片移动进该文件夹，回到网站页面时会自动转为待填写方案。</span>
-- 使用<span style="color: orange;">自动更新搭配码</span>功能需要授权当前游戏的 `X6Game` 文件夹。<span style="color: red;">在游戏内点击分享按钮，需要在搭配截图右下角点击框选按钮，框选完成后点击生成搭配码，再返回网页，网站会自动获取搭配码和图片，已有相同搭配码会跳过，避免重复。</span>
+- 使用<span style="color: orange;">自动更新搭配码</span>功能需要授权当前游戏的 `X6Game` 文件夹，可前往页面右上角当前相册下拉菜单进行授权。<span style="color: red;">在游戏内点击分享按钮，需要在搭配截图右下角点击框选按钮，框选完成后点击生成搭配码，再返回网页，网站会自动获取搭配码和图片，已有相同搭配码会跳过，避免重复。</span>
 
 <div align="center">
   <img src="img/自动更新步骤.webp" alt="项目界面" width="70%">
@@ -66,7 +66,7 @@
 
 ## 一键清理低画质与截图
 
-选择 `NikkiPhotos_HighQuality` 后，点击“一键清理低画质与截图”，可清理：
+选择当前账号 `X6Game\Saved\GamePlayPhotos\账号ID` 下的相册文件夹后，点击“一键清理低画质与截图”，可清理（不能选择 `NikkiPhotos_LowQuality` 或 `ScreenShot` 文件夹作为当前相册）：
 
 - `NikkiPhotos_LowQuality` 中的图片。
 - 当前游戏 `X6Game\ScreenShot` 中的图片。

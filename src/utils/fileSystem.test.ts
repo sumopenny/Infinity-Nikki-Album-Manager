@@ -6,6 +6,7 @@ import {
   movePhotosToRecentlyDeleted,
   executeRelatedPhotoCleanup,
   prepareRelatedPhotoCleanup,
+  readAlbumDirectory,
   refreshAlbumDirectory,
   resolveX6GameAccountDirectory,
   restoreRecentlyDeletedPhotos
@@ -38,6 +39,23 @@ class MemoryFileHandle {
       close: async () => undefined,
       abort: async () => undefined
     } as FileSystemWritableFileStream
+  }
+}
+
+class DelayedMemoryFileHandle extends MemoryFileHandle {
+  constructor(name: string, private readonly tracker: { active: number; peak: number }, lastModified: number) {
+    super(name, new Blob(['photo'], { type: 'image/jpeg' }), false, lastModified)
+  }
+
+  override async getFile(): Promise<File> {
+    this.tracker.active += 1
+    this.tracker.peak = Math.max(this.tracker.peak, this.tracker.active)
+    try {
+      await new Promise((resolve) => window.setTimeout(resolve, 5))
+      return await super.getFile()
+    } finally {
+      this.tracker.active -= 1
+    }
   }
 }
 
@@ -118,6 +136,27 @@ function createPhoto(directory: MemoryDirectoryHandle, name: string): PhotoItem 
 }
 
 describe('album refresh and recently deleted filesystem operations', () => {
+  it('scans album metadata with a maximum of six concurrent file reads', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    const tracker = { active: 0, peak: 0 }
+    for (let index = 0; index < 8; index += 1) {
+      const name = `2026_06_26_11_${String(index).padStart(2, '0')}_00.jpeg`
+      album.files.set(name, new DelayedMemoryFileHandle(name, tracker, index))
+    }
+
+    const result = await readAlbumDirectory(
+      album as unknown as FileSystemDirectoryHandle,
+      { messages: messages.zh.fileSystem }
+    )
+
+    expect(tracker.peak).toBeGreaterThan(1)
+    expect(tracker.peak).toBeLessThanOrEqual(6)
+    expect(result.photos).toHaveLength(8)
+    expect(result.photos.map((photo) => photo.name)).toEqual(
+      [...result.photos.map((photo) => photo.name)].sort().reverse()
+    )
+  })
+
   it('allows X6Game authorization for an unrelated album without an account path', async () => {
     const album = new MemoryDirectoryHandle('MyPhotoCollection')
     const x6Game = new MemoryDirectoryHandle('X6Game')

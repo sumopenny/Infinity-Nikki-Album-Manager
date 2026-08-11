@@ -57,7 +57,7 @@ Entering Outfit codes opens a standalone guide. Please read it carefully.
 - Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press `Ctrl+V`). JPG and PNG files are converted locally to WebP, the outfit code can be empty, each plan can use one tag, and double-clicking the image opens the preview.
 - The outfit preview toolbar shows the current tag and outfit code, with Copy and Edit buttons. Opening the editor from the large preview returns to the same preview after saving or closing it.
 - The app creates a `clothe` folder inside the current album as needed to manage outfit codes. <span style="color: red;">For bulk import, move saved outfit images directly into this folder; opening, refreshing, or refocusing the website page automatically converts them into pending plans.</span>
-- Using the <span style="color: orange;">auto update outfit code</span> feature requires authorizing the current game's `X6Game` folder. <span style="color: red;">In the game, tap Share, tap the selection button at the lower-right of the outfit screenshot, generate the outfit code after selecting, then return to the web page. The website automatically gets the outfit code and image, and matching existing outfit codes are skipped to avoid duplicates.</span>
+- Using the <span style="color: orange;">auto update outfit code</span> feature requires authorizing the current game's `X6Game` folder. You can authorize it from the Current album menu in the upper-right corner. <span style="color: red;">In the game, tap Share, tap the selection button at the lower-right of the outfit screenshot, generate the outfit code after selecting, then return to the web page. The website automatically gets the outfit code and image, and matching existing outfit codes are skipped to avoid duplicates.</span>
 
 <div align="center">
   <img src="img/自动更新步骤.webp" alt="Project UI" width="70%">
@@ -68,7 +68,7 @@ Entering Outfit codes opens a standalone guide. Please read it carefully.
 
 ## Clean Low-quality Photos and Screenshots
 
-After selecting `NikkiPhotos_HighQuality`, click Clean low-quality & screenshots to clean:
+After selecting an album folder under the current account's `X6Game\Saved\GamePlayPhotos\Account ID`, click Clean low-quality & screenshots to clean. `NikkiPhotos_LowQuality` and `ScreenShot` cannot be selected as the current album:
 
 - Images in `NikkiPhotos_LowQuality`.
 - Images in the current game's `X6Game\ScreenShot` folder.

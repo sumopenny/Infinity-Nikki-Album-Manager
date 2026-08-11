@@ -1,4 +1,4 @@
-import { strFromU8, strToU8, Unzip, UnzipInflate, Zip, ZipDeflate } from 'fflate'
+import { AsyncUnzipInflate, strFromU8, strToU8, Unzip, UnzipInflate, Zip, ZipDeflate, ZipPassThrough } from 'fflate'
 import type { PhotoItem } from './dateGrouping'
 
 export const DEFAULT_OUTFIT_TAGS = ['甜美', '性感', '帅气', '典雅', '清新', '古典']
@@ -16,6 +16,8 @@ const MAX_BACKUP_BYTES = 512 * 1024 * 1024
 const MAX_IMAGE_BYTES = 64 * 1024 * 1024
 const MAX_IMAGE_PIXELS = 40_000_000
 const MAX_BACKUP_ENTRIES = 2_000
+const SCAN_CONCURRENCY = 6
+const IMPORT_CONCURRENCY = 3
 
 export interface OutfitItem extends PhotoItem {
   image: string
@@ -55,6 +57,7 @@ export interface OutfitImportResult {
   duplicateCount: number
   failedCount: number
   rejectedTagCount: number
+  library: OutfitLibraryResult
 }
 
 interface OutfitMetadata {
@@ -77,6 +80,23 @@ interface ScanResult {
   outfits: OutfitItem[]
   failedCount: number
   pairedImageNames: Set<string>
+}
+
+async function mapWithConcurrency<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let nextIndex = 0
+
+  const runWorker = async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex
+      nextIndex += 1
+      results[index] = await worker(items[index])
+    }
+  }
+
+  const workerCount = Math.min(concurrency, items.length)
+  await Promise.all(Array.from({ length: workerCount }, () => runWorker()))
+  return results
 }
 
 function isMissingEntryError(error: unknown): boolean {
@@ -124,12 +144,12 @@ function isSafeOutfitId(value: string): boolean {
   return value.length > 0 && value.length <= 128 && value !== '.' && value !== '..' && !/[\\/\0]/.test(value)
 }
 
-async function createAvailableOutfitId(directory: FileSystemDirectoryHandle, preferred?: string): Promise<string> {
+async function createAvailableOutfitId(directory: FileSystemDirectoryHandle, preferred?: string, reservedIds?: Set<string>): Promise<string> {
   let candidate = preferred?.trim() ?? ''
-  if (!isSafeOutfitId(candidate) || await fileExists(directory, `${candidate}.webp`) || await fileExists(directory, `${candidate}.json`)) {
+  if (!isSafeOutfitId(candidate) || reservedIds?.has(candidate) || await fileExists(directory, `${candidate}.webp`) || await fileExists(directory, `${candidate}.json`)) {
     do {
       candidate = createOutfitId()
-    } while (await fileExists(directory, `${candidate}.webp`) || await fileExists(directory, `${candidate}.json`))
+    } while (reservedIds?.has(candidate) || await fileExists(directory, `${candidate}.webp`) || await fileExists(directory, `${candidate}.json`))
   }
   return candidate
 }
@@ -309,19 +329,27 @@ async function scanOutfits(directory: FileSystemDirectoryHandle, tags: string[])
   let failedCount = 0
   const seenIds = new Set<string>()
   const allowedTags = new Set(tags)
-  for (const metadataName of metadataNames) {
+  const parsedOutfits = await mapWithConcurrency(metadataNames, SCAN_CONCURRENCY, async (metadataName) => {
     try {
-      const result = await parseOutfit(directory, metadataName, allowedTags)
-      if (result.pairedImage) pairedImageNames.add(result.pairedImage)
-      if (!result.outfit || seenIds.has(result.outfit.id)) {
-        failedCount += 1
-        continue
-      }
-      seenIds.add(result.outfit.id)
-      outfits.push(result.outfit)
+      return await parseOutfit(directory, metadataName, allowedTags)
     } catch {
-      failedCount += 1
+      // 单个元数据损坏或暂时不可读时计为一次失败，不中断其余方案扫描。
+      return null
     }
+  })
+
+  for (const result of parsedOutfits) {
+    if (!result) {
+      failedCount += 1
+      continue
+    }
+    if (result.pairedImage) pairedImageNames.add(result.pairedImage)
+    if (!result.outfit || seenIds.has(result.outfit.id)) {
+      failedCount += 1
+      continue
+    }
+    seenIds.add(result.outfit.id)
+    outfits.push(result.outfit)
   }
 
   outfits.sort((a, b) => b.timestamp - a.timestamp)
@@ -369,8 +397,13 @@ async function validateWrittenImage(directory: FileSystemDirectoryHandle, name: 
   await validateImageBlob(file)
 }
 
+async function validateWrittenFileSize(directory: FileSystemDirectoryHandle, name: string, expectedSize: number): Promise<void> {
+  const file = await (await directory.getFileHandle(name)).getFile()
+  if (!file.size || file.size !== expectedSize) throw new Error('Written image size is invalid')
+}
+
 /** 逐级进入游戏目录的子文件夹。参数：rootHandle 为起点目录，segments 为路径片段；缺少目录时返回 null。 */
-async function getNestedDirectory(
+async function findOptionalNestedDirectory(
   rootHandle: FileSystemDirectoryHandle,
   segments: string[]
 ): Promise<FileSystemDirectoryHandle | null> {
@@ -422,14 +455,13 @@ async function findLatestShareCode(
     if (handle.kind !== 'file' || !isShareCodeFileName(name) || !playerId) continue
     candidates.push({ file: await (handle as FileSystemFileHandle).getFile(), playerId })
   }
-
-  candidates.sort((a, b) => b.file.lastModified - a.file.lastModified)
+  candidates.sort((left, right) => right.file.lastModified - left.file.lastModified || right.file.name.localeCompare(left.file.name))
   for (const candidate of candidates) {
     try {
       const code = parseLatestShareCode(await candidate.file.text(), candidate.playerId)
       if (code) return { code, playerId: candidate.playerId, timestamp: candidate.file.lastModified || Date.now() }
     } catch {
-      // 单个 sharecode 文件损坏时继续尝试更早的候选文件。
+      // 损坏的历史文件会被跳过，继续尝试时间更早的候选文件。
     }
   }
   return null
@@ -439,13 +471,16 @@ async function findLatestShareCode(
 async function findLatestDiyImage(
   diyDirectory: FileSystemDirectoryHandle
 ): Promise<{ file: File } | null> {
-  const candidates: Array<{ file: File }> = []
+  let latest: { file: File } | null = null
   for await (const [name, handle] of diyDirectory.entries()) {
     if (handle.kind !== 'file' || !isSupportedImage(name)) continue
-    candidates.push({ file: await (handle as FileSystemFileHandle).getFile() })
+    const file = await (handle as FileSystemFileHandle).getFile()
+    if (!latest || file.lastModified > latest.file.lastModified ||
+      (file.lastModified === latest.file.lastModified && file.name > latest.file.name)) {
+      latest = { file }
+    }
   }
-  candidates.sort((a, b) => b.file.lastModified - a.file.lastModified)
-  return candidates[0] ?? null
+  return latest
 }
 
 /** 从游戏 ShareCode 与 DIY 目录导入最新搭配方案。参数：directory 为 clothe 目录，existingOutfits 为现有方案，source 为 X6Game 授权目录，onImportStart 在确认开始写入新方案时触发。 */
@@ -456,7 +491,7 @@ async function importLatestSharedOutfit(
   onImportStart?: () => void
 ): Promise<SharedOutfitImportResult> {
   try {
-    const shareCodeDirectory = await getNestedDirectory(source.x6GameDirectory, ['Saved', 'ShareCode'])
+    const shareCodeDirectory = await findOptionalNestedDirectory(source.x6GameDirectory, ['Saved', 'ShareCode'])
     if (!shareCodeDirectory) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
     const latestShareCode = await findLatestShareCode(shareCodeDirectory)
     if (!latestShareCode) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
@@ -467,7 +502,7 @@ async function importLatestSharedOutfit(
       return { importedCount: 0, duplicateCount: 1, failedCount: 0 }
     }
 
-    const diyDirectory = await getNestedDirectory(source.x6GameDirectory, ['Saved', 'DIY', latestShareCode.playerId])
+    const diyDirectory = await findOptionalNestedDirectory(source.x6GameDirectory, ['Saved', 'DIY', latestShareCode.playerId])
     const latestImage = diyDirectory ? await findLatestDiyImage(diyDirectory) : null
     if (!latestImage) return { importedCount: 0, duplicateCount: 0, failedCount: 1 }
 
@@ -494,6 +529,7 @@ async function importLatestSharedOutfit(
       throw error
     }
   } catch {
+    // 自动读取失败统一折算为一项失败，保留现有调用方的计数式反馈。
     return { importedCount: 0, duplicateCount: 0, failedCount: 1 }
   }
 }
@@ -509,33 +545,48 @@ async function importExternalImages(directory: FileSystemDirectoryHandle, paired
   // 发现待导入图片时通知调用方，让后台静默扫描补显示“更新中”状态
   if (candidates.length) onImportStart?.()
 
-  let imported = 0
-  let failed = 0
+  const jobs: Array<{ candidate: typeof candidates[number]; id: string; imageName: string; metadataName: string }> = []
+  const reservedIds = new Set<string>()
   for (const candidate of candidates) {
-    const id = await createAvailableOutfitId(directory)
+    const id = await createAvailableOutfitId(directory, undefined, reservedIds)
+    reservedIds.add(id)
     const imageName = `${id}.webp`
     const metadataName = `${id}.json`
-    try {
-      const source = await candidate.handle.getFile()
-      const webp = await convertImageToWebp(source)
-      await writeBlob(await directory.getFileHandle(imageName, { create: true }), webp)
-      await validateWrittenImage(directory, imageName)
-      const metadata: OutfitMetadata = {
-        id,
-        image: imageName,
-        code: '',
-        tags: [],
-        createdAt: new Date().toISOString()
+    jobs.push({ candidate, id, imageName, metadataName })
+  }
+
+  let imported = 0
+  let failed = 0
+  let nextIndex = 0
+  const runWorker = async () => {
+    while (nextIndex < jobs.length) {
+      const index = nextIndex
+      nextIndex += 1
+      const { candidate, id, imageName, metadataName } = jobs[index]
+      try {
+        const source = await candidate.handle.getFile()
+        const webp = await convertImageToWebp(source)
+        await writeBlob(await directory.getFileHandle(imageName, { create: true }), webp)
+        await validateWrittenImage(directory, imageName)
+        const metadata: OutfitMetadata = {
+          id,
+          image: imageName,
+          code: '',
+          tags: [],
+          createdAt: new Date().toISOString()
+        }
+        await writeJson(directory, metadataName, metadata)
+        if (candidate.name !== imageName) await directory.removeEntry(candidate.name)
+        imported += 1
+      } catch {
+        // 保留原始外部图片，并清理本轮可能写入一半的托管文件后继续处理。
+        failed += 1
+        await directory.removeEntry(imageName).catch(() => undefined)
+        await directory.removeEntry(metadataName).catch(() => undefined)
       }
-      await writeJson(directory, metadataName, metadata)
-      if (candidate.name !== imageName) await directory.removeEntry(candidate.name)
-      imported += 1
-    } catch {
-      failed += 1
-      await directory.removeEntry(imageName).catch(() => undefined)
-      await directory.removeEntry(metadataName).catch(() => undefined)
     }
   }
+  await Promise.all(Array.from({ length: Math.min(IMPORT_CONCURRENCY, jobs.length) }, () => runWorker()))
   return { imported, failed }
 }
 
@@ -728,7 +779,7 @@ export async function exportOutfitBackup(
   }
 
   const addFile = async (name: string, file: File) => {
-    const entry = new ZipDeflate(name, { level: 6 })
+    const entry = new ZipPassThrough(name)
     archive.add(entry)
     const reader = file.stream().getReader()
     try {
@@ -776,6 +827,7 @@ async function parseBackup(file: File): Promise<{ manifest: BackupManifest; file
   let declaredBytes = 0
   let expandedBytes = 0
   let extractionError: Error | null = null
+  const entryTasks: Promise<void>[] = []
   const unzip = new Unzip((entry) => {
     if (extractionError) return
     try {
@@ -793,11 +845,24 @@ async function parseBackup(file: File): Promise<{ manifest: BackupManifest; file
 
       const chunks: Uint8Array[] = []
       let entryBytes = 0
+      let finishEntry!: () => void
+      let entryFinished = false
+      entryTasks.push(new Promise<void>((resolve) => { finishEntry = resolve }))
+      const finish = () => {
+        if (entryFinished) return
+        entryFinished = true
+        finishEntry()
+      }
       entry.ondata = (error, chunk, final) => {
-        if (extractionError) return
         if (error) {
           extractionError = error
           entry.terminate()
+          finish()
+          return
+        }
+        if (extractionError) {
+          entry.terminate()
+          finish()
           return
         }
         if (chunk?.length) {
@@ -806,11 +871,13 @@ async function parseBackup(file: File): Promise<{ manifest: BackupManifest; file
           if (entry.name !== 'manifest.json' && entryBytes > MAX_IMAGE_BYTES) {
             extractionError = new Error('Backup image is too large')
             entry.terminate()
+            finish()
             return
           }
           if (expandedBytes > MAX_BACKUP_BYTES) {
             extractionError = new Error('Expanded backup is too large')
             entry.terminate()
+            finish()
             return
           }
           chunks.push(chunk)
@@ -823,6 +890,7 @@ async function parseBackup(file: File): Promise<{ manifest: BackupManifest; file
             offset += part.length
           }
           files[entry.name] = content
+          finish()
         }
       }
       entry.start()
@@ -831,7 +899,7 @@ async function parseBackup(file: File): Promise<{ manifest: BackupManifest; file
       entry.terminate()
     }
   })
-  unzip.register(UnzipInflate)
+  unzip.register(typeof Worker === 'function' ? AsyncUnzipInflate : UnzipInflate)
 
   const stream = file.stream()
   const reader = stream.getReader()
@@ -843,6 +911,8 @@ async function parseBackup(file: File): Promise<{ manifest: BackupManifest; file
       if (extractionError) throw extractionError
       if (done) break
     }
+    await Promise.all(entryTasks)
+    if (extractionError) throw extractionError
   } catch (error) {
     await reader.cancel(error).catch(() => undefined)
     throw error
@@ -887,6 +957,31 @@ async function isIdenticalOutfit(
   return bytesEqual(existingBytes, imageBytes)
 }
 
+async function listDirectoryFileNames(directory: FileSystemDirectoryHandle): Promise<Set<string>> {
+  const names = new Set<string>()
+  for await (const [name, handle] of directory.entries()) {
+    if (handle.kind === 'file') names.add(name)
+  }
+  return names
+}
+
+function allocateImportedOutfitId(
+  preferred: string | undefined,
+  existingIds: Set<string>,
+  occupiedFileNames: Set<string>,
+  reservedIds: Set<string>
+): string {
+  let candidate = preferred?.trim() ?? ''
+  const isUnavailable = (id: string) => !isSafeOutfitId(id) || existingIds.has(id) || reservedIds.has(id) ||
+    occupiedFileNames.has(`${id}.webp`) || occupiedFileNames.has(`${id}.json`)
+  if (isUnavailable(candidate)) {
+    do candidate = createOutfitId()
+    while (isUnavailable(candidate))
+  }
+  reservedIds.add(candidate)
+  return candidate
+}
+
 export async function importOutfitBackup(
   albumDirectory: FileSystemDirectoryHandle,
   backupFile: File
@@ -909,45 +1004,98 @@ export async function importOutfitBackup(
   const existingIds = new Set(current.outfits.map((outfit) => outfit.id))
   const existingById = new Map(current.outfits.map((outfit) => [outfit.id, outfit]))
   const existingCodes = new Set(current.outfits.map((outfit) => outfit.code).filter(Boolean))
+  const occupiedFileNames = await listDirectoryFileNames(directory)
+  const reservedIds = new Set<string>()
+  const imageValidations = new Map<string, Promise<Blob | null>>()
+  const validateArchiveImage = (imagePath: string): Promise<Blob | null> => {
+    const existing = imageValidations.get(imagePath)
+    if (existing) return existing
+    const validation = (async () => {
+      const imageBytes = files[imagePath]
+      if (!imageBytes?.byteLength || imageBytes.byteLength > MAX_IMAGE_BYTES) return null
+      const imageBlob = new Blob([imageBytes], { type: 'image/webp' })
+      try {
+        await validateImageBlob(imageBlob)
+        return imageBlob
+      } catch {
+        return null
+      }
+    })()
+    imageValidations.set(imagePath, validation)
+    return validation
+  }
+
+  const resourceTails = new Map<string, Promise<void>>()
+  const jobs = manifest.outfits.map((raw) => {
+    const code = normalizeOutfitCode(raw.code)
+    const rawId = typeof raw.id === 'string' && isSafeOutfitId(raw.id.trim()) ? raw.id.trim() : ''
+    const resourceKeys = [code ? `code:${code}` : '', rawId ? `id:${rawId}` : ''].filter(Boolean)
+    const dependencies = Promise.all(resourceKeys.map((key) => resourceTails.get(key))).then(() => undefined)
+    let release!: () => void
+    const completion = new Promise<void>((resolve) => { release = resolve })
+    for (const key of resourceKeys) resourceTails.set(key, completion)
+    return { raw, code, dependencies, release }
+  })
   let addedCount = 0
   let duplicateCount = 0
   let failedCount = 0
   const createdEntries: string[] = []
+  const createdOutfits: OutfitItem[] = []
 
-  for (const raw of manifest.outfits) {
-    const code = normalizeOutfitCode(raw.code)
-    if (code && existingCodes.has(code)) {
-      duplicateCount += 1
-      continue
-    }
+  await mapWithConcurrency(jobs, IMPORT_CONCURRENCY, async ({ raw, code, dependencies, release }) => {
+    await dependencies
+    let reservedId: string | null = null
+    let imageName: string | null = null
+    let metadataName: string | null = null
     try {
+      if (code && existingCodes.has(code)) {
+        duplicateCount += 1
+        return
+      }
       if (typeof raw.image !== 'string' || !isSafeOutfitArchivePath(raw.image) || !raw.image.startsWith('images/')) throw new Error('Invalid image path')
       const imageBytes = files[raw.image]
-      if (!imageBytes?.byteLength || imageBytes.byteLength > MAX_IMAGE_BYTES) throw new Error('Missing image')
+      if (!imageBytes?.byteLength) throw new Error('Missing image')
       const existing = typeof raw.id === 'string' ? existingById.get(raw.id.trim()) : undefined
       if (existing && await isIdenticalOutfit(existing, raw, code, imageBytes)) {
         duplicateCount += 1
-        continue
+        return
       }
+      const imageBlob = await validateArchiveImage(raw.image)
+      if (!imageBlob) throw new Error('Invalid image')
       const preferredId = typeof raw.id === 'string' && raw.id.trim() && !existingIds.has(raw.id.trim()) ? raw.id.trim() : undefined
-      const id = await createAvailableOutfitId(directory, preferredId)
-      const imageName = `${id}.webp`
-      const metadataName = `${id}.json`
+      const id = allocateImportedOutfitId(preferredId, existingIds, occupiedFileNames, reservedIds)
+      reservedId = id
+      imageName = `${id}.webp`
+      metadataName = `${id}.json`
       const createdTimestamp = typeof raw.createdAt === 'string' ? Date.parse(raw.createdAt) : Number.NaN
       const tag = normalizeTags(raw.tags, new Set(tags))[0]
+      const createdAt = Number.isFinite(createdTimestamp) ? new Date(createdTimestamp).toISOString() : new Date().toISOString()
       const metadata: OutfitMetadata = {
         id,
         image: imageName,
         code,
         tags: tag ? [tag] : [],
-        createdAt: Number.isFinite(createdTimestamp) ? new Date(createdTimestamp).toISOString() : new Date().toISOString()
+        createdAt
       }
       try {
-        const imageBlob = new Blob([imageBytes], { type: 'image/webp' })
-        await validateImageBlob(imageBlob)
-        await writeBlob(await directory.getFileHandle(imageName, { create: true }), imageBlob)
-        await validateWrittenImage(directory, imageName)
+        const imageHandle = await directory.getFileHandle(imageName, { create: true })
+        await writeBlob(imageHandle, imageBlob)
+        await validateWrittenFileSize(directory, imageName, imageBlob.size)
         await writeJson(directory, metadataName, metadata)
+        createdOutfits.push({
+          ...dateParts(Date.parse(createdAt)),
+          id,
+          name: imageName,
+          image: imageName,
+          code,
+          tags: metadata.tags,
+          createdAt,
+          metadataName,
+          url: null,
+          fileSizeText: formatFileSize(imageBlob.size),
+          fileHandle: imageHandle,
+          directoryHandle: directory
+        })
       } catch (error) {
         await directory.removeEntry(imageName).catch(() => undefined)
         await directory.removeEntry(metadataName).catch(() => undefined)
@@ -955,20 +1103,39 @@ export async function importOutfitBackup(
       }
       existingIds.add(id)
       if (code) existingCodes.add(code)
+      occupiedFileNames.add(imageName)
+      occupiedFileNames.add(metadataName)
       createdEntries.push(imageName, metadataName)
       addedCount += 1
     } catch {
       failedCount += 1
+      if (reservedId) reservedIds.delete(reservedId)
+    } finally {
+      release()
     }
-  }
+  })
 
+  let savedTags: string[]
   try {
-    await saveOutfitTags(albumDirectory, tags)
+    savedTags = await saveOutfitTags(albumDirectory, tags)
   } catch (error) {
     for (const name of createdEntries) await directory.removeEntry(name).catch(() => undefined)
     await saveOutfitTags(albumDirectory, current.tags).catch(() => undefined)
     throw error
   }
 
-  return { addedCount, duplicateCount, failedCount, rejectedTagCount }
+  const outfits = [...current.outfits, ...createdOutfits].sort((left, right) => right.timestamp - left.timestamp)
+  return {
+    addedCount,
+    duplicateCount,
+    failedCount,
+    rejectedTagCount,
+    library: {
+      outfits,
+      tags: savedTags,
+      importedExternalCount: 0,
+      importedSharedCount: 0,
+      failedCount: current.failedCount + failedCount
+    }
+  }
 }

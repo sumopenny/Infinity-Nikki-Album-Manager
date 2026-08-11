@@ -12,6 +12,7 @@ const LOW_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_LowQuality'
 const SCREENSHOT_DIRECTORY_NAME = 'ScreenShot'
 const TRASH_DIRECTORY_NAME = 'trash'
 const TRASH_FILE_PREFIX = 'inam-v1__'
+const SCAN_CONCURRENCY = 6
 const pendingPhotoLoads = new WeakMap<PhotoItem, Promise<string>>()
 const releasedPhotos = new WeakSet<PhotoItem>()
 
@@ -55,6 +56,23 @@ type RelatedPhotoCleanupOptions = Omit<X6GameDirectoryOptions, 'allowUnrelatedAl
 
 function isCleanupTargetDirectory(directoryName: string): boolean {
   return directoryName === LOW_QUALITY_DIRECTORY_NAME || directoryName === SCREENSHOT_DIRECTORY_NAME
+}
+
+async function mapWithConcurrency<T, R>(items: T[], worker: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let nextIndex = 0
+
+  const runWorker = async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex
+      nextIndex += 1
+      results[index] = await worker(items[index])
+    }
+  }
+
+  const workerCount = Math.min(SCAN_CONCURRENCY, items.length)
+  await Promise.all(Array.from({ length: workerCount }, () => runWorker()))
+  return results
 }
 
 export interface RefreshAlbumResult extends AlbumDirectoryResult {
@@ -561,12 +579,17 @@ async function createPhotoItem(
  * 返回：按拍摄时间倒序排列的照片列表。
  */
 async function scanAlbumPhotos(directoryHandle: FileSystemDirectoryHandle): Promise<PhotoItem[]> {
-  const photos: PhotoItem[] = []
+  const imageHandles: Array<{ name: string; handle: FileSystemFileHandle }> = []
   for await (const [name, handle] of directoryHandle.entries()) {
     if (handle.kind !== 'file' || !isImageFile(name)) continue
-    const photo = await createPhotoItem(name, handle as FileSystemFileHandle, directoryHandle)
-    if (photo) photos.push(photo)
+    imageHandles.push({ name, handle: handle as FileSystemFileHandle })
   }
+
+  const scannedPhotos = await mapWithConcurrency(
+    imageHandles,
+    ({ name, handle }) => createPhotoItem(name, handle, directoryHandle)
+  )
+  const photos = scannedPhotos.filter((photo): photo is PhotoItem => Boolean(photo))
   return photos.sort((a, b) => b.timestamp - a.timestamp)
 }
 
@@ -631,7 +654,7 @@ function isMissingDirectoryError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'NotFoundError'
 }
 
-async function getNestedDirectory(
+async function getRequiredNestedDirectory(
   rootHandle: FileSystemDirectoryHandle,
   segments: string[]
 ): Promise<FileSystemDirectoryHandle> {
@@ -803,7 +826,7 @@ export async function prepareRelatedPhotoCleanup(
 
   await collectCleanupTarget(
     LOW_QUALITY_DIRECTORY_NAME,
-    () => getNestedDirectory(x6GameHandle, ['Saved', 'GamePlayPhotos', accountDirectoryName, LOW_QUALITY_DIRECTORY_NAME]),
+    () => getRequiredNestedDirectory(x6GameHandle, ['Saved', 'GamePlayPhotos', accountDirectoryName, LOW_QUALITY_DIRECTORY_NAME]),
     targets,
     missingDirectories
   )

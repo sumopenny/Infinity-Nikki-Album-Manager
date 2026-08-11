@@ -173,22 +173,6 @@ body {
   transition: background 0.25s ease, color 0.25s ease;
 }
 
-.date-sidebar::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-.date-sidebar::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
-  border-radius: 999px;
-}
-
-.date-sidebar::-webkit-scrollbar-thumb {
-  border: 2px solid var(--scrollbar-track);
-  border-radius: 999px;
-  background: var(--scrollbar-thumb);
-}
-
 .date-sidebar::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
 }
@@ -224,6 +208,7 @@ button:disabled {
   opacity: 0.55;
 }
 
+/* Application shell and shared controls */
 .app-shell {
   min-height: 100vh;
   width: 100%;
@@ -321,6 +306,7 @@ h1 {
   line-height: 1.55;
 }
 
+/* Notices and dialogs */
 /* 操作提示：页面顶部居中悬浮卡片，毛玻璃 + 强调色微光 */
 .operation-notice {
   --notice-accent: var(--notice-info);
@@ -636,6 +622,7 @@ h1 {
   }
 }
 
+/* Album gallery and thumbnail modes */
 .empty-album {
   display: grid;
   place-items: center;
@@ -771,6 +758,7 @@ h1 {
   cursor: wait;
 }
 
+/* Header and menus */
 .app-header {
   position: sticky;
   z-index: 40;
@@ -1391,6 +1379,7 @@ h1 {
   }
 }
 
+/* Album navigation and timeline */
 .album-layout {
   position: relative;
   display: grid;

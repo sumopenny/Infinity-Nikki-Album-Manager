@@ -30,6 +30,11 @@ function outfit(id: string, code: string, tags: string[] = []): OutfitItem {
 }
 
 describe('outfit workspace components', () => {
+  it('keeps operation feedback complete in both locales', () => {
+    expect(getOutfitMessages('zh').operations.deletedSelected(2, 1)).toContain('1 个删除失败')
+    expect(getOutfitMessages('en').operations.importCompleted(2, 1, 0, '')).toContain('2 added')
+  })
+
   it('renders system filters before user tags and emits the selected filter', async () => {
     const wrapper = mount(OutfitSidebar, {
       props: {
