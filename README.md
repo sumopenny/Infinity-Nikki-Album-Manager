@@ -130,7 +130,7 @@
 ## 本地安装
 
 
-环境要求：Windows、[Node.js LTS](https://nodejs.org/)、最新版 Chrome 或 Edge。
+环境要求：Windows、[Node.js LTS](https://nodejs.org/)、电脑上的最新版 Chrome、Edge 或其他兼容的 Chromium 浏览器。
 
 ### 安装 Node.js
 

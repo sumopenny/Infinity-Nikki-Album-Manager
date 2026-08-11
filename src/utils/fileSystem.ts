@@ -54,6 +54,17 @@ type FileSystemMessages = LocaleMessages['fileSystem']
 
 type RelatedPhotoCleanupOptions = Omit<X6GameDirectoryOptions, 'allowUnrelatedAlbum'>
 
+function isMobileDevice(): boolean {
+  return /android|iphone|ipod|ipad/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+
+function getSupportedDirectoryPicker(messages: FileSystemMessages): NonNullable<typeof window.showDirectoryPicker> {
+  if (isMobileDevice()) throw new Error(messages.mobileBrowserUnsupported)
+  if (!window.showDirectoryPicker) throw new Error(messages.unsupportedBrowser)
+  return window.showDirectoryPicker
+}
+
 function isCleanupTargetDirectory(directoryName: string): boolean {
   return directoryName === LOW_QUALITY_DIRECTORY_NAME || directoryName === SCREENSHOT_DIRECTORY_NAME
 }
@@ -463,12 +474,10 @@ export async function permanentlyDeleteRecentlyDeleted(
 }
 
 export async function pickAlbumDirectory(messages: FileSystemMessages): Promise<AlbumDirectoryResult> {
-  if (!window.showDirectoryPicker) {
-    throw new Error(messages.unsupportedBrowser)
-  }
+  const showDirectoryPicker = getSupportedDirectoryPicker(messages)
 
   try {
-    const directoryHandle = await window.showDirectoryPicker({
+    const directoryHandle = await showDirectoryPicker({
       id: 'infinity-nikki-album',
       mode: 'readwrite',
       startIn: 'pictures'
@@ -709,15 +718,13 @@ async function pickValidatedX6GameDirectory(
   messages: FileSystemMessages,
   options: X6GameDirectoryOptions = {}
 ): Promise<{ directoryHandle: FileSystemDirectoryHandle; accountDirectoryName: string }> {
-  if (!window.showDirectoryPicker) {
-    throw new Error(messages.unsupportedBrowser)
-  }
+  const showDirectoryPicker = getSupportedDirectoryPicker(messages)
 
   if (options.beforePickX6GameDirectory && !(await options.beforePickX6GameDirectory())) {
     throw new Error(messages.abortSelection)
   }
 
-  const directoryHandle = await window.showDirectoryPicker({
+  const directoryHandle = await showDirectoryPicker({
     id: 'infinity-nikki-x6game',
     mode: 'readwrite',
     startIn: albumDirectoryHandle

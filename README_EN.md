@@ -141,7 +141,7 @@ Browsers block web pages from accessing system folders. Please select `NikkiPhot
 
 Most users should use the online version first. Download the project only when you need to study the code, customize it, or debug it locally.
 
-Requirements: Windows, [Node.js LTS](https://nodejs.org/), and the latest Chrome or Edge.
+Requirements: Windows, [Node.js LTS](https://nodejs.org/), and the latest desktop version of Chrome, Edge, or another compatible Chromium browser.
 
 ### Install Node.js
 

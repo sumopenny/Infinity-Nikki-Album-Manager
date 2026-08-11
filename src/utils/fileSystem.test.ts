@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { messages } from '../i18n'
 import type { PhotoItem } from './dateGrouping'
 import {
@@ -6,6 +6,7 @@ import {
   movePhotosToRecentlyDeleted,
   executeRelatedPhotoCleanup,
   prepareRelatedPhotoCleanup,
+  pickAlbumDirectory,
   readAlbumDirectory,
   refreshAlbumDirectory,
   resolveX6GameAccountDirectory,
@@ -14,6 +15,10 @@ import {
 
 beforeAll(() => {
   Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: () => undefined })
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 class MemoryFileHandle {
@@ -136,6 +141,13 @@ function createPhoto(directory: MemoryDirectoryHandle, name: string): PhotoItem 
 }
 
 describe('album refresh and recently deleted filesystem operations', () => {
+  it('reports unsupported directory authorization on mobile browsers', async () => {
+    vi.spyOn(window.navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Linux; Android 16)')
+
+    await expect(pickAlbumDirectory(messages.zh.fileSystem))
+      .rejects.toThrow(messages.zh.fileSystem.mobileBrowserUnsupported)
+  })
+
   it('scans album metadata with a maximum of six concurrent file reads', async () => {
     const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
     const tracker = { active: 0, peak: 0 }
