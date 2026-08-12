@@ -937,11 +937,28 @@ async function addOutfitTag(rawTag: string, selectInEditor = false) {
   }
   isOutfitMutationBusy.value = true
   try {
-    outfitTags.value = await saveOutfitTags(directoryHandle, [...outfitTags.value, tag])
+    outfitTags.value = await saveOutfitTags(directoryHandle, [tag, ...outfitTags.value])
     outfitSidebarRef.value?.closeTagInput()
     if (selectInEditor) outfitEditorRef.value?.selectCreatedTag(tag)
     showOutfitStatus(outfitLocale.value.operations.tagAdded)
   } catch (error) {
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+  } finally {
+    isOutfitMutationBusy.value = false
+  }
+}
+
+/** 保存用户在左侧栏调整后的标签顺序。参数：tags 为拖拽完成后的完整标签数组。 */
+async function reorderOutfitTags(tags: string[]) {
+  const directoryHandle = albumDirectoryHandle.value
+  if (!directoryHandle || isAnyFileOperationBusy.value) return
+  const previousTags = [...outfitTags.value]
+  outfitTags.value = [...tags]
+  isOutfitMutationBusy.value = true
+  try {
+    outfitTags.value = await saveOutfitTags(directoryHandle, tags)
+  } catch (error) {
+    outfitTags.value = previousTags
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
   } finally {
     isOutfitMutationBusy.value = false
@@ -1581,6 +1598,7 @@ onBeforeUnmount(() => {
           @change-filter="changeOutfitFilter"
           @add-tag="addOutfitTag"
           @delete-tag="removeOutfitTag"
+          @reorder-tags="reorderOutfitTags"
         />
         <DateSidebar
           v-else-if="activeView !== 'trash'"

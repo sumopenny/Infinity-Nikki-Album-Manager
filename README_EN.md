@@ -54,6 +54,7 @@ Open https://infinity-nikki-album-manager.pages.dev/ directly to use it. You can
 ## Outfit Code Management
 Entering Outfit codes opens a standalone guide. Please read it carefully.
 - You can create up to 40 user tags, and each tag can contain up to 5 characters. Deleting a tag in use only moves related plans to Uncategorized.
+- New tags appear first. Drag the six-dot handle before a tag in the left sidebar to reorder it; the saved order is also used by the outfit editor and remains after reopening the album.
 - Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press `Ctrl+V`). JPG and PNG files are converted locally to WebP, the outfit code can be empty, each plan can use one tag, and double-clicking the image opens the preview.
 - The outfit preview toolbar shows the current tag and outfit code, with Copy and Edit buttons. Opening the editor from the large preview returns to the same preview after saving or closing it.
 - The app creates a `clothe` folder inside the current album as needed to manage outfit codes. <span style="color: red;">For bulk import, move saved outfit images directly into this folder; opening, refreshing, or refocusing the website page automatically converts them into pending plans.</span>

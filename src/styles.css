@@ -2703,6 +2703,7 @@ h1 {
 }
 
 .outfit-add-tag-toggle,
+.outfit-tag-drag-handle,
 .outfit-delete-tag,
 .outfit-card-actions button,
 .outfit-card-delete,
@@ -2816,13 +2817,63 @@ h1 {
   position: relative;
 }
 
+.outfit-tag-drag-handle {
+  position: absolute;
+  z-index: 1;
+  top: 1px;
+  left: 0;
+  width: 24px;
+  height: 32px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.outfit-tag-drag-handle:hover:not(:disabled),
+.outfit-tag-drag-handle:focus-visible {
+  color: var(--heading);
+}
+
+.is-reordering-outfit-tags,
+.is-reordering-outfit-tags * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.outfit-filter-row.is-dragging {
+  opacity: 0.55;
+}
+
+.outfit-filter-row.drop-before::before,
+.outfit-filter-row.drop-after::after {
+  position: absolute;
+  z-index: 3;
+  right: 4px;
+  left: 4px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--pink-deep);
+  content: '';
+  pointer-events: none;
+}
+
+.outfit-filter-row.drop-before::before {
+  top: -2px;
+}
+
+.outfit-filter-row.drop-after::after {
+  bottom: -2px;
+}
+
 .outfit-filter-button {
   position: relative;
   width: 100%;
   min-height: 34px;
   justify-content: space-between;
   gap: 8px;
-  padding: 5px 34px 5px 8px;
+  padding: 5px 34px 5px 26px;
   border: 1px solid transparent;
   border-radius: 12px;
   background: transparent;
@@ -2851,7 +2902,7 @@ h1 {
 }
 
 .outfit-filter-list > .outfit-filter-button {
-  padding-right: 8px;
+  padding: 5px 8px;
 }
 
 .outfit-filter-button:hover:not(:disabled),

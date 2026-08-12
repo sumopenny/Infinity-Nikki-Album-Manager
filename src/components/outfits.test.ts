@@ -67,6 +67,55 @@ describe('outfit workspace components', () => {
     expect(wrapper.find('.outfit-add-tag-toggle').attributes('disabled')).toBeDefined()
   })
 
+  it('reorders user tags only when dragging from the handle', async () => {
+    const wrapper = mount(OutfitSidebar, {
+      attachTo: document.body,
+      props: {
+        outfits: [],
+        tags: ['最新', '甜美', '清新'],
+        activeFilter: 'all',
+        disabled: false,
+        messages: getOutfitMessages('zh')
+      }
+    })
+    const rows = wrapper.findAll('.outfit-filter-row')
+    const target = rows[2].element as HTMLElement
+    vi.spyOn(target, 'getBoundingClientRect').mockReturnValue({
+      top: 100, bottom: 134, left: 0, right: 200, width: 200, height: 34, x: 0, y: 100, toJSON: () => ({})
+    })
+    const originalElementFromPoint = document.elementFromPoint
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: vi.fn(() => target) })
+
+    await rows[0].get('.outfit-tag-drag-handle').trigger('pointerdown', { button: 0 })
+    window.dispatchEvent(new MouseEvent('pointermove', { clientX: 10, clientY: 130 }))
+    window.dispatchEvent(new MouseEvent('pointerup'))
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('reorderTags')).toEqual([[['甜美', '清新', '最新']]])
+    expect(wrapper.findAll('.outfit-filter-row').map((row) => row.attributes('data-outfit-tag'))).toEqual(['甜美', '清新', '最新'])
+    if (originalElementFromPoint) {
+      Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: originalElementFromPoint })
+    } else {
+      Reflect.deleteProperty(document, 'elementFromPoint')
+    }
+    wrapper.unmount()
+  })
+
+  it('disables tag drag handles with the rest of the sidebar', () => {
+    const wrapper = mount(OutfitSidebar, {
+      props: {
+        outfits: [],
+        tags: ['甜美'],
+        activeFilter: 'all',
+        disabled: true,
+        messages: getOutfitMessages('zh')
+      }
+    })
+
+    expect(wrapper.get('.outfit-tag-drag-handle').attributes('disabled')).toBeDefined()
+    expect(wrapper.findAll('.outfit-tag-drag-handle')).toHaveLength(1)
+  })
+
   it('closes the tag popover when the user clicks outside it', async () => {
     const wrapper = mount(OutfitSidebar, {
       attachTo: document.body,

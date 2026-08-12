@@ -10,6 +10,7 @@ export interface OutfitMessages {
   addTag: string
   tagPlaceholder: string
   confirmAddTag: string
+  reorderTag: string
   deleteTag: string
   importData: string
   importing: string
@@ -87,6 +88,7 @@ const outfitMessages: Record<Language, OutfitMessages> = {
     addTag: '添加标签',
     tagPlaceholder: '最多5个字符',
     confirmAddTag: '添加',
+    reorderTag: '调整标签顺序',
     deleteTag: '删除标签',
     importData: '导入数据',
     importing: '正在导入',
@@ -173,6 +175,7 @@ const outfitMessages: Record<Language, OutfitMessages> = {
     addTag: 'Add tag',
     tagPlaceholder: 'Up to 5 characters',
     confirmAddTag: 'Add',
+    reorderTag: 'Reorder tag',
     deleteTag: 'Delete tag',
     importData: 'Import',
     importing: 'Importing',
