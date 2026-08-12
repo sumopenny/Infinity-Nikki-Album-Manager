@@ -593,13 +593,12 @@ export const messages: Record<Language, LocaleMessages> = {
       featuresTitle: 'Features',
       features: [
         'Album management: organize screenshots by capture date, with preview, copy, favorite and move-to-album.',
-        'Recently deleted: deleted photos go to the trash folder first and can be restored or deleted forever.',
-        'Outfit codes: manage Starry Gallery outfit plans with manual add, batch ZIP import, and auto sync of new in-game outfit codes.',
+        'Outfit codes: manage Starry Gallery outfit plans with manual add, batch import, and auto sync of new in-game outfit codes.',
         'One-click cleanup: quickly clean low-quality photos and screenshots to free up disk space.'
       ],
       changelogTitle: 'Current version【2026.8.12 update】',
       changelog: [
-        { version: 'v1.2.3', text: 'New outfit tags now appear first and can be reordered by dragging. The updated order is synchronized with the outfit editor.' }
+        { version: 'v1.2.3', text: "New outfit tags now appear first in the list and can be reordered by dragging, with the order synced to the outfit editor. Animations and some interactions were polished, more one-click cleanup features are under consideration, and we sneaked a piece of Momo's pork belly🥩~" }
       ],
       dontShowAgain: "Don't show again",
       confirm: 'Got it',
