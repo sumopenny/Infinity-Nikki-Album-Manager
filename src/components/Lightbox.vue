@@ -225,6 +225,7 @@ onUnmounted(() => {
 
 <template>
   <Teleport to="body">
+    <Transition name="lightbox">
     <div v-if="displayedPhoto" class="lightbox" role="dialog" aria-modal="true" @click.self="emit('close')">
       <div class="lightbox-panel" :class="lightboxPanelClass" :style="lightboxPanelStyle">
         <div class="lightbox-header">
@@ -245,7 +246,7 @@ onUnmounted(() => {
           @pointerup="endDrag"
           @pointercancel="endDrag"
         >
-          <img :src="displayedPhoto.url ?? undefined" :alt="displayedPhoto.name" :style="imageTransform" draggable="false" />
+          <img :key="displayedPhoto.id" :src="displayedPhoto.url ?? undefined" :alt="displayedPhoto.name" :style="imageTransform" draggable="false" />
           <div class="lightbox-nav-zone lightbox-nav-zone--prev" :class="{ 'is-navigation-hidden': navigationButtonsHidden }" @pointerleave="showNavigationButtons">
             <button v-if="hasPrevious" class="lightbox-nav-button" type="button" :title="messages.previousAria" :aria-label="messages.previousAria" @click="hideNavigationButtons(); emit('previous')">
               <ChevronLeft :size="22" />
@@ -302,5 +303,6 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
+    </Transition>
   </Teleport>
 </template>

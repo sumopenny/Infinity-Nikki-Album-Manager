@@ -116,6 +116,23 @@ describe('outfit workspace components', () => {
     expect(wrapper.findAll('.outfit-tag-drag-handle')).toHaveLength(1)
   })
 
+  it('uses an app tooltip instead of the native title for drag handles', () => {
+    const wrapper = mount(OutfitSidebar, {
+      props: {
+        outfits: [],
+        tags: ['甜美'],
+        activeFilter: 'all',
+        disabled: false,
+        messages: getOutfitMessages('zh')
+      }
+    })
+    const handle = wrapper.get('.outfit-tag-drag-handle')
+
+    expect(handle.attributes('title')).toBeUndefined()
+    expect(handle.attributes('data-tooltip')).toBe('调整标签顺序')
+    expect(handle.attributes('aria-label')).toBe('调整标签顺序: 甜美')
+  })
+
   it('closes the tag popover when the user clicks outside it', async () => {
     const wrapper = mount(OutfitSidebar, {
       attachTo: document.body,

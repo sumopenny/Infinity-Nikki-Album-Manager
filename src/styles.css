@@ -601,7 +601,9 @@ h1 {
 }
 
 .confirm-dialog-enter-active .confirm-dialog-panel,
-.confirm-dialog-leave-active .confirm-dialog-panel {
+.confirm-dialog-enter-active .outfit-editor-panel,
+.confirm-dialog-leave-active .confirm-dialog-panel,
+.confirm-dialog-leave-active .outfit-editor-panel {
   transition: opacity 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -611,7 +613,9 @@ h1 {
 }
 
 .confirm-dialog-enter-from .confirm-dialog-panel,
-.confirm-dialog-leave-to .confirm-dialog-panel {
+.confirm-dialog-enter-from .outfit-editor-panel,
+.confirm-dialog-leave-to .confirm-dialog-panel,
+.confirm-dialog-leave-to .outfit-editor-panel {
   opacity: 0;
   transform: translateY(18px) scale(0.96);
 }
@@ -995,6 +999,7 @@ h1 {
   height: 12px;
   border: 1px solid var(--muted);
   border-radius: 50%;
+  transition: border-width var(--motion-fast) ease, border-color var(--motion-fast) ease;
 }
 
 .menu-radio.active .radio-mark {
@@ -1964,6 +1969,53 @@ h1 {
   transform: translateY(18px);
 }
 
+/* 大图预览开关：遮罩淡入淡出，面板轻微缩放，离开时屏蔽指针避免误触 */
+.lightbox-enter-active,
+.lightbox-leave-active {
+  transition: opacity 0.22s ease;
+}
+
+.lightbox-enter-active .lightbox-panel,
+.lightbox-enter-active .lightbox-footer {
+  transition: opacity 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.lightbox-leave-active .lightbox-panel,
+.lightbox-leave-active .lightbox-footer {
+  transition: opacity 0.18s ease-in, transform 0.18s ease-in;
+}
+
+.lightbox-leave-active {
+  pointer-events: none;
+}
+
+.lightbox-enter-from,
+.lightbox-leave-to {
+  opacity: 0;
+}
+
+.lightbox-enter-from .lightbox-panel,
+.lightbox-leave-to .lightbox-panel {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+.lightbox-enter-from .lightbox-footer,
+.lightbox-leave-to .lightbox-footer {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+/* 前后切换图片时新图淡入，避免生硬闪切 */
+@keyframes lightbox-image-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .lightbox {
   position: fixed;
   inset: 0;
@@ -2022,6 +2074,7 @@ h1 {
   border-radius: var(--radius-md);
   user-select: none;
   transition: transform 0.08s linear;
+  animation: lightbox-image-in 0.24s ease-out;
 }
 
 .lightbox-header {
@@ -2797,14 +2850,21 @@ h1 {
   transform: translateY(-1px);
 }
 
-.outfit-tag-editor-enter-active,
+/* 浮层从加号按钮右侧弹出：进入时轻微回弹，离开时快速收敛 */
+.outfit-tag-editor-enter-active {
+  transition: opacity 0.22s ease, transform 0.3s cubic-bezier(0.2, 0.9, 0.25, 1.12);
+  transform-origin: left center;
+}
+
 .outfit-tag-editor-leave-active {
-  transition: opacity var(--motion-base) ease, grid-template-columns var(--motion-base) ease;
+  transition: opacity 0.16s ease-in, transform 0.16s ease-in;
+  transform-origin: left center;
 }
 
 .outfit-tag-editor-enter-from,
 .outfit-tag-editor-leave-to {
   opacity: 0;
+  transform: translateX(-10px) scale(0.9);
 }
 
 .outfit-filter-list {
@@ -2834,6 +2894,42 @@ h1 {
 .outfit-tag-drag-handle:hover:not(:disabled),
 .outfit-tag-drag-handle:focus-visible {
   color: var(--heading);
+}
+
+.outfit-tag-drag-handle::after {
+  position: absolute;
+  z-index: 6;
+  top: 50%;
+  left: calc(100% + 6px);
+  width: max-content;
+  max-width: 150px;
+  padding: 5px 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-strong);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--heading) 14%, transparent);
+  color: var(--text);
+  content: attr(data-tooltip);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(2px, -50%);
+  transition: opacity var(--motion-fast) ease, transform var(--motion-fast) ease;
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+.outfit-tag-drag-handle:hover:not(:disabled)::after,
+.outfit-tag-drag-handle:focus-visible::after {
+  opacity: 1;
+  transform: translate(0, -50%);
+  visibility: visible;
+}
+
+.is-reordering-outfit-tags .outfit-tag-drag-handle::after {
+  display: none;
 }
 
 .is-reordering-outfit-tags,
@@ -2999,6 +3095,7 @@ h1 {
   background: rgba(25, 22, 22, 0.48);
   color: #fff;
   opacity: 0;
+  transition: opacity var(--motion-fast) ease, color var(--motion-fast) ease, border-color var(--motion-fast) ease, background var(--motion-fast) ease;
 }
 
 .outfit-card:hover .outfit-card-delete,
@@ -3181,6 +3278,12 @@ h1 {
   background: var(--surface-strong);
   color: var(--text);
   font-size: 12px;
+  transition: border-color var(--motion-base) ease, background var(--motion-base) ease, color var(--motion-base) ease, transform var(--motion-fast) ease;
+}
+
+/* 点按时的轻微回缩，提供按压反馈 */
+.outfit-tag-choices button:active:not(:disabled) {
+  transform: scale(0.93);
 }
 
 .outfit-tag-choices .outfit-editor-add-tag {

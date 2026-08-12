@@ -213,8 +213,8 @@ onBeforeUnmount(() => {
         <button
           class="outfit-tag-drag-handle"
           type="button"
-          :title="`${messages.reorderTag}: ${tag}`"
           :aria-label="`${messages.reorderTag}: ${tag}`"
+          :data-tooltip="messages.reorderTag"
           :disabled="disabled"
           @pointerdown="startTagDrag($event, tag)"
         >

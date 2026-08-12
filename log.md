@@ -432,5 +432,30 @@
 
 1.问题：用户反馈搭配码新增标签总在列表底部，不便选择，要求新标签按新到旧显示，并允许在左侧标签栏拖拽调整顺序且同步到编辑器。
 - 状态：已解决
-- 技术/方法：将新增标签改为插入 `tags.json` 数组首位，数组顺序直接作为左侧栏与编辑器的共同展示顺序；左侧用户标签增加 Lucide `GripVertical` 六点手柄，使用 Pointer Events 统一支持鼠标与触屏，仅手柄启动排序，筛选按钮和删除按钮保持原行为。拖动时降低当前行透明度，并用主题色插入线标识目标位置；松手后乐观同步界面并调用现有 `saveOutfitTags` 持久化，写入失败则恢复原顺序。补充中英文无障碍文案、拖拽与禁用状态测试，并同步更新中英文 README。验证：`npm test -- --run` 8 个测试文件共 71 项全部通过，`npm run build` 与 `git diff --check` 通过。
+- 技术/方法：将新增标签改为插入 `tags.json` 数组首位，数组顺序直接作为左侧栏与编辑器的共同展示顺序；左侧用户标签增加 Lucide `GripVertical` 六点手柄，使用 Pointer Events 统一支持鼠标与触屏，仅手柄启动排序，筛选按钮和删除按钮保持原行为。拖动时降低当前行透明度，并用主题色插入线标识目标位置；松手后乐观同步界面并调用现有 `saveOutfitTags` 持久化，写入失败则恢复原顺序。补充中英文无障碍文案、拖拽与禁用状态测试，并同步更新中英文 README。随后针对 Windows/Chromium 中原生 `title` 提示出现后 `grab` 光标偶发丢失黑色描边的问题，移除手柄原生 `title`，改为悬停或键盘聚焦时立即显示的 CSS 自绘提示，拖动期间隐藏提示，同时保留系统 `grab/grabbing` 光标和 `aria-label`。最终将“关于网站”的当前版本更新为 `v1.2.3`，日期更新为 2026.8.12，中英文更新日志说明新增标签置顶、拖拽排序以及编辑器顺序同步。验证：`npm test -- --run` 8 个测试文件共 72 项全部通过，`npm run build` 与 `git diff --check` 通过。
+---
+
+2.问题：用户反馈标签加号点击后浮层、搭配码编辑弹窗和编辑器内选择标签的动画不流畅，点一下就直接跳过去。
+- 状态：已解决
+- 技术/方法：排查发现三处根因都在 `styles.css`：搭配码编辑弹窗复用了 `confirm-dialog` 过渡名，但面板类名是 `outfit-editor-panel`，不在带 `translateY(18px) scale(0.96)` 的动画选择器里，导致只有遮罩淡入、面板瞬现瞬隐，把面板类名补进选择器后恢复了与其他弹窗一致的上浮缩放进出场；标签加号浮层的 `outfit-tag-editor` 过渡原本只在 active 里写了 `grid-template-columns` 过渡而起始态没有网格变化，实际只剩 0.2s 干巴巴的淡入淡出，改为从按钮侧 `translateX(-10px) scale(0.9)` 弹出、进入用带回弹的 `cubic-bezier(0.2, 0.9, 0.25, 1.12)`、离开快速收敛，侧栏和编辑器两处浮层同时生效；编辑器内标签选项按钮原本没有 transition，选中高亮瞬时切换，补上边框/背景/文字色 0.2s 过渡并加 `:active` 轻微回缩的按压反馈。README.md 已检查，本次为纯动效优化，不影响使用说明，无需更新。
+---
+
+3.问题：用户要求继续排查全站还有哪些地方的 CSS 动画流畅度可以优化。
+- 状态：已解决
+- 技术/方法：全面排查 `styles.css` 的过渡与各组件 `v-if` 硬切点后，保留了四处明确改进：大图预览原本 `v-if` 瞬现瞬隐，`Lightbox.vue` 根节点包上 `Transition name="lightbox"`，遮罩淡入淡出、面板 0.96 缩放、底部工具栏轻微上浮，leave 期间屏蔽指针防误触；大图前后切换图片时 `img` 补 `:key="displayedPhoto.id"`，新图 0.24s 淡入不再生硬闪切；菜单单选圆点 `.radio-mark` 选中时边框 1px→3px 加过渡平滑变粗；搭配卡片删除按钮 `.outfit-card-delete` 的 opacity 显隐加淡入过渡。另有三处改了之后用户要求回退（侧栏时间线/日期链接的透明描边方案、`.date-select-button`、`.outfit-filter-button` 的过渡），已恢复原样。验证：`npm test` 72/72 通过、`vue-tsc` 无错误。README.md 已检查，本次为纯动效优化，无需更新。
+---
+
+4.问题：用户指出全部照片多选后点击底部操作栏的收藏，此时收藏按钮应该变成取消收藏按钮。
+- 状态：已解决
+- 技术/方法：`SelectionBar.vue` 原本在相册模式下永远只显示“收藏”。新增 `allSelectedFavorited` prop，`App.vue` 用同名 computed 判断选中的可见照片是否全部已在 `favoriteIds` 中，全部已收藏时按钮切换为 HeartOff 图标的“取消收藏”并发出 `unfavorite`。同时调整 `unfavoriteSelectedPhotos`：原来无条件清空选择（那是收藏夹视图的设计，照片取消后会从列表消失），改为仅收藏夹视图清空，普通相册视图保留选择，按钮随之变回“收藏”可来回切换。`redesign.test.ts` 补充相册模式下按钮随收藏状态切换的测试。验证：`npm test` 73/73 通过、`vue-tsc` 无错误。README.md 已检查，底部操作栏“批量收藏”描述仍准确，按钮随状态切换属于交互细节，无需更新。
+---
+
+5.问题：代码评审指出“选中 ∩ 可见”的交集判断分散在多处，建议抽出统一的“当前作用域选择集合”计算逻辑，用户确认执行。
+- 状态：已解决
+- 技术/方法：`selectedIds` 跨视图保留，“选中的照片”和“当前看得见的照片”是两个集合，`visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id))` 这段交集代码散落在 `selectedCount`、`allSelectedFavorited`、`favoriteSelectedPhotos`、`unfavoriteSelectedPhotos`、`deleteSelectedPhotos` 五处。在 `App.vue` 新增 `scopedSelectedPhotos` computed 作为唯一定义点，五处全部改为从它派生，行为完全不变；以后新增筛选维度只需改这一处。验证：`npm test` 73/73 通过、`vue-tsc` 无错误。README.md 已检查，本次为内部重构，不影响使用，无需更新。
+---
+
+6.问题：用户反馈在选中照片状态下切换其他页面，选中状态还保持，认为不正常。
+- 状态：已解决
+- 技术/方法：定位到 `changeAlbumView` 之前只清空了搭配视图的 `selectedOutfitIds`，普通照片的 `selectedIds` 和回收站的 `trashSelectedIds` 没有清，导致切走再切回时选中残留。修复为视图真正变化时统一清空三个选中集合；同时加了 `isViewChanged` 判断，重复点击当前视图标签不会误清选中，避免手滑丢失选择，函数中文注释同步更新。验证：`npm test` 73/73 通过、`vue-tsc` 无错误。README.md 已检查，本次为交互行为修正，文档中的多选操作描述不受影响，无需更新。
 ---

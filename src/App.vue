@@ -235,13 +235,19 @@ const formattedDateGroups = computed(() =>
   }))
 )
 const yearGroups = computed(() => groupDatesByYear(formattedDateGroups.value))
-const selectedCount = computed(() => visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id)).length)
+/** 当前作用域内被选中的照片（选中 ∩ 可见），所有批量操作统一从这里取，新增筛选维度时只需改这一处。 */
+const scopedSelectedPhotos = computed(() => visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id)))
+const selectedCount = computed(() => scopedSelectedPhotos.value.length)
 const selectedOutfitCount = computed(() => visibleOutfits.value.filter((outfit) => selectedOutfitIds.value.has(outfit.id)).length)
 const trashSelectedCount = computed(() => recentlyDeleted.value.filter((photo) => trashSelectedIds.value.has(photo.id)).length)
 const visibleCount = computed(() => visiblePhotos.value.length)
 const favoriteCount = computed(() => favoritePhotos.value.length)
 const allSelected = computed(
   () => visibleCount.value > 0 && visiblePhotos.value.every((photo) => selectedIds.value.has(photo.id))
+)
+/** 选中的可见照片是否全部已收藏，决定多选栏显示收藏还是取消收藏。 */
+const allSelectedFavorited = computed(
+  () => selectedCount.value > 0 && scopedSelectedPhotos.value.every((photo) => favoriteIds.value.has(photo.id))
 )
 const allTrashSelected = computed(
   () => recentlyDeleted.value.length > 0 && recentlyDeleted.value.every((photo) => trashSelectedIds.value.has(photo.id))
@@ -835,12 +841,18 @@ async function updateOutfitLibrary(importExternal = true, announce = true) {
   }
 }
 
-/** 切换相册视图。参数：view 为目标视图；进入搭配码时按用户偏好显示操作指南。 */
+/** 切换相册视图并清空上个视图的选中状态（重复点击当前视图不清空）。参数：view 为目标视图；进入搭配码时按用户偏好显示操作指南。 */
 function changeAlbumView(view: AlbumView) {
-  const isEnteringOutfits = view === 'outfits' && activeView.value !== 'outfits'
+  const isViewChanged = view !== activeView.value
+  const isEnteringOutfits = view === 'outfits' && isViewChanged
   activeView.value = view
   currentPreview.value = null
-  selectedOutfitIds.value = new Set()
+  // 视图真正变化时清空所有选中状态，避免上个视图的选中残留；重复点击当前视图不受影响
+  if (isViewChanged) {
+    selectedIds.value = new Set()
+    selectedOutfitIds.value = new Set()
+    trashSelectedIds.value = new Set()
+  }
   activeOutfitFilter.value = 'all'
   if (view === 'trash') void refreshAlbum(false)
   if (view === 'outfits') void updateOutfitLibrary(true)
@@ -1186,15 +1198,17 @@ function toggleFavorite(photoId: string) {
 
 /** 将当前选中的普通照片批量加入收藏，不取消已收藏项目。参数：无。 */
 function favoriteSelectedPhotos() {
-  const selectedPhotoIds = visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id)).map((photo) => photo.id)
+  const selectedPhotoIds = scopedSelectedPhotos.value.map((photo) => photo.id)
   favoriteIds.value = new Set([...favoriteIds.value, ...selectedPhotoIds])
 }
 
-/** 取消当前收藏夹中选中照片的收藏状态，并移除已不可见的选择。参数：无。 */
+/** 取消选中照片的收藏状态；收藏夹视图中照片会消失故同步移除选择，普通视图保留选择以便再次收藏。参数：无。 */
 function unfavoriteSelectedPhotos() {
-  const targetIds = new Set(visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id)).map((photo) => photo.id))
+  const targetIds = new Set(scopedSelectedPhotos.value.map((photo) => photo.id))
   favoriteIds.value = new Set([...favoriteIds.value].filter((id) => !targetIds.has(id)))
-  selectedIds.value = new Set([...selectedIds.value].filter((id) => !targetIds.has(id)))
+  if (activeView.value === 'favorites') {
+    selectedIds.value = new Set([...selectedIds.value].filter((id) => !targetIds.has(id)))
+  }
 }
 
 /** 清空当前普通视图的照片选择。参数：无。 */
@@ -1262,7 +1276,7 @@ async function movePhotosToTrash(targets: PhotoItem[], keepPreviewOpen = false) 
 
 /** 将当前普通视图的选中照片移到最近删除。参数：无。 */
 async function deleteSelectedPhotos() {
-  await movePhotosToTrash(visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id)))
+  await movePhotosToTrash(scopedSelectedPhotos.value)
 }
 
 /** 将当前预览照片移到最近删除。参数：无。 */
@@ -1693,6 +1707,7 @@ onBeforeUnmount(() => {
       :mode="activeView === 'trash' ? 'trash' : activeView === 'outfits' ? 'outfit' : activeView === 'favorites' ? 'favorites' : 'album'"
       :selected-count="activeView === 'trash' ? trashSelectedCount : activeView === 'outfits' ? selectedOutfitCount : selectedCount"
       :all-selected="activeView === 'trash' ? allTrashSelected : activeView === 'outfits' ? allOutfitsSelected : allSelected"
+      :all-selected-favorited="allSelectedFavorited"
       :all-items-selected="activeView === 'trash' && allTrashSelected"
       :is-busy="activeView === 'outfits' ? isAnyFileOperationBusy : isDeleting || isTrashBusy"
       :messages="locale.selectionBar"

@@ -114,6 +114,7 @@ describe('redesigned album controls', () => {
         selectedCount: 0,
         allSelected: false,
         allItemsSelected: false,
+        allSelectedFavorited: false,
         isBusy: false,
         messages: messages.zh.selectionBar
       }
@@ -131,6 +132,7 @@ describe('redesigned album controls', () => {
         selectedCount: 2,
         allSelected: false,
         allItemsSelected: false,
+        allSelectedFavorited: false,
         isBusy: false,
         messages: messages.zh.selectionBar
       }
@@ -142,6 +144,32 @@ describe('redesigned album controls', () => {
     expect(wrapper.emitted('unfavorite')).toHaveLength(1)
   })
 
+  it('toggles between favorite and unfavorite in album mode by selection favorite state', async () => {
+    const wrapper = mount(SelectionBar, {
+      props: {
+        mode: 'album',
+        selectedCount: 2,
+        allSelected: false,
+        allItemsSelected: false,
+        allSelectedFavorited: false,
+        isBusy: false,
+        messages: messages.zh.selectionBar
+      }
+    })
+
+    // 选中项未全部收藏时显示“收藏”，点击发出 favorite
+    expect(wrapper.text()).toContain('收藏')
+    expect(wrapper.text()).not.toContain('取消收藏')
+    await wrapper.findAll('button').find((button) => button.text() === '收藏')?.trigger('click')
+    expect(wrapper.emitted('favorite')).toHaveLength(1)
+
+    // 选中项全部收藏后切换为“取消收藏”，点击发出 unfavorite
+    await wrapper.setProps({ allSelectedFavorited: true })
+    expect(wrapper.text()).toContain('取消收藏')
+    await wrapper.findAll('button').find((button) => button.text().includes('取消收藏'))?.trigger('click')
+    expect(wrapper.emitted('unfavorite')).toHaveLength(1)
+  })
+
   it('shows only permanent delete actions for outfit selections', () => {
     const wrapper = mount(SelectionBar, {
       props: {
@@ -149,6 +177,7 @@ describe('redesigned album controls', () => {
         selectedCount: 2,
         allSelected: false,
         allItemsSelected: false,
+        allSelectedFavorited: false,
         isBusy: false,
         messages: messages.zh.selectionBar
       }

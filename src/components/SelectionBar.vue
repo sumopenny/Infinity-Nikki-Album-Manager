@@ -9,6 +9,8 @@ defineProps<{
   selectedCount: number
   allSelected: boolean
   allItemsSelected: boolean
+  /** 选中的照片是否全部已收藏，用于切换收藏/取消收藏按钮 */
+  allSelectedFavorited: boolean
   isBusy: boolean
   messages: LocaleMessages['selectionBar']
 }>()
@@ -32,7 +34,7 @@ defineEmits<{
         {{ allSelected ? messages.deselectAll : messages.selectAll }}
       </button>
       <template v-if="mode === 'album' || mode === 'favorites'">
-        <button v-if="mode === 'album'" type="button" :disabled="isBusy" @click="$emit('favorite')">
+        <button v-if="mode === 'album' && !allSelectedFavorited" type="button" :disabled="isBusy" @click="$emit('favorite')">
           <Heart :size="16" aria-hidden="true" />
           <span>{{ messages.favorite }}</span>
         </button>
