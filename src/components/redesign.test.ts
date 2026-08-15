@@ -45,7 +45,6 @@ describe('redesigned album controls', () => {
         isLoading: false,
         isRefreshing: false,
         isDeleting: false,
-        isCleaningRelatedPhotos: false,
         hasAlbumDirectory: true,
         thumbnailMode: 'default',
         thumbnailModeOptions: [{ value: 'default', label: '默认 1:1' }],
@@ -63,7 +62,10 @@ describe('redesigned album controls', () => {
     expect(wrapper.emitted('authorizeX6Game')).toHaveLength(1)
 
     await wrapper.get(`[aria-label="${messages.zh.topBar.albumMenuAria}"]`).trigger('click')
-    expect(wrapper.text()).toContain(messages.zh.topBar.cleanRelatedPhotos)
+    expect(wrapper.text()).not.toContain('一键清理')
+
+    await wrapper.get(`[aria-label="${messages.zh.topBar.specialCleanup}"]`).trigger('click')
+    expect(wrapper.emitted('openCleanup')).toHaveLength(1)
 
     await wrapper.get(`[aria-label="${messages.zh.topBar.viewMenuAria}"]`).trigger('click')
     expect(wrapper.findAll('.header-dropdown')).toHaveLength(1)

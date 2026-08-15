@@ -3,6 +3,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CircleHelp, Download, FileUp, Plus, Trash2 } from 'lucide-vue-next'
 import AboutDialog from './components/AboutDialog.vue'
 import AlbumViewNav, { type AlbumView } from './components/AlbumViewNav.vue'
+import CleanupAccountDialog from './components/CleanupAccountDialog.vue'
+import CleanupDialog from './components/CleanupDialog.vue'
 import ConfirmDialog, { type ConfirmDialogTone } from './components/ConfirmDialog.vue'
 import DateSidebar from './components/DateSidebar.vue'
 import Lightbox from './components/Lightbox.vue'
@@ -23,23 +25,28 @@ import { groupDatesByYear, groupPhotosByDate, type PhotoItem, type RecentlyDelet
 import {
   clearSavedAlbumDirectoryHandle,
   clearSavedX6GameDirectoryHandle,
-  executeRelatedPhotoCleanup,
+  executeSpecialCleanup,
   formatFileSize,
   getSavedAlbumDirectoryHandle,
+  getSavedX6GameDirectoryHandle,
   getX6GameDirectoryForAlbum,
+  listGamePlayPhotoAccounts,
   listRecentlyDeleted,
   movePhotosToRecentlyDeleted,
   permanentlyDeleteRecentlyDeleted,
   pickAlbumDirectory,
-  prepareRelatedPhotoCleanup,
+  pickStandaloneX6GameDirectory,
+  prepareSpecialCleanup,
   readAlbumDirectory,
   refreshAlbumDirectory,
   releasePhotoUrl,
   releasePhotoUrls,
+  resolveX6GameAccountDirectory,
   restoreRecentlyDeletedPhotos,
   saveAlbumDirectoryHandle,
   type AlbumDirectoryResult,
-  type RefreshAlbumResult
+  type RefreshAlbumResult,
+  type SpecialCleanupItem
 } from './utils/fileSystem'
 import {
   deleteOutfit,
@@ -67,6 +74,7 @@ const THEME_STORAGE_KEY = 'infinity-nikki-theme-mode'
 const LANGUAGE_STORAGE_KEY = 'infinity-nikki-language'
 const FAVORITES_STORAGE_KEY = 'infinity-nikki-favorite-photo-ids'
 const ABOUT_STATE_STORAGE_KEY = 'infinity-nikki-about-state'
+const CLEANUP_ACCOUNT_CHOICE_KEY = 'infinity-nikki-cleanup-account-choice'
 const WEBSITE_LOCAL_STORAGE_KEYS = [
   THUMBNAIL_STORAGE_KEY,
   OUTFIT_THUMBNAIL_STORAGE_KEY,
@@ -75,7 +83,8 @@ const WEBSITE_LOCAL_STORAGE_KEYS = [
   THEME_STORAGE_KEY,
   LANGUAGE_STORAGE_KEY,
   FAVORITES_STORAGE_KEY,
-  ABOUT_STATE_STORAGE_KEY
+  ABOUT_STATE_STORAGE_KEY,
+  CLEANUP_ACCOUNT_CHOICE_KEY
 ]
 let suppressLocalPersistence = false
 const storedThumbnailMode = localStorage.getItem(THUMBNAIL_STORAGE_KEY)
@@ -179,7 +188,13 @@ const isLoading = ref(false)
 const isRefreshing = ref(false)
 const isDeleting = ref(false)
 const isTrashBusy = ref(false)
-const isCleaningRelatedPhotos = ref(false)
+const showCleanupDialog = ref(false)
+const cleanupX6GameHandle = ref<FileSystemDirectoryHandle | null>(null)
+const cleaningItem = ref<SpecialCleanupItem | null>(null)
+const showCleanupAccountDialog = ref(false)
+const cleanupAccounts = ref<string[]>([])
+const cleanupRememberedChoice = ref<string | null>(null)
+const cleanupAccountResolver = ref<((accountIds: string[] | null) => void) | null>(null)
 const isSavingOutfit = ref(false)
 const isImportingOutfits = ref(false)
 const isExportingOutfits = ref(false)
@@ -255,7 +270,7 @@ const allTrashSelected = computed(
 const trashTotalSize = computed(() => recentlyDeleted.value.reduce((total, photo) => total + (photo.size ?? 0), 0))
 const trashTotalSizeText = computed(() => formatFileSize(trashTotalSize.value))
 const isAnyFileOperationBusy = computed(
-  () => isLoading.value || isRefreshing.value || isDeleting.value || isTrashBusy.value || isCleaningRelatedPhotos.value ||
+  () => isLoading.value || isRefreshing.value || isDeleting.value || isTrashBusy.value || cleaningItem.value !== null ||
     isSavingOutfit.value || isImportingOutfits.value || isExportingOutfits.value
     || isUpdatingOutfits.value || isOutfitMutationBusy.value
 )
@@ -540,6 +555,7 @@ async function clearDirectory() {
   await clearSavedX6GameDirectoryHandle()
   resetLoadedAlbumState()
   albumDirectoryHandle.value = null
+  cleanupX6GameHandle.value = null
   activeView.value = 'all'
   directoryState.value = { type: 'none' }
   statusState.value = { type: 'cleared' }
@@ -577,6 +593,7 @@ async function clearCache() {
     localStorage.removeItem(OUTFIT_GUIDE_DISMISSED_KEY)
     localStorage.removeItem(X6GAME_AUTO_PROMPT_DISMISSED_KEY)
     sharedOutfitSource.value = null
+    cleanupX6GameHandle.value = null
     isOutfitGuideDismissed.value = false
     isX6GameAutoPromptDismissed.value = false
     didCancelX6GameAutoPrompt.value = false
@@ -605,6 +622,7 @@ async function clearData() {
     await clearSavedX6GameDirectoryHandle()
     clearWebsiteLocalStorage()
     resetLoadedAlbumState()
+    cleanupX6GameHandle.value = null
     favoriteIds.value = new Set()
     activeOutfitFilter.value = 'all'
     albumDirectoryHandle.value = null
@@ -1407,15 +1425,30 @@ async function permanentlyDeleteCurrentTrashPreview() {
   )
 }
 
-// 关联图片清理
-/** 执行原有低画质和截图永久清理。参数：无。 */
-async function cleanRelatedPhotos() {
-  if (!albumDirectoryHandle.value || isAnyFileOperationBusy.value) return
-  isCleaningRelatedPhotos.value = true
-  statusState.value = { type: 'custom', message: locale.value.app.preparingRelatedCleanup, tone: 'info', loading: true }
+// 专项清理
+/** 打开专项清理窗口，并静默恢复已保存的 X6Game 授权。参数：无。 */
+async function openCleanupDialog() {
+  showCleanupDialog.value = true
+  if (cleanupX6GameHandle.value) return
+
+  const savedHandle = await getSavedX6GameDirectoryHandle()
+  if (!savedHandle || savedHandle.name !== 'X6Game') return
+
+  try {
+    // 只在浏览器仍保留授权时直接恢复，不主动弹出权限请求
+    const permission = savedHandle.queryPermission ? await savedHandle.queryPermission({ mode: 'readwrite' }) : 'granted'
+    if (permission === 'granted') cleanupX6GameHandle.value = savedHandle
+  } catch {
+    // 静默恢复失败时，用户可在窗口内手动授权
+  }
+}
+
+/** 在专项清理窗口中授权 X6Game 文件夹。参数：无。 */
+async function authorizeCleanupFolder() {
+  if (isAnyFileOperationBusy.value) return
   let didCancelDirectoryPrompt = false
   try {
-    const plan = await prepareRelatedPhotoCleanup(albumDirectoryHandle.value, locale.value.fileSystem, {
+    const handle = await pickStandaloneX6GameDirectory(locale.value.fileSystem, {
       beforeRequestX6GamePermission: async () => {
         const confirmed = await openConfirmDialog({
           title: locale.value.app.x6GameDirectoryDialogTitle,
@@ -1439,44 +1472,148 @@ async function cleanRelatedPhotos() {
         return confirmed
       }
     })
-    if (!plan.totalCount) {
-      statusState.value = {
-        type: 'custom',
-        message: locale.value.app.noRelatedPhotos(plan.missingDirectories),
-        tone: plan.missingDirectories.length ? 'warning' : 'info'
-      }
-      return
+    cleanupX6GameHandle.value = handle
+    statusState.value = { type: 'custom', message: locale.value.app.authorizeX6GameStatus, tone: 'success' }
+  } catch (error) {
+    if (didCancelDirectoryPrompt) return
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+  }
+}
+
+/** 处理多账号选择结果。参数：accountIds 为确认的账号列表，取消时传 null；remember 为是否记住选择，choice 为具体选项（'all' 或账号 id）。 */
+function resolveCleanupAccounts(accountIds: string[] | null, remember = false, choice = '') {
+  showCleanupAccountDialog.value = false
+  if (accountIds) {
+    // 勾选“记住我的选择”时保存选项，取消勾选时清除；窗口下次仍会打开并回填，方便改选
+    if (remember && choice) localStorage.setItem(CLEANUP_ACCOUNT_CHOICE_KEY, choice)
+    else localStorage.removeItem(CLEANUP_ACCOUNT_CHOICE_KEY)
+  }
+  cleanupAccountResolver.value?.(accountIds)
+  cleanupAccountResolver.value = null
+}
+
+/** 确定低画质清理的目标账号：优先从当前相册推导，失败时列出全部账号让用户选择。参数：x6GameHandle 为已授权的 X6Game 目录。返回：目标账号 id 列表；用户取消时返回 null。 */
+async function resolveCleanupAccountIds(x6GameHandle: FileSystemDirectoryHandle): Promise<string[] | null> {
+  // 优先沿用现有逻辑：从当前相册路径推导账号 id
+  const albumHandle = albumDirectoryHandle.value
+  if (albumHandle) {
+    try {
+      const accountId = await resolveX6GameAccountDirectory(x6GameHandle, albumHandle, locale.value.fileSystem)
+      if (accountId) return [accountId]
+    } catch {
+      // 相册与 X6Game 无关时改为扫描账号文件夹
     }
-    const confirmed = await openConfirmDialog({
-      title: locale.value.app.relatedCleanupDialogTitle,
-      message: locale.value.app.confirmRelatedCleanup(plan.totalCount, plan.missingDirectories),
-      tone: 'warning',
-      confirmLabel: locale.value.app.dialogConfirm,
-      cancelLabel: locale.value.app.dialogCancel
-    })
-    if (!confirmed) {
-      statusState.value = { type: 'custom', message: locale.value.app.relatedCleanupCancelledStatus, tone: 'info' }
-      return
-    }
-    const result = await executeRelatedPhotoCleanup(plan)
+  }
+
+  const accounts = await listGamePlayPhotoAccounts(x6GameHandle)
+  if (accounts.length <= 1) return accounts
+
+  // 多账号时弹窗让用户选择清理全部账号或指定账号 id，并带出记住的选择用于回填
+  cleanupAccounts.value = accounts
+  cleanupRememberedChoice.value = localStorage.getItem(CLEANUP_ACCOUNT_CHOICE_KEY)
+  showCleanupAccountDialog.value = true
+  return new Promise<string[] | null>((resolve) => {
+    cleanupAccountResolver.value = resolve
+  })
+}
+
+/** 清理低画质图片和截图。参数：x6GameHandle 为已授权的 X6Game 目录。 */
+async function cleanLowQualityPhotos(x6GameHandle: FileSystemDirectoryHandle) {
+  const accountIds = await resolveCleanupAccountIds(x6GameHandle)
+  if (!accountIds) {
+    statusState.value = { type: 'custom', message: locale.value.app.relatedCleanupCancelledStatus, tone: 'info' }
+    return
+  }
+
+  const plan = await prepareSpecialCleanup(x6GameHandle, 'lowQuality', accountIds)
+  if (!plan.fileCount) {
     statusState.value = {
       type: 'custom',
-      message: locale.value.app.relatedCleanupStatus(
-        result.deletedCount,
-        result.deletedBytes,
-        result.failures,
-        result.missingDirectories
-      ),
-      tone: result.failures.length || result.missingDirectories.length ? 'warning' : 'success'
+      message: locale.value.app.noRelatedPhotos(plan.missingDirectories),
+      tone: plan.missingDirectories.length ? 'warning' : 'info'
+    }
+    return
+  }
+
+  const confirmed = await openConfirmDialog({
+    title: locale.value.app.relatedCleanupDialogTitle,
+    message: locale.value.app.confirmRelatedCleanup(plan.fileCount, plan.missingDirectories),
+    tone: 'warning',
+    confirmLabel: locale.value.app.dialogConfirm,
+    cancelLabel: locale.value.app.dialogCancel
+  })
+  if (!confirmed) {
+    statusState.value = { type: 'custom', message: locale.value.app.relatedCleanupCancelledStatus, tone: 'info' }
+    return
+  }
+
+  const result = await executeSpecialCleanup(plan)
+  statusState.value = {
+    type: 'custom',
+    message: locale.value.app.relatedCleanupStatus(
+      result.deletedCount,
+      result.deletedBytes,
+      result.failures,
+      result.missingDirectories
+    ),
+    tone: result.failures.length || result.missingDirectories.length ? 'warning' : 'success'
+  }
+}
+
+/** 清空目录类清理项的内容并保留文件夹本身。参数：x6GameHandle 为已授权的 X6Game 目录，item 为目录类清理项。 */
+async function cleanSpecialDirectory(x6GameHandle: FileSystemDirectoryHandle, item: Exclude<SpecialCleanupItem, 'lowQuality'>) {
+  const itemTitle = locale.value.cleanup.items[item].title
+  const plan = await prepareSpecialCleanup(x6GameHandle, item)
+  if (!plan.fileCount) {
+    statusState.value = {
+      type: 'custom',
+      message: locale.value.cleanup.noDirectoryFilesToClean(itemTitle, plan.missingDirectories),
+      tone: plan.missingDirectories.length ? 'warning' : 'info'
+    }
+    return
+  }
+
+  const confirmed = await openConfirmDialog({
+    title: locale.value.cleanup.confirmDirectoryCleanupTitle,
+    message: locale.value.cleanup.confirmDirectoryCleanup(itemTitle, plan.fileCount, formatFileSize(plan.totalBytes)),
+    tone: 'warning',
+    confirmLabel: locale.value.app.dialogConfirm,
+    cancelLabel: locale.value.app.dialogCancel
+  })
+  if (!confirmed) {
+    statusState.value = { type: 'custom', message: locale.value.app.relatedCleanupCancelledStatus, tone: 'info' }
+    return
+  }
+
+  const result = await executeSpecialCleanup(plan)
+  statusState.value = {
+    type: 'custom',
+    message: locale.value.cleanup.directoryCleanupStatus(
+      itemTitle,
+      result.deletedCount,
+      result.deletedBytes,
+      result.failures,
+      result.missingDirectories
+    ),
+    tone: result.failures.length || result.missingDirectories.length ? 'warning' : 'success'
+  }
+}
+
+/** 执行专项清理项。参数：item 为清理项标识。 */
+async function cleanSpecialItem(item: SpecialCleanupItem) {
+  const x6GameHandle = cleanupX6GameHandle.value
+  if (!x6GameHandle || cleaningItem.value !== null) return
+  cleaningItem.value = item
+  try {
+    if (item === 'lowQuality') {
+      await cleanLowQualityPhotos(x6GameHandle)
+    } else {
+      await cleanSpecialDirectory(x6GameHandle, item)
     }
   } catch (error) {
-    if (didCancelDirectoryPrompt) {
-      statusState.value = { type: 'custom', message: locale.value.app.relatedCleanupCancelledStatus, tone: 'info' }
-      return
-    }
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
   } finally {
-    isCleaningRelatedPhotos.value = false
+    cleaningItem.value = null
   }
 }
 
@@ -1567,7 +1704,6 @@ onBeforeUnmount(() => {
       :is-loading="isLoading"
       :is-refreshing="isRefreshing"
       :is-deleting="isDeleting || isTrashBusy"
-      :is-cleaning-related-photos="isCleaningRelatedPhotos"
       :has-album-directory="Boolean(albumDirectoryHandle)"
       :thumbnail-mode="displayedThumbnailMode"
       :thumbnail-mode-options="thumbnailModeOptions"
@@ -1578,7 +1714,7 @@ onBeforeUnmount(() => {
       @clear-directory="clearDirectory"
       @refresh-album="refreshAlbum(true)"
       @authorize-x6-game="authorizeX6GameDirectory"
-      @clean-related-photos="cleanRelatedPhotos"
+      @open-cleanup="openCleanupDialog"
       @clear-cache="clearCache"
       @clear-data="clearData"
       @change-thumbnail-mode="changeThumbnailMode"
@@ -1767,6 +1903,26 @@ onBeforeUnmount(() => {
       :messages="locale.about"
       :top-bar-messages="locale.topBar"
       @close="closeAboutDialog"
+    />
+
+    <CleanupDialog
+      :visible="showCleanupDialog"
+      :authorized-name="cleanupX6GameHandle?.name ?? null"
+      :busy-item="cleaningItem"
+      :disabled="isAnyFileOperationBusy"
+      :messages="locale.cleanup"
+      @close="showCleanupDialog = false"
+      @authorize="authorizeCleanupFolder"
+      @clean="cleanSpecialItem"
+    />
+
+    <CleanupAccountDialog
+      :visible="showCleanupAccountDialog"
+      :accounts="cleanupAccounts"
+      :remembered-choice="cleanupRememberedChoice"
+      :messages="locale.cleanup"
+      @confirm="resolveCleanupAccounts"
+      @cancel="resolveCleanupAccounts(null)"
     />
 
     <input ref="outfitImportInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importOutfits" />

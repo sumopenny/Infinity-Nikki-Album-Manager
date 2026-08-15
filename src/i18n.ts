@@ -1,6 +1,6 @@
 import type { ThumbnailMode } from './types/thumbnail'
 import type { ThemeMode } from './types/theme'
-import type { RelatedCleanupFailureReason } from './utils/fileSystem'
+import type { RelatedCleanupFailureReason, SpecialCleanupItem } from './utils/fileSystem'
 
 export type Language = 'zh' | 'en'
 export type StatusPrefix = 'read' | 'restored'
@@ -44,7 +44,6 @@ export interface LocaleMessages {
     rememberedDirectory: (name: string) => string
     successStatus: (count: number, prefix: StatusPrefix) => string
     successSuffix: (suffix: StatusSuffix) => string
-    preparingRelatedCleanup: string
     relatedCleanupCancelledStatus: string
     confirmRelatedCleanup: (count: number, missingDirectories: string[]) => string
     relatedCleanupStatus: (
@@ -69,8 +68,7 @@ export interface LocaleMessages {
     refreshAlbum: string
     refreshing: string
     thumbnail: string
-    cleaningRelated: string
-    cleanRelatedPhotos: string
+    specialCleanup: string
     currentAlbum: string
     view: string
     more: string
@@ -119,6 +117,36 @@ export interface LocaleMessages {
     permanentlyDelete: string
     clearAll: string
     cancel: string
+  }
+  cleanup: {
+    dialogTitle: string
+    dialogCloseAria: string
+    authHint: string
+    referenceHint: string
+    authorize: string
+    reauthorize: string
+    authorizedAs: (name: string) => string
+    clean: string
+    cleaning: string
+    items: Record<SpecialCleanupItem, { title: string; path: string; description: string }>
+    confirmDirectoryCleanupTitle: string
+    confirmDirectoryCleanup: (title: string, count: number, size: string) => string
+    directoryCleanupStatus: (
+      title: string,
+      deletedCount: number,
+      deletedBytes: number,
+      failures: Array<{ path: string; reason: RelatedCleanupFailureReason }>,
+      missingDirectories: string[]
+    ) => string
+    noDirectoryFilesToClean: (title: string, missingDirectories: string[]) => string
+    accountDialogTitle: string
+    accountDialogMessage: string
+    accountInputLabel: string
+    accountSelectPlaceholder: string
+    allAccounts: string
+    rememberChoice: string
+    accountConfirm: string
+    accountCancel: string
   }
   viewNav: {
     aria: string
@@ -197,7 +225,7 @@ export interface LocaleMessages {
 export const DEFAULT_LANGUAGE: Language = 'zh'
 
 // 当前网站版本号；更新日志新增版本时同步修改，用于检测是否需要在打开网站时重新弹出“关于网站”窗口
-export const ABOUT_VERSION = '1.2.3'
+export const ABOUT_VERSION = '1.3.0'
 
 const thumbnailModeValues: ThumbnailMode[] = ['default', 'half', 'wide', 'standard', 'portrait-wide', 'portrait-standard']
 
@@ -296,7 +324,7 @@ export const messages: Record<Language, LocaleMessages> = {
       dialogConfirm: '确认删除',
       dialogContinueAuthorization: '继续授权',
       dialogOk: '我知道了',
-      relatedCleanupDialogTitle: '确认清理关联图片',
+      relatedCleanupDialogTitle: '确认清理低画质图片和截图',
       x6GameDirectoryDialogTitle: '授权 X6Game 文件夹',
       albumContentAria: '图片展示区',
       rememberedDirectory: (name) => `已记住：${name}`,
@@ -305,7 +333,6 @@ export const messages: Record<Language, LocaleMessages> = {
         return count ? `${prefixText} ${count} 张照片，` : '这个文件夹里没有找到符合命名格式的图片。'
       },
       successSuffix: (suffix) => (suffix === 'continued' ? '已继续使用上次记住的相册文件夹。' : '已记住本次选择的相册文件夹。'),
-      preparingRelatedCleanup: '正在定位低画质照片和游戏截图。首次使用时，请在弹出的窗口中选择 X6Game 文件夹。',
       relatedCleanupCancelledStatus: '已取消清理，没有删除任何图片。',
       confirmRelatedCleanup: (count, missingDirectories) => {
         const missingText = missingDirectories.length ? `\n未找到并将跳过：${missingDirectories.join('、')}。` : ''
@@ -342,8 +369,7 @@ export const messages: Record<Language, LocaleMessages> = {
       refreshAlbum: '刷新相册',
       refreshing: '刷新中...',
       thumbnail: '缩略图',
-      cleaningRelated: '清理中...',
-      cleanRelatedPhotos: '一键清理低画质与截图',
+      specialCleanup: '专项清理',
       currentAlbum: '当前相册',
       view: '视图',
       more: '更多',
@@ -377,12 +403,12 @@ export const messages: Record<Language, LocaleMessages> = {
       features: [
         '相册管理：按拍摄日期整理游戏截图，支持预览、复制、收藏和移入相册。',
         '搭配码管理：管理星绘图册搭配方案，支持手动添加、批量导入，并自动同步游戏内新搭配码。',
-        '一键清理：快速清理低画质照片和游戏截图，释放磁盘空间。'
+        '专项清理：清理低画质照片、游戏截图、崩溃快照、运行日志和网页缓存，释放磁盘空间。'
       ],
-      changelogTitle: '当前版本【2026.8.12更新】',
+      changelogTitle: '当前版本【2026.8.15更新】',
       // 更新日志只保留当前版本，发布新版本时替换该条内容，当前版本会自动带上“当前版本”标识
       changelog: [
-        { version: 'v1.2.3', text: '搭配码新增标签现在会显示在列表首位，并支持拖拽调整顺序，排序结果会同步到搭配码编辑器。优化了动画效果和部分操作逻辑，更多一键清理功能考虑开发中，同时偷吃了一块大喵的五花肉🥩~' }
+        { version: 'v1.3.0', text: '新增专项清理窗口：支持清理低画质图片与截图、崩溃快照、运行日志和网页缓存，仅需授权 X6Game 文件夹即可使用。' }
       ],
       dontShowAgain: '不再提示',
       confirm: '我知道了',
@@ -399,6 +425,65 @@ export const messages: Record<Language, LocaleMessages> = {
       permanentlyDelete: '永久删除',
       clearAll: '永久清空全部',
       cancel: '取消选择'
+    },
+    cleanup: {
+      dialogTitle: '专项清理',
+      dialogCloseAria: '关闭专项清理窗口',
+      authHint: '使用清理功能需要先授权 X6Game 文件夹。清理会直接删除电脑中的文件，且不可恢复。',
+      referenceHint: '一些清理项参考小红书“快乐的00号”老师。',
+      authorize: '授权文件夹',
+      reauthorize: '重新授权',
+      authorizedAs: (name) => `已授权：${name}`,
+      clean: '清理',
+      cleaning: '清理中...',
+      items: {
+        lowQuality: {
+          title: '低画质图片和截图',
+          path: '...\\X6Game\\ScreenShot 与 NikkiPhotos_LowQuality',
+          description: '游戏拍照后产生的画质较低的图片'
+        },
+        crashes: {
+          title: '游戏崩溃时的快照信息',
+          path: '...\\X6Game\\Saved\\Crashes',
+          description: '删除后将无法通过本地日志向官方反馈历史崩溃原因'
+        },
+        logs: {
+          title: '游戏运行日志',
+          path: '...\\X6Game\\Saved\\Logs',
+          description: '删除后无影响'
+        },
+        webcache: {
+          title: '游戏内置浏览器与登录器缓存',
+          path: '...\\X6Game\\Saved\\webcache_4430',
+          description: '清理过期网页数据，但初次打开活动页面或公告时会加载变慢'
+        }
+      },
+      confirmDirectoryCleanupTitle: '确认清空文件夹',
+      confirmDirectoryCleanup: (title, count, size) => `确定清空「${title}」文件夹吗？共 ${count} 个文件，约 ${size}。文件夹本身会保留，删除后不可恢复。`,
+      directoryCleanupStatus: (title, deletedCount, deletedBytes, failures, missingDirectories) => {
+        const released = formatMessageFileSize(deletedBytes)
+        const reasonText: Record<RelatedCleanupFailureReason, string> = {
+          'unreadable-size': '无法读取文件大小，已跳过删除',
+          'remove-failed': '文件可能被占用或目录权限已失效'
+        }
+        const failedText = failures.length
+          ? `；${failures.length} 项未清理：${failures.map((failure) => `${failure.path}（${reasonText[failure.reason]}）`).join('、')}`
+          : ''
+        const missingText = missingDirectories.length ? `；未找到并已跳过：${missingDirectories.join('、')}` : ''
+        return `已清理「${title}」${deletedCount} 个文件，释放 ${released}${failedText}${missingText}。`
+      },
+      noDirectoryFilesToClean: (title, missingDirectories) =>
+        missingDirectories.length
+          ? `没有找到可清理的文件；未找到并已跳过：${missingDirectories.join('、')}。`
+          : `「${title}」文件夹中没有可清理的文件。`,
+      accountDialogTitle: '选择要清理的账号',
+      accountDialogMessage: '检测到多个账号文件夹，请选择要清理的账号 id，或勾选清理全部账号。',
+      accountInputLabel: '账号 id',
+      accountSelectPlaceholder: '请选择账号 id',
+      allAccounts: '清理全部账号',
+      rememberChoice: '记住我的选择',
+      accountConfirm: '继续',
+      accountCancel: '取消'
     },
     viewNav: {
       aria: '相册视图',
@@ -476,10 +561,10 @@ export const messages: Record<Language, LocaleMessages> = {
       permissionRequired: '已记住上次相册路径，但浏览器需要重新授权。请点击“选择/恢复相册路径”完成授权。',
       unsupportedBrowser: '当前浏览器不支持选择文件夹。请使用电脑上的最新版 Chrome、Edge 或其他兼容的 Chromium 浏览器，并在 localhost/HTTPS 环境运行。',
       mobileBrowserUnsupported: '手机浏览器不支持目录授权。请使用电脑上的 Chrome、Edge 或其他兼容的 Chromium 浏览器打开网站并选择相册文件夹。',
-      invalidAlbumDirectory: '不能选择 NikkiPhotos_LowQuality 或 ScreenShot 文件夹执行一键清理。',
+      invalidAlbumDirectory: '不能选择 NikkiPhotos_LowQuality 或 ScreenShot 文件夹执行专项清理。',
       invalidX6GameDirectory: '所选目录不是当前相册对应的 X6Game 文件夹，请选择路径中的 X6Game 文件夹后重试。',
-      restoreX6GamePermissionPrompt: '已保存的 X6Game 文件夹授权已经失效。点击“继续授权”后，请在浏览器权限窗口中允许本站点编辑该文件夹；如果浏览器无法恢复授权，页面会再提示你重新选择 X6Game 文件夹，用于一键清理和自动读取最新搭配码。',
-      selectX6GameDirectoryPrompt: '授权后可使用一键清理低画质截图、自动读取游戏最新搭配码的功能。请在接下来的窗口中选择路径里的 X6Game 文件夹（...\\InfinityNikki Launcher\\InfinityNikki\\X6Game）。授权会被保存，后续可直接使用。'
+      restoreX6GamePermissionPrompt: '已保存的 X6Game 文件夹授权已经失效。点击“继续授权”后，请在浏览器权限窗口中允许本站点编辑该文件夹；如果浏览器无法恢复授权，页面会再提示你重新选择 X6Game 文件夹，用于专项清理和自动读取最新搭配码。',
+      selectX6GameDirectoryPrompt: '授权后可使用专项清理、自动读取游戏最新搭配码的功能。请在接下来的窗口中选择路径里的 X6Game 文件夹（...\\InfinityNikki Launcher\\InfinityNikki\\X6Game）。授权会被保存，后续可直接使用。'
     }
   },
   en: {
@@ -514,7 +599,7 @@ export const messages: Record<Language, LocaleMessages> = {
       dialogConfirm: 'Confirm delete',
       dialogContinueAuthorization: 'Continue authorization',
       dialogOk: 'Got it',
-      relatedCleanupDialogTitle: 'Clean related images?',
+      relatedCleanupDialogTitle: 'Clean low-quality photos & screenshots?',
       x6GameDirectoryDialogTitle: 'X6Game folder authorization required',
       albumContentAria: 'Photo gallery',
       rememberedDirectory: (name) => `Remembered: ${name}`,
@@ -523,7 +608,6 @@ export const messages: Record<Language, LocaleMessages> = {
         return count ? `${prefixText} ${count} photos. ` : 'No images matching the filename pattern were found in this folder.'
       },
       successSuffix: (suffix) => (suffix === 'continued' ? 'Continued using the remembered album folder.' : 'Remembered this album folder.'),
-      preparingRelatedCleanup: 'Locating low-quality photos and game screenshots. On first use, select the X6Game folder in the folder picker.',
       relatedCleanupCancelledStatus: 'Cleanup cancelled. No images were deleted.',
       confirmRelatedCleanup: (count, missingDirectories) => {
         const missingText = missingDirectories.length ? `\nNot found and skipped: ${missingDirectories.join(', ')}.` : ''
@@ -559,8 +643,7 @@ export const messages: Record<Language, LocaleMessages> = {
       refreshAlbum: 'Refresh album',
       refreshing: 'Refreshing...',
       thumbnail: 'Thumbnail',
-      cleaningRelated: 'Cleaning...',
-      cleanRelatedPhotos: 'Clean low-quality & screenshots',
+      specialCleanup: 'Cleanup',
       currentAlbum: 'Current album',
       view: 'View',
       more: 'More',
@@ -594,11 +677,11 @@ export const messages: Record<Language, LocaleMessages> = {
       features: [
         'Album management: organize screenshots by capture date, with preview, copy, favorite and move-to-album.',
         'Outfit codes: manage Starry Gallery outfit plans with manual add, batch import, and auto sync of new in-game outfit codes.',
-        'One-click cleanup: quickly clean low-quality photos and screenshots to free up disk space.'
+        'Targeted cleanup: clean low-quality photos, screenshots, crash snapshots, runtime logs, and web cache to free up disk space.'
       ],
-      changelogTitle: 'Current version【2026.8.12 update】',
+      changelogTitle: 'Current version【2026.8.15 update】',
       changelog: [
-        { version: 'v1.2.3', text: "New outfit tags now appear first in the list and can be reordered by dragging, with the order synced to the outfit editor. Animations and some interactions were polished, more one-click cleanup features are under consideration, and we sneaked a piece of Momo's pork belly🥩~" }
+        { version: 'v1.3.0', text: 'Added a targeted cleanup window: clean low-quality photos and screenshots, crash snapshots, runtime logs, and web cache with only X6Game folder authorization.' }
       ],
       dontShowAgain: "Don't show again",
       confirm: 'Got it',
@@ -615,6 +698,64 @@ export const messages: Record<Language, LocaleMessages> = {
       permanentlyDelete: 'Delete permanently',
       clearAll: 'Permanently clear all',
       cancel: 'Clear selection'
+    },
+    cleanup: {
+      dialogTitle: 'Targeted cleanup',
+      dialogCloseAria: 'Close cleanup window',
+      authHint: 'Cleanup requires authorizing the X6Game folder first. Cleanup permanently deletes files from your computer and cannot be undone.',
+      referenceHint: 'Some cleanup items are inspired by Xiaohongshu creator “快乐的00号”.',
+      authorize: 'Authorize folder',
+      reauthorize: 'Re-authorize',
+      authorizedAs: (name) => `Authorized: ${name}`,
+      clean: 'Clean',
+      cleaning: 'Cleaning...',
+      items: {
+        lowQuality: {
+          title: 'Low-quality photos & screenshots',
+          path: '...\\X6Game\\ScreenShot and NikkiPhotos_LowQuality',
+          description: 'Lower-quality images generated after taking photos in game'
+        },
+        crashes: {
+          title: 'Crash snapshots',
+          path: '...\\X6Game\\Saved\\Crashes',
+          description: 'After deletion, historical crashes can no longer be reported to the official team via local logs'
+        },
+        logs: {
+          title: 'Game runtime logs',
+          path: '...\\X6Game\\Saved\\Logs',
+          description: 'No impact after deletion'
+        },
+        webcache: {
+          title: 'Built-in browser & launcher cache',
+          path: '...\\X6Game\\Saved\\webcache_4430',
+          description: 'Clears expired web data, but event pages and announcements will load slower the first time afterward'
+        }
+      },
+      confirmDirectoryCleanupTitle: 'Confirm folder cleanup',
+      confirmDirectoryCleanup: (title, count, size) => `Clear the "${title}" folder? It contains ${count} files, about ${size}. The folder itself will be kept. This cannot be undone.`,
+      directoryCleanupStatus: (title, deletedCount, deletedBytes, failures, missingDirectories) => {
+        const reasonText: Record<RelatedCleanupFailureReason, string> = {
+          'unreadable-size': 'Could not read the file size, so deletion was skipped',
+          'remove-failed': 'The file may be in use or folder permission may have expired'
+        }
+        const failedText = failures.length
+          ? `; ${failures.length} entries not cleaned: ${failures.map((failure) => `${failure.path} (${reasonText[failure.reason]})`).join(', ')}`
+          : ''
+        const missingText = missingDirectories.length ? `; not found and skipped: ${missingDirectories.join(', ')}` : ''
+        return `Cleaned ${deletedCount} files from "${title}" and released ${formatMessageFileSize(deletedBytes)}${failedText}${missingText}.`
+      },
+      noDirectoryFilesToClean: (title, missingDirectories) =>
+        missingDirectories.length
+          ? `No files to clean; not found and skipped: ${missingDirectories.join(', ')}.`
+          : `No files to clean in "${title}".`,
+      accountDialogTitle: 'Choose accounts to clean',
+      accountDialogMessage: 'Multiple account folders were detected. Choose the account ID to clean, or check the option to clean all accounts.',
+      accountInputLabel: 'Account ID',
+      accountSelectPlaceholder: 'Choose an account ID',
+      allAccounts: 'Clean all accounts',
+      rememberChoice: 'Remember my choice',
+      accountConfirm: 'Continue',
+      accountCancel: 'Cancel'
     },
     viewNav: {
       aria: 'Album views',
@@ -695,7 +836,7 @@ export const messages: Record<Language, LocaleMessages> = {
       invalidAlbumDirectory: 'NikkiPhotos_LowQuality and ScreenShot cannot be selected for one-click cleanup.',
       invalidX6GameDirectory: 'The selected folder is not the X6Game folder that contains the current album. Select that X6Game folder and try again.',
       restoreX6GamePermissionPrompt: 'The saved X6Game folder permission has expired. Click “Continue authorization”, then allow this site to edit the folder in the browser permission prompt. If the browser cannot restore access, the page will ask you to select X6Game again.',
-      selectX6GameDirectoryPrompt: 'Authorize the X6Game folder for the current game installation to clean related images and automatically read the latest in-game outfit code. Select the X6Game folder in the next folder picker (...\\InfinityNikki Launcher\\InfinityNikki\\X6Game). The authorization will be remembered for future use.'
+      selectX6GameDirectoryPrompt: 'Authorize the X6Game folder for the current game installation to use targeted cleanup and automatically read the latest in-game outfit code. Select the X6Game folder in the next folder picker (...\\InfinityNikki Launcher\\InfinityNikki\\X6Game). The authorization will be remembered for future use.'
     }
   }
 }

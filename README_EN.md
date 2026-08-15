@@ -43,7 +43,7 @@
 - Choose 1:1, Half 1:1, 16:9, 4:3, 9:16, or 3:4 thumbnails; Half 1:1 hover metadata only shows capture time.
 - Remember the album folder and favorite state, with Chinese/English and light/dark themes.
 - Store outfit images, outfit codes, and single-choice tags locally, with pending plans, automatic image intake, and ZIP import/export.
-- Clean low-quality photos and game screenshots for the same account with one action.
+- Use the Special Cleanup window to clean low-quality photos and game screenshots, crash snapshots, runtime logs, and the built-in browser cache.
 
 ## Quick Start
 
@@ -67,14 +67,16 @@ Entering Outfit codes opens a standalone guide. Please read it carefully.
 - Export data generates a ZIP file in the current album folder, and the success notice shows the file name and saved location. Import data validates and merges the ZIP without replacing existing plans; duplicate or invalid content is skipped. <span style="color: red;">Deleting an outfit plan is permanent and does not go to Recently Deleted.</span>
 - Single-click outfit plans to select multiple items and show the bottom toolbar. <span style="color: red;">Deleted outfit plans cannot be restored, so check the plan information before confirming.</span>
 
-## Clean Low-quality Photos and Screenshots
+## Special Cleanup
 
-After selecting an album folder under the current account's `X6Game\Saved\GamePlayPhotos\Account ID`, click Clean low-quality & screenshots to clean. `NikkiPhotos_LowQuality` and `ScreenShot` cannot be selected as the current album:
+Click the Special Cleanup button in the top-right corner (left of View) to open the cleanup window. Using the cleanup features requires authorizing the `X6Game` folder: on first use, click the Authorize Folder button in the window's top-right corner and select `X6Game`. The authorization is remembered locally, so the window is ready to use next time.
 
-- Images in `NikkiPhotos_LowQuality`.
-- Images in the current game's `X6Game\ScreenShot` folder.
+The following cleanup items are available; click the Clean button on the right of each item to run it. Folder-based cleanup empties the contents but keeps the folder itself. A confirmation appears before deletion; afterwards the cleaned count and released size are shown, and files that cannot be read or deleted are kept with the reason reported:
 
-On first use, you need to select and authorize the matching `X6Game` folder. The app validates the album path, shows the file count, and asks for confirmation before deletion; it only deletes images and keeps folders and other files. After completion, it shows the actual cleaned count and released size; unreadable or undeletable files are kept and listed with specific reasons.
+- Low-quality photos and screenshots (`...\X6Game\ScreenShot` and `NikkiPhotos_LowQuality`): lower-quality images produced by in-game photography; only image files are deleted. When multiple account folders exist, you can choose to clean all accounts or a specific account ID; check "Remember my choice" to prefill your last choice the next time the window opens, so you can easily change it.
+- Crash snapshots (`...\X6Game\Saved\Crashes`): after deletion, historical crash causes can no longer be reported to the official team via local logs.
+- Runtime logs (`...\X6Game\Saved\Logs`): deleting them has no side effects.
+- Built-in browser and login cache (`...\X6Game\Saved\webcache_4430`): clears expired web data, but event pages and announcements load more slowly the first time they are opened afterwards.
 
 ## Choose an Album
 
@@ -101,7 +103,7 @@ Do not select drive roots, Windows, Program Files, the game install root, or oth
 | `Delete` | Move the current preview photo to Recently Deleted |
 | Bottom action bar | Select all, batch favorite, delete, restore, or permanently delete |
 
-> Normal album deletion moves the original file to the current album's `trash` folder; <span style="color: red;">Permanent deletion in Recently Deleted and Clean low-quality & screenshots directly delete files from your computer and cannot be restored.</span>
+> Normal album deletion moves the original file to the current album's `trash` folder; <span style="color: red;">Permanent deletion in Recently Deleted and Special Cleanup directly delete files from your computer and cannot be restored.</span>
 
 ## Recently Deleted and Refresh
 
@@ -136,7 +138,7 @@ Browsers block web pages from accessing system folders. Please select `NikkiPhot
 - Photos are read locally in your browser and are not uploaded to the project server.
 - Album folder authorization and Favorites are stored locally in the current browser; Clear cache in More only clears the `X6Game` authorization and the Outfit Guide “don't show again” state while keeping the current album authorization. Clear data asks for confirmation twice, then clears all website local records and authorizations so the website returns to first-open state.
 - Browser security policies may require folder authorization again.
-- Delete and one-click cleanup modify real files on your computer; Clear cache and Clear data do not delete real photos, `clothe`, `trash`, or other files on your computer.
+- Delete and Special Cleanup modify real files on your computer; Clear cache and Clear data do not delete real photos, `clothe`, `trash`, or other files on your computer.
 
 ## Local Setup for Developers
 

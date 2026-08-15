@@ -2,11 +2,12 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { messages } from '../i18n'
 import type { PhotoItem } from './dateGrouping'
 import {
+  listGamePlayPhotoAccounts,
   listRecentlyDeleted,
   movePhotosToRecentlyDeleted,
-  executeRelatedPhotoCleanup,
-  prepareRelatedPhotoCleanup,
+  executeSpecialCleanup,
   pickAlbumDirectory,
+  prepareSpecialCleanup,
   readAlbumDirectory,
   refreshAlbumDirectory,
   resolveX6GameAccountDirectory,
@@ -181,18 +182,6 @@ describe('album refresh and recently deleted filesystem operations', () => {
     )).resolves.toBe('')
   })
 
-  it.each(['NikkiPhotos_LowQuality', 'ScreenShot'])(
-    'rejects cleanup when the selected folder is %s',
-    async (directoryName) => {
-      const album = new MemoryDirectoryHandle(directoryName)
-
-      await expect(prepareRelatedPhotoCleanup(
-        album as unknown as FileSystemDirectoryHandle,
-        messages.zh.fileSystem
-      )).rejects.toThrow(messages.zh.fileSystem.invalidAlbumDirectory)
-    }
-  )
-
   it('rejects a non-X6Game folder even for unrelated album authorization', async () => {
     const album = new MemoryDirectoryHandle('MyPhotoCollection')
     const wrongDirectory = new MemoryDirectoryHandle('InfinityNikki')
@@ -236,14 +225,17 @@ describe('album refresh and recently deleted filesystem operations', () => {
     directory.files.set('unreadable.png', new MemoryFileHandle('unreadable.png', new Blob(['12']), true))
     directory.failRemoveName = 'locked.png'
 
-    const result = await executeRelatedPhotoCleanup({
-      totalCount: 3,
-      missingDirectories: [],
-      targets: [{
+    const result = await executeSpecialCleanup({
+      item: 'lowQuality',
+      fileCount: 3,
+      totalBytes: 0,
+      photoTargets: [{
         directoryName: 'ScreenShot',
         directoryHandle: directory as unknown as FileSystemDirectoryHandle,
         photoNames: ['ok.png', 'locked.png', 'unreadable.png']
-      }]
+      }],
+      directoryTargets: [],
+      missingDirectories: []
     })
 
     expect(result.deletedCount).toBe(1)
@@ -253,6 +245,58 @@ describe('album refresh and recently deleted filesystem operations', () => {
       { path: 'ScreenShot\\unreadable.png', reason: 'unreadable-size' }
     ])
     expect(directory.files.has('unreadable.png')).toBe(true)
+  })
+
+  it('clears directory cleanup contents recursively while keeping the folder itself', async () => {
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+    const saved = new MemoryDirectoryHandle('Saved')
+    const crashes = new MemoryDirectoryHandle('Crashes')
+    const nested = new MemoryDirectoryHandle('CrashContext')
+    nested.files.set('context.log', new MemoryFileHandle('context.log', new Blob(['12'])))
+    crashes.files.set('crash.dmp', new MemoryFileHandle('crash.dmp', new Blob(['1234'])))
+    crashes.directories.set('CrashContext', nested)
+    saved.directories.set('Crashes', crashes)
+    x6Game.directories.set('Saved', saved)
+
+    const plan = await prepareSpecialCleanup(x6Game as unknown as FileSystemDirectoryHandle, 'crashes')
+
+    expect(plan.fileCount).toBe(2)
+    expect(plan.totalBytes).toBe(6)
+    expect(plan.missingDirectories).toEqual([])
+
+    const result = await executeSpecialCleanup(plan)
+
+    expect(result.deletedCount).toBe(2)
+    expect(result.deletedBytes).toBe(6)
+    expect(result.failures).toEqual([])
+    // 文件夹本身保留，内容被清空
+    expect(saved.directories.has('Crashes')).toBe(true)
+    expect(crashes.files.size).toBe(0)
+    expect(crashes.directories.size).toBe(0)
+  })
+
+  it('reports a missing directory when the cleanup target does not exist', async () => {
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+
+    const plan = await prepareSpecialCleanup(x6Game as unknown as FileSystemDirectoryHandle, 'logs')
+
+    expect(plan.fileCount).toBe(0)
+    expect(plan.missingDirectories).toEqual(['Logs'])
+  })
+
+  it('lists account folders under GamePlayPhotos and returns empty when missing', async () => {
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+    const saved = new MemoryDirectoryHandle('Saved')
+    const gamePlayPhotos = new MemoryDirectoryHandle('GamePlayPhotos')
+    gamePlayPhotos.directories.set('22222', new MemoryDirectoryHandle('22222'))
+    gamePlayPhotos.directories.set('11111', new MemoryDirectoryHandle('11111'))
+    saved.directories.set('GamePlayPhotos', gamePlayPhotos)
+    x6Game.directories.set('Saved', saved)
+
+    await expect(listGamePlayPhotoAccounts(x6Game as unknown as FileSystemDirectoryHandle)).resolves.toEqual(['11111', '22222'])
+
+    const emptyX6Game = new MemoryDirectoryHandle('X6Game')
+    await expect(listGamePlayPhotoAccounts(emptyX6Game as unknown as FileSystemDirectoryHandle)).resolves.toEqual([])
   })
 
   it('reuses unchanged photo state and reports added and externally removed files', async () => {

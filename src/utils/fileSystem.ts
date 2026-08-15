@@ -34,10 +34,23 @@ interface RelatedPhotoCleanupTarget {
   photoNames: string[]
 }
 
-export interface RelatedPhotoCleanupPlan {
-  totalCount: number
+/** 专项清理项标识：低画质图片和截图、崩溃快照、运行日志、网页缓存。 */
+export type SpecialCleanupItem = 'lowQuality' | 'crashes' | 'logs' | 'webcache'
+
+/** 目录类清理目标：保留目录本身，只删除目录内的顶层条目。 */
+export interface SpecialCleanupDirectoryTarget {
+  directoryName: string
+  directoryHandle: FileSystemDirectoryHandle
+  entries: Array<{ name: string; bytes: number; fileCount: number }>
+}
+
+export interface SpecialCleanupPlan {
+  item: SpecialCleanupItem
+  fileCount: number
+  totalBytes: number
+  photoTargets: RelatedPhotoCleanupTarget[]
+  directoryTargets: SpecialCleanupDirectoryTarget[]
   missingDirectories: string[]
-  targets: RelatedPhotoCleanupTarget[]
 }
 
 /** 清理失败原因代码，展示层按语言翻译。 */
@@ -51,8 +64,6 @@ export interface RelatedPhotoCleanupResult {
 }
 
 type FileSystemMessages = LocaleMessages['fileSystem']
-
-type RelatedPhotoCleanupOptions = Omit<X6GameDirectoryOptions, 'allowUnrelatedAlbum'>
 
 function isMobileDevice(): boolean {
   return /android|iphone|ipod|ipad/i.test(navigator.userAgent) ||
@@ -814,54 +825,196 @@ async function collectCleanupTarget(
     targets.push({ directoryName, directoryHandle, photoNames })
   } catch (error) {
     if (!isMissingDirectoryError(error)) throw error
-    missingDirectories.push(directoryName)
-  }
-}
-
-export async function prepareRelatedPhotoCleanup(
-  albumDirectoryHandle: FileSystemDirectoryHandle,
-  messages: FileSystemMessages,
-  options: RelatedPhotoCleanupOptions = {}
-): Promise<RelatedPhotoCleanupPlan> {
-  const { directoryHandle: x6GameHandle, accountDirectoryName } = await getValidatedX6GameDirectory(
-    albumDirectoryHandle,
-    messages,
-    options
-  )
-  const targets: RelatedPhotoCleanupTarget[] = []
-  const missingDirectories: string[] = []
-
-  await collectCleanupTarget(
-    LOW_QUALITY_DIRECTORY_NAME,
-    () => getRequiredNestedDirectory(x6GameHandle, ['Saved', 'GamePlayPhotos', accountDirectoryName, LOW_QUALITY_DIRECTORY_NAME]),
-    targets,
-    missingDirectories
-  )
-  await collectCleanupTarget(
-    SCREENSHOT_DIRECTORY_NAME,
-    () => x6GameHandle.getDirectoryHandle(SCREENSHOT_DIRECTORY_NAME),
-    targets,
-    missingDirectories
-  )
-
-  return {
-    totalCount: targets.reduce((count, target) => count + target.photoNames.length, 0),
-    missingDirectories,
-    targets
+    // 多账号场景下同目录名只记录一次，避免重复提示。
+    if (!missingDirectories.includes(directoryName)) missingDirectories.push(directoryName)
   }
 }
 
 /**
- * 执行低画质与截图清理，并只累计实际成功删除的文件容量。
- * 参数：plan 为已确认的清理计划；文件大小读取失败时保留原文件。
+ * 独立于相册授权 X6Game 文件夹，供专项清理使用。
+ * 参数：messages 为文件系统提示文案，options 为授权确认回调。
+ * 返回：验证通过的 X6Game 目录句柄；句柄会与搭配码授权共用同一份持久化记录。
+ */
+export async function pickStandaloneX6GameDirectory(
+  messages: FileSystemMessages,
+  options: X6GameDirectoryOptions = {}
+): Promise<FileSystemDirectoryHandle> {
+  const savedHandle = await getSavedX6GameDirectoryHandle()
+
+  if (savedHandle && savedHandle.name === 'X6Game') {
+    let hasPermission = await ensureReadWritePermission(savedHandle, false)
+
+    if (!hasPermission) {
+      if (options.beforeRequestX6GamePermission && !(await options.beforeRequestX6GamePermission())) {
+        throw new Error(messages.abortSelection)
+      }
+      hasPermission = await ensureReadWritePermission(savedHandle, true)
+    }
+
+    if (hasPermission) return savedHandle
+    await clearSavedX6GameDirectoryHandle()
+  }
+
+  const showDirectoryPicker = getSupportedDirectoryPicker(messages)
+
+  try {
+    if (options.beforePickX6GameDirectory && !(await options.beforePickX6GameDirectory())) {
+      throw new Error(messages.abortSelection)
+    }
+
+    const directoryHandle = await showDirectoryPicker({
+      id: 'infinity-nikki-x6game',
+      mode: 'readwrite'
+    })
+    if (directoryHandle.name !== 'X6Game') {
+      throw new Error(messages.invalidX6GameDirectory)
+    }
+    const hasPermission = await ensureReadWritePermission(directoryHandle, true)
+    if (!hasPermission) {
+      throw new Error(messages.permissionRequired)
+    }
+
+    await runStoreTransaction('readwrite', (store) => store.put(directoryHandle, SAVED_X6GAME_DIRECTORY_KEY))
+    return directoryHandle
+  } catch (error) {
+    throw normalizeDirectoryError(error, messages)
+  }
+}
+
+/**
+ * 列出游戏拍照目录下的全部账号文件夹名。
+ * 参数：x6GameHandle 为已授权的 X6Game 目录句柄。
+ * 返回：Saved\GamePlayPhotos 下的子目录名列表；目录不存在时返回空数组。
+ */
+export async function listGamePlayPhotoAccounts(x6GameHandle: FileSystemDirectoryHandle): Promise<string[]> {
+  let gamePlayPhotosHandle: FileSystemDirectoryHandle
+  try {
+    gamePlayPhotosHandle = await getRequiredNestedDirectory(x6GameHandle, ['Saved', 'GamePlayPhotos'])
+  } catch (error) {
+    if (isMissingDirectoryError(error)) return []
+    throw error
+  }
+
+  const accounts: string[] = []
+  for await (const [name, handle] of gamePlayPhotosHandle.entries()) {
+    if (handle.kind === 'directory') accounts.push(name)
+  }
+  return accounts.sort()
+}
+
+/** 递归统计单个文件或目录条目的字节数和文件数；大小读取失败的文件仍计入文件数。 */
+async function sumEntrySize(handle: FileSystemFileHandle | FileSystemDirectoryHandle): Promise<{ bytes: number; fileCount: number }> {
+  if (handle.kind === 'file') {
+    try {
+      const file = await (handle as FileSystemFileHandle).getFile()
+      return { bytes: file.size, fileCount: 1 }
+    } catch {
+      return { bytes: 0, fileCount: 1 }
+    }
+  }
+
+  let bytes = 0
+  let fileCount = 0
+  for await (const [, childHandle] of (handle as FileSystemDirectoryHandle).entries()) {
+    const childSum = await sumEntrySize(childHandle as FileSystemFileHandle | FileSystemDirectoryHandle)
+    bytes += childSum.bytes
+    fileCount += childSum.fileCount
+  }
+  return { bytes, fileCount }
+}
+
+/** 收集目录类清理目标：枚举目录内全部顶层条目并统计容量；目录不存在时记入缺失列表。 */
+async function collectDirectoryCleanupTarget(
+  directoryName: string,
+  getDirectoryHandle: () => Promise<FileSystemDirectoryHandle>,
+  targets: SpecialCleanupDirectoryTarget[],
+  missingDirectories: string[]
+): Promise<void> {
+  try {
+    const directoryHandle = await getDirectoryHandle()
+    const entries: SpecialCleanupDirectoryTarget['entries'] = []
+
+    for await (const [name, handle] of directoryHandle.entries()) {
+      const { bytes, fileCount } = await sumEntrySize(handle as FileSystemFileHandle | FileSystemDirectoryHandle)
+      entries.push({ name, bytes, fileCount })
+    }
+
+    targets.push({ directoryName, directoryHandle, entries })
+  } catch (error) {
+    if (!isMissingDirectoryError(error)) throw error
+    if (!missingDirectories.includes(directoryName)) missingDirectories.push(directoryName)
+  }
+}
+
+/** 目录类专项清理项对应的目录名与相对 X6Game 的路径。 */
+const SPECIAL_CLEANUP_DIRECTORY_PATHS: Record<Exclude<SpecialCleanupItem, 'lowQuality'>, { name: string; segments: string[] }> = {
+  crashes: { name: 'Crashes', segments: ['Saved', 'Crashes'] },
+  logs: { name: 'Logs', segments: ['Saved', 'Logs'] },
+  webcache: { name: 'webcache_4430', segments: ['Saved', 'webcache_4430'] }
+}
+
+/**
+ * 构建专项清理计划。
+ * 参数：x6GameHandle 为已授权的 X6Game 目录，item 为清理项，accountIds 为低画质项的目标账号 id 列表。
+ * 返回：清理目标、文件数、预估释放字节数和缺失目录。
+ */
+export async function prepareSpecialCleanup(
+  x6GameHandle: FileSystemDirectoryHandle,
+  item: SpecialCleanupItem,
+  accountIds: string[] = []
+): Promise<SpecialCleanupPlan> {
+  const photoTargets: RelatedPhotoCleanupTarget[] = []
+  const directoryTargets: SpecialCleanupDirectoryTarget[] = []
+  const missingDirectories: string[] = []
+
+  if (item === 'lowQuality') {
+    for (const accountId of accountIds) {
+      await collectCleanupTarget(
+        LOW_QUALITY_DIRECTORY_NAME,
+        () => getRequiredNestedDirectory(x6GameHandle, ['Saved', 'GamePlayPhotos', accountId, LOW_QUALITY_DIRECTORY_NAME]),
+        photoTargets,
+        missingDirectories
+      )
+    }
+    await collectCleanupTarget(
+      SCREENSHOT_DIRECTORY_NAME,
+      () => x6GameHandle.getDirectoryHandle(SCREENSHOT_DIRECTORY_NAME),
+      photoTargets,
+      missingDirectories
+    )
+  } else {
+    const target = SPECIAL_CLEANUP_DIRECTORY_PATHS[item]
+    await collectDirectoryCleanupTarget(
+      target.name,
+      () => getRequiredNestedDirectory(x6GameHandle, target.segments),
+      directoryTargets,
+      missingDirectories
+    )
+  }
+
+  const fileCount = item === 'lowQuality'
+    ? photoTargets.reduce((count, target) => count + target.photoNames.length, 0)
+    : directoryTargets.reduce((count, target) => count + target.entries.reduce((sum, entry) => sum + entry.fileCount, 0), 0)
+  const totalBytes = directoryTargets.reduce(
+    (sum, target) => sum + target.entries.reduce((entrySum, entry) => entrySum + entry.bytes, 0),
+    0
+  )
+
+  return { item, fileCount, totalBytes, photoTargets, directoryTargets, missingDirectories }
+}
+
+/**
+ * 执行专项清理，并只累计实际成功删除的文件容量。
+ * 参数：plan 为已确认的清理计划；目录类清理会保留目录本身，只删除目录内的条目。
  * 返回：成功数量、释放字节数、结构化失败原因和缺失目录。
  */
-export async function executeRelatedPhotoCleanup(plan: RelatedPhotoCleanupPlan): Promise<RelatedPhotoCleanupResult> {
+export async function executeSpecialCleanup(plan: SpecialCleanupPlan): Promise<RelatedPhotoCleanupResult> {
   let deletedCount = 0
   let deletedBytes = 0
   const failures: Array<{ path: string; reason: RelatedCleanupFailureReason }> = []
 
-  for (const target of plan.targets) {
+  // 低画质图片和截图：逐文件删除，文件大小读取失败时保留原文件
+  for (const target of plan.photoTargets) {
     for (const photoName of target.photoNames) {
       const path = `${target.directoryName}\\${photoName}`
       let fileSize: number
@@ -880,6 +1033,19 @@ export async function executeRelatedPhotoCleanup(plan: RelatedPhotoCleanupPlan):
         deletedBytes += fileSize
       } catch {
         failures.push({ path, reason: 'remove-failed' })
+      }
+    }
+  }
+
+  // 目录类清理：删除目录内全部顶层条目，保留目录本身
+  for (const target of plan.directoryTargets) {
+    for (const entry of target.entries) {
+      try {
+        await target.directoryHandle.removeEntry(entry.name, { recursive: true })
+        deletedCount += entry.fileCount
+        deletedBytes += entry.bytes
+      } catch {
+        failures.push({ path: `${target.directoryName}\\${entry.name}`, reason: 'remove-failed' })
       }
     }
   }

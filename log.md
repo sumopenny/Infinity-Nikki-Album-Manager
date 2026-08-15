@@ -474,3 +474,45 @@
 - 状态：已解决
 - 技术/方法：对比 `i18n.ts` 中英文案发现两处差异：英文 features 有 4 条（多了中文没有的“Recently deleted”，且搭配码管理排在第 3 位导致和图标顺序错位），中文是 3 条（相册管理/搭配码管理/一键清理）；英文更新日志文案只有前半句，缺了中文的动画优化说明、清理功能预告和大喵五花肉彩蛋。已把英文 features 删掉多余项并按中文顺序对齐为 3 条（AboutDialog 的 3 个图标按索引对应，数量一致后不会再有图标兜底错位），changelog 补全为中文文案的完整英文翻译。验证：`npm test` 73/73 通过、`vue-tsc` 无错误。README.md 已检查，本次为 i18n 文案对齐，不影响安装与使用说明，无需更新。
 ---
+
+## 2026-08-15
+
+1.问题：取消右上角相册下拉里的“一键清理低画质与截图”，改为在“视图”左侧新增“专项清理”按钮，点击打开独立清理窗口（参考小红书“快乐的00号”老师的清理项），窗口右上角提供授权文件夹按钮，标题下方提示需要授权 `X6Game` 文件夹。
+- 状态：已解决
+- 技术/方法：专项清理窗口（`CleanupDialog.vue`）包含 4 个清理项，每项标题+路径+描述、右侧“清理”按钮：低画质图片和截图（`ScreenShot` 与各账号 `NikkiPhotos_LowQuality`）、崩溃快照（`Saved\Crashes`）、运行日志（`Saved\Logs`）、内置浏览器缓存（`Saved\webcache_4430`）。授权改为独立于相册的 `pickStandaloneX6GameDirectory`（仅校验文件夹名为 `X6Game`），与搭配码自动更新共用 IndexedDB 句柄，一处授权两处可用；打开窗口时静默恢复已有授权。目录类清理采用“清空内容、保留文件夹”策略（`removeEntry(name, {recursive: true})` 逐条删除顶层条目），删除前弹确认框，完成后状态栏提示清理数量和释放容量。低画质项沿用“先从当前相册推导账号 ID”的原逻辑，推导失败时扫描 `GamePlayPhotos` 账号列表：单个账号直接使用，多个账号弹出 `CleanupAccountDialog`（可勾选全部账号或输入指定 ID，Promise 化）。期间踩了两个坑：一是 CleanupDialog 头部一开始用了 `<header>`，被 `.help-dialog-panel > header button` 的圆形样式误伤授权按钮，改用 `<div class="cleanup-dialog-header">` 解决；二是 `entries()` 返回基础 `FileSystemHandle` 类型，递归统计大小时需加类型断言才过 `vue-tsc`。版本号升级到 1.3.0，关于窗口更新日志与功能介绍同步改为专项清理描述。验证：`npm test` 74/74 通过、`npm run build` 通过。README 中英文已同步重写“专项清理”章节并更新特性列表、注意事项和隐私说明。
+---
+
+2.问题：专项清理窗口打开时，顶部操作提示（清理结果、释放容量等）被窗口遮住看不到；且“清除数据”后窗口仍显示 X6Game 已授权。
+- 状态：已解决
+- 技术/方法：`.operation-notice` 原本刻意设为 z-index 90（低于所有弹窗，避免遮挡弹窗内容），但专项清理场景下清理结果提示需要在窗口上方可见，故提升为 160（高于最高层级的 about-dialog 150），注释同步更新。授权状态残留问题：`clearDirectory`、`clearCache`、`clearData` 三处都会清除 IndexedDB 里的 X6Game 句柄，但漏了重置新增的内存态 `cleanupX6GameHandle`，导致窗口仍按旧句柄显示已授权；已在三处统一补上 `cleanupX6GameHandle.value = null`（搭配码侧的 `sharedOutfitSource` 原本就由 `resetLoadedAlbumState` 重置，无需改动）。验证：`npm test` 74/74 通过、`npm run build` 通过。README 已检查，本次为缺陷修复，不影响使用说明，无需更新。
+---
+
+3.问题：多账号选择弹窗（CleanupAccountDialog）显示异常——标题和说明文字占住左侧，账号输入框和“清理全部账号”勾选项被挤到右侧一条窄列里，文字竖排换行。
+- 状态：已解决
+- 技术/方法：弹窗复用的 `.confirm-dialog-panel` 是 `grid-template-columns: auto minmax(0, 1fr) auto` 三列网格，原为“图标 + 内容 + 关闭按钮”设计；账号弹窗没有图标和关闭按钮，内容落进第一列（auto，随长文案撑到接近整宽），表单落进第二列后被压成窄条。修复：给 `.cleanup-account-panel` 覆盖为单列 `grid-template-columns: minmax(0, 1fr)`，内容、表单、按钮纵向排列（按钮区原有 `grid-column: 1 / -1` 在单列下不受影响），并补充注释说明覆盖原因。验证：`npm run build` 通过。README 已检查，本次为样式修复，不影响使用说明，无需更新。
+---
+
+4.问题：多账号选择弹窗里用 datalist 输入账号 id，选中一个账号后再点下拉箭头，列表里只剩当前匹配项，看不到其他账号，无法改选。
+- 状态：已解决
+- 技术/方法：这是原生 datalist 的固有过滤行为——输入值完全匹配某个选项后，下拉只显示匹配项。考虑到账号 id 本来就必须从检测到的文件夹列表中选（组件也校验输入必须在列表内），自由输入没有实际意义，直接把 input + datalist 换成原生 `<select>` 下拉选择器：任何时候点开都列出全部账号，首项为禁用的“请选择账号 id”占位。同步移除不再需要的无效输入提示（`showInvalidHint`、`accountInvalid` 文案），`accountInputPlaceholder` 改为 `accountSelectPlaceholder`（“请选择账号 id”），弹窗说明文案“请输入”改为“请选择”。样式上用 `appearance: none` 隐藏原生箭头，改用以 `--muted` 颜色绘制的自定义三角，保持与网页风格一致。验证：`npm test` 74/74 通过、`npm run build` 通过。README 已检查，本次为交互修复，不影响使用说明，无需更新。
+---
+
+5.问题：专项清理窗口里点击低画质项的“清理”后，顶部会先弹出“正在定位低画质照片和游戏截图...”的加载提示，用户认为这个窗口场景下不需要显示。
+- 状态：已解决
+- 技术/方法：删掉 `cleanLowQualityPhotos` 开头的 `preparingRelatedCleanup` 状态提示（该提示源自旧“一键清理”流程，当时需要先定位文件夹再弹确认框）；现在点击后直接进入账号选择或确认弹窗，无中间提示。同步移除 i18n 中不再使用的 `preparingRelatedCleanup` 文案（类型定义与中英文词条）。验证：`npm test` 74/74 通过、`npm run build` 通过。README 已检查，本次为提示精简，不影响使用说明，无需更新。
+---
+
+6.问题：多账号选择弹窗里，用户希望在“清理全部账号”右边新增“记住我的选择”功能；勾选后下次点清理窗口仍会打开并自动回填上次的选择，方便直接确认或改选其他账号。
+- 状态：已解决
+- 技术/方法：CleanupAccountDialog 新增 `rememberedChoice` prop 和 `rememberChoice` 勾选状态，confirm 事件参数扩展为 `(accountIds, remember, choice)`（choice 为 `'all'` 或具体账号 id）。App.vue 新增 localStorage 键 `infinity-nikki-cleanup-account-choice`（已加入 `WEBSITE_LOCAL_STORAGE_KEYS`，清除数据时会一并清除）：确认时勾选则保存选项、未勾选则清除；打开弹窗前读取保存值传入弹窗回填——`'all'` 回填为勾选“清理全部账号”，账号 id 回填为下拉选中项，同时自动勾选“记住我的选择”；保存的账号 id 已不存在时按无记忆处理。两个勾选项用 `.cleanup-account-options` 横向排列（flex-wrap，窄屏自动换行）。i18n 新增 `rememberChoice` 文案（记住我的选择 / Remember my choice）。验证：`npm test` 74/74 通过、`npm run build` 通过。README 中英文已同步更新多账号选择说明。
+---
+
+7.问题：用户觉得专项清理窗口文字偏小，要求参考“关于网站”调大字号，并把窗口拓宽一点。
+- 状态：已解决
+- 技术/方法：以“关于网站”的字号体系（正文 14px、区块标题 15px）为基准统一调大 `.cleanup-dialog-*`：清理项标题 14→15、描述 12→14（行高 1.5→1.6）、路径 11→12、授权提示和已授权标签 12→13、授权按钮和清理按钮 12→13（按钮最小高度 32→34、34→36，内边距同步加大）；面板宽度 680→760px、内边距 22→24px、清理项卡片内边距 14/16→16/18、列表间距 12→14。顺带把账号选择弹窗的“账号 id”标签 12→13 保持一致。验证：`npm run build` 通过。README 已检查，本次为界面字号与宽度调整，不影响使用说明，无需更新。
+---
+
+8.问题：专项清理窗口标题下方除了授权提示小字，还需要新增一行“一些清理项参考小红书 快乐的00号 老师”的来源说明。
+- 状态：已解决
+- 技术/方法：i18n 的 cleanup 段新增 `referenceHint` 文案（中文“一些清理项参考小红书‘快乐的00号’老师。”、英文 “Some cleanup items are inspired by Xiaohongshu creator ‘快乐的00号’.”），CleanupDialog 标题组在授权提示下方再渲染一行同款 `.cleanup-auth-hint` 小字，样式无需新增。验证：`npm test` 74/74 通过、`npm run build` 通过。README 已检查，本次为界面文案补充，不影响使用说明，无需更新。
+---

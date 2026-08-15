@@ -33,7 +33,6 @@ const props = defineProps<{
   isLoading: boolean
   isRefreshing: boolean
   isDeleting: boolean
-  isCleaningRelatedPhotos: boolean
   hasAlbumDirectory: boolean
   thumbnailMode: ThumbnailMode
   thumbnailModeOptions: Array<{ value: ThumbnailMode; label: string }>
@@ -47,7 +46,7 @@ const emit = defineEmits<{
   clearDirectory: []
   refreshAlbum: []
   authorizeX6Game: []
-  cleanRelatedPhotos: []
+  openCleanup: []
   clearCache: []
   clearData: []
   toggleLanguage: []
@@ -62,7 +61,7 @@ const headerRef = ref<HTMLElement | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
 const menuTrigger = ref<HTMLElement | null>(null)
 const menuPosition = ref({ top: 0, left: 0 })
-const isBusy = computed(() => props.isLoading || props.isDeleting || props.isCleaningRelatedPhotos)
+const isBusy = computed(() => props.isLoading || props.isDeleting)
 
 /** 切换顶部菜单，并保证同一时间只展开一个菜单。参数：menu 为目标菜单。 */
 async function toggleMenu(menu: Exclude<OpenMenu, null>, event: MouseEvent) {
@@ -184,14 +183,20 @@ onBeforeUnmount(() => {
             <FolderOpen :size="16" />
             <span>{{ messages.authorizeX6Game }}</span>
           </button>
-          <div class="menu-separator"></div>
-          <button type="button" role="menuitem" :disabled="!hasAlbumDirectory || isBusy" @click="runMenuAction(() => emit('cleanRelatedPhotos'))">
-            <Eraser :size="16" />
-            <span>{{ isCleaningRelatedPhotos ? messages.cleaningRelated : messages.cleanRelatedPhotos }}</span>
-          </button>
           </div>
         </Teleport>
       </div>
+
+      <button
+        class="header-icon-button"
+        type="button"
+        :title="messages.specialCleanup"
+        :aria-label="messages.specialCleanup"
+        @click="emit('openCleanup')"
+      >
+        <Eraser :size="17" aria-hidden="true" />
+        <span>{{ messages.specialCleanup }}</span>
+      </button>
 
       <div class="header-menu-wrap">
         <button
