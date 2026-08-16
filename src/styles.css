@@ -1212,9 +1212,10 @@ h1 {
 }
 
 /* 多账号选择弹窗内的表单样式 */
-/* 确认弹窗面板默认是“图标/内容/关闭按钮”三列网格，本弹窗没有图标和关闭按钮，改为单列纵向排列，避免表单被挤到右侧窄列 */
+/* 确认弹窗面板默认是“图标/内容/关闭按钮”三列网格，本弹窗没有图标和关闭按钮，改为单列纵向排列，避免表单被挤到右侧窄列；同时面板默认 overflow: hidden 会裁切账号下拉菜单，覆盖为 visible */
 .cleanup-account-panel {
   grid-template-columns: minmax(0, 1fr);
+  overflow: visible;
   gap: 14px;
 }
 
@@ -1228,32 +1229,106 @@ h1 {
   font-size: 13px;
 }
 
-.cleanup-account-form select {
+/* 账号下拉：触发按钮保持输入框外观，展开菜单复刻顶栏下拉的毛玻璃卡片样式 */
+.cleanup-account-select-wrap {
+  position: relative;
+}
+
+.cleanup-account-select {
+  display: flex;
   width: 100%;
   min-height: 36px;
-  padding: 6px 32px 6px 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface-strong);
   color: var(--text);
   font-size: 13px;
+  text-align: left;
   cursor: pointer;
-  /* 隐藏原生箭头，用自定义三角保持网页风格一致 */
-  appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
-  background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%;
-  background-size: 5px 5px;
-  background-repeat: no-repeat;
 }
 
-.cleanup-account-form select:disabled {
+.cleanup-account-select.is-placeholder {
+  color: var(--muted);
+}
+
+.cleanup-account-select svg {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.18s ease;
+}
+
+.cleanup-account-select.open svg {
+  transform: rotate(180deg);
+}
+
+.cleanup-account-select:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
-.cleanup-account-form select:focus {
+.cleanup-account-select:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--pink-deep) 55%, transparent);
   outline-offset: 1px;
+}
+
+.cleanup-account-menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 216px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius);
+  background: color-mix(in srgb, var(--surface-strong) 92%, transparent);
+  box-shadow: 0 18px 44px rgba(45, 39, 35, 0.18);
+  backdrop-filter: blur(13px) saturate(1.5);
+  animation: cleanup-account-menu-in 0.18s var(--ease-spring);
+  transform-origin: top center;
+}
+
+@keyframes cleanup-account-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cleanup-account-menu button {
+  display: flex;
+  width: 100%;
+  min-height: 36px;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: calc(var(--ui-radius) - 4px);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+}
+
+.cleanup-account-menu button:hover {
+  background: color-mix(in srgb, var(--soft-accent) 82%, transparent);
+  color: var(--heading);
+}
+
+/* 选中项不加背景色，仅用加粗区分 */
+.cleanup-account-menu button.active {
+  color: var(--heading);
+  font-weight: 700;
 }
 
 /* “清理全部账号”和“记住我的选择”勾选项横向排列，空间不足时自动换行 */
