@@ -1038,10 +1038,10 @@ h1 {
 
 .help-dialog-panel {
   width: min(760px, 100%);
-  max-height: min(760px, calc(100vh - 40px));
+  max-height: min(660px, calc(100vh - 40px));
   overflow: auto;
   border: 1px solid var(--line);
-  border-radius: 24px;
+  border-radius: 36px;
   background: var(--surface-strong);
   box-shadow: var(--dialog-shadow);
   padding: 18px;
@@ -1346,6 +1346,56 @@ h1 {
   color: var(--heading);
   font-size: 15px;
   font-weight: 600;
+}
+
+/* 问题反馈弹窗：内嵌问卷 iframe，高度贴合单题问卷避免尾部大段空白；问卷变长时 iframe 内部自行滚动 */
+.feedback-dialog-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 100%);
+  height: min(640px, calc(100vh - 40px));
+  overflow: hidden;
+}
+
+.feedback-dialog-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding: 0 26px 20px;
+}
+
+/* iframe 不加边框：问卷页面与弹窗同为白色，去掉边框后与弹窗融为一体，避免“双层框”观感（跨域无法改问卷内部样式） */
+.feedback-iframe {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 24px;
+  background: var(--surface-strong);
+}
+
+.feedback-external-link {
+  align-self: center;
+  color: var(--heading);
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.feedback-external-link:hover {
+  opacity: 1;
+}
+
+/* 窄屏时反馈弹窗占满可视区，保证问卷可滚动填写 */
+@media (max-width: 640px) {
+  .feedback-dialog-panel {
+    height: calc(100vh - 24px);
+  }
+
+  .feedback-dialog-body {
+    padding: 0 14px 14px;
+  }
 }
 
 /* 关于网站弹窗：复用帮助弹窗大窗口，内容分区展示简介、功能、操作与更新日志；层级最高，不被其他弹窗和状态提示覆盖 */

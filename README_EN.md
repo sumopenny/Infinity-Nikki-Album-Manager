@@ -35,6 +35,7 @@
 
 - Group photos by year, month, and date with a collapsible timeline and quick date jumps.
 - Use the Current album, View, and More menus to manage folders, `X6Game` authorization, themes, thumbnails, language, cache/data cleanup, tipping, About, and project links.
+- Open the Feedback dialog from the More menu to fill out an embedded survey without leaving the site.
 - The About window opens automatically when the site loads, with an introduction, usage tips, and the changelog; check "Don't show again" to hide it until the next version update.
 - Deleted high-quality photos move to the current album's `trash` folder for preview, restore, or permanent deletion.
 - Single-click photos to show a bottom action bar for batch favorite, delete, restore, or permanent deletion.

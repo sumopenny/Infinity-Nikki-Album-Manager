@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   BookHeart,
+  Bug,
   ChevronDown,
   Eraser,
   FolderOpen,
@@ -55,8 +56,14 @@ const emit = defineEmits<{
   openAbout: []
 }>()
 
+// 问题反馈问卷地址：发布问卷星/腾讯问卷后，把链接替换到这里即可
+const FEEDBACK_URL = 'https://v.wjx.cn/vm/tUM7gga.aspx# '
+
 const openMenu = ref<OpenMenu>(null)
 const showDonate = ref(false)
+const showFeedback = ref(false)
+// iframe 懒加载：首次打开弹窗时才设置 src，避免启动时请求第三方页面
+const feedbackLoaded = ref(false)
 const headerRef = ref<HTMLElement | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
 const menuTrigger = ref<HTMLElement | null>(null)
@@ -109,11 +116,18 @@ function runMenuAction(action: () => void) {
   action()
 }
 
-/** 处理页面外点击和 Esc，关闭当前菜单或打赏弹窗。参数：event 为鼠标或键盘事件。 */
+/** 打开问题反馈弹窗，首次打开时加载问卷 iframe。参数：无。 */
+function openFeedback() {
+  feedbackLoaded.value = true
+  showFeedback.value = true
+}
+
+/** 处理页面外点击和 Esc，关闭当前菜单或打赏/反馈弹窗。参数：event 为鼠标或键盘事件。 */
 function handleDocumentInteraction(event: MouseEvent | KeyboardEvent) {
   if (event instanceof KeyboardEvent) {
     if (event.key !== 'Escape') return
     if (showDonate.value) showDonate.value = false
+    else if (showFeedback.value) showFeedback.value = false
     else closeMenus()
     return
   }
@@ -277,6 +291,10 @@ onBeforeUnmount(() => {
             <Heart :size="16" />
             <span>{{ messages.donate }}</span>
           </button>
+          <button type="button" role="menuitem" @click="runMenuAction(openFeedback)">
+            <Bug :size="16" />
+            <span>{{ messages.feedback }}</span>
+          </button>
           <button type="button" role="menuitem" @click="runMenuAction(() => emit('openAbout'))">
             <Info :size="16" />
             <span>{{ messages.about }}</span>
@@ -320,6 +338,25 @@ onBeforeUnmount(() => {
                 <figcaption>{{ messages.donateAlipay }}</figcaption>
               </figure>
             </div>
+          </div>
+        </section>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <Teleport to="body">
+    <Transition name="confirm-dialog">
+      <div v-if="showFeedback" class="help-dialog" role="dialog" aria-modal="true" :aria-label="messages.feedbackTitle" @click.self="showFeedback = false">
+        <section class="help-dialog-panel feedback-dialog-panel">
+          <header>
+            <h2>{{ messages.feedbackTitle }}</h2>
+            <button type="button" :aria-label="messages.feedbackClose" :title="messages.feedbackClose" @click="showFeedback = false">
+              <X :size="19" />
+            </button>
+          </header>
+          <div class="feedback-dialog-body">
+            <iframe v-if="feedbackLoaded" class="feedback-iframe" :src="FEEDBACK_URL" :title="messages.feedbackTitle"></iframe>
+            <a class="feedback-external-link" :href="FEEDBACK_URL" target="_blank" rel="noreferrer">{{ messages.feedbackOpenExternal }}</a>
           </div>
         </section>
       </div>

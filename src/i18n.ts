@@ -92,6 +92,10 @@ export interface LocaleMessages {
     donateWechat: string
     donateAlipay: string
     closeDonate: string
+    feedback: string
+    feedbackTitle: string
+    feedbackOpenExternal: string
+    feedbackClose: string
     about: string
   }
   about: {
@@ -393,6 +397,10 @@ export const messages: Record<Language, LocaleMessages> = {
       donateWechat: '微信',
       donateAlipay: '支付宝',
       closeDonate: '关闭打赏窗口',
+      feedback: '问题反馈',
+      feedbackTitle: '问题反馈',
+      feedbackOpenExternal: '问卷加载失败？在浏览器中打开',
+      feedbackClose: '关闭反馈窗口',
       about: '关于网站'
     },
     about: {
@@ -667,6 +675,10 @@ export const messages: Record<Language, LocaleMessages> = {
       donateWechat: 'WeChat',
       donateAlipay: 'Alipay',
       closeDonate: 'Close donation window',
+      feedback: 'Feedback',
+      feedbackTitle: 'Feedback',
+      feedbackOpenExternal: 'Survey failed to load? Open it in your browser',
+      feedbackClose: 'Close feedback window',
       about: 'About'
     },
     about: {
