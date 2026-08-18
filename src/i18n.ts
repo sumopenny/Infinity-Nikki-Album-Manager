@@ -419,7 +419,7 @@ export const messages: Record<Language, LocaleMessages> = {
       changelog: [
         { version: 'v1.3.0补充版', text: '新增专项清理窗口：支持清理低画质图片与截图、崩溃快照、运行日志和网页缓存，仅需授权 X6Game 文件夹即可使用。补充新增“问题反馈”入口：位于“更多”菜单，可在弹窗内直接填写反馈问卷。' }
       ],
-      dontShowAgain: '不再提示',
+      dontShowAgain: '当前版本不再提示',
       confirm: '我知道了',
       closeAria: '关闭关于窗口'
     },
@@ -697,7 +697,7 @@ export const messages: Record<Language, LocaleMessages> = {
       changelog: [
         { version: 'v1.3.0', text: 'Added a targeted cleanup window: clean low-quality photos and screenshots, crash snapshots, runtime logs, and web cache with only X6Game folder authorization. Also added a Feedback entry in the More menu to fill out the survey in a dialog.' }
       ],
-      dontShowAgain: "Don't show again",
+      dontShowAgain: "Don't show again for this version",
       confirm: 'Got it',
       closeAria: 'Close about window'
     },
