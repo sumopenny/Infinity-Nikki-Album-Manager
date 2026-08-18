@@ -1984,6 +1984,13 @@ h1 {
   font-size: 12px;
 }
 
+.empty-album-start .hidden-folder-tip {
+  margin-top: 8px;
+  color: var(--pink-deep);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .gallery-header {
   display: flex;
   align-items: flex-end;

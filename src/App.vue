@@ -1768,6 +1768,7 @@ onBeforeUnmount(() => {
             {{ isLoading ? locale.topBar.loading : locale.topBar.chooseDirectory }}
           </button>
           <p class="recommended-path">{{ locale.grid.recommendedPath }}</p>
+          <p class="hidden-folder-tip">{{ locale.grid.hiddenFolderTip }}</p>
         </div>
 
         <header v-else class="gallery-header" :class="{ 'is-outfit-header': activeView === 'outfits' }">
