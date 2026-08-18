@@ -229,6 +229,7 @@ describe('album refresh and recently deleted filesystem operations', () => {
       item: 'lowQuality',
       fileCount: 3,
       totalBytes: 0,
+      totalBytesKnown: true,
       photoTargets: [{
         directoryName: 'ScreenShot',
         directoryHandle: directory as unknown as FileSystemDirectoryHandle,
@@ -262,6 +263,7 @@ describe('album refresh and recently deleted filesystem operations', () => {
 
     expect(plan.fileCount).toBe(2)
     expect(plan.totalBytes).toBe(6)
+    expect(plan.totalBytesKnown).toBe(true)
     expect(plan.missingDirectories).toEqual([])
 
     const result = await executeSpecialCleanup(plan)
@@ -273,6 +275,28 @@ describe('album refresh and recently deleted filesystem operations', () => {
     expect(saved.directories.has('Crashes')).toBe(true)
     expect(crashes.files.size).toBe(0)
     expect(crashes.directories.size).toBe(0)
+  })
+
+  it('deletes unreadable directory entries while marking the size estimate as incomplete', async () => {
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+    const saved = new MemoryDirectoryHandle('Saved')
+    const logs = new MemoryDirectoryHandle('Logs')
+    logs.files.set('locked.log', new MemoryFileHandle('locked.log', new Blob(['1234']), true))
+    saved.directories.set('Logs', logs)
+    x6Game.directories.set('Saved', saved)
+
+    const plan = await prepareSpecialCleanup(x6Game as unknown as FileSystemDirectoryHandle, 'logs')
+
+    expect(plan.fileCount).toBe(1)
+    expect(plan.totalBytes).toBe(0)
+    expect(plan.totalBytesKnown).toBe(false)
+
+    const result = await executeSpecialCleanup(plan)
+
+    expect(result.deletedCount).toBe(1)
+    expect(result.deletedBytes).toBe(0)
+    expect(result.failures).toEqual([])
+    expect(logs.files.size).toBe(0)
   })
 
   it('reports a missing directory when the cleanup target does not exist', async () => {

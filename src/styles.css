@@ -1462,6 +1462,12 @@ h1 {
   opacity: 1;
 }
 
+.feedback-load-failed {
+  margin: 0;
+  color: var(--notice-warning);
+  font-size: 12px;
+}
+
 /* 窄屏时反馈弹窗占满可视区，保证问卷可滚动填写 */
 @media (max-width: 640px) {
   .feedback-dialog-panel {

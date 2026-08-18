@@ -346,7 +346,7 @@ export const messages: Record<Language, LocaleMessages> = {
       relatedCleanupStatus: (deletedCount, deletedBytes, failures, missingDirectories) => {
         const released = formatMessageFileSize(deletedBytes)
         const reasonText: Record<RelatedCleanupFailureReason, string> = {
-          'unreadable-size': '无法读取文件大小，已跳过删除',
+          'unreadable-size': '无法读取文件大小，但仍尝试删除；释放容量可能少计',
           'remove-failed': '文件可能被占用或目录权限已失效'
         }
         const failedText = failures.length
@@ -625,7 +625,7 @@ export const messages: Record<Language, LocaleMessages> = {
       },
       relatedCleanupStatus: (deletedCount, deletedBytes, failures, missingDirectories) => {
         const reasonText: Record<RelatedCleanupFailureReason, string> = {
-          'unreadable-size': 'Could not read the file size, so deletion was skipped',
+          'unreadable-size': 'Could not read the file size; deletion was still attempted and released space may be understated',
           'remove-failed': 'The file may be in use or folder permission may have expired'
         }
         const failedText = failures.length

@@ -41,13 +41,14 @@ export type SpecialCleanupItem = 'lowQuality' | 'crashes' | 'logs' | 'webcache'
 export interface SpecialCleanupDirectoryTarget {
   directoryName: string
   directoryHandle: FileSystemDirectoryHandle
-  entries: Array<{ name: string; bytes: number; fileCount: number }>
+  entries: Array<{ name: string; bytes: number; fileCount: number; sizeKnown: boolean }>
 }
 
 export interface SpecialCleanupPlan {
   item: SpecialCleanupItem
   fileCount: number
   totalBytes: number
+  totalBytesKnown: boolean
   photoTargets: RelatedPhotoCleanupTarget[]
   directoryTargets: SpecialCleanupDirectoryTarget[]
   missingDirectories: string[]
@@ -903,24 +904,31 @@ export async function listGamePlayPhotoAccounts(x6GameHandle: FileSystemDirector
 }
 
 /** 递归统计单个文件或目录条目的字节数和文件数；大小读取失败的文件仍计入文件数。 */
-async function sumEntrySize(handle: FileSystemFileHandle | FileSystemDirectoryHandle): Promise<{ bytes: number; fileCount: number }> {
+async function sumEntrySize(handle: FileSystemFileHandle | FileSystemDirectoryHandle): Promise<{ bytes: number; fileCount: number; sizeKnown: boolean }> {
   if (handle.kind === 'file') {
     try {
       const file = await (handle as FileSystemFileHandle).getFile()
-      return { bytes: file.size, fileCount: 1 }
+      return { bytes: file.size, fileCount: 1, sizeKnown: true }
     } catch {
-      return { bytes: 0, fileCount: 1 }
+      // Deletion is still allowed by product design; only the size estimate is unknown.
+      return { bytes: 0, fileCount: 1, sizeKnown: false }
     }
   }
 
   let bytes = 0
   let fileCount = 0
+  let sizeKnown = true
+  const children: Array<FileSystemFileHandle | FileSystemDirectoryHandle> = []
   for await (const [, childHandle] of (handle as FileSystemDirectoryHandle).entries()) {
-    const childSum = await sumEntrySize(childHandle as FileSystemFileHandle | FileSystemDirectoryHandle)
+    children.push(childHandle as FileSystemFileHandle | FileSystemDirectoryHandle)
+  }
+  const childSums = await mapWithConcurrency(children, sumEntrySize)
+  for (const childSum of childSums) {
     bytes += childSum.bytes
     fileCount += childSum.fileCount
+    sizeKnown = sizeKnown && childSum.sizeKnown
   }
-  return { bytes, fileCount }
+  return { bytes, fileCount, sizeKnown }
 }
 
 /** 收集目录类清理目标：枚举目录内全部顶层条目并统计容量；目录不存在时记入缺失列表。 */
@@ -935,8 +943,8 @@ async function collectDirectoryCleanupTarget(
     const entries: SpecialCleanupDirectoryTarget['entries'] = []
 
     for await (const [name, handle] of directoryHandle.entries()) {
-      const { bytes, fileCount } = await sumEntrySize(handle as FileSystemFileHandle | FileSystemDirectoryHandle)
-      entries.push({ name, bytes, fileCount })
+      const { bytes, fileCount, sizeKnown } = await sumEntrySize(handle as FileSystemFileHandle | FileSystemDirectoryHandle)
+      entries.push({ name, bytes, fileCount, sizeKnown })
     }
 
     targets.push({ directoryName, directoryHandle, entries })
@@ -999,8 +1007,9 @@ export async function prepareSpecialCleanup(
     (sum, target) => sum + target.entries.reduce((entrySum, entry) => entrySum + entry.bytes, 0),
     0
   )
+  const totalBytesKnown = directoryTargets.every((target) => target.entries.every((entry) => entry.sizeKnown))
 
-  return { item, fileCount, totalBytes, photoTargets, directoryTargets, missingDirectories }
+  return { item, fileCount, totalBytes, totalBytesKnown, photoTargets, directoryTargets, missingDirectories }
 }
 
 /**

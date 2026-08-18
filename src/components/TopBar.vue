@@ -57,13 +57,14 @@ const emit = defineEmits<{
 }>()
 
 // 问题反馈问卷地址：发布问卷星/腾讯问卷后，把链接替换到这里即可
-const FEEDBACK_URL = 'https://v.wjx.cn/vm/tUM7gga.aspx# '
+const FEEDBACK_URL = 'https://v.wjx.cn/vm/tUM7gga.aspx'
 
 const openMenu = ref<OpenMenu>(null)
 const showDonate = ref(false)
 const showFeedback = ref(false)
 // iframe 懒加载：首次打开弹窗时才设置 src，避免启动时请求第三方页面
 const feedbackLoaded = ref(false)
+const feedbackLoadFailed = ref(false)
 const headerRef = ref<HTMLElement | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
 const menuTrigger = ref<HTMLElement | null>(null)
@@ -119,7 +120,12 @@ function runMenuAction(action: () => void) {
 /** 打开问题反馈弹窗，首次打开时加载问卷 iframe。参数：无。 */
 function openFeedback() {
   feedbackLoaded.value = true
+  feedbackLoadFailed.value = false
   showFeedback.value = true
+}
+
+function handleFeedbackError() {
+  feedbackLoadFailed.value = true
 }
 
 /** 处理页面外点击和 Esc，关闭当前菜单或打赏/反馈弹窗。参数：event 为鼠标或键盘事件。 */
@@ -355,7 +361,15 @@ onBeforeUnmount(() => {
             </button>
           </header>
           <div class="feedback-dialog-body">
-            <iframe v-if="feedbackLoaded" class="feedback-iframe" :src="FEEDBACK_URL" :title="messages.feedbackTitle"></iframe>
+            <iframe
+              v-if="feedbackLoaded"
+              class="feedback-iframe"
+              :src="FEEDBACK_URL"
+              :title="messages.feedbackTitle"
+              referrerpolicy="strict-origin-when-cross-origin"
+              @error="handleFeedbackError"
+            ></iframe>
+            <p v-if="feedbackLoadFailed" class="feedback-load-failed">{{ messages.feedbackOpenExternal }}</p>
             <a class="feedback-external-link" :href="FEEDBACK_URL" target="_blank" rel="noreferrer">{{ messages.feedbackOpenExternal }}</a>
           </div>
         </section>

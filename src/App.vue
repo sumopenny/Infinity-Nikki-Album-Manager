@@ -75,6 +75,23 @@ const LANGUAGE_STORAGE_KEY = 'infinity-nikki-language'
 const FAVORITES_STORAGE_KEY = 'infinity-nikki-favorite-photo-ids'
 const ABOUT_STATE_STORAGE_KEY = 'infinity-nikki-about-state'
 const CLEANUP_ACCOUNT_CHOICE_KEY = 'infinity-nikki-cleanup-account-choice'
+
+function readCleanupAccountChoice(): string | null {
+  try {
+    return localStorage.getItem(CLEANUP_ACCOUNT_CHOICE_KEY)
+  } catch {
+    return null
+  }
+}
+
+function persistCleanupAccountChoice(choice: string | null): void {
+  try {
+    if (choice) localStorage.setItem(CLEANUP_ACCOUNT_CHOICE_KEY, choice)
+    else localStorage.removeItem(CLEANUP_ACCOUNT_CHOICE_KEY)
+  } catch {
+    // Storage is optional; cleanup remains usable without remembering a choice.
+  }
+}
 const WEBSITE_LOCAL_STORAGE_KEYS = [
   THUMBNAIL_STORAGE_KEY,
   OUTFIT_THUMBNAIL_STORAGE_KEY,
@@ -1485,8 +1502,7 @@ function resolveCleanupAccounts(accountIds: string[] | null, remember = false, c
   showCleanupAccountDialog.value = false
   if (accountIds) {
     // 勾选“记住我的选择”时保存选项，取消勾选时清除；窗口下次仍会打开并回填，方便改选
-    if (remember && choice) localStorage.setItem(CLEANUP_ACCOUNT_CHOICE_KEY, choice)
-    else localStorage.removeItem(CLEANUP_ACCOUNT_CHOICE_KEY)
+    persistCleanupAccountChoice(remember && choice ? choice : null)
   }
   cleanupAccountResolver.value?.(accountIds)
   cleanupAccountResolver.value = null
@@ -1510,7 +1526,7 @@ async function resolveCleanupAccountIds(x6GameHandle: FileSystemDirectoryHandle)
 
   // 多账号时弹窗让用户选择清理全部账号或指定账号 id，并带出记住的选择用于回填
   cleanupAccounts.value = accounts
-  cleanupRememberedChoice.value = localStorage.getItem(CLEANUP_ACCOUNT_CHOICE_KEY)
+  cleanupRememberedChoice.value = readCleanupAccountChoice()
   showCleanupAccountDialog.value = true
   return new Promise<string[] | null>((resolve) => {
     cleanupAccountResolver.value = resolve
@@ -1575,7 +1591,11 @@ async function cleanSpecialDirectory(x6GameHandle: FileSystemDirectoryHandle, it
 
   const confirmed = await openConfirmDialog({
     title: locale.value.cleanup.confirmDirectoryCleanupTitle,
-    message: locale.value.cleanup.confirmDirectoryCleanup(itemTitle, plan.fileCount, formatFileSize(plan.totalBytes)),
+    message: locale.value.cleanup.confirmDirectoryCleanup(
+      itemTitle,
+      plan.fileCount,
+      `${formatFileSize(plan.totalBytes)}${plan.totalBytesKnown ? '' : language.value === 'zh' ? '（部分文件大小未知）' : ' (some file sizes unknown)'}`
+    ),
     tone: 'warning',
     confirmLabel: locale.value.app.dialogConfirm,
     cancelLabel: locale.value.app.dialogCancel

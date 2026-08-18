@@ -3,7 +3,7 @@
 <div align="center">
   <img src="img/wxnn.ico" alt="Infinity Nikki Album Manager" width="72" height="72">
   <p><strong>Browse, organize, favorite, preview, and clean local Infinity Nikki albums in your browser.</strong></p>
-  <p style="color: orange;">If you run into any issues, please report them through GitHub/Gitee Issues or the author's social platforms.</p>
+  <p style="color: orange;">If you run into any issues, please fill out the survey in the site's Feedback section, or report them through GitHub/Gitee Issues or the author's social platforms.</p>
   <p>
     <a href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases">GitHub Releases</a> ·
     <a href="https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager/releases">Gitee Releases</a> ·
@@ -14,7 +14,7 @@
 </div>
 
 ---
-### Open directly: https://infinity-nikki-album-manager.pages.dev/ .
+### Open the website directly: https://infinity-nikki-album-manager.pages.dev/ .
 ### Or use Vercel (VPN may be required): https://infinity-nikki-album-manager.vercel.app .
 
 > For local deployment, download the archive or clone the project. Jump to the local deployment guide: [Local Setup for Developers](#local-setup-for-developers)
@@ -34,47 +34,45 @@
 ## Features
 
 - Group photos by year, month, and date with a collapsible timeline and quick date jumps.
-- Use the Current album, View, and More menus to manage folders, `X6Game` authorization, themes, thumbnails, language, cache/data cleanup, tipping, About, and project links.
-- Open the Feedback dialog from the More menu to fill out an embedded survey without leaving the site.
+- Report issues directly through the Feedback entry in the More menu.
 - The About window opens automatically when the site loads, with an introduction, usage tips, and the changelog; check "Don't show again" to hide it until the next version update.
 - Deleted high-quality photos move to the current album's `trash` folder for preview, restore, or permanent deletion.
-- Single-click photos to show a bottom action bar for batch favorite, delete, restore, or permanent deletion.
+- Single-click to select a photo and show the bottom action bar.
 - Double-click to open the large preview with 50%–300% zoom, mouse-wheel zooming, and drag-to-pan after zooming in.
 - Use the keyboard to navigate photos and delete the current preview photo.
-- Choose 1:1, Half 1:1, 16:9, 4:3, 9:16, or 3:4 thumbnails; Half 1:1 hover metadata only shows capture time.
-- Remember the album folder and favorite state, with Chinese/English and light/dark themes.
-- Store outfit images, outfit codes, and single-choice tags locally, with pending plans, automatic image intake, and ZIP import/export.
-- Use the Special Cleanup window to clean low-quality photos and game screenshots, crash snapshots, runtime logs, and the built-in browser cache.
+- Choose 1:1, Half 1:1, 16:9, 4:3, 9:16, or 3:4 thumbnail ratios.
+- Store outfit images, outfit codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export.
+- Use the Special Cleanup window to clean low-quality photos and game screenshots, crash snapshots, runtime logs, and the game's built-in browser cache.
 
 ## Quick Start
 
 Open https://infinity-nikki-album-manager.pages.dev/ directly to use it. You can also download the archive or clone the project to run it locally. Jump to the local deployment guide: [Local Setup for Developers](#local-setup-for-developers).
 
-> If the China-accessible site is temporarily unavailable, try the Vercel fallback: https://infinity-nikki-album-manager.vercel.app
+> If the China-accessible site is temporarily unavailable, try the Vercel fallback (VPN required): https://infinity-nikki-album-manager.vercel.app
 
 ## Outfit Code Management
 Entering Outfit codes opens a standalone guide. Please read it carefully.
 - You can create up to 40 user tags, and each tag can contain up to 5 characters. Deleting a tag in use only moves related plans to Uncategorized.
-- New tags appear first. Drag the six-dot handle before a tag in the left sidebar to reorder it; the saved order is also used by the outfit editor and remains after reopening the album.
+- New tags appear at the top of the tag list; drag the left handle to adjust the order.
 - Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press `Ctrl+V`). JPG and PNG files are converted locally to WebP, the outfit code can be empty, each plan can use one tag, and double-clicking the image opens the preview.
-- The outfit preview toolbar shows the current tag and outfit code, with Copy and Edit buttons. Opening the editor from the large preview returns to the same preview after saving or closing it.
+- The outfit preview toolbar shows the current tag and outfit code, with Copy and Edit buttons.
 - The app creates a `clothe` folder inside the current album as needed to manage outfit codes. <span style="color: red;">For bulk import, move saved outfit images directly into this folder; opening, refreshing, or refocusing the website page automatically converts them into pending plans.</span>
-- Using the <span style="color: orange;">auto update outfit code</span> feature requires authorizing the current game's `X6Game` folder. You can authorize it from the Current album menu in the upper-right corner. <span style="color: red;">In the game, tap Share, tap the selection button at the lower-right of the outfit screenshot, generate the outfit code after selecting, then return to the web page. The website automatically gets the outfit code and image, and matching existing outfit codes are skipped to avoid duplicates.</span>
+- Using the <span style="color: orange;">auto update outfit code</span> feature requires authorizing the current game's `X6Game` folder. You can authorize it from the Current album menu in the upper-right corner. <span style="color: red;">How to use: in the game, tap Share, tap the selection button at the lower-right corner of the outfit screenshot, tap Generate Outfit Code after the selection is complete, then return to the web page. The website automatically gets the outfit code and image, and existing matching outfit codes are skipped.</span>
 
 <div align="center">
   <img src="img/自动更新步骤.webp" alt="Project UI" width="70%">
 </div>
 
-- Export data generates a ZIP file in the current album folder, and the success notice shows the file name and saved location. Import data validates and merges the ZIP without replacing existing plans; duplicate or invalid content is skipped. <span style="color: red;">Deleting an outfit plan is permanent and does not go to Recently Deleted.</span>
+- Export data generates a ZIP file in the currently selected album folder, and the success notice shows the file name and saved location. Import data validates and merges the ZIP without replacing existing plans; duplicate or invalid content is skipped. <span style="color: red;">Deleting an outfit plan is permanent and does not go to Recently Deleted.</span>
 - Single-click outfit plans to select multiple items and show the bottom toolbar. <span style="color: red;">Deleted outfit plans cannot be restored, so check the plan information before confirming.</span>
 
 ## Special Cleanup
 
-Click the Special Cleanup button in the top-right corner (left of View) to open the cleanup window. Using the cleanup features requires authorizing the `X6Game` folder: on first use, click the Authorize Folder button in the window's top-right corner and select `X6Game`. The authorization is remembered locally, so the window is ready to use next time.
+Click the Special Cleanup button in the top-right corner to open the cleanup window. Using the cleanup features requires authorizing the `X6Game` folder.
 
-The following cleanup items are available; click the Clean button on the right of each item to run it. Folder-based cleanup empties the contents but keeps the folder itself. A confirmation appears before deletion; afterwards the cleaned count and released size are shown, and files that cannot be read or deleted are kept with the reason reported:
+The following cleanup items are available:
 
-- Low-quality photos and screenshots (`...\X6Game\ScreenShot` and `NikkiPhotos_LowQuality`): lower-quality images produced by in-game photography; only image files are deleted. When multiple account folders exist, you can choose to clean all accounts or a specific account ID; check "Remember my choice" to prefill your last choice the next time the window opens, so you can easily change it.
+- Low-quality photos and screenshots (`...\X6Game\ScreenShot` and `NikkiPhotos_LowQuality`): lower-quality images produced by in-game photography; only image files are deleted. When multiple account folders exist, you can choose to clean all accounts or a specific account ID.
 - Crash snapshots (`...\X6Game\Saved\Crashes`): after deletion, historical crash causes can no longer be reported to the official team via local logs.
 - Runtime logs (`...\X6Game\Saved\Logs`): deleting them has no side effects.
 - Built-in browser and login cache (`...\X6Game\Saved\webcache_4430`): clears expired web data, but event pages and announcements load more slowly the first time they are opened afterwards.
@@ -136,7 +134,7 @@ Browsers block web pages from accessing system folders. Please select `NikkiPhot
 
 ## Privacy and Safety
 
-- Photos are read locally in your browser and are not uploaded to the project server.
+- Photos are read locally in your browser.
 - Album folder authorization and Favorites are stored locally in the current browser; Clear cache in More only clears the `X6Game` authorization and the Outfit Guide “don't show again” state while keeping the current album authorization. Clear data asks for confirmation twice, then clears all website local records and authorizations so the website returns to first-open state.
 - Browser security policies may require folder authorization again.
 - Delete and Special Cleanup modify real files on your computer; Clear cache and Clear data do not delete real photos, `clothe`, `trash`, or other files on your computer.
