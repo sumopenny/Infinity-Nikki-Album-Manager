@@ -1488,7 +1488,9 @@ h1 {
 .about-dialog-panel {
   position: relative;
   width: min(1080px, 100%);
-  max-height: none;
+  max-height: calc(100dvh - 72px);
+  display: flex;
+  flex-direction: column;
   margin: auto;
   padding: 0;
   overflow: hidden;
@@ -1521,9 +1523,11 @@ h1 {
 
 .about-dialog-body {
   display: flex;
+  min-height: 0;
   flex-direction: column;
   gap: 24px;
   padding: 26px 30px;
+  overflow-y: auto;
 }
 
 /* 区块标题：渐变竖条点缀 */
@@ -1531,11 +1535,90 @@ h1 {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
-  color: var(--heading);
+  margin-bottom: 6px;
   font-size: 15px;
   letter-spacing: 0.5px;
 }
+
+.about-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.about-section-heading h3 {
+  margin-bottom: 0;
+}
+
+.about-history-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--pink-deep);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.about-history-link:hover {
+  color: var(--heading);
+}
+
+.about-history-section {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.about-history-actions {
+  display: flex;
+  margin-bottom: 14px;
+}
+
+.about-history-back {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--pink-deep) 30%, var(--line));
+  border-radius: 10px;
+  background: var(--surface-strong);
+  color: var(--pink-deep);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.about-history-back:hover {
+  border-color: var(--pink-deep);
+  background: color-mix(in srgb, var(--pink-deep) 8%, var(--surface-strong));
+  color: var(--heading);
+}
+
+.about-history-title {
+  margin-bottom: 12px;
+}
+
+.about-history-list {
+  max-height: min(48dvh, 420px);
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.about-history-list .about-changelog-entry {
+  padding: 3px 0;
+}
+
+/* .about-history-list .about-changelog-entry:first-child {
+  padding-top: 8px;
+} */
 
 .about-dialog-body h3::before {
   width: 6px;
@@ -1654,6 +1737,7 @@ h1 {
 
 .about-dialog-footer {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -1723,6 +1807,10 @@ h1 {
 
   .about-dialog-body {
     padding: 22px;
+  }
+
+  .about-history-list {
+    max-height: min(52dvh, 420px);
   }
 }
 

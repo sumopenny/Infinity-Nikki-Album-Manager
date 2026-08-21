@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
-import { Images, Shirt, SquareCheckBig, X } from 'lucide-vue-next'
-import { ABOUT_VERSION, type LocaleMessages } from '../i18n'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { ArrowLeft, History, Images, Shirt, SquareCheckBig, X } from 'lucide-vue-next'
+import type { LocaleMessages } from '../i18n'
 
 const props = defineProps<{
   visible: boolean
@@ -15,9 +15,10 @@ const emit = defineEmits<{
 }>()
 
 const dontShowAgain = ref(false)
+const showHistory = ref(false)
 const panelRef = ref<HTMLElement | null>(null)
-// 当前版本号对应的日志标签，用于给最新版本加“当前版本”标识
-const currentVersionLabel = `v${ABOUT_VERSION}`
+// 当前版本号对应的日志标签，用于高亮关于页里的当前版本卡片。
+const currentVersionLabel = computed(() => props.messages.changelog[0]?.version)
 // 功能卡片图标，按 i18n 功能列表顺序展示
 const featureIcons = [Images, SquareCheckBig, Shirt]
 let previousBodyOverflow = ''
@@ -25,7 +26,18 @@ let previousActiveElement: HTMLElement | null = null
 
 /** 关闭关于窗口。参数：无；同时提交当前“不再提示”选项。 */
 function closeDialog() {
+  showHistory.value = false
   emit('close', dontShowAgain.value)
+}
+
+/** 打开历史版本页；关闭窗口时由 closeDialog 重置到关于页。 */
+function openHistory() {
+  showHistory.value = true
+}
+
+/** 从历史版本页返回关于页。 */
+function backToAbout() {
+  showHistory.value = false
 }
 
 /** 处理关于窗口键盘操作。参数：键盘事件；按 Escape 关闭弹窗，Tab 在弹窗内循环聚焦。 */
@@ -51,6 +63,7 @@ watch(
   (visible) => {
     if (visible) {
       dontShowAgain.value = props.dismissed
+      showHistory.value = false
       previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
       previousBodyOverflow = document.body.style.overflow
       document.body.style.overflow = 'hidden'
@@ -94,8 +107,36 @@ onBeforeUnmount(() => {
           </button>
 
           <div class="about-dialog-body">
+            <template v-if="showHistory">
+              <section class="about-history-section">
+                <div class="about-history-actions">
+                  <button class="about-history-back" type="button" :aria-label="messages.historyBackAria" @click="backToAbout">
+                    <ArrowLeft :size="17" aria-hidden="true" />
+                    <span>{{ messages.historyBack }}</span>
+                  </button>
+                </div>
+                <h3 class="about-history-title">{{ messages.historyTitle }}</h3>
+                <div class="about-history-list">
+                  <div
+                    v-for="entry in messages.history"
+                    :key="entry.version"
+                    class="about-changelog-entry"
+                  >
+                    <span class="about-changelog-version">{{ entry.version }}</span>
+                    <p>{{ entry.text }}</p>
+                  </div>
+                </div>
+              </section>
+            </template>
+            <template v-else>
             <section>
-              <h3>{{ messages.changelogTitle }}</h3>
+              <div class="about-section-heading">
+                <h3>{{ messages.changelogTitle }}</h3>
+                <button class="about-history-link" type="button" @click="openHistory">
+                  <History :size="16" aria-hidden="true" />
+                  <span>{{ messages.historyLink }}</span>
+                </button>
+              </div>
               <div
                 v-for="entry in messages.changelog"
                 :key="entry.version"
@@ -131,6 +172,7 @@ onBeforeUnmount(() => {
                 <p v-for="item in topBarMessages.helpKeyboardItems" :key="item">{{ item }}</p>
               </section>
             </div>
+            </template>
           </div>
 
           <footer class="about-dialog-footer">
