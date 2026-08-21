@@ -30,8 +30,8 @@ describe('AboutDialog release history', () => {
     await wrapper.vm.$nextTick()
 
     expect(document.body.textContent).toContain('历史版本记录')
-    expect(document.body.querySelector('.about-history-list .about-changelog-entry')?.textContent).toContain('v1.3.0')
-    expect(document.body.querySelector('.about-history-list')?.textContent).not.toContain('v1.3.0补充版')
+    expect(document.body.querySelector('.about-history-list .about-changelog-entry')?.textContent).toContain('v1.3.0补充版')
+    expect(document.body.querySelector('.about-history-list')?.textContent).not.toContain('v1.3.1')
     expect(document.body.querySelector('.about-history-actions + .about-history-title')?.textContent).toBe('历史版本记录')
     expect(document.body.querySelector('.about-section-heading')).toBeNull()
 

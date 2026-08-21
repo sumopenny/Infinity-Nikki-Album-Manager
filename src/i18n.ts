@@ -235,7 +235,7 @@ export interface LocaleMessages {
 export const DEFAULT_LANGUAGE: Language = 'zh'
 
 // 当前网站版本号；更新日志新增版本时同步修改，用于检测是否需要在打开网站时重新弹出“关于网站”窗口
-export const ABOUT_VERSION = '1.3.0补充版'
+export const ABOUT_VERSION = '1.3.1'
 
 const thumbnailModeValues: ThumbnailMode[] = ['default', 'half', 'wide', 'standard', 'portrait-wide', 'portrait-standard']
 
@@ -419,10 +419,10 @@ export const messages: Record<Language, LocaleMessages> = {
         '搭配码管理：管理星绘图册搭配方案，支持手动添加、批量导入，并自动同步游戏内新搭配码。',
         '专项清理：清理低画质照片、游戏截图、崩溃快照、运行日志和网页缓存，释放磁盘空间。'
       ],
-      changelogTitle: '当前版本【2026.8.16更新】',
+      changelogTitle: '当前版本【2026.8.21更新】',
       // 更新日志只保留当前版本，发布新版本时替换该条内容，当前版本会自动带上“当前版本”标识
       changelog: [
-        { version: 'v1.3.0补充版', text: '新增专项清理窗口：支持清理低画质图片与截图、崩溃快照、运行日志和网页缓存，仅需授权 X6Game 文件夹即可使用。补充新增“问题反馈”入口：位于“更多”菜单，可在弹窗内直接填写反馈问卷。' }
+        { version: 'v1.3.1', text: '优化相册照片时间读取：文件名不是类似2026_05_30_15_25_08_3094229的图片，现在会按图片最后修改时间显示；新增“更新记录”入口，可查看历史版本记录。' }
       ],
       historyLink: '更新记录',
       historyTitle: '历史版本记录',
@@ -430,6 +430,7 @@ export const messages: Record<Language, LocaleMessages> = {
       historyBackAria: '返回关于网站',
       // 历史记录页从上一正式版本开始展示，当前版本只保留在关于页顶部。
       history: [
+        { version: 'v1.3.0补充版', text: '新增专项清理窗口：支持清理低画质图片与截图、崩溃快照、运行日志和网页缓存，仅需授权 X6Game 文件夹即可使用。补充新增“问题反馈”入口：位于“更多”菜单，可在弹窗内直接填写反馈问卷。' },
         { version: 'v1.3.0', text: '新增专项清理窗口：支持清理低画质图片与截图、崩溃快照、运行日志和网页缓存，仅需授权 X6Game 文件夹即可使用。' },
         { version: 'v1.2.3', text: '搭配码新增标签现在会显示在列表首位，并支持拖拽调整顺序，排序结果会同步到搭配码编辑器。优化了动画效果和部分操作逻辑，更多一键清理功能考虑开发中，同时偷吃了一块大喵的五花肉🥩~' },
         { version: 'v1.2.2', text: '优化搭配码导入导出性能，完善 X6Game 授权与清理逻辑。家园码、组合码功能开发中。' },
@@ -710,9 +711,9 @@ export const messages: Record<Language, LocaleMessages> = {
         'Outfit codes: manage Starry Gallery outfit plans with manual add, batch import, and auto sync of new in-game outfit codes.',
         'Targeted cleanup: clean low-quality photos, screenshots, crash snapshots, runtime logs, and web cache to free up disk space.'
       ],
-      changelogTitle: 'Current version【2026.8.16 update】',
+      changelogTitle: 'Current version【2026.8.21 update】',
       changelog: [
-        { version: 'v1.3.0 Supplement', text: 'Added a targeted cleanup window: clean low-quality photos and screenshots, crash snapshots, runtime logs, and web cache with only X6Game folder authorization. Also added a Feedback entry in the More menu to fill out the survey in a dialog.' }
+        { version: 'v1.3.1', text: "Optimized album photo time reading: images whose filenames do not match the required date format now display using the image's last modified time; added a Release history entry for viewing past version notes." }
       ],
       historyLink: 'Release history',
       historyTitle: 'Release history',
@@ -720,6 +721,7 @@ export const messages: Record<Language, LocaleMessages> = {
       historyBackAria: 'Back to About',
       // The history page starts from the previous formal release; the current release stays on the About page.
       history: [
+        { version: 'v1.3.0 Supplement', text: 'Added a targeted cleanup window: clean low-quality photos and screenshots, crash snapshots, runtime logs, and web cache with only X6Game folder authorization. Also added a Feedback entry in the More menu to fill out the survey in a dialog.' },
         { version: 'v1.3.0', text: 'Added a targeted cleanup window: clean low-quality photos and screenshots, crash snapshots, runtime logs, and web cache with only X6Game folder authorization.' },
         { version: 'v1.2.3', text: 'New outfit tags now appear first and can be reordered by dragging, with the order synchronized to the outfit editor. Animations and some interactions were polished, more one-click cleanup features were under consideration.' },
         { version: 'v1.2.2', text: 'Optimized outfit code import and export performance, and improved X6Game authorization and cleanup logic. Home codes and combination codes were under development.' },
