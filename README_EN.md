@@ -125,7 +125,7 @@ Do not select drive roots, Windows, Program Files, the game install root, or oth
 ### No photos are displayed
 
 - Make sure you selected the actual image folder.
-- Make sure the file extension is supported and the filename starts with a date format.
+- Make sure the file extension is supported. Photos whose filenames start with a date use that date; other photos use the file's last modified time.
 - If browser authorization expires, click Choose / restore album folder again.
 
 ### The browser refuses to open a folder

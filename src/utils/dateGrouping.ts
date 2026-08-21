@@ -9,6 +9,26 @@ export interface ParsedPhotoDate {
 
 const FILE_DATE_PATTERN = /^(\d{4})_(\d{2})_(\d{2})_(\d{2})_(\d{2})(?:_(\d{2}))?/
 
+/** 将文件时间戳转换为相册使用的日期元数据。 */
+export function datePartsFromTimestamp(timestamp: number): ParsedPhotoDate | null {
+  if (!Number.isFinite(timestamp)) return null
+  const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) return null
+  const year = String(date.getFullYear()).padStart(4, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hour = String(date.getHours()).padStart(2, '0')
+  const minute = String(date.getMinutes()).padStart(2, '0')
+  return {
+    dateKey: `${year}-${month}-${day}`,
+    year,
+    monthDay: `${month}月${day}日`,
+    displayDate: `${year}年${month}月${day}日`,
+    timeText: `${hour}:${minute}`,
+    timestamp: date.getTime()
+  }
+}
+
 export function parsePhotoDate(fileName: string): ParsedPhotoDate | null {
   const match = fileName.match(FILE_DATE_PATTERN)
   if (!match) return null

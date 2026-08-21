@@ -1,4 +1,4 @@
-import { parsePhotoDate, type PhotoItem, type RecentlyDeletedPhoto } from './dateGrouping'
+import { datePartsFromTimestamp, parsePhotoDate, type PhotoItem, type RecentlyDeletedPhoto } from './dateGrouping'
 import type { LocaleMessages } from '../i18n'
 
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
@@ -276,16 +276,19 @@ export async function listRecentlyDeleted(
     if (handle.kind !== 'file' || !isImageFile(trashName)) continue
     const metadata = parseTrashFileName(trashName)
     if (!metadata) continue
-    const parsed = parsePhotoDate(metadata.originalName)
-    if (!parsed) continue
-
     const fileHandle = handle as FileSystemFileHandle
     let size: number | null = null
+    let lastModified: number | undefined
     try {
-      size = (await fileHandle.getFile()).size
+      const file = await fileHandle.getFile()
+      size = file.size
+      lastModified = file.lastModified
     } catch {
       // 单个文件大小读取失败不影响其余回收照片展示。
     }
+    const parsed = parsePhotoDate(metadata.originalName) ??
+      (lastModified === undefined ? null : datePartsFromTimestamp(lastModified))
+    if (!parsed) continue
 
     deletedPhotos.push({
       id: `trash:${trashName}`,
@@ -299,6 +302,7 @@ export async function listRecentlyDeleted(
       fileSizeText: size === null ? '--' : formatFileSize(size),
       fileHandle,
       directoryHandle: trashDirectoryHandle,
+      lastModified,
       ...parsed
     })
   }
@@ -561,16 +565,13 @@ async function rollbackFile(directoryHandle: FileSystemDirectoryHandle, fileName
 /**
  * 根据文件名和句柄创建相册照片状态。
  * 参数：name 为文件名，fileHandle 为文件句柄，directoryHandle 为所属目录。
- * 返回：符合游戏命名格式的照片；无法解析日期时返回 null。
+ * 返回：照片元数据；文件名无法解析且文件时间不可读时返回 null。
  */
 async function createPhotoItem(
   name: string,
   fileHandle: FileSystemFileHandle,
   directoryHandle: FileSystemDirectoryHandle
 ): Promise<PhotoItem | null> {
-  const parsed = parsePhotoDate(name)
-  if (!parsed) return null
-
   let fileSize: number | undefined
   let lastModified: number | undefined
   try {
@@ -578,8 +579,11 @@ async function createPhotoItem(
     fileSize = file.size
     lastModified = file.lastModified
   } catch {
-    // Keep unreadable files visible; loading the image will report the read failure later.
+    // 文件名不规范时必须读取文件时间；读取失败则无法可靠分组，跳过该文件。
   }
+  const parsed = parsePhotoDate(name) ??
+    (lastModified === undefined ? null : datePartsFromTimestamp(lastModified))
+  if (!parsed) return null
 
   return {
     id: `${parsed.dateKey}-${parsed.timeText}-${name}`,

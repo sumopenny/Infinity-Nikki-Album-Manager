@@ -170,6 +170,40 @@ describe('album refresh and recently deleted filesystem operations', () => {
     )
   })
 
+  it('prefers a valid filename timestamp and falls back to lastModified for unmatched names', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    const fallbackTimestamp = new Date(2025, 0, 2, 3, 4).getTime()
+    album.files.set('2026_06_26_11_22_00.jpeg', new MemoryFileHandle(
+      '2026_06_26_11_22_00.jpeg',
+      new Blob(['photo']),
+      false,
+      fallbackTimestamp
+    ))
+    album.files.set('shared-image.jpeg', new MemoryFileHandle(
+      'shared-image.jpeg',
+      new Blob(['photo']),
+      false,
+      fallbackTimestamp
+    ))
+    album.files.set('unreadable-image.jpeg', new MemoryFileHandle('unreadable-image.jpeg', new Blob(['photo']), true))
+
+    const result = await readAlbumDirectory(
+      album as unknown as FileSystemDirectoryHandle,
+      { messages: messages.zh.fileSystem }
+    )
+
+    expect(result.photos).toHaveLength(2)
+    expect(result.photos.find((photo) => photo.name === '2026_06_26_11_22_00.jpeg')).toMatchObject({
+      dateKey: '2026-06-26',
+      timeText: '11:22'
+    })
+    expect(result.photos.find((photo) => photo.name === 'shared-image.jpeg')).toMatchObject({
+      dateKey: '2025-01-02',
+      timeText: '03:04',
+      timestamp: fallbackTimestamp
+    })
+  })
+
   it('allows X6Game authorization for an unrelated album without an account path', async () => {
     const album = new MemoryDirectoryHandle('MyPhotoCollection')
     const x6Game = new MemoryDirectoryHandle('X6Game')
@@ -372,6 +406,24 @@ describe('album refresh and recently deleted filesystem operations', () => {
     expect(album.files.has(photo.name)).toBe(false)
     expect(trashPhotos).toHaveLength(1)
     expect(trashPhotos[0]).toMatchObject({ originalName: photo.name, wasFavorite: true, size: 5 })
+  })
+
+  it('keeps a fallback-timestamp photo visible after moving it to recently deleted', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    const timestamp = new Date(2025, 0, 2, 3, 4).getTime()
+    album.files.set('shared-image.jpeg', new MemoryFileHandle('shared-image.jpeg', new Blob(['photo']), false, timestamp))
+    const [photo] = (await readAlbumDirectory(
+      album as unknown as FileSystemDirectoryHandle,
+      { messages: messages.zh.fileSystem }
+    )).photos
+
+    await movePhotosToRecentlyDeleted([photo], new Set([photo.id]))
+    const [trashPhoto] = await listRecentlyDeleted(album as unknown as FileSystemDirectoryHandle)
+    const restored = await restoreRecentlyDeletedPhotos([trashPhoto], album as unknown as FileSystemDirectoryHandle)
+
+    expect(trashPhoto).toMatchObject({ originalName: 'shared-image.jpeg', timestamp: 1, lastModified: 1 })
+    expect(restored.failedNames).toEqual([])
+    expect(restored.restoredPhotos).toHaveLength(1)
   })
 
   it('rolls back the trash copy when deleting the source file fails', async () => {
