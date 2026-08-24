@@ -231,6 +231,9 @@ const themeMode = ref<ThemeMode>(isThemeMode(storedThemeMode) ? storedThemeMode 
 const appShellRef = ref<HTMLElement | null>(null)
 let topBarResizeObserver: ResizeObserver | null = null
 let statusNoticeTimer: number | undefined
+let statusNoticeDeadline = 0
+let statusNoticeRemaining = 0
+let isStatusNoticePaused = false
 let focusRefreshTimer: number | undefined
 let themeSwitchFrame: number | undefined
 let suppressNextFocusRefresh = false
@@ -349,9 +352,32 @@ function clearStatusNoticeTimer() {
   statusNoticeTimer = undefined
 }
 
+/** 鼠标悬停时暂停通知自动隐藏计时，避免用户阅读长提示时通知突然消失。 */
+function pauseStatusNoticeTimer() {
+  if (!isStatusNoticeVisible.value || isStatusNoticeLoading.value || isStatusNoticePaused) return
+  statusNoticeRemaining = Math.max(0, statusNoticeDeadline - Date.now())
+  clearStatusNoticeTimer()
+  isStatusNoticePaused = true
+}
+
+/** 鼠标离开通知后从暂停时的剩余时间继续计时。 */
+function resumeStatusNoticeTimer() {
+  if (!isStatusNoticePaused || !isStatusNoticeVisible.value || isStatusNoticeLoading.value) return
+  isStatusNoticePaused = false
+  const remaining = statusNoticeRemaining
+  statusNoticeDeadline = Date.now() + remaining
+  statusNoticeTimer = window.setTimeout(() => {
+    isStatusNoticeVisible.value = false
+    statusNoticeTimer = undefined
+    statusNoticeRemaining = 0
+  }, remaining)
+}
+
 /** 关闭操作通知。参数：无。 */
 function closeStatusNotice() {
   clearStatusNoticeTimer()
+  isStatusNoticePaused = false
+  statusNoticeRemaining = 0
   isStatusNoticeVisible.value = false
 }
 
@@ -380,6 +406,8 @@ function createErrorStatus(error: unknown, fallback: StatusState): StatusState {
 // 通用通知、偏好与持久化
 watch(statusState, (nextStatus) => {
   clearStatusNoticeTimer()
+  isStatusNoticePaused = false
+  statusNoticeRemaining = 0
   if (nextStatus.type === 'initial') {
     isStatusNoticeVisible.value = false
     return
@@ -387,9 +415,12 @@ watch(statusState, (nextStatus) => {
   isStatusNoticeVisible.value = true
   if (isStatusNoticeLoading.value) return
   const duration = statusNoticeTone.value === 'error' || statusNoticeTone.value === 'warning' ? 7200 : 5200
+  statusNoticeRemaining = duration
+  statusNoticeDeadline = Date.now() + duration
   statusNoticeTimer = window.setTimeout(() => {
     isStatusNoticeVisible.value = false
     statusNoticeTimer = undefined
+    statusNoticeRemaining = 0
   }, duration)
 })
 
@@ -1968,6 +1999,8 @@ onBeforeUnmount(() => {
       :is-loading="isStatusNoticeLoading"
       :close-label="locale.app.operationNoticeCloseAria"
       @close="closeStatusNotice"
+      @pause="pauseStatusNoticeTimer"
+      @resume="resumeStatusNoticeTimer"
     />
   </div>
 </template>

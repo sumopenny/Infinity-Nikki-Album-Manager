@@ -38,6 +38,20 @@ describe('redesigned album controls', () => {
     expect(wrapper.find('.operation-notice-close').exists()).toBe(true)
   })
 
+  it('emits pause and resume while the notice is hovered', async () => {
+    const wrapper = mount(OperationNotice, {
+      props: { visible: true, title: 'Operation', message: 'Done', tone: 'success', isLoading: false, closeLabel: 'Close' },
+      global: { stubs: { Teleport: true } }
+    })
+
+    const notice = wrapper.get('.operation-notice')
+    await notice.trigger('mouseenter')
+    await notice.trigger('mouseleave')
+
+    expect(wrapper.emitted('pause')).toHaveLength(1)
+    expect(wrapper.emitted('resume')).toHaveLength(1)
+  })
+
   it('keeps top menus mutually exclusive and opens help from More', async () => {
     const wrapper = mount(TopBar, {
       props: {

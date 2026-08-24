@@ -12,6 +12,8 @@ defineProps<{
 
 const emit = defineEmits<{
   close: []
+  pause: []
+  resume: []
 }>()
 </script>
 
@@ -25,6 +27,8 @@ const emit = defineEmits<{
         :role="tone === 'error' ? 'alert' : 'status'"
         :aria-live="tone === 'error' ? 'assertive' : 'polite'"
         aria-atomic="true"
+        @mouseenter="emit('pause')"
+        @mouseleave="emit('resume')"
       >
         <div class="operation-notice-icon" aria-hidden="true">
           <span v-if="isLoading" class="operation-notice-spinner"></span>
