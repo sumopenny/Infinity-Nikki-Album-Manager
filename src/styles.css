@@ -823,6 +823,202 @@ h1 {
   gap: 4px;
 }
 
+.header-search {
+  position: relative;
+  display: flex;
+  width: clamp(150px, 18vw, 240px);
+  height: 38px;
+  align-items: center;
+}
+
+.header-search input {
+  width: 100%;
+  height: 100%;
+  padding: 0 34px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius);
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color var(--motion-base) ease, box-shadow var(--motion-base) ease, background var(--motion-base) ease;
+}
+
+.header-search input:focus,
+.header-search input:focus-visible {
+  border-color: var(--pink-deep);
+  background: var(--surface-strong);
+  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 14%, transparent);
+}
+
+.header-search input::-webkit-search-cancel-button,
+.header-search input::-webkit-search-decoration,
+.header-search input::-webkit-search-results-button,
+.header-search input::-webkit-search-results-decoration {
+  display: none;
+  -webkit-appearance: none;
+}
+
+.note-dialog {
+  position: fixed;
+  z-index: 150;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(44, 35, 35, 0.28);
+  backdrop-filter: blur(3px);
+}
+
+.note-dialog-panel {
+  position: relative;
+  width: min(440px, 100%);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-strong);
+  box-shadow: 0 22px 70px rgba(54, 39, 39, 0.2);
+}
+
+/* 与“关于网站”窗口共用同一关闭按钮结构和视觉规格。 */
+.note-dialog-panel .about-dialog-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--heading) 8%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.note-dialog-panel .about-dialog-close:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--heading) 16%, transparent);
+}
+
+.note-dialog-panel > header,
+.note-dialog-panel > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 22px;
+}
+
+.note-dialog-panel > header {
+  padding-right: 64px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.note-dialog-panel h2 {
+  margin: 0;
+  color: var(--heading);
+  font-size: 20px;
+}
+
+.note-dialog-content {
+  display: grid;
+  gap: 9px;
+  padding: 22px;
+}
+
+.note-dialog-content label {
+  color: var(--heading);
+  font-weight: 700;
+}
+
+.note-dialog-content input {
+  width: 100%;
+  height: 46px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+}
+
+.note-dialog-content input:focus {
+  border-color: var(--pink-deep);
+  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 14%, transparent);
+}
+
+.note-dialog-content > span {
+  justify-self: end;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.note-dialog-panel > footer {
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.note-dialog-panel .confirm-dialog-button {
+  min-width: 96px;
+}
+
+.note-dialog-panel .confirm-dialog-button.primary {
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--pink-deep) 22%, transparent);
+}
+
+.note-dialog-panel .confirm-dialog-button.primary:hover:not(:disabled) {
+  background: var(--primary-hover-bg);
+}
+
+.header-search button {
+  position: absolute;
+  right: 6px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.photo-note-edit {
+  position: absolute;
+  z-index: 5;
+  top: 8px;
+  right: 43px;
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 9px;
+  background: rgba(25, 22, 22, 0.34);
+  color: #e8c76a;
+  appearance: none;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.photo-card:hover .photo-note-edit,
+.photo-note-edit:focus-visible {
+  opacity: 1;
+}
+
+.photo-note-edit:hover {
+  background: rgba(25, 22, 22, 0.56);
+  color: #f4d989;
+}
+
 .header-star-hint,
 .header-menu-button,
 .header-icon-button {
@@ -2736,6 +2932,12 @@ h1 {
   .header-actions {
     flex: 1 1 auto;
     flex-wrap: wrap;
+  }
+
+  .header-search {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100%;
   }
 
   .album-name-button {

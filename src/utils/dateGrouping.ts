@@ -55,6 +55,7 @@ export interface PhotoItem extends ParsedPhotoDate {
   lastModified?: number
   fileHandle: FileSystemFileHandle
   directoryHandle: FileSystemDirectoryHandle
+  note?: string
 }
 
 export interface RecentlyDeletedPhoto extends PhotoItem {

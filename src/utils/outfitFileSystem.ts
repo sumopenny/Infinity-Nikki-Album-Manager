@@ -5,6 +5,7 @@ export const DEFAULT_OUTFIT_TAGS = ['甜美', '性感', '帅气', '典雅', '清
 export const MAX_OUTFIT_TAGS = 40
 export const MAX_OUTFIT_TAG_LENGTH = 5
 export const MAX_OUTFIT_CODE_LENGTH = 30
+export const MAX_OUTFIT_NOTE_LENGTH = 15
 
 const CLOTHE_DIRECTORY_NAME = 'clothe'
 const TAGS_FILE_NAME = 'tags.json'
@@ -25,6 +26,7 @@ export interface OutfitItem extends PhotoItem {
   tags: string[]
   createdAt: string
   metadataName: string
+  note?: string
 }
 
 export interface OutfitLibraryResult {
@@ -50,6 +52,7 @@ export interface SaveOutfitInput {
   imageFile?: File
   code: string
   tag: string | null
+  note?: string
 }
 
 export interface OutfitImportResult {
@@ -66,6 +69,7 @@ interface OutfitMetadata {
   code: string
   tags: string[]
   createdAt: string
+  note?: string
 }
 
 interface BackupManifest {
@@ -308,6 +312,7 @@ async function parseOutfit(
     image: pairedImage,
     code: normalizeOutfitCode(parsed.code),
     tags: normalizeTags(parsed.tags, allowedTags),
+    note: typeof parsed.note === 'string' ? parsed.note.trim().slice(0, MAX_OUTFIT_NOTE_LENGTH) : '',
     createdAt,
     metadataName,
     url: null,
@@ -653,7 +658,8 @@ export async function saveOutfit(
       image: imageName,
       code: normalizeOutfitCode(input.code),
       tags: selectedTag ? [selectedTag] : [],
-      createdAt: input.outfit?.createdAt ?? new Date().toISOString()
+      createdAt: input.outfit?.createdAt ?? new Date().toISOString(),
+      note: typeof input.note === 'string' ? input.note.trim().slice(0, MAX_OUTFIT_NOTE_LENGTH) : ''
     }
     await writeJson(directory, metadataName, metadata)
     const parsed = await parseOutfit(directory, metadataName, new Set(tags))
@@ -1088,7 +1094,8 @@ export async function importOutfitBackup(
           name: imageName,
           image: imageName,
           code,
-          tags: metadata.tags,
+        tags: metadata.tags,
+          note: metadata.note ?? '',
           createdAt,
           metadataName,
           url: null,

@@ -43,6 +43,7 @@
 - Use the keyboard to navigate photos and delete the current preview photo.
 - Choose 1:1, Half 1:1, 16:9, 4:3, 9:16, or 3:4 thumbnail ratios.
 - Store outfit images, outfit codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export.
+- Add notes of up to 15 characters to photos and outfit plans, then search the current view by file name, note, or outfit code.
 - Use the Special Cleanup window to clean low-quality photos and game screenshots, crash snapshots, runtime logs, and the game's built-in browser cache.
 
 ## Quick Start
@@ -183,7 +184,6 @@ Stack: Vue 3, TypeScript, Vite, File System Access API, IndexedDB.
 
 ---
 
-If this project helps you, consider giving it a Star on [GitHub](https://github.com/sumopenny/Infinity-Nikki-Album-Manager) or [Gitee](https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager).
 
 ---
 

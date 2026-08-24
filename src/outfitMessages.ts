@@ -26,6 +26,8 @@ export interface OutfitMessages {
   replaceImage: string
   codeLabel: string
   codePlaceholder: string
+  noteLabel: string
+  notePlaceholder: string
   tagLabel: string
   noTag: string
   cancel: string
@@ -104,6 +106,8 @@ const outfitMessages: Record<Language, OutfitMessages> = {
     replaceImage: '更换图片',
     codeLabel: '搭配码',
     codePlaceholder: '可以留空，稍后填写',
+    noteLabel: '备注',
+    notePlaceholder: '最多15个字符',
     tagLabel: '标签（单选）',
     noTag: '不选择标签',
     cancel: '取消',
@@ -191,6 +195,8 @@ const outfitMessages: Record<Language, OutfitMessages> = {
     replaceImage: 'Replace image',
     codeLabel: 'Outfit code',
     codePlaceholder: 'Optional; you can add it later',
+    noteLabel: 'Note',
+    notePlaceholder: 'Up to 15 characters',
     tagLabel: 'Tag (single choice)',
     noTag: 'No tag',
     cancel: 'Cancel',

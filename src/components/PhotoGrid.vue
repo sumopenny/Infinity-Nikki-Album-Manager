@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount } from 'vue'
-import { Check, Heart } from 'lucide-vue-next'
+import { Check, Edit3, Heart } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
 import type { ThumbnailMode } from '../types/thumbnail'
 import type { DateGroup, PhotoItem } from '../utils/dateGrouping'
@@ -21,6 +21,7 @@ const emit = defineEmits<{
   toggleFavorite: [photoId: string]
   toggleDate: [dateKey: string]
   openPreview: [photo: PhotoItem]
+  editNote: [photo: PhotoItem]
 }>()
 
 const photoLoadQueue = createPhotoLoadQueue(3)
@@ -97,6 +98,7 @@ onBeforeUnmount(() => photoLoadQueue.cancel())
             >
               <Heart :size="17" :fill="favoriteIds.has(photo.id) ? 'currentColor' : 'none'" aria-hidden="true" />
             </button>
+            <button class="photo-note-edit" type="button" :title="messages.editNote" :aria-label="messages.editNote" @click.stop="emit('editNote', photo)"><Edit3 :size="16" /></button>
           </div>
         </article>
       </div>

@@ -57,6 +57,8 @@ export interface LocaleMessages {
   topBar: {
     title: string
     starHint: string
+    searchPlaceholder: string
+    clearSearch: string
     githubText: string
     giteeText: string
     languageButton: string
@@ -181,6 +183,15 @@ export interface LocaleMessages {
     addFavorite: string
     removeFavorite: string
     imageLoadFailed: string
+    editNote: string
+    notePrompt: string
+    noteSaved: string
+    noteLabel: string
+    noteTitle: string
+    notePlaceholder: string
+    noteSave: string
+    noteCancel: string
+    noteClose: string
     photoCount: (count: number) => string
   }
   lightbox: {
@@ -195,6 +206,8 @@ export interface LocaleMessages {
     zoomIn: string
     zoomOut: string
     resetZoom: string
+    editNote: string
+    noteLabel: string
   }
   trash: {
     emptyTitle: string
@@ -235,7 +248,7 @@ export interface LocaleMessages {
 export const DEFAULT_LANGUAGE: Language = 'zh'
 
 // 当前网站版本号；更新日志新增版本时同步修改，用于检测是否需要在打开网站时重新弹出“关于网站”窗口
-export const ABOUT_VERSION = '1.3.1'
+export const ABOUT_VERSION = '1.3.2'
 
 const thumbnailModeValues: ThumbnailMode[] = ['default', 'half', 'wide', 'standard', 'portrait-wide', 'portrait-standard']
 
@@ -367,7 +380,9 @@ export const messages: Record<Language, LocaleMessages> = {
     },
     topBar: {
       title: '无限暖暖相册管理',
-      starHint: '觉得网站不错的话，欢迎在 GitHub/Gitee 右上角点个小星星 Star⭐~',
+      starHint: '',
+      searchPlaceholder: '搜索当前视图',
+      clearSearch: '清除搜索',
       githubText: '访问GitHub仓库',
       giteeText: '访问Gitee仓库',
       languageButton: '切换为英文版',
@@ -419,10 +434,10 @@ export const messages: Record<Language, LocaleMessages> = {
         '搭配码管理：管理星绘图册搭配方案，支持手动添加、批量导入，并自动同步游戏内新搭配码。',
         '专项清理：清理低画质照片、游戏截图、崩溃快照、运行日志和游戏内置网页缓存。'
       ],
-      changelogTitle: '当前版本【2026.8.21更新】',
+      changelogTitle: '当前版本【2026.8.24更新】',
       // 更新日志只保留当前版本，发布新版本时替换该条内容，当前版本会自动带上“当前版本”标识
       changelog: [
-        { version: 'v1.3.1', text: '优化相册照片时间读取：文件名不是类似2026_05_30_15_25_08_3094229的图片，现在会按图片最后修改时间显示；新增“更新记录”入口，可查看历史版本记录。' }
+        { version: 'v1.3.2', text: '新增照片和搭配码备注功能，并增加顶部搜索框；照片搜索文件名/备注，搭配码搜索搭配码/备注。' }
       ],
       historyLink: '更新记录',
       historyTitle: '历史版本记录',
@@ -430,6 +445,7 @@ export const messages: Record<Language, LocaleMessages> = {
       historyBackAria: '返回关于网站',
       // 历史记录页从上一正式版本开始展示，当前版本只保留在关于页顶部。
       history: [
+        { version: 'v1.3.1', text: '优化相册照片时间读取：文件名不是类似2026_05_30_15_25_08_3094229的图片，现在会按图片最后修改时间显示；新增“更新记录”入口，可查看历史版本记录。' },
         { version: 'v1.3.0补充版', text: '新增专项清理窗口：支持清理低画质图片与截图、崩溃快照、运行日志和网页缓存，仅需授权 X6Game 文件夹即可使用。补充新增“问题反馈”入口：位于“更多”菜单，可在弹窗内直接填写反馈问卷。' },
         { version: 'v1.3.0', text: '新增专项清理窗口：支持清理低画质图片与截图、崩溃快照、运行日志和网页缓存，仅需授权 X6Game 文件夹即可使用。' },
         { version: 'v1.2.3', text: '搭配码新增标签现在会显示在列表首位，并支持拖拽调整顺序，排序结果会同步到搭配码编辑器。优化了动画效果和部分操作逻辑，更多一键清理功能考虑开发中，同时偷吃了一块大喵的五花肉🥩~' },
@@ -536,6 +552,15 @@ export const messages: Record<Language, LocaleMessages> = {
       addFavorite: '加入收藏夹',
       removeFavorite: '取消收藏',
       imageLoadFailed: '图片读取失败',
+      editNote: '编辑备注',
+      notePrompt: '请输入照片备注（最多15个字符）',
+      noteSaved: '照片备注已保存。',
+      noteLabel: '备注',
+      noteTitle: '编辑照片备注',
+      notePlaceholder: '请输入备注',
+      noteSave: '保存备注',
+      noteCancel: '取消',
+      noteClose: '关闭备注编辑',
       photoCount: (count) => `${count} 张照片`
     },
     lightbox: {
@@ -550,6 +575,8 @@ export const messages: Record<Language, LocaleMessages> = {
       ,zoomIn: '放大图片'
       ,zoomOut: '缩小图片'
       ,resetZoom: '恢复 100% 缩放'
+      ,editNote: '编辑备注'
+      ,noteLabel: '备注'
     },
     trash: {
       emptyTitle: '最近删除为空',
@@ -659,7 +686,9 @@ export const messages: Record<Language, LocaleMessages> = {
     },
     topBar: {
       title: 'Infinity Nikki Album Manager',
-      starHint: 'Like this website? Please give it a Star⭐ on GitHub/Gitee ~',
+      starHint: '',
+      searchPlaceholder: 'Search current view',
+      clearSearch: 'Clear search',
       githubText: 'GitHub',
       giteeText: 'Gitee',
       languageButton: 'Switch to Chinese',
@@ -711,9 +740,9 @@ export const messages: Record<Language, LocaleMessages> = {
         'Outfit codes: manage Starry Gallery outfit plans with manual add, batch import, and auto sync of new in-game outfit codes.',
         'Targeted cleanup: clean low-quality photos, screenshots, crash snapshots, runtime logs, and web cache to free up disk space.'
       ],
-      changelogTitle: 'Current version【2026.8.21 update】',
+      changelogTitle: 'Current version【2026.8.24 update】',
       changelog: [
-        { version: 'v1.3.1', text: "Optimized album photo time reading: images whose filenames do not match the required date format now display using the image's last modified time; added a Release history entry for viewing past version notes." }
+        { version: 'v1.3.2', text: "Added remark functionality for photos and outfit codes, and added a top search bar; photos are searched by filename/remark, and outfit codes are searched by outfit code/remark." }
       ],
       historyLink: 'Release history',
       historyTitle: 'Release history',
@@ -721,6 +750,7 @@ export const messages: Record<Language, LocaleMessages> = {
       historyBackAria: 'Back to About',
       // The history page starts from the previous formal release; the current release stays on the About page.
       history: [
+        { version: 'v1.3.1', text: "Optimized album photo time reading: images whose filenames do not match the required date format now display using the image's last modified time; added a Release history entry for viewing past version notes." },
         { version: 'v1.3.0 Supplement', text: 'Added a targeted cleanup window: clean low-quality photos and screenshots, crash snapshots, runtime logs, and web cache with only X6Game folder authorization. Also added a Feedback entry in the More menu to fill out the survey in a dialog.' },
         { version: 'v1.3.0', text: 'Added a targeted cleanup window: clean low-quality photos and screenshots, crash snapshots, runtime logs, and web cache with only X6Game folder authorization.' },
         { version: 'v1.2.3', text: 'New outfit tags now appear first and can be reordered by dragging, with the order synchronized to the outfit editor. Animations and some interactions were polished, more one-click cleanup features were under consideration.' },
@@ -826,6 +856,15 @@ export const messages: Record<Language, LocaleMessages> = {
       addFavorite: 'Add to Favorites',
       removeFavorite: 'Remove from Favorites',
       imageLoadFailed: 'Failed to load image',
+      editNote: 'Edit note',
+      notePrompt: 'Enter a photo note (up to 15 characters)',
+      noteSaved: 'Photo note saved.',
+      noteLabel: 'Note',
+      noteTitle: 'Edit photo note',
+      notePlaceholder: 'Enter a note',
+      noteSave: 'Save note',
+      noteCancel: 'Cancel',
+      noteClose: 'Close note editor',
       photoCount: (count) => `${count} photos`
     },
     lightbox: {
@@ -840,6 +879,8 @@ export const messages: Record<Language, LocaleMessages> = {
       ,zoomIn: 'Zoom in'
       ,zoomOut: 'Zoom out'
       ,resetZoom: 'Reset zoom to 100%'
+      ,editNote: 'Edit note'
+      ,noteLabel: 'Note'
     },
     trash: {
       emptyTitle: 'Recently deleted is empty',

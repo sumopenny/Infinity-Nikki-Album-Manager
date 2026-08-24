@@ -41,6 +41,7 @@
 - 支持键盘翻页和删除当前预览照片。
 - 提供 1:1、半尺寸 1:1、16:9、4:3、9:16、3:4 缩略图比例。
 - 在本地保存搭配图片、搭配码和标签，支持待填写方案、自动接收图片以及 ZIP 导入导出。
+- 支持为照片和搭配方案添加最多 15 个字符的备注，并在顶部搜索当前视图中的文件名、备注和搭配码。
 - 通过“专项清理”窗口清理低画质照片与游戏截图、崩溃快照、运行日志和游戏内置浏览器缓存。
 
 ## 快速开始
@@ -172,7 +173,6 @@ npm run preview   # 预览构建结果
 
 ---
 
-如果这个项目对你有帮助，欢迎在 [GitHub](https://github.com/sumopenny/Infinity-Nikki-Album-Manager) 或者 [Gitee](https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager) 里点一个 Star。
 
 ---
 

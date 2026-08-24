@@ -12,6 +12,8 @@ const LOW_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_LowQuality'
 const SCREENSHOT_DIRECTORY_NAME = 'ScreenShot'
 const TRASH_DIRECTORY_NAME = 'trash'
 const TRASH_FILE_PREFIX = 'inam-v1__'
+const ALBUM_METADATA_FILE_NAME = 'album-metadata.json'
+export const PHOTO_NOTE_LIMIT = 15
 const SCAN_CONCURRENCY = 6
 const pendingPhotoLoads = new WeakMap<PhotoItem, Promise<string>>()
 const releasedPhotos = new WeakSet<PhotoItem>()
@@ -20,6 +22,60 @@ export interface AlbumDirectoryResult {
   directoryName: string
   directoryHandle: FileSystemDirectoryHandle
   photos: PhotoItem[]
+}
+
+export interface AlbumMetadata {
+  version: 1
+  photos: Record<string, { note: string }>
+}
+
+export function normalizePhotoNote(value: unknown): string {
+  return typeof value === 'string' ? value.trim().slice(0, PHOTO_NOTE_LIMIT) : ''
+}
+
+export async function readAlbumMetadata(directory: FileSystemDirectoryHandle): Promise<AlbumMetadata> {
+  try {
+    const file = await (await directory.getFileHandle(ALBUM_METADATA_FILE_NAME)).getFile()
+    const parsed = JSON.parse(await file.text()) as Partial<AlbumMetadata>
+    const photos: Record<string, { note: string }> = {}
+    if (parsed.photos && typeof parsed.photos === 'object') {
+      for (const [name, value] of Object.entries(parsed.photos)) {
+        const note = normalizePhotoNote((value as { note?: unknown })?.note)
+        if (note) photos[name] = { note }
+      }
+    }
+    return { version: 1, photos }
+  } catch (error) {
+    if (error instanceof DOMException && error.name !== 'NotFoundError') throw error
+    return { version: 1, photos: {} }
+  }
+}
+
+async function writeAlbumMetadata(directory: FileSystemDirectoryHandle, metadata: AlbumMetadata): Promise<void> {
+  const handle = await directory.getFileHandle(ALBUM_METADATA_FILE_NAME, { create: true })
+  const writable = await handle.createWritable()
+  try {
+    await writable.write(`${JSON.stringify(metadata, null, 2)}\n`)
+    await writable.close()
+    // 写入后立即回读，避免浏览器权限或目录句柄异常时页面误报保存成功。
+    const savedFile = await (await directory.getFileHandle(ALBUM_METADATA_FILE_NAME)).getFile()
+    const saved = JSON.parse(await savedFile.text()) as Partial<AlbumMetadata>
+    if (!saved || saved.version !== 1 || !saved.photos || typeof saved.photos !== 'object') {
+      throw new Error('Saved album metadata failed validation')
+    }
+  } catch (error) {
+    await writable.abort(error).catch(() => undefined)
+    throw error
+  }
+}
+
+export async function savePhotoNote(directory: FileSystemDirectoryHandle, photoName: string, note: string): Promise<string> {
+  const metadata = await readAlbumMetadata(directory)
+  const normalized = normalizePhotoNote(note)
+  if (normalized) metadata.photos[photoName] = { note: normalized }
+  else delete metadata.photos[photoName]
+  await writeAlbumMetadata(directory, metadata)
+  return normalized
 }
 
 export interface X6GameDirectoryOptions {
@@ -244,7 +300,8 @@ export async function readAlbumDirectory(
   }
 
   try {
-    const photos = await scanAlbumPhotos(directoryHandle)
+    const metadata = await readAlbumMetadata(directoryHandle)
+    const photos = await scanAlbumPhotos(directoryHandle, metadata)
     return {
       directoryName: directoryHandle.name,
       directoryHandle,
@@ -303,6 +360,7 @@ export async function listRecentlyDeleted(
       fileHandle,
       directoryHandle: trashDirectoryHandle,
       lastModified,
+      note: '',
       ...parsed
     })
   }
@@ -324,7 +382,8 @@ export async function refreshAlbumDirectory(
   if (!hasPermission) throw new Error(options.messages.permissionRequired)
 
   try {
-    const scannedPhotos = await scanAlbumPhotos(directoryHandle)
+    const metadata = await readAlbumMetadata(directoryHandle)
+    const scannedPhotos = await scanAlbumPhotos(directoryHandle, metadata)
     const currentByName = new Map(currentPhotos.map((photo) => [photo.name, photo]))
     const scannedNames = new Set(scannedPhotos.map((photo) => photo.name))
     let addedCount = 0
@@ -570,7 +629,8 @@ async function rollbackFile(directoryHandle: FileSystemDirectoryHandle, fileName
 async function createPhotoItem(
   name: string,
   fileHandle: FileSystemFileHandle,
-  directoryHandle: FileSystemDirectoryHandle
+  directoryHandle: FileSystemDirectoryHandle,
+  metadata: AlbumMetadata = { version: 1, photos: {} }
 ): Promise<PhotoItem | null> {
   let fileSize: number | undefined
   let lastModified: number | undefined
@@ -594,6 +654,7 @@ async function createPhotoItem(
     lastModified,
     fileHandle,
     directoryHandle,
+    note: metadata.photos[name]?.note ?? '',
     ...parsed
   }
 }
@@ -603,7 +664,7 @@ async function createPhotoItem(
  * 参数：directoryHandle 为当前相册目录。
  * 返回：按拍摄时间倒序排列的照片列表。
  */
-async function scanAlbumPhotos(directoryHandle: FileSystemDirectoryHandle): Promise<PhotoItem[]> {
+async function scanAlbumPhotos(directoryHandle: FileSystemDirectoryHandle, metadata: AlbumMetadata = { version: 1, photos: {} }): Promise<PhotoItem[]> {
   const imageHandles: Array<{ name: string; handle: FileSystemFileHandle }> = []
   for await (const [name, handle] of directoryHandle.entries()) {
     if (handle.kind !== 'file' || !isImageFile(name)) continue
@@ -612,7 +673,7 @@ async function scanAlbumPhotos(directoryHandle: FileSystemDirectoryHandle): Prom
 
   const scannedPhotos = await mapWithConcurrency(
     imageHandles,
-    ({ name, handle }) => createPhotoItem(name, handle, directoryHandle)
+    ({ name, handle }) => createPhotoItem(name, handle, directoryHandle, metadata)
   )
   const photos = scannedPhotos.filter((photo): photo is PhotoItem => Boolean(photo))
   return photos.sort((a, b) => b.timestamp - a.timestamp)

@@ -9,6 +9,7 @@ import ConfirmDialog, { type ConfirmDialogTone } from './components/ConfirmDialo
 import DateSidebar from './components/DateSidebar.vue'
 import Lightbox from './components/Lightbox.vue'
 import OperationNotice, { type OperationNoticeTone } from './components/OperationNotice.vue'
+import NoteDialog from './components/NoteDialog.vue'
 import OutfitEditor from './components/OutfitEditor.vue'
 import OutfitGrid from './components/OutfitGrid.vue'
 import OutfitGuideDialog from './components/OutfitGuideDialog.vue'
@@ -38,6 +39,7 @@ import {
   pickStandaloneX6GameDirectory,
   prepareSpecialCleanup,
   readAlbumDirectory,
+  savePhotoNote,
   refreshAlbumDirectory,
   releasePhotoUrl,
   releasePhotoUrls,
@@ -194,6 +196,9 @@ const selectedIds = ref<Set<string>>(new Set())
 const selectedOutfitIds = ref<Set<string>>(new Set())
 const trashSelectedIds = ref<Set<string>>(new Set())
 const favoriteIds = ref<Set<string>>(readStoredFavoriteIds())
+const searchQuery = ref('')
+const noteDialogPhoto = ref<PhotoItem | null>(null)
+const isNoteDialogVisible = ref(false)
 const activeView = ref<AlbumView>('all')
 const currentPreview = ref<PhotoItem | null>(null)
 const sharedOutfitSource = ref<SharedOutfitSource | null>(null)
@@ -241,16 +246,22 @@ let suppressNextFocusRefresh = false
 // 派生视图状态
 const locale = computed(() => messages[language.value])
 const outfitLocale = computed(() => getOutfitMessages(language.value))
+const normalizedSearch = computed(() => searchQuery.value.trim().toLocaleLowerCase())
+const matchesSearch = (value: string) => !normalizedSearch.value || value.toLocaleLowerCase().includes(normalizedSearch.value)
 const favoritePhotos = computed(() => photos.value.filter((photo) => favoriteIds.value.has(photo.id)))
-const visiblePhotos = computed(() => (activeView.value === 'favorites' ? favoritePhotos.value : photos.value))
+const visiblePhotos = computed(() => {
+  const source = activeView.value === 'favorites' ? favoritePhotos.value : photos.value
+  return source.filter((photo) => matchesSearch(`${photo.name} ${photo.note}`))
+})
 const visibleOutfits = computed(() => {
-  if (activeOutfitFilter.value === 'pending') return outfits.value.filter((outfit) => !outfit.code.trim())
-  if (activeOutfitFilter.value === 'uncategorized') return outfits.value.filter((outfit) => !outfit.tags.length)
+  let result = outfits.value
+  if (activeOutfitFilter.value === 'pending') result = result.filter((outfit) => !outfit.code.trim())
+  else if (activeOutfitFilter.value === 'uncategorized') result = result.filter((outfit) => !outfit.tags.length)
   if (activeOutfitFilter.value.startsWith('tag:')) {
     const tag = activeOutfitFilter.value.slice(4)
-    return outfits.value.filter((outfit) => outfit.tags[0] === tag)
+    result = result.filter((outfit) => outfit.tags[0] === tag)
   }
-  return outfits.value
+  return result.filter((outfit) => matchesSearch(`${outfit.name} ${outfit.note} ${outfit.code}`))
 })
 const previewPhotos = computed<PhotoItem[]>(() => {
   if (activeView.value === 'trash') return recentlyDeleted.value
@@ -961,6 +972,33 @@ function changeOutfitFilter(filter: OutfitFilter) {
 function openOutfitEditor(outfit: OutfitItem | null = null) {
   editingOutfit.value = outfit
   isOutfitEditorVisible.value = true
+}
+
+async function editPhotoNote(photo: PhotoItem | null) {
+  const directory = albumDirectoryHandle.value
+  if (!directory || !photo || isAnyFileOperationBusy.value) return
+  noteDialogPhoto.value = photo
+  isNoteDialogVisible.value = true
+}
+
+function closeNoteDialog() {
+  if (isAnyFileOperationBusy.value) return
+  isNoteDialogVisible.value = false
+  noteDialogPhoto.value = null
+}
+
+async function saveNoteDialog(value: string) {
+  const directory = albumDirectoryHandle.value
+  const photo = noteDialogPhoto.value
+  if (!directory || !photo || isAnyFileOperationBusy.value) return
+  try {
+    photo.note = await savePhotoNote(directory, photo.name, value)
+    isNoteDialogVisible.value = false
+    noteDialogPhoto.value = null
+    showOutfitStatus(locale.value.grid.noteSaved)
+  } catch (error) {
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+  }
 }
 
 /** 关闭搭配码编辑窗口。参数：scan 表示关闭后是否自动重扫搭配码库；自动重扫属于后台行为，无变化时保持静默。 */
@@ -1761,6 +1799,7 @@ onBeforeUnmount(() => {
       :theme-mode="themeMode"
       :language="language"
       :messages="locale.topBar"
+      :search-query="searchQuery"
       @choose-directory="chooseDirectory"
       @clear-directory="clearDirectory"
       @refresh-album="refreshAlbum(true)"
@@ -1772,6 +1811,7 @@ onBeforeUnmount(() => {
       @toggle-language="toggleLanguage"
       @toggle-theme="toggleTheme"
       @open-about="openAboutDialog"
+      @update-search="searchQuery = $event"
     />
 
     <main class="album-layout" :class="{ 'without-album': !albumDirectoryHandle }">
@@ -1887,6 +1927,7 @@ onBeforeUnmount(() => {
           @toggle-favorite="toggleFavorite"
           @toggle-date="toggleDate"
           @open-preview="openPreview"
+          @edit-note="editPhotoNote"
         />
       </section>
     </main>
@@ -1928,6 +1969,7 @@ onBeforeUnmount(() => {
       @permanently-delete-current="permanentlyDeleteCurrentTrashPreview"
       @copy-outfit="currentPreviewOutfit && copyOutfitCode(currentPreviewOutfit)"
       @edit-outfit="currentPreviewOutfit && openOutfitEditor(currentPreviewOutfit)"
+      @edit-photo-note="editPhotoNote(currentPreview)"
     />
 
     <OutfitEditor
@@ -1940,6 +1982,21 @@ onBeforeUnmount(() => {
       @close="closeOutfitEditor()"
       @save="handleSaveOutfit"
       @add-tag="addOutfitTag($event, true)"
+    />
+
+    <NoteDialog
+      :visible="isNoteDialogVisible"
+      :title="locale.grid.noteTitle"
+      :label="locale.grid.noteLabel"
+      :placeholder="locale.grid.notePlaceholder"
+      :initial-value="noteDialogPhoto?.note ?? ''"
+      :save-label="locale.grid.noteSave"
+      :cancel-label="locale.grid.noteCancel"
+      :close-label="locale.grid.noteClose"
+      :max-length="15"
+      :busy="isAnyFileOperationBusy"
+      @save="saveNoteDialog"
+      @cancel="closeNoteDialog"
     />
 
     <OutfitGuideDialog

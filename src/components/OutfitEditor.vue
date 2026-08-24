@@ -4,6 +4,7 @@ import { ImagePlus, Plus, Upload, X } from 'lucide-vue-next'
 import type { OutfitMessages } from '../outfitMessages'
 import {
   MAX_OUTFIT_CODE_LENGTH,
+  MAX_OUTFIT_NOTE_LENGTH,
   MAX_OUTFIT_TAG_LENGTH,
   MAX_OUTFIT_TAGS,
   normalizeOutfitCode,
@@ -20,7 +21,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  save: [input: { imageFile?: File; code: string; tag: string | null }]
+  save: [input: { imageFile?: File; code: string; tag: string | null; note: string }]
   addTag: [tag: string]
 }>()
 
@@ -30,6 +31,7 @@ const panelRef = ref<HTMLElement | null>(null)
 const imageFile = ref<File | undefined>()
 const previewUrl = ref<string | null>(null)
 const code = ref('')
+const note = ref('')
 const selectedTag = ref<string | null>(null)
 const errorMessage = ref('')
 const isDragging = ref(false)
@@ -59,6 +61,7 @@ async function resetForm() {
   const outfit = props.outfit
   imageFile.value = undefined
   code.value = outfit?.code ?? ''
+  note.value = outfit?.note ?? ''
   selectedTag.value = outfit?.tags[0] ?? null
   errorMessage.value = ''
   isDragging.value = false
@@ -177,7 +180,7 @@ function submit() {
     errorMessage.value = props.messages.imageRequired
     return
   }
-  emit('save', { imageFile: imageFile.value, code: code.value, tag: selectedTag.value })
+  emit('save', { imageFile: imageFile.value, code: code.value, tag: selectedTag.value, note: note.value })
 }
 
 // 打开编辑器时锁定背景滚动，关闭后恢复进入前状态，兼容从大图预览叠加打开。
@@ -266,6 +269,9 @@ onBeforeUnmount(() => {
                 autocomplete="off"
                 @input="updateCode"
               />
+
+              <label for="outfit-note">{{ messages.noteLabel }}</label>
+              <input id="outfit-note" v-model="note" :maxlength="MAX_OUTFIT_NOTE_LENGTH" :placeholder="messages.notePlaceholder" :disabled="busy" autocomplete="off" />
 
               <fieldset>
                 <legend>{{ messages.tagLabel }}</legend>

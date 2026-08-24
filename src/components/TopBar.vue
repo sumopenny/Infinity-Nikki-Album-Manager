@@ -40,6 +40,7 @@ const props = defineProps<{
   themeMode: ThemeMode
   language: Language
   messages: LocaleMessages['topBar']
+  searchQuery?: string
 }>()
 
 const emit = defineEmits<{
@@ -54,6 +55,7 @@ const emit = defineEmits<{
   toggleTheme: []
   changeThumbnailMode: [mode: ThumbnailMode]
   openAbout: []
+  updateSearch: [value: string]
 }>()
 
 // 问题反馈问卷地址：发布问卷星/腾讯问卷后，把链接替换到这里即可
@@ -163,6 +165,10 @@ onBeforeUnmount(() => {
 
     <div class="header-actions">
       <span class="header-star-hint" :title="messages.starHint">{{ messages.starHint }}</span>
+      <div class="header-search">
+        <input :value="searchQuery ?? ''" type="search" :placeholder="messages.searchPlaceholder" :aria-label="messages.searchPlaceholder" @input="emit('updateSearch', ($event.target as HTMLInputElement).value)" />
+        <button v-if="searchQuery" type="button" :title="messages.clearSearch" :aria-label="messages.clearSearch" @click="emit('updateSearch', '')"><X :size="15" /></button>
+      </div>
 
       <button
         class="header-icon-button"
