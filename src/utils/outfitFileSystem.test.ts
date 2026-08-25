@@ -418,7 +418,30 @@ describe('outfit filesystem', () => {
     expect(result.outfits[0]).toMatchObject({ code: '1xEX10emRxS#', createdAt: new Date(200).toISOString() })
     const clothe = album.directories.get('clothe')!
     expect(clothe.files.has(`${result.outfits[0].id}.webp`)).toBe(true)
-    expect(JSON.parse(await clothe.files.get(result.outfits[0].metadataName)!.getFile().then((file) => file.text())).code).toBe('1xEX10emRxS#')
+    expect(JSON.parse(await clothe.files.get(result.outfits[0].metadataName)!.getFile().then((file) => file.text()))).toMatchObject({
+      code: '1xEX10emRxS#',
+      diyImageModifiedAt: 250
+    })
+
+    shareCode.files.set('103203027diy_history_sharecode.json', new MemoryFileHandle(
+      '103203027diy_history_sharecode.json',
+      new Blob([JSON.stringify([{ RoleID: '103203027', ShareCode: 'NEXTCODE#' }])], { type: 'application/json' }),
+      300
+    ))
+    const unchangedImage = await readOutfitLibrary(asDirectory(album), {
+      importExternal: false,
+      sharedSource: { x6GameDirectory: asDirectory(x6Game) }
+    })
+    expect(unchangedImage.importedSharedCount).toBe(0)
+    expect(unchangedImage.sharedFailureStage).toBe('image-not-updated')
+
+    playerDiy.files.set('latest.png', new MemoryFileHandle('latest.png', new Blob(['updated-image'], { type: 'image/png' }), 350))
+    const updatedImage = await readOutfitLibrary(asDirectory(album), {
+      importExternal: false,
+      sharedSource: { x6GameDirectory: asDirectory(x6Game) }
+    })
+    expect(updatedImage.importedSharedCount).toBe(1)
+    expect(updatedImage.outfits.some((outfit) => outfit.code === 'NEXTCODE#' && outfit.diyImageModifiedAt === 350)).toBe(true)
   })
 
   it('skips an in-game sharecode that already exists locally', async () => {
@@ -451,6 +474,7 @@ describe('outfit filesystem', () => {
 
     expect(result.importedSharedCount).toBe(0)
     expect(result.outfits).toHaveLength(1)
+    expect(result.sharedFailureStage).toBe('duplicate')
   })
 
   it('ignores a deleted latest in-game sharecode until the game writes a new one', async () => {

@@ -881,6 +881,13 @@ async function refreshOutfitLibrary(importExternal: boolean, promptSharedAccess 
 /** 显示搭配码更新结果。参数：result 为扫描结果；无新增和失败时提示已是最新状态。 */
 function showOutfitRefreshResult(result: OutfitLibraryResult) {
   const addedCount = result.importedExternalCount + result.importedSharedCount
+  if (result.sharedFailureStage) {
+    showOutfitStatus(
+      outfitLocale.value.sharedImportResult[result.sharedFailureStage],
+      result.sharedFailureStage === 'duplicate' ? 'success' : 'warning'
+    )
+    return
+  }
   showOutfitStatus(
     addedCount || result.failedCount
       ? outfitLocale.value.scanComplete(addedCount, result.failedCount)

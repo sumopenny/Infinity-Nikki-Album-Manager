@@ -19,6 +19,7 @@ export interface OutfitMessages {
   updating: string
   upToDate: string
   scanComplete: (added: number, failed: number) => string
+  sharedImportResult: Record<'duplicate' | 'missing-image' | 'image-not-updated' | 'image-write-failed', string>
   addOutfit: string
   editTitle: string
   imageLabel: string
@@ -99,6 +100,12 @@ const outfitMessages: Record<Language, OutfitMessages> = {
     updating: '搭配码更新中…',
     upToDate: '搭配码已是最新状态。',
     scanComplete: (added, failed) => `搭配码更新完成：新增 ${added} 个，失败 ${failed} 个。`,
+    sharedImportResult: {
+      duplicate: '最新搭配码已存在，已跳过。',
+      'missing-image': '检测到新搭配码，但找不到游戏搭配图片。',
+      'image-not-updated': '检测到新搭配码，但游戏搭配图片没有更新，已停止导入。',
+      'image-write-failed': '游戏搭配图片转换或写入失败。'
+    },
     addOutfit: '添加方案',
     editTitle: '编辑方案',
     imageLabel: '搭配图片',
@@ -188,6 +195,12 @@ const outfitMessages: Record<Language, OutfitMessages> = {
     updating: 'Updating outfit codes…',
     upToDate: 'Outfit codes are up to date.',
     scanComplete: (added, failed) => `Outfit code update complete: ${added} added, ${failed} failed.`,
+    sharedImportResult: {
+      duplicate: 'The latest outfit code already exists and was skipped.',
+      'missing-image': 'A new outfit code was found, but the game outfit image is missing.',
+      'image-not-updated': 'A new outfit code was found, but the game outfit image has not been updated.',
+      'image-write-failed': 'The game outfit image could not be converted or written.'
+    },
     addOutfit: 'Add outfit',
     editTitle: 'Edit Outfit',
     imageLabel: 'Outfit image',

@@ -27,6 +27,8 @@ export interface OutfitItem extends PhotoItem {
   createdAt: string
   metadataName: string
   note?: string
+  /** 自动导入时记录游戏搭配图片的最后修改时间。 */
+  diyImageModifiedAt?: number
 }
 
 export interface OutfitLibraryResult {
@@ -35,6 +37,7 @@ export interface OutfitLibraryResult {
   importedExternalCount: number
   importedSharedCount: number
   failedCount: number
+  sharedFailureStage?: SharedOutfitImportResult['failureStage']
 }
 
 export interface SharedOutfitSource {
@@ -45,6 +48,7 @@ export interface SharedOutfitImportResult {
   importedCount: number
   duplicateCount: number
   failedCount: number
+  failureStage?: 'duplicate' | 'missing-image' | 'image-not-updated' | 'image-write-failed'
 }
 
 export interface SaveOutfitInput {
@@ -70,6 +74,7 @@ interface OutfitMetadata {
   tags: string[]
   createdAt: string
   note?: string
+  diyImageModifiedAt?: number
 }
 
 interface BackupManifest {
@@ -320,6 +325,7 @@ async function parseOutfit(
     fileHandle: imageHandle,
     directoryHandle: directory
   }
+  if (Number.isFinite(parsed.diyImageModifiedAt)) outfit.diyImageModifiedAt = parsed.diyImageModifiedAt
   return { outfit, pairedImage }
 }
 
@@ -495,6 +501,7 @@ async function importLatestSharedOutfit(
   source: SharedOutfitSource,
   onImportStart?: () => void
 ): Promise<SharedOutfitImportResult> {
+  let failureStage: SharedOutfitImportResult['failureStage']
   try {
     const shareCodeDirectory = await findOptionalNestedDirectory(source.x6GameDirectory, ['Saved', 'ShareCode'])
     if (!shareCodeDirectory) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
@@ -504,12 +511,20 @@ async function importLatestSharedOutfit(
     if (ignoredShareCodes.has(latestShareCode.code)) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
     if (ignoredShareCodes.size) await writeIgnoredShareCodes(directory, new Set())
     if (existingOutfits.some((outfit) => outfit.code === latestShareCode.code)) {
-      return { importedCount: 0, duplicateCount: 1, failedCount: 0 }
+      return { importedCount: 0, duplicateCount: 1, failedCount: 0, failureStage: 'duplicate' }
     }
 
     const diyDirectory = await findOptionalNestedDirectory(source.x6GameDirectory, ['Saved', 'DIY', latestShareCode.playerId])
     const latestImage = diyDirectory ? await findLatestDiyImage(diyDirectory) : null
-    if (!latestImage) return { importedCount: 0, duplicateCount: 0, failedCount: 1 }
+    if (!latestImage) {
+      failureStage = 'missing-image'
+      return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage }
+    }
+    const previousImageModifiedAt = existingOutfits.reduce((latest, outfit) => Math.max(latest, outfit.diyImageModifiedAt ?? 0), 0)
+    if (previousImageModifiedAt && latestImage.file.lastModified <= previousImageModifiedAt) {
+      failureStage = 'image-not-updated'
+      return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage }
+    }
 
     // 确认要导入新方案时通知调用方，让后台静默扫描补显示“更新中”状态
     onImportStart?.()
@@ -517,16 +532,22 @@ async function importLatestSharedOutfit(
     const imageName = `${id}.webp`
     const metadataName = `${id}.json`
     try {
-      const webp = await convertImageToWebp(latestImage.file)
-      await writeBlob(await directory.getFileHandle(imageName, { create: true }), webp)
-      await validateWrittenImage(directory, imageName)
-      await writeJson(directory, metadataName, {
-        id,
-        image: imageName,
-        code: latestShareCode.code,
-        tags: [],
-        createdAt: new Date(latestShareCode.timestamp).toISOString()
-      } satisfies OutfitMetadata)
+      try {
+        const webp = await convertImageToWebp(latestImage.file)
+        await writeBlob(await directory.getFileHandle(imageName, { create: true }), webp)
+        await validateWrittenImage(directory, imageName)
+        await writeJson(directory, metadataName, {
+          id,
+          image: imageName,
+          code: latestShareCode.code,
+          tags: [],
+          createdAt: new Date(latestShareCode.timestamp).toISOString(),
+          diyImageModifiedAt: latestImage.file.lastModified
+        } satisfies OutfitMetadata)
+      } catch (error) {
+        failureStage = 'image-write-failed'
+        throw error
+      }
       return { importedCount: 1, duplicateCount: 0, failedCount: 0 }
     } catch (error) {
       await directory.removeEntry(imageName).catch(() => undefined)
@@ -535,7 +556,7 @@ async function importLatestSharedOutfit(
     }
   } catch {
     // 自动读取失败统一折算为一项失败，保留现有调用方的计数式反馈。
-    return { importedCount: 0, duplicateCount: 0, failedCount: 1 }
+    return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage: failureStage ?? 'image-write-failed' }
   }
 }
 
@@ -619,6 +640,14 @@ export async function readOutfitLibrary(
     importedSharedCount = shared.importedCount
     sharedFailures = shared.failedCount
     if (shared.importedCount) scan = await scanOutfits(directory, tags)
+    return {
+      outfits: scan.outfits,
+      tags,
+      importedExternalCount,
+      importedSharedCount,
+      failedCount: scan.failedCount + externalFailures + sharedFailures,
+      sharedFailureStage: shared.failureStage
+    }
   }
   return {
     outfits: scan.outfits,
@@ -659,7 +688,8 @@ export async function saveOutfit(
       code: normalizeOutfitCode(input.code),
       tags: selectedTag ? [selectedTag] : [],
       createdAt: input.outfit?.createdAt ?? new Date().toISOString(),
-      note: typeof input.note === 'string' ? input.note.trim().slice(0, MAX_OUTFIT_NOTE_LENGTH) : ''
+      note: typeof input.note === 'string' ? input.note.trim().slice(0, MAX_OUTFIT_NOTE_LENGTH) : '',
+      ...(input.outfit?.diyImageModifiedAt !== undefined ? { diyImageModifiedAt: input.outfit.diyImageModifiedAt } : {})
     }
     await writeJson(directory, metadataName, metadata)
     const parsed = await parseOutfit(directory, metadataName, new Set(tags))
@@ -700,7 +730,8 @@ export async function deleteOutfitTag(
         image: outfit.image,
         code: outfit.code,
         tags: [],
-        createdAt: outfit.createdAt
+        createdAt: outfit.createdAt,
+        ...(outfit.diyImageModifiedAt !== undefined ? { diyImageModifiedAt: outfit.diyImageModifiedAt } : {})
       } satisfies OutfitMetadata)
       updated += 1
     }
@@ -750,12 +781,13 @@ export async function exportOutfitBackup(
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
     tags: library.tags,
-    outfits: library.outfits.map(({ id, image, code, tags, createdAt }) => ({
+    outfits: library.outfits.map(({ id, image, code, tags, createdAt, diyImageModifiedAt }) => ({
       id,
       image: `images/${image}`,
       code,
       tags,
-      createdAt
+      createdAt,
+      ...(diyImageModifiedAt !== undefined ? { diyImageModifiedAt } : {})
     }))
   }
   const fileName = await availableBackupName(targetDirectory)
@@ -1081,7 +1113,8 @@ export async function importOutfitBackup(
         image: imageName,
         code,
         tags: tag ? [tag] : [],
-        createdAt
+        createdAt,
+        ...(typeof raw.diyImageModifiedAt === 'number' ? { diyImageModifiedAt: raw.diyImageModifiedAt } : {})
       }
       try {
         const imageHandle = await directory.getFileHandle(imageName, { create: true })
