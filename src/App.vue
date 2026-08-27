@@ -1807,6 +1807,7 @@ onBeforeUnmount(() => {
       :theme-mode="themeMode"
       :language="language"
       :messages="locale.topBar"
+      :fortune-messages="locale.fortuneTime"
       :search-query="searchQuery"
       @choose-directory="chooseDirectory"
       @clear-directory="clearDirectory"

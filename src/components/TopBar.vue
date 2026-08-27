@@ -20,6 +20,7 @@ import {
   Trash2,
   X
 } from 'lucide-vue-next'
+import FortuneTimeDialog from './FortuneTimeDialog.vue'
 // 收款码图片，通过 Vite 打包以保证构建后路径正确
 import wxQrCode from '../../img/wx.jpg'
 import zfbQrCode from '../../img/zfb.jpg'
@@ -40,6 +41,7 @@ const props = defineProps<{
   themeMode: ThemeMode
   language: Language
   messages: LocaleMessages['topBar']
+  fortuneMessages: LocaleMessages['fortuneTime']
   searchQuery?: string
 }>()
 
@@ -64,6 +66,7 @@ const FEEDBACK_URL = 'https://v.wjx.cn/vm/tUM7gga.aspx'
 const openMenu = ref<OpenMenu>(null)
 const showDonate = ref(false)
 const showFeedback = ref(false)
+const showFortuneTime = ref(false)
 // iframe 懒加载：首次打开弹窗时才设置 src，避免启动时请求第三方页面
 const feedbackLoaded = ref(false)
 const feedbackLoadFailed = ref(false)
@@ -171,7 +174,7 @@ onBeforeUnmount(() => {
       </div>
 
       <button
-        class="header-icon-button"
+        class="header-icon-button refresh-album-button"
         type="button"
         :title="messages.refreshAlbum"
         :aria-label="messages.refreshAlbum"
@@ -214,7 +217,7 @@ onBeforeUnmount(() => {
       </div>
 
       <button
-        class="header-icon-button"
+        class="header-icon-button cleanup-button"
         type="button"
         :title="messages.specialCleanup"
         :aria-label="messages.specialCleanup"
@@ -226,7 +229,7 @@ onBeforeUnmount(() => {
 
       <div class="header-menu-wrap">
         <button
-          class="header-menu-button"
+          class="header-menu-button view-menu-button"
           type="button"
           :aria-label="messages.viewMenuAria"
           aria-haspopup="menu"
@@ -267,9 +270,14 @@ onBeforeUnmount(() => {
         </Teleport>
       </div>
 
+      <button class="header-icon-button fortune-time-trigger" type="button" :title="messages.fortuneTime" :aria-label="messages.fortuneTime" @click="closeMenus(); showFortuneTime = true">
+        <span aria-hidden="true">✦</span>
+        <span>{{ messages.fortuneTime }}</span>
+      </button>
+
       <div class="header-menu-wrap">
         <button
-          class="header-icon-button"
+          class="header-icon-button more-menu-button"
           type="button"
           :title="messages.more"
           :aria-label="messages.moreMenuAria"
@@ -382,4 +390,6 @@ onBeforeUnmount(() => {
       </div>
     </Transition>
   </Teleport>
+
+  <FortuneTimeDialog :visible="showFortuneTime" :messages="fortuneMessages" @close="showFortuneTime = false" />
 </template>
