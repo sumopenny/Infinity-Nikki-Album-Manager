@@ -437,7 +437,7 @@ export const messages: Record<Language, LocaleMessages> = {
       changelogTitle: '当前版本【2026.8.24更新】',
       // 更新日志只保留当前版本，发布新版本时替换该条内容，当前版本会自动带上“当前版本”标识
       changelog: [
-        { version: 'v1.3.2', text: '新增照片和搭配码备注功能，并增加顶部搜索框；照片搜索文件名/备注，搭配码搜索搭配码/备注。' }
+        { version: 'v1.3.2', text: '新增照片和搭配码备注功能，并增加顶部搜索框；照片搜索文件名/备注，搭配码搜索搭配码/备注；提升了 ZIP 导入导出、图片处理、批量删除和恢复及专项清理的速度。' }
       ],
       historyLink: '更新记录',
       historyTitle: '历史版本记录',
@@ -742,7 +742,7 @@ export const messages: Record<Language, LocaleMessages> = {
       ],
       changelogTitle: 'Current version【2026.8.24 update】',
       changelog: [
-        { version: 'v1.3.2', text: "Added remark functionality for photos and outfit codes, and added a top search bar; photos are searched by filename/remark, and outfit codes are searched by outfit code/remark." }
+        { version: 'v1.3.2', text: "Added remark functionality for photos and outfit codes, and added a top search bar; photos are searched by filename/remark, and outfit codes are searched by outfit code/remark. Improved the speed of ZIP import/export, image processing, batch deletion and recovery, and targeted cleanup." }
       ],
       historyLink: 'Release history',
       historyTitle: 'Release history',

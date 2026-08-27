@@ -1684,6 +1684,7 @@ h1 {
 .about-dialog-panel {
   position: relative;
   width: min(1080px, 100%);
+  height: min(660px, calc(100dvh - 72px));
   max-height: calc(100dvh - 72px);
   display: flex;
   flex-direction: column;
@@ -1719,6 +1720,7 @@ h1 {
 
 .about-dialog-body {
   display: flex;
+  flex: 1 1 auto;
   min-height: 0;
   flex-direction: column;
   gap: 24px;
@@ -1996,6 +1998,11 @@ h1 {
 }
 
 @media (max-width: 640px) {
+  .about-dialog-panel {
+    height: calc(100dvh - 40px);
+    max-height: calc(100dvh - 40px);
+  }
+
   .about-dialog-grid,
   .about-feature-grid {
     grid-template-columns: 1fr;
