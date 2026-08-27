@@ -24,6 +24,7 @@ import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
 import { isThemeMode, type ThemeMode } from './types/theme'
 import { groupDatesByYear, groupPhotosByDate, type PhotoItem, type RecentlyDeletedPhoto } from './utils/dateGrouping'
 import {
+  clearRecentlyDeleted,
   clearSavedAlbumDirectoryHandle,
   clearSavedX6GameDirectoryHandle,
   executeSpecialCleanup,
@@ -52,6 +53,7 @@ import {
 } from './utils/fileSystem'
 import {
   deleteOutfit,
+  deleteOutfits,
   deleteOutfitTag,
   exportOutfitBackup,
   importOutfitBackup,
@@ -1139,8 +1141,9 @@ async function removeOutfit(outfit: OutfitItem) {
   try {
     isOutfitMutationBusy.value = true
     await deleteOutfit(outfit)
+    releasePhotoUrl(outfit)
     if (currentPreview.value?.id === outfit.id) currentPreview.value = null
-    await refreshOutfitLibrary(false)
+    outfits.value = outfits.value.filter((item) => item.id !== outfit.id)
     showOutfitStatus(outfitLocale.value.operations.outfitDeleted)
   } catch (error) {
     await refreshOutfitLibrary(false).catch(() => undefined)
@@ -1165,20 +1168,14 @@ async function deleteSelectedOutfits() {
 
   isOutfitMutationBusy.value = true
   showOutfitStatus(outfitLocale.value.operations.deletingSelected, 'info', true)
-  const deletedIds = new Set<string>()
-  const failedNames: string[] = []
   try {
-    for (const outfit of targets) {
-      try {
-        await deleteOutfit(outfit)
-        deletedIds.add(outfit.id)
-      } catch {
-        failedNames.push(outfit.code || outfit.name)
-      }
-    }
+    const result = await deleteOutfits(targets)
+    const deletedIds = new Set(result.deleted.map((outfit) => outfit.id))
+    const failedNames = result.failedNames
+    result.deleted.forEach((outfit) => releasePhotoUrl(outfit))
     if (currentPreview.value && deletedIds.has(currentPreview.value.id)) currentPreview.value = null
     selectedOutfitIds.value = new Set([...selectedOutfitIds.value].filter((id) => !deletedIds.has(id)))
-    await refreshOutfitLibrary(false)
+    outfits.value = outfits.value.filter((outfit) => !deletedIds.has(outfit.id))
     showOutfitStatus(outfitLocale.value.operations.deletedSelected(deletedIds.size, failedNames.length), failedNames.length ? 'warning' : 'success')
   } catch (error) {
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
@@ -1366,7 +1363,9 @@ async function movePhotosToTrash(targets: PhotoItem[], keepPreviewOpen = false) 
     photos.value = photos.value.filter((photo) => !movedIds.has(photo.id))
     selectedIds.value = new Set([...selectedIds.value].filter((id) => !movedIds.has(id)))
     favoriteIds.value = new Set([...favoriteIds.value].filter((id) => !movedIds.has(id)))
-    mergeRecentlyDeleted(await listRecentlyDeleted(targets[0].directoryHandle))
+    mergeRecentlyDeleted(
+      [...recentlyDeleted.value, ...result.movedPhotos].sort((a, b) => b.deletedAt - a.deletedAt)
+    )
 
     if (currentPreview.value && movedIds.has(currentPreview.value.id)) {
       currentPreview.value = keepPreviewOpen
@@ -1439,7 +1438,7 @@ async function restoreTrashPhotos(targets: RecentlyDeletedPhoto[], keepPreviewOp
  */
 async function permanentlyDeleteTrashPhotos(
   targets: RecentlyDeletedPhoto[],
-  options: { keepPreviewOpen?: boolean; skipConfirmation?: boolean } = {}
+  options: { keepPreviewOpen?: boolean; skipConfirmation?: boolean; clearDirectory?: boolean } = {}
 ) {
   if (!targets.length || isAnyFileOperationBusy.value) return
   if (!options.skipConfirmation) {
@@ -1458,7 +1457,9 @@ async function permanentlyDeleteTrashPhotos(
   const previewIndex = currentPreviewIndex.value
   const keepPreviewOpen = options.keepPreviewOpen ?? false
   try {
-    const result = await permanentlyDeleteRecentlyDeleted(targets)
+    const result = options.clearDirectory && albumDirectoryHandle.value
+      ? await clearRecentlyDeleted(albumDirectoryHandle.value, targets)
+      : await permanentlyDeleteRecentlyDeleted(targets)
     const deletedIds = new Set(result.succeeded.map((photo) => photo.id))
     recentlyDeleted.value = recentlyDeleted.value.filter((photo) => !deletedIds.has(photo.id))
     trashSelectedIds.value = new Set([...trashSelectedIds.value].filter((id) => !deletedIds.has(id)))
@@ -1500,7 +1501,7 @@ async function deleteAllTrash() {
     cancelLabel: locale.value.app.dialogCancel
   })
   if (!confirmed) return
-  await permanentlyDeleteTrashPhotos([...recentlyDeleted.value], { skipConfirmation: true })
+  await permanentlyDeleteTrashPhotos([...recentlyDeleted.value], { skipConfirmation: true, clearDirectory: true })
 }
 
 /** 恢复当前最近删除预览照片。参数：无。 */
@@ -1886,10 +1887,10 @@ onBeforeUnmount(() => {
           </div>
           <div v-if="activeView === 'outfits'" class="outfit-header-actions">
             <button type="button" :disabled="isAnyFileOperationBusy" @click="chooseOutfitBackup">
-              <FileUp :size="16" aria-hidden="true" />{{ isImportingOutfits ? outfitLocale.importing : outfitLocale.importData }}
+              <Download :size="16" aria-hidden="true" />{{ isImportingOutfits ? outfitLocale.importing : outfitLocale.importData }}
             </button>
             <button type="button" :disabled="isAnyFileOperationBusy" @click="exportOutfits">
-              <Download :size="16" aria-hidden="true" />{{ isExportingOutfits ? outfitLocale.exporting : outfitLocale.exportData }}
+              <FileUp :size="16" aria-hidden="true" />{{ isExportingOutfits ? outfitLocale.exporting : outfitLocale.exportData }}
             </button>
             <button class="primary-button" type="button" :disabled="isAnyFileOperationBusy" @click="openOutfitEditor()">
               <Plus :size="16" aria-hidden="true" />{{ outfitLocale.addOutfit }}

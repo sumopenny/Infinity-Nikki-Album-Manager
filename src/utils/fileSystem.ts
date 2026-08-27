@@ -15,6 +15,8 @@ const TRASH_FILE_PREFIX = 'inam-v1__'
 const ALBUM_METADATA_FILE_NAME = 'album-metadata.json'
 export const PHOTO_NOTE_LIMIT = 15
 const SCAN_CONCURRENCY = 6
+const FILE_COPY_CONCURRENCY = 27
+const FILE_DELETE_CONCURRENCY = 10
 const pendingPhotoLoads = new WeakMap<PhotoItem, Promise<string>>()
 const releasedPhotos = new WeakSet<PhotoItem>()
 
@@ -137,7 +139,11 @@ function isCleanupTargetDirectory(directoryName: string): boolean {
   return directoryName === LOW_QUALITY_DIRECTORY_NAME || directoryName === SCREENSHOT_DIRECTORY_NAME
 }
 
-async function mapWithConcurrency<T, R>(items: T[], worker: (item: T) => Promise<R>): Promise<R[]> {
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  worker: (item: T) => Promise<R>,
+  concurrency = SCAN_CONCURRENCY
+): Promise<R[]> {
   const results = new Array<R>(items.length)
   let nextIndex = 0
 
@@ -149,7 +155,7 @@ async function mapWithConcurrency<T, R>(items: T[], worker: (item: T) => Promise
     }
   }
 
-  const workerCount = Math.min(SCAN_CONCURRENCY, items.length)
+  const workerCount = Math.min(concurrency, items.length)
   await Promise.all(Array.from({ length: workerCount }, () => runWorker()))
   return results
 }
@@ -165,6 +171,10 @@ export interface RefreshAlbumResult extends AlbumDirectoryResult {
 export interface TrashOperationResult<T> {
   succeeded: T[]
   failedNames: string[]
+}
+
+export interface MoveToTrashResult extends TrashOperationResult<PhotoItem> {
+  movedPhotos: RecentlyDeletedPhoto[]
 }
 
 export interface RestoreTrashResult extends TrashOperationResult<RecentlyDeletedPhoto> {
@@ -328,12 +338,19 @@ export async function listRecentlyDeleted(
     throw error
   }
 
-  const deletedPhotos: RecentlyDeletedPhoto[] = []
+  const candidates: Array<{
+    trashName: string
+    fileHandle: FileSystemFileHandle
+    metadata: NonNullable<ReturnType<typeof parseTrashFileName>>
+  }> = []
   for await (const [trashName, handle] of trashDirectoryHandle.entries()) {
     if (handle.kind !== 'file' || !isImageFile(trashName)) continue
     const metadata = parseTrashFileName(trashName)
     if (!metadata) continue
-    const fileHandle = handle as FileSystemFileHandle
+    candidates.push({ trashName, fileHandle: handle as FileSystemFileHandle, metadata })
+  }
+
+  const scannedPhotos = await mapWithConcurrency(candidates, async ({ trashName, fileHandle, metadata }): Promise<RecentlyDeletedPhoto | null> => {
     let size: number | null = null
     let lastModified: number | undefined
     try {
@@ -345,9 +362,9 @@ export async function listRecentlyDeleted(
     }
     const parsed = parsePhotoDate(metadata.originalName) ??
       (lastModified === undefined ? null : datePartsFromTimestamp(lastModified))
-    if (!parsed) continue
+    if (!parsed) return null
 
-    deletedPhotos.push({
+    return {
       id: `trash:${trashName}`,
       name: metadata.originalName,
       originalName: metadata.originalName,
@@ -362,10 +379,12 @@ export async function listRecentlyDeleted(
       lastModified,
       note: '',
       ...parsed
-    })
-  }
+    } satisfies RecentlyDeletedPhoto
+  })
 
-  return deletedPhotos.sort((a, b) => b.deletedAt - a.deletedAt)
+  return scannedPhotos
+    .filter((photo): photo is RecentlyDeletedPhoto => Boolean(photo))
+    .sort((a, b) => b.deletedAt - a.deletedAt)
 }
 
 /**
@@ -424,21 +443,24 @@ export async function refreshAlbumDirectory(
 /**
  * 将相册照片移动到当前相册的 trash 子目录。
  * 参数：photos 为目标照片，favoriteIds 为删除前的收藏集合。
- * 返回：成功移动的照片和失败文件名。
+ * 返回：成功移动的原照片、新建回收项和失败文件名，调用方可直接更新页面而无需重扫 trash。
  */
 export async function movePhotosToRecentlyDeleted(
   photos: PhotoItem[],
   favoriteIds: Set<string>
-): Promise<TrashOperationResult<PhotoItem>> {
+): Promise<MoveToTrashResult> {
   const succeeded: PhotoItem[] = []
+  const movedPhotos: RecentlyDeletedPhoto[] = []
   const failedNames: string[] = []
-  if (!photos.length) return { succeeded, failedNames }
+  if (!photos.length) return { succeeded, movedPhotos, failedNames }
 
   const albumDirectoryHandle = photos[0].directoryHandle
   const trashDirectoryHandle = await albumDirectoryHandle.getDirectoryHandle(TRASH_DIRECTORY_NAME, { create: true })
 
-  for (const photo of photos) {
-    const trashName = createTrashFileName(photo, favoriteIds.has(photo.id), Date.now())
+  const results = await mapWithConcurrency(photos, async (photo) => {
+    const deletedAt = Date.now()
+    const wasFavorite = favoriteIds.has(photo.id)
+    const trashName = createTrashFileName(photo, wasFavorite, deletedAt)
     try {
       const sourceFile = await photo.fileHandle.getFile()
       const targetHandle = await trashDirectoryHandle.getFileHandle(trashName, { create: true })
@@ -450,13 +472,39 @@ export async function movePhotosToRecentlyDeleted(
         throw error
       }
       releasePhotoUrl(photo)
-      succeeded.push(photo)
+      return {
+        source: photo,
+        moved: {
+          ...photo,
+          id: `trash:${trashName}`,
+          url: null,
+          fileSize: sourceFile.size,
+          fileSizeText: formatFileSize(sourceFile.size),
+          lastModified: sourceFile.lastModified,
+          fileHandle: targetHandle,
+          directoryHandle: trashDirectoryHandle,
+          trashName,
+          originalName: photo.name,
+          deletedAt,
+          wasFavorite,
+          size: sourceFile.size
+        } satisfies RecentlyDeletedPhoto
+      }
     } catch {
-      failedNames.push(photo.name)
+      return { source: photo, moved: null }
+    }
+  }, FILE_COPY_CONCURRENCY)
+
+  for (const result of results) {
+    if (result.moved) {
+      succeeded.push(result.source)
+      movedPhotos.push(result.moved)
+    } else {
+      failedNames.push(result.source.name)
     }
   }
 
-  return { succeeded, failedNames }
+  return { succeeded, movedPhotos, failedNames }
 }
 
 /**
@@ -466,7 +514,8 @@ export async function movePhotosToRecentlyDeleted(
  */
 async function findAvailableRestoreName(
   directoryHandle: FileSystemDirectoryHandle,
-  originalName: string
+  originalName: string,
+  reservedNames: Set<string>
 ): Promise<string> {
   const dotIndex = originalName.lastIndexOf('.')
   const baseName = dotIndex > 0 ? originalName.slice(0, dotIndex) : originalName
@@ -474,10 +523,16 @@ async function findAvailableRestoreName(
 
   for (let index = 0; ; index += 1) {
     const candidate = index === 0 ? originalName : `${baseName}_restored_${index}${extension}`
+    if (reservedNames.has(candidate)) continue
     try {
       await directoryHandle.getFileHandle(candidate)
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'NotFoundError') return candidate
+      if (error instanceof DOMException && error.name === 'NotFoundError') {
+        // 并发任务可能同时确认名称不存在，返回前再次检查并立即占位。
+        if (reservedNames.has(candidate)) continue
+        reservedNames.add(candidate)
+        return candidate
+      }
       throw error
     }
   }
@@ -495,11 +550,12 @@ export async function restoreRecentlyDeletedPhotos(
   const succeeded: RecentlyDeletedPhoto[] = []
   const restoredPhotos: PhotoItem[] = []
   const failedNames: string[] = []
+  const reservedNames = new Set<string>()
 
-  for (const photo of photos) {
+  const results = await mapWithConcurrency(photos, async (photo) => {
     let restoreName = ''
     try {
-      restoreName = await findAvailableRestoreName(albumDirectoryHandle, photo.originalName)
+      restoreName = await findAvailableRestoreName(albumDirectoryHandle, photo.originalName, reservedNames)
       const sourceFile = await photo.fileHandle.getFile()
       const targetHandle = await albumDirectoryHandle.getFileHandle(restoreName, { create: true })
       try {
@@ -510,14 +566,40 @@ export async function restoreRecentlyDeletedPhotos(
         throw error
       }
 
-      const restoredPhoto = await createPhotoItem(restoreName, targetHandle, albumDirectoryHandle)
-      if (!restoredPhoto) throw new Error(`Invalid restored photo name: ${restoreName}`)
-      restoredPhoto.fileSizeText = formatFileSize(sourceFile.size)
+      const parsed = parsePhotoDate(restoreName) ?? datePartsFromTimestamp(sourceFile.lastModified) ?? {
+        dateKey: photo.dateKey,
+        year: photo.year,
+        monthDay: photo.monthDay,
+        displayDate: photo.displayDate,
+        timeText: photo.timeText,
+        timestamp: photo.timestamp
+      }
+      const restoredPhoto: PhotoItem = {
+        ...parsed,
+        id: `${parsed.dateKey}-${parsed.timeText}-${restoreName}`,
+        name: restoreName,
+        url: null,
+        fileSizeText: formatFileSize(sourceFile.size),
+        fileSize: sourceFile.size,
+        lastModified: sourceFile.lastModified,
+        fileHandle: targetHandle,
+        directoryHandle: albumDirectoryHandle,
+        note: photo.note ?? ''
+      }
       releasePhotoUrl(photo)
-      succeeded.push(photo)
-      restoredPhotos.push(restoredPhoto)
+      return { source: photo, restored: restoredPhoto }
     } catch {
-      failedNames.push(photo.originalName)
+      if (restoreName) reservedNames.delete(restoreName)
+      return { source: photo, restored: null }
+    }
+  }, FILE_COPY_CONCURRENCY)
+
+  for (const result of results) {
+    if (result.restored) {
+      succeeded.push(result.source)
+      restoredPhotos.push(result.restored)
+    } else {
+      failedNames.push(result.source.originalName)
     }
   }
 
@@ -535,17 +617,53 @@ export async function permanentlyDeleteRecentlyDeleted(
   const succeeded: RecentlyDeletedPhoto[] = []
   const failedNames: string[] = []
 
-  for (const photo of photos) {
+  const results = await mapWithConcurrency(photos, async (photo) => {
     try {
       await photo.directoryHandle.removeEntry(photo.trashName)
       releasePhotoUrl(photo)
-      succeeded.push(photo)
+      return { photo, succeeded: true }
     } catch {
-      failedNames.push(photo.originalName)
+      return { photo, succeeded: false }
     }
+  }, FILE_DELETE_CONCURRENCY)
+
+  for (const result of results) {
+    if (result.succeeded) succeeded.push(result.photo)
+    else failedNames.push(result.photo.originalName)
   }
 
   return { succeeded, failedNames }
+}
+
+/**
+ * 清空应用管理的最近删除照片。仅当 trash 内条目与页面目标完全一致时递归删除目录，
+ * 遇到未知文件、目录变化或递归删除失败时回退为十并发逐项删除，避免误删用户文件。
+ */
+export async function clearRecentlyDeleted(
+  albumDirectoryHandle: FileSystemDirectoryHandle,
+  photos: RecentlyDeletedPhoto[]
+): Promise<TrashOperationResult<RecentlyDeletedPhoto>> {
+  if (!photos.length) return { succeeded: [], failedNames: [] }
+
+  try {
+    const trashDirectoryHandle = await albumDirectoryHandle.getDirectoryHandle(TRASH_DIRECTORY_NAME)
+    const expectedNames = new Set(photos.map((photo) => photo.trashName))
+    let entryCount = 0
+    let containsUnknownEntry = false
+    for await (const [name, handle] of trashDirectoryHandle.entries()) {
+      entryCount += 1
+      if (handle.kind !== 'file' || !expectedNames.has(name)) containsUnknownEntry = true
+    }
+    if (!containsUnknownEntry && entryCount === expectedNames.size) {
+      await albumDirectoryHandle.removeEntry(TRASH_DIRECTORY_NAME, { recursive: true })
+      for (const photo of photos) releasePhotoUrl(photo)
+      return { succeeded: [...photos], failedNames: [] }
+    }
+  } catch {
+    // 目录可能已变化或浏览器拒绝递归删除，下面按单文件安全回退。
+  }
+
+  return permanentlyDeleteRecentlyDeleted(photos)
 }
 
 export async function pickAlbumDirectory(messages: FileSystemMessages): Promise<AlbumDirectoryResult> {
@@ -1083,46 +1201,46 @@ export async function prepareSpecialCleanup(
  * 返回：成功数量、释放字节数、结构化失败原因和缺失目录。
  */
 export async function executeSpecialCleanup(plan: SpecialCleanupPlan): Promise<RelatedPhotoCleanupResult> {
-  let deletedCount = 0
-  let deletedBytes = 0
-  const failures: Array<{ path: string; reason: RelatedCleanupFailureReason }> = []
-
-  // 低画质图片和截图：逐文件删除，文件大小读取失败时保留原文件
+  type CleanupTask =
+    | { kind: 'photo'; target: RelatedPhotoCleanupTarget; name: string }
+    | { kind: 'entry'; target: SpecialCleanupDirectoryTarget; name: string; bytes: number; fileCount: number }
+  const tasks: CleanupTask[] = []
   for (const target of plan.photoTargets) {
-    for (const photoName of target.photoNames) {
-      const path = `${target.directoryName}\\${photoName}`
-      let fileSize: number
-
-      try {
-        const fileHandle = await target.directoryHandle.getFileHandle(photoName)
-        fileSize = (await fileHandle.getFile()).size
-      } catch {
-        failures.push({ path, reason: 'unreadable-size' })
-        continue
-      }
-
-      try {
-        await target.directoryHandle.removeEntry(photoName)
-        deletedCount += 1
-        deletedBytes += fileSize
-      } catch {
-        failures.push({ path, reason: 'remove-failed' })
-      }
-    }
+    for (const name of target.photoNames) tasks.push({ kind: 'photo', target, name })
   }
-
-  // 目录类清理：删除目录内全部顶层条目，保留目录本身
   for (const target of plan.directoryTargets) {
-    for (const entry of target.entries) {
+    for (const entry of target.entries) tasks.push({ kind: 'entry', target, name: entry.name, bytes: entry.bytes, fileCount: entry.fileCount })
+  }
+
+  const results = await mapWithConcurrency(tasks, async (task) => {
+    const path = `${task.target.directoryName}\\${task.name}`
+    if (task.kind === 'entry') {
       try {
-        await target.directoryHandle.removeEntry(entry.name, { recursive: true })
-        deletedCount += entry.fileCount
-        deletedBytes += entry.bytes
+        await task.target.directoryHandle.removeEntry(task.name, { recursive: true })
+        return { deletedCount: task.fileCount, deletedBytes: task.bytes, failure: null }
       } catch {
-        failures.push({ path: `${target.directoryName}\\${entry.name}`, reason: 'remove-failed' })
+        return { deletedCount: 0, deletedBytes: 0, failure: { path, reason: 'remove-failed' as const } }
       }
     }
-  }
+
+    let fileSize: number
+    try {
+      const fileHandle = await task.target.directoryHandle.getFileHandle(task.name)
+      fileSize = (await fileHandle.getFile()).size
+    } catch {
+      return { deletedCount: 0, deletedBytes: 0, failure: { path, reason: 'unreadable-size' as const } }
+    }
+    try {
+      await task.target.directoryHandle.removeEntry(task.name)
+      return { deletedCount: 1, deletedBytes: fileSize, failure: null }
+    } catch {
+      return { deletedCount: 0, deletedBytes: 0, failure: { path, reason: 'remove-failed' as const } }
+    }
+  }, FILE_DELETE_CONCURRENCY)
+
+  const deletedCount = results.reduce((sum, result) => sum + result.deletedCount, 0)
+  const deletedBytes = results.reduce((sum, result) => sum + result.deletedBytes, 0)
+  const failures = results.flatMap((result) => result.failure ? [result.failure] : [])
 
   return {
     deletedCount,

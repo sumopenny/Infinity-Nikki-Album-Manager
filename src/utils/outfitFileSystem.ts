@@ -1,4 +1,4 @@
-import { AsyncUnzipInflate, strFromU8, strToU8, Unzip, UnzipInflate, Zip, ZipDeflate, ZipPassThrough } from 'fflate'
+import { strFromU8, strToU8, Unzip, UnzipInflate, Zip, ZipDeflate, ZipPassThrough } from 'fflate'
 import type { PhotoItem } from './dateGrouping'
 
 export const DEFAULT_OUTFIT_TAGS = ['甜美', '性感', '帅气', '典雅', '清新', '古典']
@@ -17,8 +17,10 @@ const MAX_BACKUP_BYTES = 512 * 1024 * 1024
 const MAX_IMAGE_BYTES = 64 * 1024 * 1024
 const MAX_IMAGE_PIXELS = 40_000_000
 const MAX_BACKUP_ENTRIES = 2_000
-const SCAN_CONCURRENCY = 6
-const IMPORT_CONCURRENCY = 3
+const SCAN_CONCURRENCY = 10
+const IMPORT_CONCURRENCY = 27
+const DELETE_BACKUP_CONCURRENCY = 6
+const DELETE_FILE_CONCURRENCY = 10
 
 export interface OutfitItem extends PhotoItem {
   image: string
@@ -65,6 +67,22 @@ export interface OutfitImportResult {
   failedCount: number
   rejectedTagCount: number
   library: OutfitLibraryResult
+}
+
+export interface OutfitDeleteResult {
+  deleted: OutfitItem[]
+  failedNames: string[]
+}
+
+interface PreparedOutfitDelete {
+  outfit: OutfitItem
+  image: File | null
+  metadata: File | null
+}
+
+interface SuccessfulOutfitDelete extends PreparedOutfitDelete {
+  image: File
+  metadata: File
 }
 
 interface OutfitMetadata {
@@ -266,15 +284,6 @@ async function writeIgnoredShareCodes(directory: FileSystemDirectoryHandle, code
   await writeJson(directory, IGNORED_SHARE_CODES_FILE_NAME, [...codes])
 }
 
-/** 将搭配码加入临时忽略列表。参数：directory 为 clothe 目录，code 为用户刚删除的搭配码。 */
-async function ignoreShareCode(directory: FileSystemDirectoryHandle, code: string): Promise<void> {
-  const normalized = normalizeOutfitCode(code)
-  if (!normalized) return
-  const codes = await readIgnoredShareCodes(directory)
-  codes.add(normalized)
-  await writeIgnoredShareCodes(directory, codes)
-}
-
 export async function saveOutfitTags(albumDirectory: FileSystemDirectoryHandle, tags: string[]): Promise<string[]> {
   const directory = await getClotheDirectory(albumDirectory, true)
   if (!directory) throw new Error('Unable to create clothe directory')
@@ -376,10 +385,13 @@ function canvasToWebp(canvas: HTMLCanvasElement): Promise<Blob> {
 export async function convertImageToWebp(file: File): Promise<Blob> {
   if (file.size > MAX_IMAGE_BYTES) throw new Error('Image is too large')
   if (imageExtension(file.name) === 'webp' || file.type === 'image/webp') {
-    return new Blob([await file.arrayBuffer()], { type: 'image/webp' })
+    const webp = new Blob([await file.arrayBuffer()], { type: 'image/webp' })
+    await validateImageBlob(webp)
+    return webp
   }
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
   try {
+    validateImageDimensions(bitmap.width, bitmap.height)
     const canvas = document.createElement('canvas')
     canvas.width = bitmap.width
     canvas.height = bitmap.height
@@ -392,20 +404,19 @@ export async function convertImageToWebp(file: File): Promise<Blob> {
   }
 }
 
+function validateImageDimensions(width: number, height: number): void {
+  if (!width || !height) throw new Error('Image dimensions are invalid')
+  if (width * height > MAX_IMAGE_PIXELS) throw new Error('Image dimensions are too large')
+}
+
 async function validateImageBlob(blob: Blob): Promise<void> {
   if (!blob.size) throw new Error('Image is empty')
   const bitmap = await createImageBitmap(blob)
   try {
-    if (!bitmap.width || !bitmap.height) throw new Error('Image dimensions are invalid')
-    if (bitmap.width * bitmap.height > MAX_IMAGE_PIXELS) throw new Error('Image dimensions are too large')
+    validateImageDimensions(bitmap.width, bitmap.height)
   } finally {
     bitmap.close()
   }
-}
-
-async function validateWrittenImage(directory: FileSystemDirectoryHandle, name: string): Promise<void> {
-  const file = await (await directory.getFileHandle(name)).getFile()
-  await validateImageBlob(file)
 }
 
 async function validateWrittenFileSize(directory: FileSystemDirectoryHandle, name: string, expectedSize: number): Promise<void> {
@@ -535,7 +546,7 @@ async function importLatestSharedOutfit(
       try {
         const webp = await convertImageToWebp(latestImage.file)
         await writeBlob(await directory.getFileHandle(imageName, { create: true }), webp)
-        await validateWrittenImage(directory, imageName)
+        await validateWrittenFileSize(directory, imageName, webp.size)
         await writeJson(directory, metadataName, {
           id,
           image: imageName,
@@ -593,7 +604,7 @@ async function importExternalImages(directory: FileSystemDirectoryHandle, paired
         const source = await candidate.handle.getFile()
         const webp = await convertImageToWebp(source)
         await writeBlob(await directory.getFileHandle(imageName, { create: true }), webp)
-        await validateWrittenImage(directory, imageName)
+        await validateWrittenFileSize(directory, imageName, webp.size)
         const metadata: OutfitMetadata = {
           id,
           image: imageName,
@@ -680,7 +691,7 @@ export async function saveOutfit(
     if (input.imageFile) {
       const webp = await convertImageToWebp(input.imageFile)
       await writeBlob(await directory.getFileHandle(imageName, { create: true }), webp)
-      await validateWrittenImage(directory, imageName)
+      await validateWrittenFileSize(directory, imageName, webp.size)
     }
     const metadata: OutfitMetadata = {
       id,
@@ -745,18 +756,64 @@ export async function deleteOutfitTag(
   }
 }
 
-export async function deleteOutfit(outfit: OutfitItem): Promise<void> {
-  const image = await outfit.fileHandle.getFile()
-  const metadata = await (await outfit.directoryHandle.getFileHandle(outfit.metadataName)).getFile()
+/**
+ * 批量永久删除搭配方案。先并发读取回滚备份，再并发删除双文件，最后一次性提交忽略搭配码列表。
+ * 任一提交步骤失败都会恢复本批已删除文件，避免图片与元数据只删除一半。
+ */
+export async function deleteOutfits(outfits: OutfitItem[]): Promise<OutfitDeleteResult> {
+  if (!outfits.length) return { deleted: [], failedNames: [] }
+
+  const prepared = await mapWithConcurrency<OutfitItem, PreparedOutfitDelete>(outfits, DELETE_BACKUP_CONCURRENCY, async (outfit) => {
+    try {
+      const image = await outfit.fileHandle.getFile()
+      const metadata = await (await outfit.directoryHandle.getFileHandle(outfit.metadataName)).getFile()
+      return { outfit, image, metadata }
+    } catch {
+      return { outfit, image: null, metadata: null }
+    }
+  })
+  const failedNames = prepared.filter((item) => !item.image || !item.metadata).map((item) => item.outfit.code || item.outfit.name)
+  const validPrepared = prepared.filter((item): item is SuccessfulOutfitDelete => Boolean(item.image && item.metadata))
+  const results = await mapWithConcurrency<SuccessfulOutfitDelete, { item: SuccessfulOutfitDelete; ok: boolean }>(validPrepared, DELETE_FILE_CONCURRENCY, async (item) => {
+    try {
+      await item.outfit.directoryHandle.removeEntry(item.outfit.metadataName)
+      await item.outfit.directoryHandle.removeEntry(item.outfit.image)
+      return { item, ok: true }
+    } catch {
+      await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.image, { create: true }), item.image).catch(() => undefined)
+      await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.metadataName, { create: true }), item.metadata).catch(() => undefined)
+      return { item, ok: false }
+    }
+  })
+
+  const deleted = results.filter((result) => result.ok).map((result) => result.item.outfit)
+  const failed = [
+    ...failedNames,
+    ...results.filter((result) => !result.ok).map((result) => result.item.outfit.code || result.item.outfit.name)
+  ]
+  if (!deleted.length) return { deleted, failedNames: failed }
+
   try {
-    await outfit.directoryHandle.removeEntry(outfit.metadataName)
-    await outfit.directoryHandle.removeEntry(outfit.image)
-    await ignoreShareCode(outfit.directoryHandle, outfit.code)
+    const codes = await readIgnoredShareCodes(deleted[0].directoryHandle)
+    for (const outfit of deleted) {
+      const code = normalizeOutfitCode(outfit.code)
+      if (code) codes.add(code)
+    }
+    await writeIgnoredShareCodes(deleted[0].directoryHandle, codes)
   } catch (error) {
-    await writeBlob(await outfit.directoryHandle.getFileHandle(outfit.image, { create: true }), image).catch(() => undefined)
-    await writeBlob(await outfit.directoryHandle.getFileHandle(outfit.metadataName, { create: true }), metadata).catch(() => undefined)
+    for (const item of results.filter((result) => result.ok).map((result) => result.item)) {
+      await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.image, { create: true }), item.image).catch(() => undefined)
+      await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.metadataName, { create: true }), item.metadata).catch(() => undefined)
+    }
     throw error
   }
+
+  return { deleted, failedNames: failed }
+}
+
+export async function deleteOutfit(outfit: OutfitItem): Promise<void> {
+  const result = await deleteOutfits([outfit])
+  if (result.failedNames.length) throw new Error(`Unable to delete outfit: ${result.failedNames[0] || outfit.name}`)
 }
 
 function backupTimestamp(date = new Date()): string {
@@ -781,12 +838,13 @@ export async function exportOutfitBackup(
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
     tags: library.tags,
-    outfits: library.outfits.map(({ id, image, code, tags, createdAt, diyImageModifiedAt }) => ({
+    outfits: library.outfits.map(({ id, image, code, tags, createdAt, note, diyImageModifiedAt }) => ({
       id,
       image: `images/${image}`,
       code,
       tags,
       createdAt,
+      ...(note ? { note: note.trim().slice(0, MAX_OUTFIT_NOTE_LENGTH) } : {}),
       ...(diyImageModifiedAt !== undefined ? { diyImageModifiedAt } : {})
     }))
   }
@@ -858,14 +916,34 @@ export function isSafeOutfitArchivePath(path: string): boolean {
   return segments.every((segment) => segment.length > 0 && segment !== '.' && segment !== '..')
 }
 
-async function parseBackup(file: File): Promise<{ manifest: BackupManifest; files: Record<string, Uint8Array> }> {
+type BackupEntryHandler = (name: string, content: Uint8Array | null, byteLength: number) => void | Promise<void>
+
+/**
+ * 顺序扫描 ZIP，并只为调用方关心的条目组装字节。读取循环会在处理队列达到上限时暂停，
+ * 从而避免把整个解压结果同时保存在内存中。
+ */
+async function streamBackupEntries(
+  file: File,
+  shouldCollect: (name: string) => boolean,
+  onEntry: BackupEntryHandler,
+  concurrency = 1
+): Promise<void> {
   if (file.size > MAX_BACKUP_BYTES) throw new Error('Backup is too large')
-  const files: Record<string, Uint8Array> = {}
   let entryCount = 0
   let declaredBytes = 0
   let expandedBytes = 0
   let extractionError: Error | null = null
-  const entryTasks: Promise<void>[] = []
+  const activeTasks = new Set<Promise<void>>()
+  let activeHandlers = 0
+  const handlerWaiters: Array<() => void> = []
+  const acquireHandler = async () => {
+    if (activeHandlers >= concurrency) await new Promise<void>((resolve) => handlerWaiters.push(resolve))
+    activeHandlers += 1
+  }
+  const releaseHandler = () => {
+    activeHandlers -= 1
+    handlerWaiters.shift()?.()
+  }
   const unzip = new Unzip((entry) => {
     if (extractionError) return
     try {
@@ -881,26 +959,17 @@ async function parseBackup(file: File): Promise<{ manifest: BackupManifest; file
         if (declaredBytes > MAX_BACKUP_BYTES) throw new Error('Expanded backup is too large')
       }
 
+      const collect = shouldCollect(entry.name)
       const chunks: Uint8Array[] = []
       let entryBytes = 0
-      let finishEntry!: () => void
-      let entryFinished = false
-      entryTasks.push(new Promise<void>((resolve) => { finishEntry = resolve }))
-      const finish = () => {
-        if (entryFinished) return
-        entryFinished = true
-        finishEntry()
-      }
       entry.ondata = (error, chunk, final) => {
         if (error) {
           extractionError = error
           entry.terminate()
-          finish()
           return
         }
         if (extractionError) {
           entry.terminate()
-          finish()
           return
         }
         if (chunk?.length) {
@@ -909,26 +978,39 @@ async function parseBackup(file: File): Promise<{ manifest: BackupManifest; file
           if (entry.name !== 'manifest.json' && entryBytes > MAX_IMAGE_BYTES) {
             extractionError = new Error('Backup image is too large')
             entry.terminate()
-            finish()
             return
           }
           if (expandedBytes > MAX_BACKUP_BYTES) {
             extractionError = new Error('Expanded backup is too large')
             entry.terminate()
-            finish()
             return
           }
-          chunks.push(chunk)
+          if (collect) chunks.push(chunk)
         }
         if (final && !extractionError) {
-          const content = new Uint8Array(entryBytes)
-          let offset = 0
-          for (const part of chunks) {
-            content.set(part, offset)
-            offset += part.length
+          let content: Uint8Array | null = null
+          if (collect) {
+            content = new Uint8Array(entryBytes)
+            let offset = 0
+            for (const part of chunks) {
+              content.set(part, offset)
+              offset += part.length
+            }
           }
-          files[entry.name] = content
-          finish()
+          let task!: Promise<void>
+          task = (async () => {
+            await acquireHandler()
+            try {
+              await onEntry(entry.name, content, entryBytes)
+            } finally {
+              releaseHandler()
+            }
+          })()
+            .catch((taskError) => {
+              extractionError = taskError instanceof Error ? taskError : new Error('Unable to process backup')
+            })
+            .finally(() => activeTasks.delete(task))
+          activeTasks.add(task)
         }
       }
       entry.start()
@@ -937,7 +1019,8 @@ async function parseBackup(file: File): Promise<{ manifest: BackupManifest; file
       entry.terminate()
     }
   })
-  unzip.register(typeof Worker === 'function' ? AsyncUnzipInflate : UnzipInflate)
+  // 每次只解压输入流的当前分块，便于读取循环对异步图片写入施加背压。
+  unzip.register(UnzipInflate)
 
   const stream = file.stream()
   const reader = stream.getReader()
@@ -947,9 +1030,13 @@ async function parseBackup(file: File): Promise<{ manifest: BackupManifest; file
       if (extractionError) throw extractionError
       unzip.push(value ?? new Uint8Array(), done)
       if (extractionError) throw extractionError
+      while (activeTasks.size >= concurrency) {
+        await Promise.race(activeTasks)
+        if (extractionError) throw extractionError
+      }
       if (done) break
     }
-    await Promise.all(entryTasks)
+    await Promise.all(activeTasks)
     if (extractionError) throw extractionError
   } catch (error) {
     await reader.cancel(error).catch(() => undefined)
@@ -957,8 +1044,16 @@ async function parseBackup(file: File): Promise<{ manifest: BackupManifest; file
   } finally {
     reader.releaseLock()
   }
+}
 
-  const manifestBytes = files['manifest.json']
+async function inspectBackup(file: File): Promise<BackupManifest> {
+  let manifestBytes: Uint8Array | null = null
+  const availableImages = new Set<string>()
+  await streamBackupEntries(file, (name) => name === 'manifest.json', (name, content, byteLength) => {
+    if (name === 'manifest.json') manifestBytes = content
+    else if (byteLength > 0) availableImages.add(name)
+  })
+
   if (!manifestBytes) throw new Error('Backup manifest is missing')
   const manifest = JSON.parse(strFromU8(manifestBytes)) as BackupManifest
   if (!manifest || typeof manifest !== 'object' || manifest.format !== BACKUP_FORMAT || manifest.version !== BACKUP_VERSION || !Array.isArray(manifest.outfits) || !Array.isArray(manifest.tags)) {
@@ -968,9 +1063,9 @@ async function parseBackup(file: File): Promise<{ manifest: BackupManifest; file
     if (!raw || typeof raw !== 'object' || typeof raw.image !== 'string' || !isSafeOutfitArchivePath(raw.image) || !/^images\/[^/]+\.webp$/i.test(raw.image)) {
       throw new Error('Backup contains invalid outfit metadata')
     }
-    if (!files[raw.image]?.byteLength) throw new Error('Backup is missing an outfit image')
+    if (!availableImages.has(raw.image)) throw new Error('Backup is missing an outfit image')
   }
-  return { manifest, files }
+  return manifest
 }
 
 function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
@@ -1024,7 +1119,8 @@ export async function importOutfitBackup(
   albumDirectory: FileSystemDirectoryHandle,
   backupFile: File
 ): Promise<OutfitImportResult> {
-  const { manifest, files } = await parseBackup(backupFile)
+  // 第一遍只校验结构并读取清单；确认备份完整后才创建或修改相册目录。
+  const manifest = await inspectBackup(backupFile)
   const current = await readOutfitLibrary(albumDirectory, { importExternal: false, create: true })
   const directory = await getClotheDirectory(albumDirectory, true)
   if (!directory) throw new Error('Unable to create clothe directory')
@@ -1044,24 +1140,6 @@ export async function importOutfitBackup(
   const existingCodes = new Set(current.outfits.map((outfit) => outfit.code).filter(Boolean))
   const occupiedFileNames = await listDirectoryFileNames(directory)
   const reservedIds = new Set<string>()
-  const imageValidations = new Map<string, Promise<Blob | null>>()
-  const validateArchiveImage = (imagePath: string): Promise<Blob | null> => {
-    const existing = imageValidations.get(imagePath)
-    if (existing) return existing
-    const validation = (async () => {
-      const imageBytes = files[imagePath]
-      if (!imageBytes?.byteLength || imageBytes.byteLength > MAX_IMAGE_BYTES) return null
-      const imageBlob = new Blob([imageBytes], { type: 'image/webp' })
-      try {
-        await validateImageBlob(imageBlob)
-        return imageBlob
-      } catch {
-        return null
-      }
-    })()
-    imageValidations.set(imagePath, validation)
-    return validation
-  }
 
   const resourceTails = new Map<string, Promise<void>>()
   const jobs = manifest.outfits.map((raw) => {
@@ -1072,15 +1150,24 @@ export async function importOutfitBackup(
     let release!: () => void
     const completion = new Promise<void>((resolve) => { release = resolve })
     for (const key of resourceKeys) resourceTails.set(key, completion)
-    return { raw, code, dependencies, release }
+    return { raw, code, imagePath: raw.image, dependencies, release }
   })
+  const jobsByImage = new Map<string, typeof jobs>()
+  for (const job of jobs) {
+    const imageJobs = jobsByImage.get(job.imagePath) ?? []
+    imageJobs.push(job)
+    jobsByImage.set(job.imagePath, imageJobs)
+  }
   let addedCount = 0
   let duplicateCount = 0
   let failedCount = 0
   const createdEntries: string[] = []
   const createdOutfits: OutfitItem[] = []
 
-  await mapWithConcurrency(jobs, IMPORT_CONCURRENCY, async ({ raw, code, dependencies, release }) => {
+  const processJob = async (
+    { raw, code, dependencies, release }: typeof jobs[number],
+    imageBytes: Uint8Array
+  ): Promise<void> => {
     await dependencies
     let reservedId: string | null = null
     let imageName: string | null = null
@@ -1091,15 +1178,14 @@ export async function importOutfitBackup(
         return
       }
       if (typeof raw.image !== 'string' || !isSafeOutfitArchivePath(raw.image) || !raw.image.startsWith('images/')) throw new Error('Invalid image path')
-      const imageBytes = files[raw.image]
       if (!imageBytes?.byteLength) throw new Error('Missing image')
       const existing = typeof raw.id === 'string' ? existingById.get(raw.id.trim()) : undefined
       if (existing && await isIdenticalOutfit(existing, raw, code, imageBytes)) {
         duplicateCount += 1
         return
       }
-      const imageBlob = await validateArchiveImage(raw.image)
-      if (!imageBlob) throw new Error('Invalid image')
+      const imageBlob = new Blob([imageBytes], { type: 'image/webp' })
+      await validateImageBlob(imageBlob)
       const preferredId = typeof raw.id === 'string' && raw.id.trim() && !existingIds.has(raw.id.trim()) ? raw.id.trim() : undefined
       const id = allocateImportedOutfitId(preferredId, existingIds, occupiedFileNames, reservedIds)
       reservedId = id
@@ -1108,12 +1194,14 @@ export async function importOutfitBackup(
       const createdTimestamp = typeof raw.createdAt === 'string' ? Date.parse(raw.createdAt) : Number.NaN
       const tag = normalizeTags(raw.tags, new Set(tags))[0]
       const createdAt = Number.isFinite(createdTimestamp) ? new Date(createdTimestamp).toISOString() : new Date().toISOString()
+      const note = typeof raw.note === 'string' ? raw.note.trim().slice(0, MAX_OUTFIT_NOTE_LENGTH) : ''
       const metadata: OutfitMetadata = {
         id,
         image: imageName,
         code,
         tags: tag ? [tag] : [],
         createdAt,
+        note,
         ...(typeof raw.diyImageModifiedAt === 'number' ? { diyImageModifiedAt: raw.diyImageModifiedAt } : {})
       }
       try {
@@ -1153,7 +1241,24 @@ export async function importOutfitBackup(
     } finally {
       release()
     }
-  })
+  }
+
+  // 第二遍只组装当前待处理图片；写入任务达到上限后暂停继续读取 ZIP。
+  const processedImagePaths = new Set<string>()
+  await streamBackupEntries(
+    backupFile,
+    (name) => jobsByImage.has(name),
+    async (name, content) => {
+      if (!jobsByImage.has(name)) return
+      if (processedImagePaths.has(name)) return
+      processedImagePaths.add(name)
+      if (!content?.byteLength) throw new Error('Backup is missing an outfit image')
+      const imageJobs = jobsByImage.get(name) ?? []
+      // 同一图片被多条清单记录引用时复用当前字节，并按清单顺序完成去重判断。
+      for (const job of imageJobs) await processJob(job, content)
+    },
+    IMPORT_CONCURRENCY
+  )
 
   let savedTags: string[]
   try {

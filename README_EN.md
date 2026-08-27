@@ -65,7 +65,9 @@ Entering Outfit codes opens a standalone guide. Please read it carefully.
   <img src="img/自动更新步骤.webp" alt="Project UI" width="70%">
 </div>
 
-- Export data generates a ZIP file in the currently selected album folder, and the success notice shows the file name and saved location. Import data validates and merges the ZIP without replacing existing plans; duplicate or invalid content is skipped. <span style="color: red;">Deleting an outfit plan is permanent and does not go to Recently Deleted.</span>
+- Export data generates a ZIP file in the currently selected album folder and preserves outfit codes, tags, notes, and creation times. Import data validates and merges the ZIP without replacing existing plans; duplicate or invalid content is skipped. Imports validate the complete backup first, then extract and write images in bounded batches to reduce browser memory use with large backups. <span style="color: red;">Deleting an outfit plan is permanent and does not go to Recently Deleted.</span>
+- JPG, PNG, and WebP sources are decoded for validation only once before saving. JPG and PNG files are still converted locally to WebP, and images are never uploaded.
+- Batch outfit deletion processes image and metadata files concurrently, updates the automatic-import ignore list once, and updates the page directly without rescanning the entire `clothe` folder.
 - Single-click outfit plans to select multiple items and show the bottom toolbar. <span style="color: red;">Deleted outfit plans cannot be restored, so check the plan information before confirming.</span>
 
 ## Special Cleanup
@@ -111,6 +113,8 @@ Do not select drive roots, Windows, Program Files, the game install root, or oth
 - Click Refresh album to sync the folder immediately; the page also syncs when it regains focus and reports newly added or externally removed photos.
 - Recently Deleted is sorted by deletion time, with total photo count and total size shown at the top.
 - Supports single or batch restore, permanent deletion, select all, large preview, and permanently clearing everything.
+- Album and Recently Deleted scans process up to 6 files concurrently. Batch moves to Recently Deleted and restores process up to 27 images concurrently, while permanent deletion processes up to 10. Successful moves update the list directly without rescanning the entire `trash` folder.
+- Clear all removes the `trash` directory directly only when it contains no unknown entries; otherwise it deletes only the photos listed by the page.
 - When restoring and a file with the same name already exists in the original album, `_restored_1`, `_restored_2`, and later suffixes are used automatically without overwriting existing photos.
 - Recently Deleted photos do not expire automatically and remain until restored or manually permanently deleted.
 

@@ -2,9 +2,11 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { messages } from '../i18n'
 import type { PhotoItem } from './dateGrouping'
 import {
+  clearRecentlyDeleted,
   listGamePlayPhotoAccounts,
   listRecentlyDeleted,
   movePhotosToRecentlyDeleted,
+  permanentlyDeleteRecentlyDeleted,
   executeSpecialCleanup,
   pickAlbumDirectory,
   prepareSpecialCleanup,
@@ -29,7 +31,8 @@ class MemoryFileHandle {
     public readonly name: string,
     private contents: Blob = new Blob(['photo'], { type: 'image/jpeg' }),
     private readonly failRead = false,
-    public readonly lastModified = 1
+    public readonly lastModified = 1,
+    private readonly writeTracker?: { active: number; peak: number }
   ) {}
 
   async getFile(): Promise<File> {
@@ -40,7 +43,16 @@ class MemoryFileHandle {
   async createWritable(): Promise<FileSystemWritableFileStream> {
     return {
       write: async (data: BufferSource | Blob | string) => {
-        this.contents = data instanceof Blob ? data : new Blob([data])
+        if (this.writeTracker) {
+          this.writeTracker.active += 1
+          this.writeTracker.peak = Math.max(this.writeTracker.peak, this.writeTracker.active)
+        }
+        try {
+          if (this.writeTracker) await new Promise((resolve) => window.setTimeout(resolve, 5))
+          this.contents = data instanceof Blob ? data : new Blob([data])
+        } finally {
+          if (this.writeTracker) this.writeTracker.active -= 1
+        }
       },
       close: async () => undefined,
       abort: async () => undefined
@@ -70,6 +82,9 @@ class MemoryDirectoryHandle {
   readonly files = new Map<string, MemoryFileHandle>()
   readonly directories = new Map<string, MemoryDirectoryHandle>()
   failRemoveName: string | null = null
+  writeTracker?: { active: number; peak: number }
+  removeTracker?: { active: number; peak: number }
+  readonly recursiveRemoveNames: string[] = []
   readonly resolvedPaths = new Map<MemoryDirectoryHandle, string[]>()
 
   constructor(public readonly name: string) {}
@@ -91,7 +106,7 @@ class MemoryDirectoryHandle {
     const existing = this.files.get(name)
     if (existing) return existing as unknown as FileSystemFileHandle
     if (!options?.create) throw new DOMException('Missing file', 'NotFoundError')
-    const created = new MemoryFileHandle(name)
+    const created = new MemoryFileHandle(name, undefined, false, 1, this.writeTracker)
     this.files.set(name, created)
     return created as unknown as FileSystemFileHandle
   }
@@ -105,9 +120,19 @@ class MemoryDirectoryHandle {
     return created as unknown as FileSystemDirectoryHandle
   }
 
-  async removeEntry(name: string): Promise<void> {
+  async removeEntry(name: string, options?: { recursive?: boolean }): Promise<void> {
     if (this.failRemoveName === name) throw new DOMException('Remove failed', 'InvalidModificationError')
-    if (!this.files.delete(name) && !this.directories.delete(name)) throw new DOMException('Missing entry', 'NotFoundError')
+    if (options?.recursive) this.recursiveRemoveNames.push(name)
+    if (this.removeTracker) {
+      this.removeTracker.active += 1
+      this.removeTracker.peak = Math.max(this.removeTracker.peak, this.removeTracker.active)
+    }
+    try {
+      if (this.removeTracker) await new Promise((resolve) => window.setTimeout(resolve, 5))
+      if (!this.files.delete(name) && !this.directories.delete(name)) throw new DOMException('Missing entry', 'NotFoundError')
+    } finally {
+      if (this.removeTracker) this.removeTracker.active -= 1
+    }
   }
 
   async resolve(possibleDescendant: FileSystemHandle): Promise<string[] | null> {
@@ -403,9 +428,69 @@ describe('album refresh and recently deleted filesystem operations', () => {
     const trashPhotos = await listRecentlyDeleted(album as unknown as FileSystemDirectoryHandle)
 
     expect(result.succeeded).toEqual([photo])
+    expect(result.movedPhotos[0]).toMatchObject({ originalName: photo.name, wasFavorite: true, size: 5 })
     expect(album.files.has(photo.name)).toBe(false)
     expect(trashPhotos).toHaveLength(1)
     expect(trashPhotos[0]).toMatchObject({ originalName: photo.name, wasFavorite: true, size: 5 })
+  })
+
+  it('copies at most twenty-seven photos concurrently when moving to trash and restoring', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    const trash = new MemoryDirectoryHandle('trash')
+    const moveTracker = { active: 0, peak: 0 }
+    trash.writeTracker = moveTracker
+    album.directories.set('trash', trash)
+    const photos = Array.from({ length: 12 }, (_, index) =>
+      createPhoto(album, `2026_06_26_11_${String(index).padStart(2, '0')}_00.jpeg`))
+
+    const moved = await movePhotosToRecentlyDeleted(photos, new Set())
+    expect(moved.succeeded).toHaveLength(12)
+    expect(moveTracker.peak).toBeGreaterThan(1)
+    expect(moveTracker.peak).toBeLessThanOrEqual(27)
+
+    const restoreTracker = { active: 0, peak: 0 }
+    album.writeTracker = restoreTracker
+    const restored = await restoreRecentlyDeletedPhotos(moved.movedPhotos, album as unknown as FileSystemDirectoryHandle)
+    expect(restored.restoredPhotos).toHaveLength(12)
+    expect(restoreTracker.peak).toBeGreaterThan(1)
+    expect(restoreTracker.peak).toBeLessThanOrEqual(27)
+  })
+
+  it('deletes at most ten recently deleted photos concurrently', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    const photos = Array.from({ length: 15 }, (_, index) =>
+      createPhoto(album, `2026_06_26_12_${String(index).padStart(2, '0')}_00.jpeg`))
+    const moved = await movePhotosToRecentlyDeleted(photos, new Set())
+    const trash = album.directories.get('trash')!
+    const removeTracker = { active: 0, peak: 0 }
+    trash.removeTracker = removeTracker
+
+    const deleted = await permanentlyDeleteRecentlyDeleted(moved.movedPhotos)
+    expect(deleted.succeeded).toHaveLength(15)
+    expect(removeTracker.peak).toBeGreaterThan(1)
+    expect(removeTracker.peak).toBeLessThanOrEqual(10)
+  })
+
+  it('removes the whole trash directory only when it contains no unknown entries', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    const photo = createPhoto(album, '2026_06_26_13_00_00.jpeg')
+    const moved = await movePhotosToRecentlyDeleted([photo], new Set())
+
+    const cleared = await clearRecentlyDeleted(album as unknown as FileSystemDirectoryHandle, moved.movedPhotos)
+    expect(cleared.succeeded).toHaveLength(1)
+    expect(album.recursiveRemoveNames).toEqual(['trash'])
+    expect(album.directories.has('trash')).toBe(false)
+
+    const nextPhoto = createPhoto(album, '2026_06_26_13_01_00.jpeg')
+    const nextMoved = await movePhotosToRecentlyDeleted([nextPhoto], new Set())
+    const trash = album.directories.get('trash')!
+    trash.files.set('keep.txt', new MemoryFileHandle('keep.txt'))
+    album.recursiveRemoveNames.length = 0
+
+    const fallback = await clearRecentlyDeleted(album as unknown as FileSystemDirectoryHandle, nextMoved.movedPhotos)
+    expect(fallback.succeeded).toHaveLength(1)
+    expect(album.recursiveRemoveNames).toEqual([])
+    expect(trash.files.has('keep.txt')).toBe(true)
   })
 
   it('keeps a fallback-timestamp photo visible after moving it to recently deleted', async () => {

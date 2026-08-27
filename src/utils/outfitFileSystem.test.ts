@@ -1,8 +1,10 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { strToU8, Unzip, UnzipInflate, zipSync } from 'fflate'
 import {
+  convertImageToWebp,
   importOutfitBackup,
   deleteOutfit,
+  deleteOutfits,
   deleteOutfitTag,
   exportOutfitBackup,
   isReservedOutfitTag,
@@ -213,7 +215,7 @@ beforeAll(() => {
 })
 
 describe('outfit filesystem', () => {
-  it('scans outfit metadata with a maximum of six concurrent file reads', async () => {
+  it('scans outfit metadata with a maximum of ten concurrent file reads', async () => {
     const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
     const clothe = new MemoryDirectoryHandle('clothe')
     const tracker = { active: 0, peak: 0 }
@@ -244,7 +246,7 @@ describe('outfit filesystem', () => {
     const result = await readOutfitLibrary(asDirectory(album), { importExternal: false })
 
     expect(tracker.peak).toBeGreaterThan(1)
-    expect(tracker.peak).toBeLessThanOrEqual(6)
+    expect(tracker.peak).toBeLessThanOrEqual(10)
     expect(result.failedCount).toBe(0)
     expect(result.outfits.map((outfit) => outfit.code)).toEqual(
       ['CODE7', 'CODE6', 'CODE5', 'CODE4', 'CODE3', 'CODE2', 'CODE1', 'CODE0']
@@ -323,6 +325,37 @@ describe('outfit filesystem', () => {
     expect(isValidOutfitTag('123456')).toBe(false)
   })
 
+  it.each([
+    ['WebP', 'look.webp', 'image/webp'],
+    ['PNG', 'look.png', 'image/png']
+  ])('decodes a %s source only once while saving', async (_label, name, type) => {
+    const decode = vi.fn(async () => ({ width: 100, height: 140, close: () => undefined }))
+    vi.stubGlobal('createImageBitmap', decode)
+    try {
+      await saveOutfit(asDirectory(new MemoryDirectoryHandle('NikkiPhotos_HighQuality')), {
+        imageFile: browserFile([new Blob(['image'], { type })], name, { type }),
+        code: '',
+        tag: null
+      })
+      expect(decode).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 100, height: 140, close: () => undefined })))
+    }
+  })
+
+  it('rejects excessive pixel dimensions before allocating a canvas', async () => {
+    const getContext = HTMLCanvasElement.prototype.getContext as unknown as ReturnType<typeof vi.fn>
+    getContext.mockClear()
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 10_000, height: 5_000, close: () => undefined })))
+    try {
+      const source = browserFile([new Blob(['image'], { type: 'image/png' })], 'large.png', { type: 'image/png' })
+      await expect(convertImageToWebp(source)).rejects.toThrow('dimensions are too large')
+      expect(getContext).not.toHaveBeenCalled()
+    } finally {
+      vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 100, height: 140, close: () => undefined })))
+    }
+  })
+
   it('saves a pending outfit with at most one known tag', async () => {
     const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
     await saveOutfitTags(asDirectory(album), ['甜美'])
@@ -352,7 +385,7 @@ describe('outfit filesystem', () => {
     expect(clothe.files.has('new-look.webp')).toBe(false)
   })
 
-  it('imports external images with at most three concurrent conversions', async () => {
+  it('imports external images with at most twenty-seven concurrent conversions', async () => {
     const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
     const clothe = new MemoryDirectoryHandle('clothe')
     const tracker = { active: 0, peak: 0 }
@@ -375,7 +408,7 @@ describe('outfit filesystem', () => {
       expect(result.importedExternalCount).toBe(7)
       expect(result.failedCount).toBe(0)
       expect(tracker.peak).toBeGreaterThan(1)
-      expect(tracker.peak).toBeLessThanOrEqual(3)
+      expect(tracker.peak).toBeLessThanOrEqual(27)
     } finally {
       vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 100, height: 140, close: () => undefined })))
     }
@@ -550,7 +583,7 @@ describe('outfit filesystem', () => {
     expect(clothe.files.has('look-1.json')).toBe(false)
   })
 
-  it('imports 64 backup images with at most three concurrent decodes and writes', async () => {
+  it('imports 64 backup images with at most twenty-seven concurrent decodes and writes', async () => {
     const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
     const clothe = new MemoryDirectoryHandle('clothe')
     const tracker = { active: 0, peak: 0, calls: 0 }
@@ -583,9 +616,9 @@ describe('outfit filesystem', () => {
       expect(result.library.outfits[0].id).toBe('look-63')
       expect(tracker.calls).toBe(64)
       expect(tracker.peak).toBeGreaterThan(1)
-      expect(tracker.peak).toBeLessThanOrEqual(3)
+      expect(tracker.peak).toBeLessThanOrEqual(27)
       expect(writeTracker.peak).toBeGreaterThan(1)
-      expect(writeTracker.peak).toBeLessThanOrEqual(3)
+      expect(writeTracker.peak).toBeLessThanOrEqual(27)
     } finally {
       vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 100, height: 140, close: () => undefined })))
     }
@@ -649,6 +682,32 @@ describe('outfit filesystem', () => {
     expect(clothe.files.has(saved.metadataName)).toBe(true)
   })
 
+  it('deletes multiple outfits in one batch and preserves all ignored codes', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    const first = await saveOutfit(asDirectory(album), {
+      imageFile: browserFile([new Blob(['first'], { type: 'image/webp' })], 'first.webp', { type: 'image/webp' }),
+      code: 'FIRST#',
+      tag: null
+    })
+    const second = await saveOutfit(asDirectory(album), {
+      imageFile: browserFile([new Blob(['second'], { type: 'image/webp' })], 'second.webp', { type: 'image/webp' }),
+      code: 'SECOND#',
+      tag: null
+    })
+
+    const result = await deleteOutfits([first, second])
+
+    expect(result.deleted).toHaveLength(2)
+    expect(result.failedNames).toEqual([])
+    const clothe = album.directories.get('clothe')!
+    expect(clothe.files.has(first.image)).toBe(false)
+    expect(clothe.files.has(first.metadataName)).toBe(false)
+    expect(clothe.files.has(second.image)).toBe(false)
+    expect(clothe.files.has(second.metadataName)).toBe(false)
+    expect(JSON.parse(await clothe.files.get('ignored-sharecodes.json')!.getFile().then((file) => file.text())))
+      .toEqual(expect.arrayContaining(['FIRST#', 'SECOND#']))
+  })
+
   it('restores outfit metadata when the tag file commit fails', async () => {
     const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
     await saveOutfitTags(asDirectory(album), ['鐢滅編'])
@@ -679,7 +738,8 @@ describe('outfit filesystem', () => {
     await saveOutfit(asDirectory(album), {
       imageFile: browserFile([new Blob(['webp image'])], 'look.webp', { type: 'image/webp' }),
       code: 'ABC',
-      tag: null
+      tag: null,
+      note: '保留这条备注'
     })
     const target = new MemoryDirectoryHandle('exports')
     const result = await exportOutfitBackup(asDirectory(album), asDirectory(target))
@@ -692,5 +752,6 @@ describe('outfit filesystem', () => {
     expect(compressionMethods.get('manifest.json')).toBe(8)
     expect([...compressionMethods.entries()].find(([name]) => name.startsWith('images/'))?.[1]).toBe(0)
     expect(imported.addedCount).toBe(1)
+    expect(imported.library.outfits[0].note).toBe('保留这条备注')
   })
 })
