@@ -1,4 +1,4 @@
-import { datePartsFromTimestamp, parsePhotoDate, type PhotoItem, type RecentlyDeletedPhoto } from './dateGrouping'
+import { datePartsFromTimestamp, parsePhotoDate, type PhotoItem, type RecentlyDeletedPhoto } from './photoGrouping'
 import type { LocaleMessages } from '../i18n'
 
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])

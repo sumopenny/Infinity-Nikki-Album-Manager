@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { ChevronRight } from 'lucide-vue-next'
 import type { Language, LocaleMessages } from '../i18n'
-import type { YearGroup } from '../utils/dateGrouping'
+import type { YearGroup } from '../utils/photoGrouping'
 
 const props = defineProps<{
   yearGroups: YearGroup[]

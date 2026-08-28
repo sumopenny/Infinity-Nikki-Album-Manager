@@ -1,4 +1,3 @@
-// TODO: 此测试文件包含已经过期的历史版本断言，下次版本更新时直接删除整个文件。
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import AboutDialog from './AboutDialog.vue'
@@ -31,8 +30,8 @@ describe('AboutDialog release history', () => {
     await wrapper.vm.$nextTick()
 
     expect(document.body.textContent).toContain('历史版本记录')
-    expect(document.body.querySelector('.about-history-list .about-changelog-entry')?.textContent).toContain('v1.3.0补充版')
-    expect(document.body.querySelector('.about-history-list')?.textContent).not.toContain('v1.3.1')
+    expect(document.body.querySelector('.about-history-list .about-changelog-entry')?.textContent).toContain('v1.3.2')
+    expect(document.body.querySelector('.about-history-list')?.textContent).toContain('v1.3.1')
     expect(document.body.querySelector('.about-history-actions + .about-history-title')?.textContent).toBe('历史版本记录')
     expect(document.body.querySelector('.about-section-heading')).toBeNull()
 

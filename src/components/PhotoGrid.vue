@@ -3,7 +3,7 @@ import { onBeforeUnmount } from 'vue'
 import { Check, Edit3, Heart } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
 import type { ThumbnailMode } from '../types/thumbnail'
-import type { DateGroup, PhotoItem } from '../utils/dateGrouping'
+import type { DateGroup, PhotoItem } from '../utils/photoGrouping'
 import { createPhotoLoadQueue } from '../utils/photoLoader'
 import LazyPhotoImage from './LazyPhotoImage.vue'
 

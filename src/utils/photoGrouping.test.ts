@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupDatesByYear, type DateGroup } from './dateGrouping'
+import { groupDatesByYear, type DateGroup } from './photoGrouping'
 
 /** 创建只包含分组所需字段的日期测试数据。参数：dateKey 为日期，count 为照片数量。 */
 function createDateGroup(dateKey: string, count: number): DateGroup {

@@ -3,7 +3,7 @@ import { onBeforeUnmount } from 'vue'
 import { Check, Trash2 } from 'lucide-vue-next'
 import type { Language, LocaleMessages } from '../i18n'
 import type { ThumbnailMode } from '../types/thumbnail'
-import type { RecentlyDeletedPhoto } from '../utils/dateGrouping'
+import type { RecentlyDeletedPhoto } from '../utils/photoGrouping'
 import { createPhotoLoadQueue } from '../utils/photoLoader'
 import LazyPhotoImage from './LazyPhotoImage.vue'
 

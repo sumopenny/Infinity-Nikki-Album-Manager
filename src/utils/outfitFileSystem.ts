@@ -1,5 +1,5 @@
 import { strFromU8, strToU8, Unzip, UnzipInflate, Zip, ZipDeflate, ZipPassThrough } from 'fflate'
-import type { PhotoItem } from './dateGrouping'
+import type { PhotoItem } from './photoGrouping'
 
 export const DEFAULT_OUTFIT_TAGS = ['甜美', '性感', '帅气', '典雅', '清新', '古典']
 export const MAX_OUTFIT_TAGS = 40

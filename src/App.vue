@@ -2,8 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CircleHelp, Download, FileUp, Plus, Trash2 } from 'lucide-vue-next'
 import AboutDialog from './components/AboutDialog.vue'
-import AlbumViewNav, { type AlbumView } from './components/AlbumViewNav.vue'
-import CleanupAccountDialog from './components/CleanupAccountDialog.vue'
+import AlbumViewSwitcher, { type AlbumView } from './components/AlbumViewSwitcher.vue'
+import CleanupAccountPicker from './components/CleanupAccountPicker.vue'
 import CleanupDialog from './components/CleanupDialog.vue'
 import ConfirmDialog, { type ConfirmDialogTone } from './components/ConfirmDialog.vue'
 import DateSidebar from './components/DateSidebar.vue'
@@ -22,7 +22,7 @@ import { ABOUT_VERSION, DEFAULT_LANGUAGE, getThumbnailModeOptions, messages, typ
 import { getOutfitMessages } from './outfitMessages'
 import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
 import { isThemeMode, type ThemeMode } from './types/theme'
-import { groupDatesByYear, groupPhotosByDate, type PhotoItem, type RecentlyDeletedPhoto } from './utils/dateGrouping'
+import { groupDatesByYear, groupPhotosByDate, type PhotoItem, type RecentlyDeletedPhoto } from './utils/photoGrouping'
 import {
   clearRecentlyDeleted,
   clearSavedAlbumDirectoryHandle,
@@ -1826,7 +1826,7 @@ onBeforeUnmount(() => {
 
     <main class="album-layout" :class="{ 'without-album': !albumDirectoryHandle }">
       <div v-if="albumDirectoryHandle" class="sidebar-column">
-        <AlbumViewNav
+        <AlbumViewSwitcher
           :active-view="activeView"
           :all-count="photos.length"
           :outfits-count="outfits.length"
@@ -2035,7 +2035,7 @@ onBeforeUnmount(() => {
       @clean="cleanSpecialItem"
     />
 
-    <CleanupAccountDialog
+    <CleanupAccountPicker
       :visible="showCleanupAccountDialog"
       :accounts="cleanupAccounts"
       :remembered-choice="cleanupRememberedChoice"

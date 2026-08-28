@@ -1,4 +1,4 @@
-import type { PhotoItem } from './dateGrouping'
+import type { PhotoItem } from './photoGrouping'
 import { ensurePhotoUrl, resetPhotoUrl } from './fileSystem'
 
 interface QueueEntry {

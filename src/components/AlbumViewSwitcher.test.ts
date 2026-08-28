@@ -1,12 +1,12 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { messages } from '../i18n'
-import AlbumViewNav from './AlbumViewNav.vue'
+import AlbumViewSwitcher from './AlbumViewSwitcher.vue'
 import RecentlyDeletedGrid from './RecentlyDeletedGrid.vue'
 
 describe('album view controls', () => {
   it('renders the four separate entries in the required order', async () => {
-    const wrapper = mount(AlbumViewNav, {
+    const wrapper = mount(AlbumViewSwitcher, {
       props: {
         activeView: 'all',
         allCount: 12,

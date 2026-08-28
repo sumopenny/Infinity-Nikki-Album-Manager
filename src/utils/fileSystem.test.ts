@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { messages } from '../i18n'
-import type { PhotoItem } from './dateGrouping'
+import type { PhotoItem } from './photoGrouping'
 import {
   clearRecentlyDeleted,
   listGamePlayPhotoAccounts,

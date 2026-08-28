@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { messages } from '../i18n'
-import type { PhotoItem } from '../utils/dateGrouping'
+import type { PhotoItem } from '../utils/photoGrouping'
 import { getOutfitMessages } from '../outfitMessages'
 import type { OutfitItem } from '../utils/outfitFileSystem'
 import Lightbox from './Lightbox.vue'

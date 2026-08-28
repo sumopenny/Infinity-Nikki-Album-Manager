@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import type { PhotoItem } from '../utils/dateGrouping'
+import type { PhotoItem } from '../utils/photoGrouping'
 
 const props = defineProps<{
   photo: PhotoItem

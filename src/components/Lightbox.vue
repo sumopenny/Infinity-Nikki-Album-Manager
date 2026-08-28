@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ChevronLeft, ChevronRight, Copy, Edit3, Heart, Pencil, RotateCcw, Trash2, X, ZoomIn, ZoomOut } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
 import type { OutfitMessages } from '../outfitMessages'
-import type { PhotoItem } from '../utils/dateGrouping'
+import type { PhotoItem } from '../utils/photoGrouping'
 import type { OutfitItem } from '../utils/outfitFileSystem'
 import { loadPhotoWithRetryAndSize } from '../utils/photoLoader'
 
