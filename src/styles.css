@@ -1800,6 +1800,7 @@ h1 {
 
 .about-history-section {
   display: flex;
+  flex: 1 1 auto;
   min-height: 0;
   flex-direction: column;
 }
@@ -1836,7 +1837,8 @@ h1 {
 }
 
 .about-history-list {
-  max-height: min(48dvh, 420px);
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 6px;
 }
@@ -2043,9 +2045,6 @@ h1 {
     padding: 22px;
   }
 
-  .about-history-list {
-    max-height: min(52dvh, 420px);
-  }
 }
 
 /* Album navigation and timeline */

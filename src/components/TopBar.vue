@@ -173,18 +173,6 @@ onBeforeUnmount(() => {
         <button v-if="searchQuery" type="button" :title="messages.clearSearch" :aria-label="messages.clearSearch" @click="emit('updateSearch', '')"><X :size="15" /></button>
       </div>
 
-      <button
-        class="header-icon-button refresh-album-button"
-        type="button"
-        :title="messages.refreshAlbum"
-        :aria-label="messages.refreshAlbum"
-        :disabled="!hasAlbumDirectory || isBusy || isRefreshing"
-        @click="emit('refreshAlbum')"
-      >
-        <RefreshCw :size="17" :class="{ spinning: isRefreshing }" aria-hidden="true" />
-        <span>{{ messages.refreshAlbum }}</span>
-      </button>
-
       <div class="header-menu-wrap">
         <button
           class="header-menu-button album-name-button"
@@ -215,17 +203,6 @@ onBeforeUnmount(() => {
           </div>
         </Teleport>
       </div>
-
-      <button
-        class="header-icon-button cleanup-button"
-        type="button"
-        :title="messages.specialCleanup"
-        :aria-label="messages.specialCleanup"
-        @click="emit('openCleanup')"
-      >
-        <Eraser :size="17" aria-hidden="true" />
-        <span>{{ messages.specialCleanup }}</span>
-      </button>
 
       <div class="header-menu-wrap">
         <button
@@ -269,6 +246,29 @@ onBeforeUnmount(() => {
           </div>
         </Teleport>
       </div>
+
+      <button
+        class="header-icon-button refresh-album-button"
+        type="button"
+        :title="messages.refreshAlbum"
+        :aria-label="messages.refreshAlbum"
+        :disabled="!hasAlbumDirectory || isBusy || isRefreshing"
+        @click="emit('refreshAlbum')"
+      >
+        <RefreshCw :size="17" :class="{ spinning: isRefreshing }" aria-hidden="true" />
+        <span>{{ messages.refreshAlbum }}</span>
+      </button>
+
+      <button
+        class="header-icon-button cleanup-button"
+        type="button"
+        :title="messages.specialCleanup"
+        :aria-label="messages.specialCleanup"
+        @click="emit('openCleanup')"
+      >
+        <Eraser :size="17" aria-hidden="true" />
+        <span>{{ messages.specialCleanup }}</span>
+      </button>
 
       <button class="header-icon-button fortune-time-trigger" type="button" :title="messages.fortuneTime" :aria-label="messages.fortuneTime" @click="closeMenus(); showFortuneTime = true">
         <span aria-hidden="true">✦</span>

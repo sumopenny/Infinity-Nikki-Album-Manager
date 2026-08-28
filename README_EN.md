@@ -45,6 +45,7 @@
 - Store outfit images, outfit codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export.
 - Add notes of up to 15 characters to photos and outfit plans, then search the current view by file name, note, or outfit code.
 - Use the Special Cleanup window to clean low-quality photos and game screenshots, crash snapshots, runtime logs, and the game's built-in browser cache.
+- Open Lucky pull times in the top-right corner to view the entertainment-only Version 2.9 timing table; actual drop rates still follow the game's probabilities.
 
 ## Quick Start
 
