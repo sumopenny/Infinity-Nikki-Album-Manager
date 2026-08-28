@@ -1,3 +1,4 @@
+// TODO: 此测试文件包含已经过期的历史版本断言，下次版本更新时直接删除整个文件。
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import AboutDialog from './AboutDialog.vue'
