@@ -84,6 +84,8 @@ export interface X6GameDirectoryOptions {
   beforePickX6GameDirectory?: () => boolean | Promise<boolean>
   beforeRequestX6GamePermission?: () => boolean | Promise<boolean>
   allowUnrelatedAlbum?: boolean
+  /** 强制打开目录选择器，不复用已保存的授权句柄。 */
+  forcePick?: boolean
 }
 
 interface RelatedPhotoCleanupTarget {
@@ -1025,7 +1027,7 @@ export async function pickStandaloneX6GameDirectory(
 ): Promise<FileSystemDirectoryHandle> {
   const savedHandle = await getSavedX6GameDirectoryHandle()
 
-  if (savedHandle && savedHandle.name === 'X6Game') {
+  if (!options.forcePick && savedHandle && savedHandle.name === 'X6Game') {
     let hasPermission = await ensureReadWritePermission(savedHandle, false)
 
     if (!hasPermission) {

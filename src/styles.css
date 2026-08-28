@@ -2835,6 +2835,14 @@ h1 {
 
 .lightbox-close {
   flex: 0 0 auto;
+  width: 34px;
+  min-width: 34px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--heading) 8%, transparent);
+}
+
+.lightbox-close:hover {
+  background: color-mix(in srgb, var(--heading) 16%, transparent);
 }
 
 .lightbox-zoom-controls button:disabled,

@@ -45,9 +45,13 @@ description: 发布 Infinity Nikki Album Manager 的 Git tag 与 GitHub/Gitee Re
 
 ## 4. Release 标题与正文
 
-GitHub 与 Gitee 必须使用完全一致的标题和正文。版本更新内容优先取自“关于网站”的中文版本记录，即 `src/i18n.ts` 中 `about.changelog` 的当前版本条目或 `about.history` 的历史版本条目；按版本号匹配，必要时将 `v1.x` 与站内的 `v1.x.0` 视为同一版本。只有站内没有该版本记录时，才从提交记录和 `log.md` 整理用户可见变更，并在发布前请用户确认文案。正文固定先放在线使用，再放版本更新：
+GitHub 与 Gitee 必须使用完全一致的标题和正文。正文固定先放版本更新，再放在线使用：
 
 ```markdown
+## 更新内容
+
+- 列出该 tag 对应的用户可见变更。
+
 ## 在线使用
 
 本网站可直接访问：
@@ -57,10 +61,6 @@ GitHub 与 Gitee 必须使用完全一致的标题和正文。版本更新内容
 本地部署教程可查看 README。
 
 如果遇到问题，请及时通过网站反馈入口、GitHub/Gitee 的 Issues 或作者社交平台反馈。
-
-## 更新内容
-
-- 使用上述“关于网站”记录中对应版本的中文更新内容。
 ```
 
 默认全部为正式 Release、无附件；根据网站目前最新版本标记为最新。Release 必须绑定现有 tag，不重新指定其他 commit。

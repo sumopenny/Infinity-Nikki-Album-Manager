@@ -1543,6 +1543,7 @@ async function authorizeCleanupFolder() {
   let didCancelDirectoryPrompt = false
   try {
     const handle = await pickStandaloneX6GameDirectory(locale.value.fileSystem, {
+      forcePick: true,
       beforeRequestX6GamePermission: async () => {
         const confirmed = await openConfirmDialog({
           title: locale.value.app.x6GameDirectoryDialogTitle,
