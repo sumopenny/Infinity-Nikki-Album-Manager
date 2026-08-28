@@ -13,8 +13,8 @@ description: 发布 Infinity Nikki Album Manager 的 Git tag 与 GitHub/Gitee Re
 
 1. 确认工作区干净：`git status --short`。发现无关改动时停止并说明。
 2. 确认远端：`origin` 为 GitHub，`gitee` 为 Gitee。
-3. 从 `main`、`src/i18n.ts`、`log.md`、README 和提交记录交叉确认版本边界。
-4. 每个版本选择“该版本全部内容完成后的最后一个相关 commit”，不得直接把 tag 指向 `main` 尖端。
+3. 从 `main`、`src/i18n.ts`、`log.md`、README 和提交记录确认版本号、用户可见更新内容及发布范围。
+4. 发布 tag 默认指向发布时 `main` 的当前最新提交：创建前以 `git rev-parse main` 记录目标 commit，并以该 commit 创建 tag。只有用户明确指定其他 commit 时才例外。
 5. 检查本地与远端是否已有同名 tag/Release；默认不覆盖。
 
 ## 2. Tag 规则
@@ -22,7 +22,7 @@ description: 发布 Infinity Nikki Album Manager 的 Git tag 与 GitHub/Gitee Re
 - 正式版本使用 annotated tag，说明使用中文；轻量 tag 只适合临时标记。
 - `v1.x` 的 Release 标题可以是“tag + 核心功能”，例如 `v1.3 新增专项清理功能`。
 - `v1.x.x` 的 Release 标题只使用 tag 名。
-- `1.x.0` 版本形式：如`v1.3.0` 应写为 `v1.3`，。
+- `1.x.0` 版本形式使用 `v1.x`，例如 `v1.3.0` 应写为 `v1.3`。
 - 当前项目历史映射（仅作校验基准，未来版本必须重新确认）：
 
   | Tag | Commit |
@@ -31,7 +31,6 @@ description: 发布 Infinity Nikki Album Manager 的 Git tag 与 GitHub/Gitee Re
   | `v1.2.2` | `e55e242` |
   | `v1.2.3` | `c091c86` |
   | `v1.3` | `a642f8a` |
-  | `v1.3-add` | `b45902f` |
   | `v1.3.1` | `07e1e9b` |
   | `v1.3.2` | `c06704e` |
 
@@ -46,7 +45,7 @@ description: 发布 Infinity Nikki Album Manager 的 Git tag 与 GitHub/Gitee Re
 
 ## 4. Release 标题与正文
 
-GitHub 与 Gitee 必须使用完全一致的标题和正文。正文固定先放在线使用，再放版本更新：
+GitHub 与 Gitee 必须使用完全一致的标题和正文。版本更新内容优先取自“关于网站”的中文版本记录，即 `src/i18n.ts` 中 `about.changelog` 的当前版本条目或 `about.history` 的历史版本条目；按版本号匹配，必要时将 `v1.x` 与站内的 `v1.x.0` 视为同一版本。只有站内没有该版本记录时，才从提交记录和 `log.md` 整理用户可见变更，并在发布前请用户确认文案。正文固定先放在线使用，再放版本更新：
 
 ```markdown
 ## 在线使用
@@ -61,7 +60,7 @@ GitHub 与 Gitee 必须使用完全一致的标题和正文。正文固定先放
 
 ## 更新内容
 
-- 列出该 tag 对应的用户可见变更。
+- 使用上述“关于网站”记录中对应版本的中文更新内容。
 ```
 
 默认全部为正式 Release、无附件；根据网站目前最新版本标记为最新。Release 必须绑定现有 tag，不重新指定其他 commit。
