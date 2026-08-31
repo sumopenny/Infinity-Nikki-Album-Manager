@@ -639,6 +639,27 @@
 - 状态：已解决
 - 技术/方法：保留 Lightbox 原有定位和布局，仅将关闭按钮统一为 34x34 圆形及主题色混合背景，悬停时提升至 16% 主题色。
 
+## 2026-08-31
+
+1.问题：`styles.css` 持续变大，按功能查找和修改样式的成本上升。
+- 状态：已解决
+- 技术/方法：按主题变量、基础样式、弹窗、顶栏、相册、日期导航、大图预览和搭配工作区拆分为独立 CSS 文件；`main.ts` 按 tokens、base、dialogs、top-bar、album、album-navigation、lightbox、outfit 顺序引入。仅移动规则，保留原选择器、变量、动画和媒体查询；构建、79 项测试及 `git diff --check` 均通过。README 已检查，本次不涉及使用方式变化，无需更新。
+
+2.问题：测试文件分散在 `src`、`src/components` 和 `src/utils`，源码目录同时承载生产代码和测试代码。
+- 状态：已解决
+- 技术/方法：将 9 个测试文件集中到根目录 `tests/`，按 `components`、`utils` 和应用级测试分组；同步调整测试相对导入、Vitest 扫描范围和 TypeScript 检查范围。未修改测试逻辑和生产代码，`npm test` 79/79、`npm run build` 均通过。README 已检查，无需更新。
+
+3.问题：`i18n.ts` 同时承载类型、辅助函数和全部中英文文案，文件过大且不易按功能维护。
+- 状态：已解决
+- 技术/方法：保留 `messages[language]`、`Language`、`LocaleMessages`、默认语言、版本号和缩略图选项等公共接口，新增 `src/i18n/` 目录，按类型、格式化函数、语言包和功能区域拆分文案；语言键继续使用 `zh`/`en`，未修改用户可见文本。`npm test` 79/79、`npm run build` 均通过。README 已检查，无需更新。
+
+4.问题：应用版本号和关于页面当前 changelog 版本号分开维护，发布时容易遗漏其中一处。
+- 状态：已解决
+- 技术/方法：删除独立的 `ABOUT_VERSION`，应用改为直接读取 `messages.zh.about.changelog[0].version`，并去除 `v` 前缀后用于本地“不再提示”状态判断和保存。后续更新当前版本时只需修改关于文案第一条 changelog 的版本号。
+
+5.问题：搭配码文案模块仍独立于 `src/i18n/`，国际化内容存在两个入口。
+- 状态：已解决
+- 技术/方法：将 `outfitMessages.ts` 移入 `src/i18n/messages/outfit.ts`，保留 `OutfitMessages` 与 `getOutfitMessages` 兼容导出，同时在 `LocaleMessages`、中文/英文语言包中接入 `outfit`；应用运行时改为使用 `messages[language].outfit`，组件类型统一从 i18n 模块引用。
 
 
 

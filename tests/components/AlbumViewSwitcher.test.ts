@@ -1,8 +1,8 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-import { messages } from '../i18n'
-import AlbumViewSwitcher from './AlbumViewSwitcher.vue'
-import RecentlyDeletedGrid from './RecentlyDeletedGrid.vue'
+import { messages } from '../../src/i18n'
+import AlbumViewSwitcher from '../../src/components/AlbumViewSwitcher.vue'
+import RecentlyDeletedGrid from '../../src/components/RecentlyDeletedGrid.vue'
 
 describe('album view controls', () => {
   it('renders the four separate entries in the required order', async () => {
@@ -50,3 +50,4 @@ describe('album view controls', () => {
     expect(messages.zh.trash.confirmPermanentDelete(6)).toBe('将从电脑中永久删除这 6 张照片，无法恢复。')
   })
 })
+

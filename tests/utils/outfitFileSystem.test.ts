@@ -14,7 +14,7 @@ import {
   readOutfitLibrary,
   saveOutfit,
   saveOutfitTags
-} from './outfitFileSystem'
+} from '../../src/utils/outfitFileSystem'
 
 function readBlob(blob: Blob, mode: 'buffer' | 'text'): Promise<ArrayBuffer | string> {
   return new Promise((resolve, reject) => {
@@ -755,3 +755,4 @@ describe('outfit filesystem', () => {
     expect(imported.library.outfits[0].note).toBe('保留这条备注')
   })
 })
+

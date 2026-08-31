@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-import { messages } from '../i18n'
-import TopBar from './TopBar.vue'
+import { messages } from '../../src/i18n'
+import TopBar from '../../src/components/TopBar.vue'
 
 describe('TopBar', () => {
   it('renders the primary actions in the requested order', () => {
@@ -41,3 +41,4 @@ describe('TopBar', () => {
     expect(orderedActions.map((element) => selectors.find((selector) => element.matches(selector)))).toEqual(selectors)
   })
 })
+

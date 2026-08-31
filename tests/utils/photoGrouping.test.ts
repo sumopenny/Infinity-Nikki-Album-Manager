@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupDatesByYear, type DateGroup } from './photoGrouping'
+import { groupDatesByYear, type DateGroup } from '../../src/utils/photoGrouping'
 
 /** 创建只包含分组所需字段的日期测试数据。参数：dateKey 为日期，count 为照片数量。 */
 function createDateGroup(dateKey: string, count: number): DateGroup {
@@ -28,3 +28,4 @@ describe('groupDatesByYear', () => {
     expect(result[0].months[0].dates.map((date) => date.dateKey)).toEqual(['2026-07-04', '2026-07-01'])
   })
 })
+

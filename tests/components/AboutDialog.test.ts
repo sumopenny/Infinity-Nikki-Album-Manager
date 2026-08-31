@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
-import AboutDialog from './AboutDialog.vue'
-import { messages } from '../i18n'
+import AboutDialog from '../../src/components/AboutDialog.vue'
+import { messages } from '../../src/i18n'
 
 const topBarMessages = messages.zh.topBar
 
@@ -60,3 +60,4 @@ describe('AboutDialog release history', () => {
     expect(wrapper.emitted('close')).toEqual([[false]])
   })
 })
+

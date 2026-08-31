@@ -1,0 +1,987 @@
+/* 搭配码工作区样式：搭配方案网格、侧栏、标签、图片导入、编辑器、引导窗口和相关响应式布局。 */
+/* Outfit code workspace */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.outfit-sidebar {
+  margin-top: 20px;
+}
+
+.outfit-guide {
+  position: fixed;
+  inset: 0;
+  z-index: 121;
+  display: grid;
+  place-items: center;
+  padding: clamp(14px, 4vw, 36px);
+  overflow-y: auto;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(5px);
+}
+
+.outfit-guide-panel {
+  width: min(1080px, 100%);
+  max-height: calc(100dvh - 28px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--dialog-shadow);
+}
+
+.outfit-guide-panel > header,
+.outfit-guide-panel > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+}
+
+.outfit-guide-panel > header {
+  border-bottom: 1px solid var(--line);
+}
+
+.outfit-guide-panel > header p {
+  margin: 0 0 4px;
+  color: var(--pink-deep);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.outfit-guide-panel > header h2 {
+  margin: 0;
+  color: var(--heading);
+  font-size: 22px;
+}
+
+.outfit-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.outfit-guide-open {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  color: var(--muted);
+  transition: color var(--motion-fast) ease, border-color var(--motion-fast) ease, background var(--motion-fast) ease;
+}
+
+.outfit-guide-open:hover:not(:disabled) {
+  border-color: var(--pink-deep);
+  background: var(--surface-strong);
+  color: var(--pink-deep);
+}
+
+/* 最近删除头部"清空全部"按钮，紧贴标题右侧 */
+.trash-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trash-clear-all-btn {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--motion-fast) ease, border-color var(--motion-fast) ease, background var(--motion-fast) ease;
+}
+
+.trash-clear-all-btn:hover:not(:disabled) {
+  border-color: var(--notice-error);
+  background: color-mix(in srgb, var(--notice-error) 10%, var(--surface-strong));
+  color: var(--notice-error);
+}
+
+/* 关闭按钮与“关于网站”一致的悬浮圆形样式 */
+.outfit-guide-panel > header button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--heading) 8%, transparent);
+  color: var(--text);
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.outfit-guide-panel > header button:hover {
+  background: color-mix(in srgb, var(--heading) 16%, transparent);
+}
+
+.outfit-guide-intro {
+  margin: 0;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.outfit-guide-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.outfit-guide-featured,
+.outfit-guide-sections > section {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.outfit-guide-featured {
+  background: color-mix(in srgb, var(--pink-deep) 7%, var(--surface));
+}
+
+.outfit-guide-sections > section:nth-child(odd) {
+  border-right: 1px solid var(--line-soft);
+}
+
+.outfit-guide-section-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--pink-deep);
+  border-radius: 8px;
+  background: var(--favorite-button-active-bg);
+  color: var(--pink-deep);
+}
+
+.outfit-guide-featured h3,
+.outfit-guide-sections h3 {
+  margin: 2px 0 8px;
+  color: var(--heading);
+  font-size: 16px;
+}
+
+.outfit-guide-featured p,
+.outfit-guide-sections p {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.outfit-guide-featured p:last-child,
+.outfit-guide-sections p:last-child {
+  margin-bottom: 0;
+}
+
+.outfit-guide-panel > footer {
+  padding-block: 12px;
+}
+
+.outfit-guide-panel > footer label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.outfit-guide-panel > footer input {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  appearance: none;
+  place-content: center;
+  border: 1px solid var(--pink-deep);
+  border-radius: 4px;
+  background: var(--surface-strong);
+  cursor: pointer;
+}
+
+.outfit-guide-panel > footer input::before {
+  color: #fff;
+  content: "✓";
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  opacity: 0;
+}
+
+.outfit-guide-panel > footer input:checked {
+  background: var(--pink-deep);
+}
+
+.outfit-guide-panel > footer input:checked::before {
+  opacity: 1;
+}
+
+.outfit-guide-panel > footer input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--pink-deep) 42%, transparent);
+  outline-offset: 2px;
+}
+
+.outfit-guide-panel > footer .primary-button {
+  min-width: 84px;
+  min-height: 38px;
+  justify-content: center;
+  border-radius: 10px;
+}
+
+.outfit-sidebar-heading,
+.outfit-filter-button,
+.outfit-card-footer,
+.outfit-header-actions,
+.outfit-editor-panel > header,
+.outfit-editor-panel > footer {
+  display: flex;
+  align-items: center;
+}
+
+.outfit-sidebar-heading {
+  min-height: 30px;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.outfit-sidebar-heading .sidebar-section-title {
+  margin-bottom: 0;
+}
+
+.outfit-add-tag-toggle,
+.outfit-tag-drag-handle,
+.outfit-delete-tag,
+.outfit-card-actions button,
+.outfit-card-delete,
+.outfit-editor-panel > header button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-strong);
+  color: var(--muted);
+  transition: color var(--motion-fast) ease, border-color var(--motion-fast) ease, background var(--motion-fast) ease;
+}
+
+.outfit-add-tag-toggle:hover:not(:disabled),
+.outfit-delete-tag:hover:not(:disabled),
+.outfit-card-actions button:hover:not(:disabled) {
+  border-color: var(--pink-deep);
+  color: var(--pink-deep);
+}
+
+/* 编辑窗口头部关闭按钮单独覆盖：与“关于网站”一致的悬浮圆形样式 */
+.outfit-editor-panel > header button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--heading) 8%, transparent);
+  color: var(--text);
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.outfit-editor-panel > header button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--heading) 16%, transparent);
+}
+
+.outfit-tag-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.outfit-tag-editor-popover {
+  position: fixed;
+  z-index: 130;
+  width: min(260px, calc(100vw - 24px));
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--pink-deep) 18%, transparent);
+  backdrop-filter: blur(5px);
+  gap: 10px;
+  background: #ffffffb6;
+}
+
+.outfit-tag-editor input,
+.outfit-fields > input {
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  outline: none;
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+.outfit-tag-editor input:focus,
+.outfit-fields > input:focus {
+  border-color: var(--pink-deep);
+  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 14%, transparent);
+}
+
+.outfit-tag-editor button {
+  padding: 0 9px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  font-size: 12px;
+  font-weight: 700;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.outfit-tag-editor button:hover:not(:disabled) {
+  background: var(--primary-hover-bg);
+  transform: translateY(-1px);
+}
+
+/* 浮层从加号按钮右侧弹出：进入时轻微回弹，离开时快速收敛 */
+.outfit-tag-editor-enter-active {
+  transition: opacity 0.22s ease, transform 0.3s cubic-bezier(0.2, 0.9, 0.25, 1.12);
+  transform-origin: left center;
+}
+
+.outfit-tag-editor-leave-active {
+  transition: opacity 0.16s ease-in, transform 0.16s ease-in;
+  transform-origin: left center;
+}
+
+.outfit-tag-editor-enter-from,
+.outfit-tag-editor-leave-to {
+  opacity: 0;
+  transform: translateX(-10px) scale(0.9);
+}
+
+.outfit-filter-list {
+  display: grid;
+  gap: 2px;
+  margin-top: 14px;
+}
+
+.outfit-filter-row {
+  position: relative;
+}
+
+.outfit-tag-drag-handle {
+  position: absolute;
+  z-index: 1;
+  top: 1px;
+  left: 0;
+  width: 24px;
+  height: 32px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.outfit-tag-drag-handle:hover:not(:disabled),
+.outfit-tag-drag-handle:focus-visible {
+  color: var(--heading);
+}
+
+.outfit-tag-drag-handle::after {
+  position: absolute;
+  z-index: 6;
+  top: 50%;
+  left: calc(100% + 6px);
+  width: max-content;
+  max-width: 150px;
+  padding: 5px 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-strong);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--heading) 14%, transparent);
+  color: var(--text);
+  content: attr(data-tooltip);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(2px, -50%);
+  transition: opacity var(--motion-fast) ease, transform var(--motion-fast) ease;
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+.outfit-tag-drag-handle:hover:not(:disabled)::after,
+.outfit-tag-drag-handle:focus-visible::after {
+  opacity: 1;
+  transform: translate(0, -50%);
+  visibility: visible;
+}
+
+.is-reordering-outfit-tags .outfit-tag-drag-handle::after {
+  display: none;
+}
+
+.is-reordering-outfit-tags,
+.is-reordering-outfit-tags * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.outfit-filter-row.is-dragging {
+  opacity: 0.55;
+}
+
+.outfit-filter-row.drop-before::before,
+.outfit-filter-row.drop-after::after {
+  position: absolute;
+  z-index: 3;
+  right: 4px;
+  left: 4px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--pink-deep);
+  content: '';
+  pointer-events: none;
+}
+
+.outfit-filter-row.drop-before::before {
+  top: -2px;
+}
+
+.outfit-filter-row.drop-after::after {
+  bottom: -2px;
+}
+
+.outfit-filter-button {
+  position: relative;
+  width: 100%;
+  min-height: 34px;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 34px 5px 26px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.outfit-filter-button::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 0;
+  border-radius: 999px;
+  background: var(--pink-deep);
+  content: '';
+  transform: translateY(-50%);
+  transition: height var(--motion-base) var(--ease-spring);
+}
+
+.outfit-filter-button:hover:not(:disabled)::before,
+.outfit-filter-row:hover .outfit-filter-button:not(:disabled)::before {
+  height: 14px;
+}
+
+.outfit-filter-list > .outfit-filter-button {
+  padding: 5px 8px;
+}
+
+.outfit-filter-button:hover:not(:disabled),
+.outfit-filter-row:hover .outfit-filter-button:not(:disabled) {
+  border-color: var(--line);
+  background: var(--surface-strong);
+  color: var(--heading);
+}
+
+.outfit-filter-button.active:hover:not(:disabled),
+.outfit-filter-row:hover .outfit-filter-button.active:not(:disabled) {
+  background: var(--favorite-button-active-bg);
+}
+
+.outfit-filter-button.active {
+  border-color: var(--line);
+  background: var(--favorite-button-active-bg);
+  color: var(--heading);
+}
+
+.outfit-filter-button small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.outfit-delete-tag {
+  position: absolute;
+  top: 3px;
+  right: 2px;
+  width: 27px;
+  height: 27px;
+  border-color: transparent;
+  background: transparent;
+  opacity: 1;
+}
+
+.outfit-header-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.outfit-header-actions > button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-strong);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.outfit-header-actions > button:hover:not(:disabled) {
+  border-color: var(--pink-deep);
+  color: var(--heading);
+}
+
+.outfit-header-actions > .primary-button {
+  border-color: transparent;
+  background: var(--primary-button-bg);
+  color: var(--primary-text);
+}
+
+.outfit-header-actions > .primary-button:hover:not(:disabled) {
+  color: var(--primary-hover-text);
+}
+
+.outfit-grid {
+  padding: 13px 5px 28px;
+}
+
+.outfit-card {
+  min-width: 0;
+  padding: 8px;
+}
+
+.outfit-overlay {
+  padding-right: 44px;
+}
+
+.outfit-card-delete {
+  position: absolute;
+  z-index: 6;
+  top: 8px;
+  right: 8px;
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(25, 22, 22, 0.48);
+  color: #fff;
+  opacity: 0;
+  transition: opacity var(--motion-fast) ease, color var(--motion-fast) ease, border-color var(--motion-fast) ease, background var(--motion-fast) ease;
+}
+
+.outfit-card:hover .outfit-card-delete,
+.outfit-card-delete:focus-visible {
+  opacity: 1;
+}
+
+.outfit-card-delete:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.72);
+  background: color-mix(in srgb, var(--notice-error) 80%, rgba(25, 22, 22, 0.48));
+  color: #fff;
+}
+
+.outfit-card-footer {
+  min-height: 42px;
+  gap: 8px;
+  padding: 8px 1px 0;
+}
+
+.outfit-code,
+.outfit-pending-code {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outfit-pending-code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--pink-deep);
+  text-align: left;
+}
+
+.outfit-card-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 5px;
+}
+
+.outfit-editor {
+  position: fixed;
+  inset: 0;
+  z-index: 115;
+  display: grid;
+  place-items: center;
+  padding: clamp(14px, 4vw, 36px);
+  overflow-y: auto;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(5px);
+}
+
+.outfit-editor-panel {
+  --dialog-accent: var(--pink-deep);
+  width: min(820px, 100%);
+  max-height: calc(100dvh - 28px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--dialog-shadow);
+}
+
+.outfit-editor-panel > header {
+  min-height: 58px;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.outfit-editor-panel > header h2 {
+  margin: 0;
+  color: var(--heading);
+  font-size: 17px;
+}
+
+.outfit-editor-content {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.9fr) minmax(280px, 1.1fr);
+  gap: 22px;
+  padding: 18px;
+}
+
+.outfit-image-column,
+.outfit-fields {
+  min-width: 0;
+}
+
+.outfit-image-column > label,
+.outfit-fields > label,
+.outfit-fields legend {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--heading);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.outfit-image-dropzone {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  padding: 0;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: var(--frame-bg);
+  color: var(--muted);
+}
+
+:root:not([data-theme='dark']) .outfit-image-dropzone {
+  background: #fff;
+}
+
+.outfit-image-dropzone:hover:not(:disabled),
+.outfit-image-dropzone.is-dragging {
+  border-color: var(--pink-deep);
+  background: color-mix(in srgb, var(--soft-accent) 60%, var(--frame-bg));
+}
+
+.outfit-image-dropzone img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.outfit-image-prompt {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 22px;
+  line-height: 1.6;
+}
+
+.outfit-replace-image {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border-radius: 10px;
+  background: rgba(25, 22, 22, 0.72);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.outfit-fields > input {
+  width: 100%;
+  margin-bottom: 20px;
+  border-radius: 12px;
+}
+
+.outfit-fields fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.outfit-tag-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.outfit-tag-choices button {
+  min-height: 34px;
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-strong);
+  color: var(--text);
+  font-size: 12px;
+  transition: border-color var(--motion-base) ease, background var(--motion-base) ease, color var(--motion-base) ease, transform var(--motion-fast) ease;
+}
+
+/* 点按时的轻微回缩，提供按压反馈 */
+.outfit-tag-choices button:active:not(:disabled) {
+  transform: scale(0.93);
+}
+
+.outfit-tag-choices .outfit-editor-add-tag {
+  display: grid;
+  width: 34px;
+  min-width: 34px;
+  padding: 0;
+  place-items: center;
+  color: var(--pink-deep);
+}
+
+.outfit-tag-choices .outfit-editor-add-tag:hover:not(:disabled) {
+  border-color: var(--pink-deep);
+  background: color-mix(in srgb, var(--pink-deep) 10%, var(--surface-strong));
+}
+
+.outfit-tag-choices button.active {
+  border-color: var(--pink-deep);
+  background: var(--favorite-button-active-bg);
+  color: var(--heading);
+  font-weight: 800;
+}
+
+.outfit-fields fieldset > p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.outfit-editor-error {
+  margin: 18px 0 0;
+  color: var(--notice-error);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* 编辑器底部按钮：复用确认窗口的按钮样式，右侧自适应宽度 */
+.outfit-editor-panel > footer {
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+}
+
+.outfit-editor-panel > footer .confirm-dialog-button {
+  min-width: 110px;
+}
+
+@media (hover: none) {
+  .outfit-delete-tag,
+  .outfit-card-delete {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .sidebar-column {
+    width: 100%;
+  }
+
+  .album-view-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .album-view-button > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .gallery-header {
+    align-items: flex-start;
+  }
+
+  .outfit-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .outfit-editor-content {
+    grid-template-columns: 1fr;
+  }
+
+  .outfit-guide-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .outfit-guide-sections > section:nth-child(odd) {
+    border-right: 0;
+  }
+
+  .outfit-image-dropzone {
+    max-height: 48dvh;
+  }
+}
+
+@media (max-width: 520px) {
+  .gallery-header.is-outfit-header {
+    flex-direction: column;
+  }
+
+  .outfit-header-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .outfit-header-actions > button {
+    justify-content: center;
+    white-space: normal;
+  }
+
+  .outfit-header-actions > .primary-button {
+    grid-column: 1 / -1;
+  }
+
+  .outfit-editor {
+    padding: 8px;
+  }
+
+  .outfit-guide {
+    padding: 8px;
+  }
+
+  .outfit-guide-panel {
+    max-height: calc(100dvh - 16px);
+  }
+
+  .outfit-guide-panel > header,
+  .outfit-guide-panel > footer {
+    padding-inline: 14px;
+  }
+
+  .outfit-guide-intro,
+  .outfit-guide-featured,
+  .outfit-guide-sections > section {
+    padding-inline: 14px;
+  }
+
+  .outfit-editor-panel {
+    max-height: calc(100dvh - 16px);
+  }
+
+  .outfit-editor-content {
+    gap: 16px;
+    padding: 14px;
+  }
+
+  .lightbox-outfit-meta {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .lightbox-outfit-meta span {
+    max-width: calc(50vw - 24px);
+  }
+
+  .lightbox-toolbar-divider {
+    display: none;
+  }
+}
+
+.primary-button,
+.confirm-dialog-button,
+.header-dropdown,
+.header-dropdown button,
+.header-dropdown a {
+  border-radius: var(--ui-radius);
+}
+
+.primary-button,
+.confirm-dialog-button {
+  min-height: 48px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { ImagePlus, Plus, Upload, X } from 'lucide-vue-next'
-import type { OutfitMessages } from '../outfitMessages'
+import type { OutfitMessages } from '../i18n'
 import {
   MAX_OUTFIT_CODE_LENGTH,
   MAX_OUTFIT_NOTE_LENGTH,

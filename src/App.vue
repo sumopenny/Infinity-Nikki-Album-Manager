@@ -18,8 +18,7 @@ import PhotoGrid from './components/PhotoGrid.vue'
 import RecentlyDeletedGrid from './components/RecentlyDeletedGrid.vue'
 import SelectionBar from './components/SelectionBar.vue'
 import TopBar from './components/TopBar.vue'
-import { ABOUT_VERSION, DEFAULT_LANGUAGE, getThumbnailModeOptions, messages, type Language, type StatusPrefix, type StatusSuffix } from './i18n'
-import { getOutfitMessages } from './outfitMessages'
+import { DEFAULT_LANGUAGE, getThumbnailModeOptions, messages, type Language, type StatusPrefix, type StatusSuffix } from './i18n'
 import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
 import { isThemeMode, type ThemeMode } from './types/theme'
 import { groupDatesByYear, groupPhotosByDate, type PhotoItem, type RecentlyDeletedPhoto } from './utils/photoGrouping'
@@ -79,6 +78,8 @@ const LANGUAGE_STORAGE_KEY = 'infinity-nikki-language'
 const FAVORITES_STORAGE_KEY = 'infinity-nikki-favorite-photo-ids'
 const ABOUT_STATE_STORAGE_KEY = 'infinity-nikki-about-state'
 const CLEANUP_ACCOUNT_CHOICE_KEY = 'infinity-nikki-cleanup-account-choice'
+// 当前版本直接取中文关于文案的第一条更新记录，避免版本号在多个位置重复维护。
+const currentAboutVersion = messages.zh.about.changelog[0]?.version.replace(/^v/, '') ?? ''
 
 function readCleanupAccountChoice(): string | null {
   try {
@@ -186,7 +187,7 @@ const isOutfitGuideVisible = ref(false)
 const isOutfitGuideDismissed = ref(localStorage.getItem(OUTFIT_GUIDE_DISMISSED_KEY) === 'true')
 const isAboutDialogVisible = ref(false)
 // 版本号变化时本地记录失效，“不再提示”勾选状态随之重置
-const isAboutDialogDismissed = ref(storedAboutState?.version === ABOUT_VERSION && storedAboutState.dismissed === true)
+const isAboutDialogDismissed = ref(storedAboutState?.version === currentAboutVersion && storedAboutState.dismissed === true)
 const isX6GameAutoPromptDismissed = ref(localStorage.getItem(X6GAME_AUTO_PROMPT_DISMISSED_KEY) === 'true')
 const didCancelX6GameAutoPrompt = ref(false)
 const isUpdatingOutfits = ref(false)
@@ -247,7 +248,7 @@ let suppressNextFocusRefresh = false
 
 // 派生视图状态
 const locale = computed(() => messages[language.value])
-const outfitLocale = computed(() => getOutfitMessages(language.value))
+const outfitLocale = computed(() => messages[language.value].outfit)
 const normalizedSearch = computed(() => searchQuery.value.trim().toLocaleLowerCase())
 const matchesSearch = (value: string) => !normalizedSearch.value || value.toLocaleLowerCase().includes(normalizedSearch.value)
 const favoritePhotos = computed(() => photos.value.filter((photo) => favoriteIds.value.has(photo.id)))
@@ -964,7 +965,7 @@ function openAboutDialog() {
 function closeAboutDialog(dontShowAgain: boolean) {
   isAboutDialogDismissed.value = dontShowAgain
   if (!suppressLocalPersistence) {
-    localStorage.setItem(ABOUT_STATE_STORAGE_KEY, JSON.stringify({ version: ABOUT_VERSION, dismissed: dontShowAgain }))
+    localStorage.setItem(ABOUT_STATE_STORAGE_KEY, JSON.stringify({ version: currentAboutVersion, dismissed: dontShowAgain }))
   }
   isAboutDialogVisible.value = false
 }
@@ -1765,7 +1766,7 @@ function scheduleFocusRefresh() {
 onMounted(() => {
   void restoreSavedDirectory()
   // 没有记录、版本号变化或未勾选“不再提示”时，打开网站自动显示“关于网站”窗口
-  if (!storedAboutState || storedAboutState.version !== ABOUT_VERSION || !storedAboutState.dismissed) {
+  if (!storedAboutState || storedAboutState.version !== currentAboutVersion || !storedAboutState.dismissed) {
     isAboutDialogVisible.value = true
   }
   nextTick(() => {

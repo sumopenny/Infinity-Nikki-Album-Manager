@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { Archive, FolderOpen, ImagePlus, Sparkles, Tags, X } from 'lucide-vue-next'
-import type { OutfitMessages } from '../outfitMessages'
+import type { OutfitMessages } from '../i18n'
 
 const props = defineProps<{
   visible: boolean

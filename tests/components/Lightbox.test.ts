@@ -1,14 +1,14 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { messages } from '../i18n'
-import type { PhotoItem } from '../utils/photoGrouping'
-import { getOutfitMessages } from '../outfitMessages'
-import type { OutfitItem } from '../utils/outfitFileSystem'
-import Lightbox from './Lightbox.vue'
+import { messages } from '../../src/i18n'
+import type { PhotoItem } from '../../src/utils/photoGrouping'
+import { outfitMessages } from '../../src/i18n/messages/outfit'
+import type { OutfitItem } from '../../src/utils/outfitFileSystem'
+import Lightbox from '../../src/components/Lightbox.vue'
 
 const loadPhotoMock = vi.fn<(photo: PhotoItem) => Promise<string>>()
 
-vi.mock('../utils/photoLoader', () => ({
+vi.mock('../../src/utils/photoLoader', () => ({
   loadPhotoWithRetry: (photo: PhotoItem) => loadPhotoMock(photo),
   loadPhotoWithRetryAndSize: async (photo: PhotoItem) => ({ url: await loadPhotoMock(photo), width: 1600, height: 900 })
 }))
@@ -198,7 +198,7 @@ describe('Lightbox preview navigation', () => {
       props: {
         photo: outfit,
         outfit,
-        outfitMessages: getOutfitMessages('zh'),
+    outfitMessages: outfitMessages.zh,
         hasPrevious: false,
         hasNext: false,
         isDeleting: false,
@@ -222,3 +222,4 @@ describe('Lightbox preview navigation', () => {
     wrapper.unmount()
   })
 })
+

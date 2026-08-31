@@ -1,0 +1,594 @@
+/* 相册导航样式：日期侧栏、时间轴、收藏入口、最近删除列表和导航区域响应式布局。 */
+/* Album navigation and timeline */
+.album-layout {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  min-height: calc(100vh - 64px);
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 clamp(8px, 1vw, 20px) 88px;
+}
+
+.album-layout:not(.without-album)::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(clamp(8px, 1vw, 20px) + var(--sidebar-width));
+  width: 1px;
+  background: var(--line);
+  content: '';
+  pointer-events: none;
+}
+
+.album-layout.without-album {
+  display: block;
+  min-height: calc(100vh - 64px);
+  padding-bottom: 0;
+}
+
+.sidebar-column {
+  position: fixed;
+  z-index: 20;
+  top: var(--sidebar-sticky-top);
+  left: clamp(8px, 1vw, 20px);
+  width: var(--sidebar-width);
+  display: flex;
+  height: calc(100vh - var(--sidebar-sticky-top));
+  max-height: none;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 10px 15px 18px 0;
+  border-right: 0;
+}
+
+.album-view-nav,
+.date-sidebar {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.album-view-nav {
+  display: block;
+  flex: 0 0 auto;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.date-sidebar {
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  flex: 1 1 auto;
+  margin-top: 20px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 7px;
+  font-size: 12px;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+
+.sidebar-section-title {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.album-view-button {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 5px 0;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: var(--ui-radius);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: none;
+  text-align: left;
+  transition: background var(--motion-base) ease, color var(--motion-base) ease;
+}
+
+.album-view-button:hover:not(:disabled),
+.album-view-button.active {
+  /* background: var(--soft-accent); 这个就是这么设计的不用管*/
+  color: var(--heading);
+  box-shadow: none;
+  transform: none;
+  background: var(--favorite-button-active-bg);
+  border-color: var(--favorite-button-text);
+}
+
+.album-view-button small {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.timeline-toggle,
+.date-link {
+  display: flex;
+  width: 100%;
+  min-height: 46px;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: var(--ui-radius);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+/* 侧栏项目恢复紧凑间距，避免日期较多时过早占满可视高度。 */
+.album-view-button {
+  min-height: 38px;
+}
+
+.timeline-toggle,
+.date-link {
+  min-height: 32px;
+}
+
+.timeline-toggle:hover,
+.date-link:hover {
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  color: var(--heading);
+}
+
+.timeline-toggle svg {
+  flex: none;
+  transition: transform var(--motion-fast) ease;
+}
+
+.timeline-toggle svg.expanded {
+  transform: rotate(90deg);
+}
+
+.timeline-toggle > span:last-child,
+.timeline-toggle > small,
+.date-link small {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.year-toggle {
+  padding: 5px 7px 5px 1px;
+}
+
+.month-toggle {
+  padding: 4px 7px 4px 12px;
+  font-size: 13px;
+}
+
+.timeline-dates {
+  padding-left: 28px;
+}
+
+.date-link {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+  padding: 4px 7px;
+  font-size: 12px;
+}
+
+/* 日期链接左侧的主题色指示条，悬停时展开 */
+.date-link::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 0;
+  border-radius: 999px;
+  background: var(--pink-deep);
+  content: '';
+  transform: translateY(-50%);
+  transition: height var(--motion-base) var(--ease-spring);
+}
+
+.date-link:hover::before {
+  height: 14px;
+}
+
+.date-link small {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.album-content {
+  grid-column: 2;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 13px 0 40px 20px;
+  font-size: 13px;
+}
+
+.without-album .album-content {
+  display: grid;
+  min-height: calc(100vh - 64px);
+  place-items: center;
+  padding: 32px 20px;
+}
+
+.empty-album-start {
+  width: min(680px, 100%);
+  text-align: center;
+}
+
+.empty-start-mark {
+  width: 44px;
+  height: 3px;
+  margin: 0 auto 20px;
+  background: linear-gradient(90deg, var(--pink-deep), #d4b84d);
+}
+
+.empty-album-start h2 {
+  margin: 0;
+  color: var(--heading);
+  font-size: clamp(24px, 4vw, 38px);
+  letter-spacing: 0;
+}
+
+.empty-album-start > p {
+  margin: 12px auto 22px;
+  color: var(--muted);
+}
+
+.empty-album-start .primary-button {
+  min-height: 42px;
+  border-radius: 8px;
+}
+
+.empty-album-start .recommended-path {
+  margin-top: 18px;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.empty-album-start .hidden-folder-tip {
+  margin-top: 8px;
+  color: var(--pink-deep);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.gallery-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.gallery-header h2,
+.gallery-header p {
+  margin: 0;
+}
+
+.gallery-header h2 {
+  color: var(--heading);
+  font-size: 22px;
+}
+
+.gallery-header > p {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.photo-grid-wrap,
+.trash-grid-wrap {
+  padding: 0;
+}
+
+.date-block {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 520px;
+  scroll-margin-top: clamp(112px, 16vh, 184px);
+  margin: 0;
+  padding: 13px 5px  28px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.date-block-header {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+  margin-bottom: 10px;
+  padding: 0;
+}
+
+.date-block-header h2 {
+  margin: 0;
+  color: var(--heading);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.date-select-button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-strong);
+  color: transparent;
+}
+
+.date-select-button:hover,
+.date-select-button.active {
+  border-color: var(--pink-deep);
+  color: var(--pink-deep);
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
+  gap: 8px;
+}
+
+.photo-card {
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+  box-shadow: var(--photo-shadow);
+  outline: none;
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+}
+
+:root.is-theme-switching .photo-card {
+  transition: none;
+}
+
+.trash-photo-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
+}
+
+.photo-card:hover,
+.photo-card:focus-visible {
+  transform: none;
+  border-color: color-mix(in srgb, var(--pink-deep) 55%, var(--line));
+  box-shadow: var(--photo-hover-shadow);
+}
+
+.photo-card.selected {
+  border-color: var(--pink-deep);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--pink-deep) 20%, transparent);
+}
+
+.photo-frame {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  background: var(--frame-bg);
+}
+
+.photo-overlay {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  min-height: 72px;
+  align-items: flex-end;
+  padding: 18px 9px 8px;
+  background: linear-gradient(transparent 40%, rgba(0, 0, 0, 0.78));
+  color: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-fast) ease;
+}
+
+.photo-overlay span {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-card:hover .photo-overlay,
+.photo-card:focus-visible .photo-overlay {
+  opacity: 1;
+}
+
+.favorite-heart {
+  position: absolute;
+  z-index: 5;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 9px;
+  background: rgba(25, 22, 22, 0.34);
+  color: #fff;
+  appearance: none;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease;
+}
+
+.photo-card:hover .favorite-heart,
+.favorite-heart.active {
+  opacity: 1;
+}
+
+/* 悬停时心形背景加深，未收藏和已收藏分别加深各自底色 */
+.favorite-heart:hover {
+  background: rgba(25, 22, 22, 0.56);
+}
+
+.favorite-heart.active {
+  background: rgba(207, 100, 105, 0.363);
+  color: #fff;
+}
+
+.favorite-heart.active:hover {
+  background: rgba(197, 131, 133, 0.86);
+}
+
+/* 收藏点亮瞬间心形弹跳一下，给操作一个明确反馈 */
+.favorite-heart.active svg {
+  animation: favorite-heart-pop 0.32s var(--ease-spring);
+}
+
+@keyframes favorite-heart-pop {
+  0% {
+    transform: scale(0.4);
+  }
+
+  60% {
+    transform: scale(1.25);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.selected-badge {
+  position: absolute;
+  z-index: 5;
+  top: 8px;
+  left: 8px;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--pink-deep);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  opacity: 0;
+  transform: scale(0.75);
+  transition: opacity var(--motion-base) ease, transform var(--motion-base) var(--ease-spring);
+}
+
+.trash-photo-grid {
+  margin-top: 18px;
+}
+
+.inline-empty {
+  min-height: 46vh;
+  padding: 70px 20px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.selection-bar {
+  position: fixed;
+  z-index: 55;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0 auto;
+  padding: 7px 8px 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius);
+  background: color-mix(in srgb, var(--surface-strong) 95%, transparent);
+  box-shadow: 0 14px 38px rgba(37, 32, 30, 0.22);
+  backdrop-filter: blur(14px);
+}
+
+.selection-bar strong {
+  padding-right: 5px;
+  color: var(--heading);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.selection-divider {
+  width: 1px;
+  height: 24px;
+  margin: 0 4px;
+  background: var(--line);
+}
+
+.selection-bar button {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--ui-radius);
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.selection-bar button:hover:not(:disabled) {
+  background: var(--soft-accent-bottom);
+}
+
+.selection-bar .selection-danger {
+  background: #bd656a;
+  color: #fff;
+}
+
+.selection-bar .selection-danger:hover:not(:disabled) {
+  background: #a94f55;
+}
+
+.selection-bar .selection-close {
+  width: 46px;
+  padding: 0;
+}
+
+.selection-bar-enter-active,
+.selection-bar-leave-active {
+  transition: opacity var(--motion-base) ease, transform var(--motion-base) ease;
+}
+
+.selection-bar-enter-from,
+.selection-bar-leave-to {
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+

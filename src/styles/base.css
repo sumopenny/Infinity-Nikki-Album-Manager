@@ -1,0 +1,188 @@
+/* 全局基础样式：页面根节点、body、按钮、链接、滚动条、文本选择、键盘焦点和通用布局。 */
+/* 选中文本与键盘焦点统一使用主题色，提升细节质感 */
+::selection {
+  background: color-mix(in srgb, var(--pink-deep) 26%, transparent);
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-y: overlay;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-width: thin;
+}
+
+/* Edge 可能由 html 承担根滚动；两层使用同一套覆盖式细滚动条，避免原生样式占宽。 */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+  margin: 12px 0;
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+  border: 0;
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+}
+
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--pink-deep) 72%, transparent);
+  outline-offset: 2px;
+}
+
+body {
+  margin: 0;
+  min-width: 0;
+  background: var(--page-bg);
+  color: var(--text);
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-width: thin;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+.date-sidebar::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.date-sidebar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.date-sidebar::-webkit-scrollbar-track {
+  margin: 12px 0;
+  background: transparent;
+}
+
+.date-sidebar::-webkit-scrollbar-thumb {
+  border: 0;
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Application shell and shared controls */
+.app-shell {
+  min-height: 100vh;
+  width: 100%;
+  --sidebar-sticky-top: 74px;
+  --sidebar-width: clamp(154px, 11.5vw, 180px);
+}
+
+.album-layout,
+.date-block-header,
+.lightbox-footer,
+.lightbox-caption {
+  display: flex;
+  align-items: center;
+}
+
+.eyebrow {
+  margin: 0 0 2px;
+  color: var(--pink-deep);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0;
+  background: var(--title-gradient);
+  background-size: 260% 260%;
+  color: transparent;
+  font-size: clamp(22px, 3vw, 29px);
+  letter-spacing: 0.04em;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: title-gradient-flow 4.8s ease-in-out infinite;
+
+   
+  /* 酒红色描边
+  -webkit-text-stroke: 0.5px #ffffff;
+  text-stroke: 1px #ffffff; */
+  
+}
+
+@keyframes title-gradient-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* 主按钮：渐变底 + 顶部高光 + 粉色光晕，按压时回弹 */
+.primary-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: var(--primary-button-bg);
+  color: var(--primary-text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow:
+    /* inset 0 1px 0 rgba(255, 255, 255, 0.32), */
+    0 6px 18px color-mix(in srgb, var(--pink-deep) 26%, transparent);
+  transition: transform var(--motion-base) var(--ease-spring), box-shadow var(--motion-base) ease, background var(--motion-base) ease;
+}
+
+.primary-button:hover {
+  transform: translateY(-1px);
+  background: var(--primary-button-bg-hover);
+  color: var(--primary-hover-text);
+  box-shadow:
+    /* inset 0 1px 0 rgba(255, 255, 255, 0.38),不需要这条，也不要删 */
+    0 10px 24px color-mix(in srgb, var(--pink-deep) 34%, transparent);
+}
+
+.primary-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.97);
+}
+
+.empty-sidebar {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+

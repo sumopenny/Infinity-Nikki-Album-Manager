@@ -1,0 +1,138 @@
+/* 相册内容样式：照片网格、缩略图、骨架屏、照片卡片、选择状态、收藏按钮和相册内容区响应式布局。 */
+/* Album gallery and thumbnail modes */
+.empty-album {
+  display: grid;
+  place-items: center;
+  min-height: min(360px, 58svh);
+  padding: clamp(24px, 5vw, 44px);
+  border: 1px dashed var(--top-border);
+  border-radius: 24px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.empty-album h2 {
+  font-size: 25px;
+}
+
+.empty-album p {
+  width: 100%;
+  min-width: 0;
+  max-width: 960px;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.mode-half .photo-grid {
+  grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+}
+
+.mode-half .photo-card {
+  padding: 5px;
+  border-radius: 12px;
+}
+
+.mode-half .photo-frame {
+  border-radius: 9px;
+}
+
+.mode-wide .photo-frame {
+  aspect-ratio: 16 / 9;
+}
+
+.mode-standard .photo-frame {
+  aspect-ratio: 4 / 3;
+}
+
+.mode-portrait-wide .photo-frame {
+  aspect-ratio: 9 / 16;
+}
+
+.mode-portrait-standard .photo-frame {
+  aspect-ratio: 3 / 4;
+}
+
+.trash-grid-wrap {
+  min-width: 0;
+}
+
+.lazy-photo-image,
+.photo-skeleton,
+.photo-load-failed {
+  width: 100%;
+  height: 100%;
+}
+
+.lazy-photo-image {
+  position: relative;
+}
+
+.photo-skeleton {
+  background: var(--surface-soft);
+  animation: photo-skeleton-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.photo-load-failed {
+  display: grid;
+  place-items: center;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.lazy-photo-image.is-loaded img {
+  animation: photo-image-enter 0.2s ease-out both;
+}
+
+@keyframes photo-skeleton-pulse {
+  from {
+    opacity: 0.45;
+  }
+
+  to {
+    opacity: 0.9;
+  }
+}
+
+@keyframes photo-image-enter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.photo-frame img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.photo-card.selected .selected-badge {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.favorite-heart svg {
+  width: 11px;
+  height: 11px;
+  display: block;
+  transition: fill var(--motion-base) ease, transform var(--motion-base) ease;
+}
+
+.favorite-heart.active svg {
+  fill: var(--favorite-heart-fill);
+}
+
+.lightbox-delete.is-preview-loading {
+  pointer-events: none;
+  cursor: wait;
+}
+
+

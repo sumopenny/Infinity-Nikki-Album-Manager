@@ -1,11 +1,11 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
-import { getOutfitMessages } from '../outfitMessages'
-import type { OutfitItem } from '../utils/outfitFileSystem'
-import OutfitGrid from './OutfitGrid.vue'
-import OutfitEditor from './OutfitEditor.vue'
-import OutfitGuideDialog from './OutfitGuideDialog.vue'
-import OutfitSidebar from './OutfitSidebar.vue'
+import { getOutfitMessages } from '../../src/i18n/messages/outfit'
+import type { OutfitItem } from '../../src/utils/outfitFileSystem'
+import OutfitGrid from '../../src/components/OutfitGrid.vue'
+import OutfitEditor from '../../src/components/OutfitEditor.vue'
+import OutfitGuideDialog from '../../src/components/OutfitGuideDialog.vue'
+import OutfitSidebar from '../../src/components/OutfitSidebar.vue'
 
 function outfit(id: string, code: string, tags: string[] = []): OutfitItem {
   return {
@@ -321,3 +321,4 @@ describe('outfit workspace components', () => {
     wrapper.unmount()
   })
 })
+

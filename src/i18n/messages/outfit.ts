@@ -1,4 +1,5 @@
-import type { Language } from './i18n'
+// 搭配码文案：搭配方案、标签、导入导出、批量操作、状态提示和使用指南文字。
+import type { Language } from '../types'
 
 export interface OutfitMessages {
   viewName: string
@@ -80,7 +81,7 @@ export interface OutfitMessages {
   count: (count: number) => string
 }
 
-const outfitMessages: Record<Language, OutfitMessages> = {
+export const outfitMessages: Record<Language, OutfitMessages> = {
   zh: {
     viewName: '搭配码',
     eyebrow: 'OUTFITS',

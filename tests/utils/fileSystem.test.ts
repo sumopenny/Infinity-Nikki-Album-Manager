@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { messages } from '../i18n'
-import type { PhotoItem } from './photoGrouping'
+import { messages } from '../../src/i18n'
+import type { PhotoItem } from '../../src/utils/photoGrouping'
 import {
   clearRecentlyDeleted,
   listGamePlayPhotoAccounts,
@@ -14,7 +14,7 @@ import {
   refreshAlbumDirectory,
   resolveX6GameAccountDirectory,
   restoreRecentlyDeletedPhotos
-} from './fileSystem'
+} from '../../src/utils/fileSystem'
 
 beforeAll(() => {
   Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: () => undefined })
@@ -539,3 +539,4 @@ describe('album refresh and recently deleted filesystem operations', () => {
     expect(album.files.has('2026_06_26_11_22_00_restored_1.jpeg')).toBe(true)
   })
 })
+

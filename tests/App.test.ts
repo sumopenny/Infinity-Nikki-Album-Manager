@@ -1,18 +1,18 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
-import App from './App.vue'
-import { messages } from './i18n'
+import App from '../src/App.vue'
+import { messages } from '../src/i18n'
 import {
   getSavedAlbumDirectoryHandle,
   listRecentlyDeleted,
   readAlbumDirectory,
   saveAlbumDirectoryHandle
-} from './utils/fileSystem'
-import { importOutfitBackup, readOutfitLibrary, type OutfitItem } from './utils/outfitFileSystem'
+} from '../src/utils/fileSystem'
+import { importOutfitBackup, readOutfitLibrary, type OutfitItem } from '../src/utils/outfitFileSystem'
 
-vi.mock('./utils/fileSystem', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./utils/fileSystem')>()
+vi.mock('../src/utils/fileSystem', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/utils/fileSystem')>()
   return {
     ...actual,
     getSavedAlbumDirectoryHandle: vi.fn(),
@@ -22,8 +22,8 @@ vi.mock('./utils/fileSystem', async (importOriginal) => {
   }
 })
 
-vi.mock('./utils/outfitFileSystem', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./utils/outfitFileSystem')>()
+vi.mock('../src/utils/outfitFileSystem', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/utils/outfitFileSystem')>()
   return { ...actual, importOutfitBackup: vi.fn(), readOutfitLibrary: vi.fn() }
 })
 
@@ -131,3 +131,4 @@ describe('App lifecycle coordination', () => {
     wrapper.unmount()
   })
 })
+
