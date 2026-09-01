@@ -2,7 +2,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { GripVertical, Plus, X } from 'lucide-vue-next'
 import type { OutfitMessages } from '../i18n'
-import { MAX_OUTFIT_TAG_LENGTH, MAX_OUTFIT_TAGS, type OutfitItem } from '../utils/outfitFileSystem'
+import { MAX_OUTFIT_TAG_LENGTH, MAX_OUTFIT_TAGS, type OutfitItem } from '../utils/outfit/outfitTypes'
 
 export type OutfitFilter = 'all' | 'pending' | 'uncategorized' | `tag:${string}`
 

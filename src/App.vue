@@ -23,43 +23,26 @@ import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
 import { isThemeMode, type ThemeMode } from './types/theme'
 import { groupDatesByYear, groupPhotosByDate, type PhotoItem, type RecentlyDeletedPhoto } from './utils/photoGrouping'
 import {
-  clearRecentlyDeleted,
   clearSavedAlbumDirectoryHandle,
-  clearSavedX6GameDirectoryHandle,
-  executeSpecialCleanup,
   formatFileSize,
   getSavedAlbumDirectoryHandle,
-  getSavedX6GameDirectoryHandle,
-  getX6GameDirectoryForAlbum,
-  listGamePlayPhotoAccounts,
-  listRecentlyDeleted,
-  movePhotosToRecentlyDeleted,
-  permanentlyDeleteRecentlyDeleted,
   pickAlbumDirectory,
-  pickStandaloneX6GameDirectory,
-  prepareSpecialCleanup,
   readAlbumDirectory,
-  savePhotoNote,
   refreshAlbumDirectory,
-  releasePhotoUrl,
-  releasePhotoUrls,
-  resolveX6GameAccountDirectory,
-  restoreRecentlyDeletedPhotos,
   saveAlbumDirectoryHandle,
   type AlbumDirectoryResult,
-  type RefreshAlbumResult,
-  type SpecialCleanupItem
-} from './utils/fileSystem'
+  type RefreshAlbumResult
+} from './utils/file-system/albumFileSystem'
+import { clearRecentlyDeleted, listRecentlyDeleted, movePhotosToRecentlyDeleted, permanentlyDeleteRecentlyDeleted, restoreRecentlyDeletedPhotos } from './utils/file-system/trashFileSystem'
+import { getX6GameDirectoryForAlbum, listGamePlayPhotoAccounts, pickStandaloneX6GameDirectory, resolveX6GameAccountDirectory } from './utils/file-system/directoryAccess'
+import { clearSavedX6GameDirectoryHandle, getSavedX6GameDirectoryHandle } from './utils/file-system/directoryStorage'
+import { executeSpecialCleanup, prepareSpecialCleanup, type SpecialCleanupItem } from './utils/file-system/cleanupFileSystem'
+import { savePhotoNote } from './utils/file-system/photoMetadata'
+import { releasePhotoUrl, releasePhotoUrls } from './utils/file-system/photoUrl'
 import {
   deleteOutfit,
   deleteOutfits,
   deleteOutfitTag,
-  exportOutfitBackup,
-  importOutfitBackup,
-  isValidOutfitTag,
-  MAX_OUTFIT_TAG_LENGTH,
-  MAX_OUTFIT_TAGS,
-  normalizeOutfitTag,
   readOutfitLibrary,
   saveOutfit,
   saveOutfitTags,
@@ -67,7 +50,9 @@ import {
   type OutfitLibraryResult,
   type SaveOutfitInput,
   type SharedOutfitSource
-} from './utils/outfitFileSystem'
+} from './utils/outfit/outfitFileSystem'
+import { exportOutfitBackup, importOutfitBackup } from './utils/outfit/outfitBackup'
+import { isValidOutfitTag, MAX_OUTFIT_TAG_LENGTH, MAX_OUTFIT_TAGS, normalizeOutfitTag } from './utils/outfit/outfitTypes'
 
 const THUMBNAIL_STORAGE_KEY = 'infinity-nikki-thumbnail-mode'
 const OUTFIT_THUMBNAIL_STORAGE_KEY = 'infinity-nikki-outfit-thumbnail-mode'

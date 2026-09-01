@@ -661,5 +661,9 @@
 - 状态：已解决
 - 技术/方法：将 `outfitMessages.ts` 移入 `src/i18n/messages/outfit.ts`，保留 `OutfitMessages` 与 `getOutfitMessages` 兼容导出，同时在 `LocaleMessages`、中文/英文语言包中接入 `outfit`；应用运行时改为使用 `messages[language].outfit`，组件类型统一从 i18n 模块引用。
 
+6.问题：文件系统工具模块职责过多，目录存储、照片元数据、回收站、专项清理、搭配图片和备份逻辑相互混杂。
+- 状态：已解决
+- 技术/方法：删除旧的 `fileSystem.ts` 与 `outfitFileSystem.ts` 入口，按职责拆为相册扫描、回收站、专项清理、目录授权、目录句柄存储、照片元数据、对象 URL、搭配库、搭配备份、搭配存储、图片处理和公共类型模块。应用、组件、i18n 和测试改为直接引用职责模块，不保留旧入口或业务 API 转发；相册备注写入仍保留回读校验。README 已检查，本次不涉及使用方式变化，无需更新。
+
 
 

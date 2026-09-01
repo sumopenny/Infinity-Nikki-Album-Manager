@@ -5,26 +5,36 @@ import App from '../src/App.vue'
 import { messages } from '../src/i18n'
 import {
   getSavedAlbumDirectoryHandle,
-  listRecentlyDeleted,
   readAlbumDirectory,
   saveAlbumDirectoryHandle
-} from '../src/utils/fileSystem'
-import { importOutfitBackup, readOutfitLibrary, type OutfitItem } from '../src/utils/outfitFileSystem'
+} from '../src/utils/file-system/albumFileSystem'
+import { listRecentlyDeleted } from '../src/utils/file-system/trashFileSystem'
+import { readOutfitLibrary, type OutfitItem } from '../src/utils/outfit/outfitFileSystem'
+import { importOutfitBackup } from '../src/utils/outfit/outfitBackup'
 
-vi.mock('../src/utils/fileSystem', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/utils/fileSystem')>()
+vi.mock('../src/utils/file-system/albumFileSystem', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/utils/file-system/albumFileSystem')>()
   return {
     ...actual,
     getSavedAlbumDirectoryHandle: vi.fn(),
-    listRecentlyDeleted: vi.fn(),
     readAlbumDirectory: vi.fn(),
     saveAlbumDirectoryHandle: vi.fn()
   }
 })
 
-vi.mock('../src/utils/outfitFileSystem', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/utils/outfitFileSystem')>()
-  return { ...actual, importOutfitBackup: vi.fn(), readOutfitLibrary: vi.fn() }
+vi.mock('../src/utils/file-system/trashFileSystem', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/utils/file-system/trashFileSystem')>()
+  return { ...actual, listRecentlyDeleted: vi.fn() }
+})
+
+vi.mock('../src/utils/outfit/outfitFileSystem', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/utils/outfit/outfitFileSystem')>()
+  return { ...actual, readOutfitLibrary: vi.fn() }
+})
+
+vi.mock('../src/utils/outfit/outfitBackup', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/utils/outfit/outfitBackup')>()
+  return { ...actual, importOutfitBackup: vi.fn() }
 })
 
 const getSavedAlbumDirectoryHandleMock = vi.mocked(getSavedAlbumDirectoryHandle)

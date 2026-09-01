@@ -3,7 +3,7 @@ import { onBeforeUnmount } from 'vue'
 import { Check, Copy, Edit3, Shirt, Trash2 } from 'lucide-vue-next'
 import type { OutfitMessages } from '../i18n'
 import type { ThumbnailMode } from '../types/thumbnail'
-import type { OutfitItem } from '../utils/outfitFileSystem'
+import type { OutfitItem } from '../utils/outfit/outfitFileSystem'
 import { createPhotoLoadQueue } from '../utils/photoLoader'
 import LazyPhotoImage from './LazyPhotoImage.vue'
 

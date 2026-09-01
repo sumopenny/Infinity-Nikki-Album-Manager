@@ -2,19 +2,17 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { strToU8, Unzip, UnzipInflate, zipSync } from 'fflate'
 import {
   convertImageToWebp,
-  importOutfitBackup,
   deleteOutfit,
   deleteOutfits,
   deleteOutfitTag,
-  exportOutfitBackup,
   isReservedOutfitTag,
-  isSafeOutfitArchivePath,
   isValidOutfitTag,
   normalizeOutfitCode,
   readOutfitLibrary,
   saveOutfit,
   saveOutfitTags
-} from '../../src/utils/outfitFileSystem'
+} from '../../src/utils/outfit/outfitFileSystem'
+import { exportOutfitBackup, importOutfitBackup, isSafeOutfitArchivePath } from '../../src/utils/outfit/outfitBackup'
 
 function readBlob(blob: Blob, mode: 'buffer' | 'text'): Promise<ArrayBuffer | string> {
   return new Promise((resolve, reject) => {

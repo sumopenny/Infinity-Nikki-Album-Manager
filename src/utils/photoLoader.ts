@@ -1,5 +1,5 @@
 import type { PhotoItem } from './photoGrouping'
-import { ensurePhotoUrl, resetPhotoUrl } from './fileSystem'
+import { ensurePhotoUrl, resetPhotoUrl } from './file-system/photoUrl'
 
 interface QueueEntry {
   task: () => Promise<string>

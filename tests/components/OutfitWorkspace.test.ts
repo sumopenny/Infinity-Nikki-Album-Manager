@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { getOutfitMessages } from '../../src/i18n/messages/outfit'
-import type { OutfitItem } from '../../src/utils/outfitFileSystem'
+import type { OutfitItem } from '../../src/utils/outfit/outfitFileSystem'
 import OutfitGrid from '../../src/components/OutfitGrid.vue'
 import OutfitEditor from '../../src/components/OutfitEditor.vue'
 import OutfitGuideDialog from '../../src/components/OutfitGuideDialog.vue'

@@ -1,7 +1,7 @@
 // 应用级文案：相册初始化、状态提示、授权、清理确认和数据管理相关文字。
 import type { LocaleMessages } from '../types'
 import { formatMessageFileSize } from '../formatters'
-import type { RelatedCleanupFailureReason } from '../../utils/fileSystem'
+import type { RelatedCleanupFailureReason } from '../../utils/file-system/cleanupFileSystem'
 
 export const appZh: LocaleMessages['app'] = {
       noDirectory: '尚未选择相册路径',

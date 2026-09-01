@@ -1,6 +1,6 @@
 // 国际化公共类型：定义语言键、状态文案参数、完整界面文案结构和各模块字段类型。
 import type { ThemeMode } from '../types/theme'
-import type { RelatedCleanupFailureReason, SpecialCleanupItem } from '../utils/fileSystem'
+import type { RelatedCleanupFailureReason, SpecialCleanupItem } from '../utils/file-system/cleanupFileSystem'
 import type { OutfitMessages } from './messages/outfit'
 export type Language = 'zh' | 'en'
 export type StatusPrefix = 'read' | 'restored'

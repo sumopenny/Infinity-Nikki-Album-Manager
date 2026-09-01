@@ -1,7 +1,7 @@
 // 专项清理文案：清理项目、账号选择、授权提示、清理结果和失败原因文字。
 import type { LocaleMessages } from '../types'
 import { formatMessageFileSize } from '../formatters'
-import type { RelatedCleanupFailureReason } from '../../utils/fileSystem'
+import type { RelatedCleanupFailureReason } from '../../utils/file-system/cleanupFileSystem'
 
 export const cleanupZh: LocaleMessages['cleanup'] = {
       dialogTitle: '专项清理',

@@ -2,7 +2,7 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { Eraser, FolderOpen, X } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
-import type { SpecialCleanupItem } from '../utils/fileSystem'
+import type { SpecialCleanupItem } from '../utils/file-system/cleanupFileSystem'
 
 const props = defineProps<{
   visible: boolean

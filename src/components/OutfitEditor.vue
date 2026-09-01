@@ -9,7 +9,7 @@ import {
   MAX_OUTFIT_TAGS,
   normalizeOutfitCode,
   type OutfitItem
-} from '../utils/outfitFileSystem'
+} from '../utils/outfit/outfitFileSystem'
 
 const props = defineProps<{
   visible: boolean

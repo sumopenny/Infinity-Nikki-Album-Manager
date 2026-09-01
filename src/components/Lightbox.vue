@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Copy, Edit3, Heart, Pencil, RotateCcw, Trash
 import type { LocaleMessages } from '../i18n'
 import type { OutfitMessages } from '../i18n'
 import type { PhotoItem } from '../utils/photoGrouping'
-import type { OutfitItem } from '../utils/outfitFileSystem'
+import type { OutfitItem } from '../utils/outfit/outfitFileSystem'
 import { loadPhotoWithRetryAndSize } from '../utils/photoLoader'
 
 const MIN_ZOOM = 50

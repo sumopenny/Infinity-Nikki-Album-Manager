@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { messages } from '../../src/i18n'
 import type { PhotoItem } from '../../src/utils/photoGrouping'
 import { outfitMessages } from '../../src/i18n/messages/outfit'
-import type { OutfitItem } from '../../src/utils/outfitFileSystem'
+import type { OutfitItem } from '../../src/utils/outfit/outfitFileSystem'
 import Lightbox from '../../src/components/Lightbox.vue'
 
 const loadPhotoMock = vi.fn<(photo: PhotoItem) => Promise<string>>()

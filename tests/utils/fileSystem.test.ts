@@ -2,19 +2,13 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { messages } from '../../src/i18n'
 import type { PhotoItem } from '../../src/utils/photoGrouping'
 import {
-  clearRecentlyDeleted,
-  listGamePlayPhotoAccounts,
-  listRecentlyDeleted,
-  movePhotosToRecentlyDeleted,
-  permanentlyDeleteRecentlyDeleted,
-  executeSpecialCleanup,
   pickAlbumDirectory,
-  prepareSpecialCleanup,
   readAlbumDirectory,
-  refreshAlbumDirectory,
-  resolveX6GameAccountDirectory,
-  restoreRecentlyDeletedPhotos
-} from '../../src/utils/fileSystem'
+  refreshAlbumDirectory
+} from '../../src/utils/file-system/albumFileSystem'
+import { clearRecentlyDeleted, listRecentlyDeleted, movePhotosToRecentlyDeleted, permanentlyDeleteRecentlyDeleted, restoreRecentlyDeletedPhotos } from '../../src/utils/file-system/trashFileSystem'
+import { executeSpecialCleanup, prepareSpecialCleanup } from '../../src/utils/file-system/cleanupFileSystem'
+import { listGamePlayPhotoAccounts, resolveX6GameAccountDirectory } from '../../src/utils/file-system/directoryAccess'
 
 beforeAll(() => {
   Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: () => undefined })
