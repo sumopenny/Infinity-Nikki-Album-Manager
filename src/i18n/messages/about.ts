@@ -29,7 +29,12 @@ export const aboutZh: LocaleMessages['about'] = {
         { version: 'v1.2.3', text: '搭配码新增标签现在会显示在列表首位，并支持拖拽调整顺序，排序结果会同步到搭配码编辑器。优化了动画效果和部分操作逻辑，更多一键清理功能考虑开发中，同时偷吃了一块大喵的五花肉🥩~' },
         { version: 'v1.2.2', text: '优化搭配码导入导出性能，完善 X6Game 授权与清理逻辑。家园码、组合码功能开发中。' },
         { version: 'v1.2.1', text: '搭配码编辑窗口新增快捷创建标签功能：在标签区域点击“+”按钮即可直接新建标签，创建成功后会自动选中该标签。' },
-        { version: 'v1.2', text: '新增星绘图册搭配码管理模块，可手动添加、批量添加、自动同步游戏内新搭配码。（拍照参数、家园码管理模块开发中）' }
+        { version: 'v1.2', text: '新增星绘图册搭配码管理模块，可手动添加、批量添加、自动同步游戏内新搭配码。（拍照参数、家园码管理模块开发中）' },
+        { version: 'v1.1.1', text: '优化 CSS 样式，进一步调整页面布局和显示效果。' },
+        { version: 'v1.1', text: '优化和修复 CSS，重新调整界面布局，使页面结构更合理、操作逻辑更清晰，并完善部分交互细节。' },
+        { version: 'v1.0.2', text: '优化删除功能：新增“全部照片 / 收藏夹 / 最近删除”视图，支持照片移入回收站、预览、恢复和永久删除，并完善刷新同步与批量操作。' },
+        { version: 'v1.0.1', text: '新增图片懒加载，在保持连续滚动和现有布局的同时，减少高分辨率照片造成的页面卡顿。' },
+        { version: 'v1.0.0', text: '初始版本：支持按日期管理和浏览照片、收藏夹、大图预览、键盘操作、缩略图比例调整，以及低画质照片和游戏截图清理；同时修复收藏视图选择、预览导航和 X6Game 授权相关问题。' }
       ],
       dontShowAgain: '当前版本不再提示',
       confirm: '我知道了',
@@ -62,7 +67,12 @@ export const aboutEn: LocaleMessages['about'] = {
         { version: 'v1.2.3', text: 'New outfit tags now appear first and can be reordered by dragging, with the order synchronized to the outfit editor. Animations and some interactions were polished, more one-click cleanup features were under consideration.' },
         { version: 'v1.2.2', text: 'Optimized outfit code import and export performance, and improved X6Game authorization and cleanup logic. Home codes and combination codes were under development.' },
         { version: 'v1.2.1', text: 'Added quick tag creation to the outfit editor: click the “+” button in the tag area to create a tag directly, which is selected automatically after creation.' },
-        { version: 'v1.2', text: 'Added the Starry Gallery outfit code module: add manually, import in batches, and auto-sync new in-game outfit codes.' }
+        { version: 'v1.2', text: 'Added the Starry Gallery outfit code module: add manually, import in batches, and auto-sync new in-game outfit codes.' },
+        { version: 'v1.1.1', text: 'Polished the CSS and further refined the page layout and visual presentation.' },
+        { version: 'v1.1', text: 'Optimized and fixed the CSS, reorganized the interface layout for clearer structure and interaction logic, and refined several interaction details.' },
+        { version: 'v1.0.2', text: 'Improved deletion: added separate All photos, Favorites, and Recently deleted views, with support for moving photos to trash, previewing, restoring, and permanently deleting them; also improved refresh synchronization and batch operations.' },
+        { version: 'v1.0.1', text: 'Added lazy loading for photos, reducing lag from high-resolution images while preserving continuous scrolling and the existing layout.' },
+        { version: 'v1.0.0', text: 'Initial release: manage and browse photos by date, use Favorites, preview images, navigate with the keyboard, adjust thumbnail ratios, and clean low-quality photos and game screenshots; also fixed Favorites selection, preview navigation, and X6Game authorization issues.' }
       ],
       dontShowAgain: "Don't show again for this version",
       confirm: 'Got it',
