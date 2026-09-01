@@ -18,6 +18,7 @@ import PhotoGrid from './components/PhotoGrid.vue'
 import RecentlyDeletedGrid from './components/RecentlyDeletedGrid.vue'
 import SelectionBar from './components/SelectionBar.vue'
 import TopBar from './components/TopBar.vue'
+import PhotoTransferProgressDialog from './components/PhotoTransferProgressDialog.vue'
 import { DEFAULT_LANGUAGE, getThumbnailModeOptions, messages, type Language, type StatusPrefix, type StatusSuffix } from './i18n'
 import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
 import { isThemeMode, type ThemeMode } from './types/theme'
@@ -39,6 +40,7 @@ import { clearSavedX6GameDirectoryHandle, getSavedX6GameDirectoryHandle } from '
 import { executeSpecialCleanup, prepareSpecialCleanup, type SpecialCleanupItem } from './utils/file-system/cleanupFileSystem'
 import { savePhotoNote } from './utils/file-system/photoMetadata'
 import { releasePhotoUrl, releasePhotoUrls } from './utils/file-system/photoUrl'
+import { exportPhotos, importPhotos, type PhotoTransferProgress } from './utils/file-system/photoTransfer'
 import {
   deleteOutfit,
   deleteOutfits,
@@ -179,6 +181,7 @@ const isUpdatingOutfits = ref(false)
 const outfitSidebarRef = ref<InstanceType<typeof OutfitSidebar> | null>(null)
 const outfitEditorRef = ref<InstanceType<typeof OutfitEditor> | null>(null)
 const outfitImportInput = ref<HTMLInputElement | null>(null)
+const photoImportInput = ref<HTMLInputElement | null>(null)
 const recentlyDeleted = ref<RecentlyDeletedPhoto[]>([])
 const selectedIds = ref<Set<string>>(new Set())
 const selectedOutfitIds = ref<Set<string>>(new Set())
@@ -209,6 +212,20 @@ const cleanupAccountResolver = ref<((accountIds: string[] | null) => void) | nul
 const isSavingOutfit = ref(false)
 const isImportingOutfits = ref(false)
 const isExportingOutfits = ref(false)
+const isImportingPhotos = ref(false)
+const isExportingPhotos = ref(false)
+const photoTransferVisible = ref(false)
+const photoTransferRunning = ref(false)
+const photoTransferCancelled = ref(false)
+const photoTransferCompleted = ref(0)
+const photoTransferTotal = ref(0)
+const photoTransferSucceeded = ref(0)
+const photoTransferFailedNames = ref<string[]>([])
+const photoTransferController = ref<AbortController | null>(null)
+const photoTransferSucceededPhotos = ref<PhotoItem[]>([])
+const photoTransferKind = ref<'import' | 'export'>('export')
+const photoTransferTitle = ref('')
+let photoTransferCloseResolver: (() => void) | null = null
 const isOutfitMutationBusy = ref(false)
 const isPreferenceUpdating = ref(false)
 const confirmDialog = ref<ConfirmDialogState>({
@@ -291,7 +308,7 @@ const trashTotalSize = computed(() => recentlyDeleted.value.reduce((total, photo
 const trashTotalSizeText = computed(() => formatFileSize(trashTotalSize.value))
 const isAnyFileOperationBusy = computed(
   () => isLoading.value || isRefreshing.value || isDeleting.value || isTrashBusy.value || cleaningItem.value !== null ||
-    isSavingOutfit.value || isImportingOutfits.value || isExportingOutfits.value
+    isSavingOutfit.value || isImportingOutfits.value || isExportingOutfits.value || isImportingPhotos.value || isExportingPhotos.value
     || isUpdatingOutfits.value || isOutfitMutationBusy.value
 )
 const allOutfitsSelected = computed(
@@ -1245,6 +1262,161 @@ async function importOutfits(event: Event) {
   }
 }
 
+function updatePhotoTransferProgress(progress: PhotoTransferProgress) {
+  photoTransferCompleted.value = progress.completed
+  photoTransferTotal.value = progress.total
+  photoTransferSucceeded.value = progress.succeeded
+  photoTransferFailedNames.value = progress.failedNames
+  photoTransferCancelled.value = progress.cancelled
+}
+
+function openPhotoImportPicker() {
+  if (!albumDirectoryHandle.value || isAnyFileOperationBusy.value) return
+  suppressNextFocusRefresh = true
+  photoImportInput.value?.click()
+}
+
+async function importAlbumPhotos(event: Event) {
+  const input = event.target as HTMLInputElement
+  suppressNextFocusRefresh = false
+  const files = Array.from(input.files ?? [])
+  input.value = ''
+  const directory = albumDirectoryHandle.value
+  if (!directory || !files.length || isAnyFileOperationBusy.value) return
+  isImportingPhotos.value = true
+  photoTransferKind.value = 'import'
+  photoTransferTitle.value = locale.value.topBar.importPhotos
+  photoTransferVisible.value = true
+  photoTransferRunning.value = true
+  photoTransferCancelled.value = false
+  photoTransferFailedNames.value = []
+  photoTransferController.value = new AbortController()
+  statusState.value = { type: 'custom', message: locale.value.app.importingPhotos, tone: 'info', loading: true }
+  try {
+    const result = await importPhotos(directory, files, {
+      signal: photoTransferController.value.signal,
+      onProgress: updatePhotoTransferProgress
+    })
+    photoTransferRunning.value = false
+    statusState.value = {
+      type: 'custom',
+      message: locale.value.app.importCompleted(result.succeeded, result.failedNames.length),
+      tone: result.failedNames.length ? 'warning' : 'success'
+    }
+    const refreshed = await refreshAlbumDirectory(directory, photos.value, { requestPermission: false, messages: locale.value.fileSystem })
+    applyRefreshResult(refreshed)
+  } catch (error) {
+    photoTransferRunning.value = false
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+  } finally {
+    isImportingPhotos.value = false
+    photoTransferController.value = null
+  }
+}
+
+async function pickPhotoExportDirectory(): Promise<FileSystemDirectoryHandle | null> {
+  if (!window.showDirectoryPicker || !albumDirectoryHandle.value) throw new Error(locale.value.fileSystem.unsupportedBrowser)
+  const directory = await window.showDirectoryPicker({ id: 'infinity-nikki-photo-export', mode: 'readwrite', startIn: 'downloads' })
+  const album = albumDirectoryHandle.value
+  const isSameOrNested = directory === album || (await album.resolve(directory)) !== null
+  let isAlbumTrash = false
+  try {
+    const trash = await album.getDirectoryHandle('trash')
+    isAlbumTrash = trash === directory || (await trash.resolve(directory)) !== null
+  } catch {
+    isAlbumTrash = false
+  }
+  if (isSameOrNested || isAlbumTrash) throw new Error(locale.value.app.exportTargetInvalid)
+  return directory
+}
+
+async function exportAlbumPhotos(targets: PhotoItem[], allPhotos = false) {
+  const source = allPhotos ? photos.value : targets
+  if (!source.length || isAnyFileOperationBusy.value) return
+  let directory: FileSystemDirectoryHandle
+  try {
+    const picked = await pickPhotoExportDirectory()
+    if (!picked) return
+    directory = picked
+  } catch (error) {
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+    return
+  }
+
+  isExportingPhotos.value = true
+  photoTransferKind.value = 'export'
+  photoTransferTitle.value = allPhotos ? locale.value.topBar.exportAllPhotos : locale.value.selectionBar.exportPhotos
+  photoTransferVisible.value = true
+  photoTransferRunning.value = true
+  photoTransferCancelled.value = false
+  photoTransferFailedNames.value = []
+  photoTransferSucceededPhotos.value = []
+  photoTransferController.value = new AbortController()
+  statusState.value = { type: 'custom', message: locale.value.app.exportingPhotos, tone: 'info', loading: true }
+  try {
+    const result = await exportPhotos(source, directory, {
+      signal: photoTransferController.value.signal,
+      onProgress: updatePhotoTransferProgress
+    })
+    photoTransferSucceededPhotos.value = result.succeededPhotos
+    photoTransferRunning.value = false
+    photoTransferCancelled.value = result.cancelled
+    if (result.cancelled) {
+      statusState.value = { type: 'custom', message: locale.value.app.exportCancelled(result.succeeded), tone: 'warning' }
+      return
+    }
+    statusState.value = {
+      type: 'custom',
+      message: locale.value.app.exportCompleted(result.succeeded, result.failedNames.length),
+      tone: result.failedNames.length ? 'warning' : 'success'
+    }
+    if (result.succeededPhotos.length) {
+      // 等用户关闭结果窗口后，再进入移动源照片确认，避免两个模态层叠加。
+      await new Promise<void>((resolve) => { photoTransferCloseResolver = resolve })
+      const confirmed = await openConfirmDialog({
+        title: locale.value.app.exportMoveSourceTitle,
+        message: locale.value.app.exportMoveSourceConfirm(result.succeededPhotos.length),
+        tone: 'warning',
+        confirmLabel: locale.value.app.dialogConfirm,
+        cancelLabel: locale.value.app.dialogCancel
+      })
+      if (confirmed) {
+        isDeleting.value = true
+        try {
+          statusState.value = { type: 'custom', message: locale.value.app.movingPhotosToTrash, tone: 'info', loading: true }
+          const moved = await movePhotosToRecentlyDeleted(result.succeededPhotos, favoriteIds.value)
+          const movedIds = new Set(moved.succeeded.map((photo) => photo.id))
+          photos.value = photos.value.filter((photo) => !movedIds.has(photo.id))
+          selectedIds.value = new Set([...selectedIds.value].filter((id) => !movedIds.has(id)))
+          favoriteIds.value = new Set([...favoriteIds.value].filter((id) => !movedIds.has(id)))
+          mergeRecentlyDeleted([...recentlyDeleted.value, ...moved.movedPhotos].sort((a, b) => b.deletedAt - a.deletedAt))
+          statusState.value = { type: 'custom', message: locale.value.trash.movedStatus(moved.succeeded.length, moved.failedNames), tone: moved.failedNames.length ? 'warning' : 'success' }
+        } finally {
+          isDeleting.value = false
+        }
+      }
+    }
+  } catch (error) {
+    photoTransferRunning.value = false
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+  } finally {
+    isExportingPhotos.value = false
+    photoTransferController.value = null
+  }
+}
+
+function cancelPhotoTransfer() {
+  if (!photoTransferRunning.value) return
+  photoTransferController.value?.abort()
+}
+
+function closePhotoTransfer() {
+  if (photoTransferRunning.value) return
+  photoTransferVisible.value = false
+  photoTransferCloseResolver?.()
+  photoTransferCloseResolver = null
+}
+
 // 相册、搭配码与最近删除选择状态
 /** 切换普通照片当前视图的全选状态。参数：无。 */
 function toggleAll() {
@@ -1908,6 +2080,14 @@ onBeforeUnmount(() => {
               <Plus :size="16" aria-hidden="true" />{{ outfitLocale.addOutfit }}
             </button>
           </div>
+          <div v-else-if="activeView !== 'trash'" class="outfit-header-actions photo-header-actions">
+            <button type="button" :disabled="isAnyFileOperationBusy" @click="openPhotoImportPicker">
+              <Download :size="16" aria-hidden="true" />{{ isImportingPhotos ? locale.topBar.importingPhotos : locale.topBar.importPhotos }}
+            </button>
+            <button type="button" :disabled="isAnyFileOperationBusy || !photos.length" @click="exportAlbumPhotos([], true)">
+              <FileUp :size="16" aria-hidden="true" />{{ isExportingPhotos ? locale.topBar.exportingPhotos : locale.topBar.exportAllPhotos }}
+            </button>
+          </div>
           <p v-if="activeView === 'trash'">{{ locale.trash.totalSummary(recentlyDeleted.length, trashTotalSizeText) }}</p>
           <p v-else-if="activeView !== 'outfits'">{{ locale.viewNav.count(visibleCount) }}</p>
         </header>
@@ -1964,6 +2144,7 @@ onBeforeUnmount(() => {
       @favorite="favoriteSelectedPhotos"
       @unfavorite="unfavoriteSelectedPhotos"
       @delete="activeView === 'trash' ? permanentlyDeleteSelectedTrash() : activeView === 'outfits' ? deleteSelectedOutfits() : deleteSelectedPhotos()"
+      @export="exportAlbumPhotos(scopedSelectedPhotos)"
       @restore="restoreSelectedTrash"
       @cancel="activeView === 'trash' ? clearTrashSelection() : activeView === 'outfits' ? clearOutfitSelection() : clearAlbumSelection()"
     />
@@ -2055,6 +2236,26 @@ onBeforeUnmount(() => {
     />
 
     <input ref="outfitImportInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importOutfits" />
+    <input ref="photoImportInput" class="visually-hidden" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif" multiple @change="importAlbumPhotos" />
+
+    <PhotoTransferProgressDialog
+      :visible="photoTransferVisible"
+      :title="photoTransferTitle"
+      :completed="photoTransferCompleted"
+      :total="photoTransferTotal"
+      :failed-names="photoTransferFailedNames"
+      :is-running="photoTransferRunning"
+      :is-cancelled="photoTransferCancelled"
+      :can-cancel="photoTransferKind === 'export'"
+      :cancel-label="locale.app.transferCancel"
+      :close-label="locale.app.dialogCloseAria"
+      :completed-label="locale.app.transferCompleted"
+      :failed-label="locale.app.transferFailed"
+      :cancelled-label="locale.app.transferCancelled"
+      :close-action-label="locale.app.transferClose"
+      @cancel="cancelPhotoTransfer"
+      @close="closePhotoTransfer"
+    />
 
     <ConfirmDialog
       :visible="confirmDialog.visible"

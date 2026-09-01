@@ -222,6 +222,75 @@
   white-space: pre-line;
 }
 
+.photo-transfer-dialog {
+  width: min(520px, calc(100vw - 28px));
+}
+
+.photo-transfer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.photo-transfer-header h2 {
+  margin-bottom: 0;
+}
+
+.photo-transfer-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.photo-transfer-progress-track {
+  flex: 1;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pink-deep) 14%, var(--surface-soft));
+}
+
+.photo-transfer-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary-button-bg);
+  transition: width 0.2s ease;
+}
+
+.photo-transfer-progress strong {
+  min-width: 58px;
+  color: var(--heading);
+  font-size: 13px;
+  text-align: right;
+}
+
+.photo-transfer-summary,
+.photo-transfer-failures,
+.photo-transfer-cancelled {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.photo-transfer-failures {
+  color: var(--danger, #a94f55);
+}
+
+.photo-transfer-cancelled {
+  color: var(--warning, #a46a24);
+}
+
+.photo-transfer-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
 /* 关闭按钮与“关于网站”一致的悬浮圆形样式 */
 .confirm-dialog-close {
   position: relative;

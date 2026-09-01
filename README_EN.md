@@ -68,6 +68,8 @@ Entering Outfit codes opens a standalone guide. Please read it carefully.
 
 - Export data generates a ZIP file in the currently selected album folder and preserves outfit codes, tags, notes, and creation times. Import data validates and merges the ZIP without replacing existing plans; duplicate or invalid content is skipped. Imports validate the complete backup first, then extract and write images in bounded batches to reduce browser memory use with large backups. <span style="color: red;">Deleting an outfit plan is permanent and does not go to Recently Deleted.</span>
 - JPG, PNG, and WebP sources are decoded for validation only once before saving. JPG and PNG files are still converted locally to WebP, and images are never uploaded.
+- The album supports batch image import through the file picker. The gallery header exports all photos, while the selection bar exports only selected photos. Exports copy files to a chosen folder with up to eight concurrent tasks, cancellation, per-file failures, and automatic conflict renaming.
+- After a normal export, you can move only successfully exported source photos to Recently Deleted. Cancelling keeps completed target files and all source photos.
 - Batch outfit deletion processes image and metadata files concurrently, updates the automatic-import ignore list once, and updates the page directly without rescanning the entire `clothe` folder.
 - Single-click outfit plans to select multiple items and show the bottom toolbar. <span style="color: red;">Deleted outfit plans cannot be restored, so check the plan information before confirming.</span>
 
@@ -106,6 +108,9 @@ Do not select drive roots, Windows, Program Files, the game install root, or oth
 | `Esc` | Close the large preview |
 | `Delete` | Move the current preview photo to Recently Deleted |
 | Bottom action bar | Select all, batch favorite, delete, restore, or permanently delete |
+| Import photos | Choose multiple local image files and copy them into the current album |
+| Export all photos | Copy every photo to a selected folder with a progress window |
+| Selection bar Export | Copy only the selected photos to a selected folder |
 
 > Normal album deletion moves the original file to the current album's `trash` folder; <span style="color: red;">Permanent deletion in Recently Deleted and Special Cleanup directly delete files from your computer and cannot be restored.</span>
 

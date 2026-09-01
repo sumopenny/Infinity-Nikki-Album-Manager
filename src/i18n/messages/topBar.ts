@@ -47,7 +47,11 @@ export const topBarZh: LocaleMessages['topBar'] = {
       feedbackOpenExternal: '问卷加载失败？在浏览器中打开',
       feedbackClose: '关闭反馈窗口',
       about: '关于网站',
-      fortuneTime: '抽卡吉时'
+      fortuneTime: '抽卡吉时',
+      importPhotos: '导入图片',
+      exportAllPhotos: '导出全部图片',
+      importingPhotos: '导入中...',
+      exportingPhotos: '导出中...'
     }
 export const topBarEn: LocaleMessages['topBar'] = {
       title: 'Infinity Nikki Album Manager',
@@ -95,6 +99,10 @@ export const topBarEn: LocaleMessages['topBar'] = {
       feedbackOpenExternal: 'Survey failed to load? Open it in your browser',
       feedbackClose: 'Close feedback window',
       about: 'About',
-      fortuneTime: 'Lucky pull times'
+      fortuneTime: 'Lucky pull times',
+      importPhotos: 'Import photos',
+      exportAllPhotos: 'Export all photos',
+      importingPhotos: 'Importing...',
+      exportingPhotos: 'Exporting...'
     }
 

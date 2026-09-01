@@ -11,6 +11,7 @@ export const selectionBarZh: LocaleMessages['selectionBar'] = {
       restore: '恢复',
       permanentlyDelete: '永久删除',
       clearAll: '永久清空全部',
+      exportPhotos: '导出',
       cancel: '取消选择'
     }
 export const selectionBarEn: LocaleMessages['selectionBar'] = {
@@ -23,6 +24,7 @@ export const selectionBarEn: LocaleMessages['selectionBar'] = {
       restore: 'Restore',
       permanentlyDelete: 'Delete permanently',
       clearAll: 'Permanently clear all',
+      exportPhotos: 'Export',
       cancel: 'Clear selection'
     }
 

@@ -34,6 +34,19 @@ export interface LocaleMessages {
     movingPhotosToTrash: string
     restoringPhotos: string
     permanentlyDeletingPhotos: string
+    importingPhotos: string
+    exportingPhotos: string
+    importCompleted: (succeeded: number, failed: number) => string
+    exportCompleted: (succeeded: number, failed: number) => string
+    exportCancelled: (completed: number) => string
+    exportMoveSourceTitle: string
+    exportMoveSourceConfirm: (count: number) => string
+    exportTargetInvalid: string
+    transferClose: string
+    transferCancel: string
+    transferCompleted: string
+    transferFailed: string
+    transferCancelled: string
     dialogCloseAria: string
     dialogCancel: string
     dialogConfirm: string
@@ -102,6 +115,10 @@ export interface LocaleMessages {
     feedbackClose: string
     about: string
     fortuneTime: string
+    importPhotos: string
+    exportAllPhotos: string
+    importingPhotos: string
+    exportingPhotos: string
   }
   fortuneTime: {
     title: string
@@ -150,6 +167,7 @@ export interface LocaleMessages {
     restore: string
     permanentlyDelete: string
     clearAll: string
+    exportPhotos: string
     cancel: string
   }
   cleanup: {
