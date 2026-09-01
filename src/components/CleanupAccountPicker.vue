@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
+import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
 const props = defineProps<{
   visible: boolean
@@ -22,6 +23,7 @@ const menuOpen = ref(false)
 const selectRef = ref<HTMLButtonElement | null>(null)
 const dropdownWrapRef = ref<HTMLDivElement | null>(null)
 const selectId = 'cleanup-account-select'
+useBodyScrollLock(toRef(props, 'visible'))
 
 // 已选择有效账号，或勾选全部账号时可以继续
 const canConfirm = computed(() => {

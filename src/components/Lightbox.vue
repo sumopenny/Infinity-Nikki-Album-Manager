@@ -6,6 +6,7 @@ import type { OutfitMessages } from '../i18n'
 import type { PhotoItem } from '../utils/photoGrouping'
 import type { OutfitItem } from '../utils/outfit/outfitFileSystem'
 import { loadPhotoWithRetryAndSize } from '../utils/photoLoader'
+import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
 const MIN_ZOOM = 50
 const MAX_ZOOM = 300
@@ -24,6 +25,7 @@ const props = defineProps<{
   messages: LocaleMessages['lightbox']
   dateMessages: LocaleMessages['date']
 }>()
+useBodyScrollLock(computed(() => Boolean(props.photo)))
 
 const emit = defineEmits<{
   close: []
@@ -164,16 +166,10 @@ async function updateDisplayedPhoto(nextPhoto: PhotoItem): Promise<void> {
   }
 }
 
-/** 锁定或恢复背景页面滚动，避免大图打开时背后页面跟随滚动。参数：locked 为是否锁定。 */
-function setBodyScrollLocked(locked: boolean) {
-  document.body.style.overflow = locked ? 'hidden' : ''
-}
-
 watch(() => props.photo, (nextPhoto) => {
   updateViewportSize()
   resetTransform()
   navigationButtonsHidden.value = false
-  setBodyScrollLocked(Boolean(nextPhoto))
   if (!nextPhoto) {
     previewLoadToken += 1
     previewAbortController?.abort()
@@ -217,7 +213,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   previewAbortController?.abort()
-  setBodyScrollLocked(false)
   window.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('resize', updateViewportSize)
   window.visualViewport?.removeEventListener('resize', updateViewportSize)

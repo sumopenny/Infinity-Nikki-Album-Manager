@@ -25,6 +25,7 @@ import FortuneTimeDialog from './FortuneTimeDialog.vue'
 import wxQrCode from '../../img/wx.jpg'
 import zfbQrCode from '../../img/zfb.jpg'
 import type { Language, LocaleMessages } from '../i18n'
+import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { ThumbnailMode } from '../types/thumbnail'
 import type { ThemeMode } from '../types/theme'
 
@@ -36,6 +37,7 @@ const props = defineProps<{
   isRefreshing: boolean
   isDeleting: boolean
   hasAlbumDirectory: boolean
+  hasX6GameAuthorization: boolean
   thumbnailMode: ThumbnailMode
   thumbnailModeOptions: Array<{ value: ThumbnailMode; label: string }>
   themeMode: ThemeMode
@@ -66,6 +68,7 @@ const FEEDBACK_URL = 'https://v.wjx.cn/vm/tUM7gga.aspx'
 const openMenu = ref<OpenMenu>(null)
 const showDonate = ref(false)
 const showFeedback = ref(false)
+useBodyScrollLock(computed(() => showDonate.value || showFeedback.value))
 const showFortuneTime = ref(false)
 // iframe 懒加载：首次打开弹窗时才设置 src，避免启动时请求第三方页面
 const feedbackLoaded = ref(false)
@@ -198,7 +201,7 @@ onBeforeUnmount(() => {
           </button>
           <button type="button" role="menuitem" :disabled="!hasAlbumDirectory || isBusy" @click="runMenuAction(() => emit('authorizeX6Game'))">
             <FolderOpen :size="16" />
-            <span>{{ messages.authorizeX6Game }}</span>
+            <span>{{ hasX6GameAuthorization ? messages.reauthorizeX6Game : messages.authorizeX6Game }}</span>
           </button>
           </div>
         </Teleport>
@@ -338,8 +341,8 @@ onBeforeUnmount(() => {
 
   <Teleport to="body">
     <Transition name="confirm-dialog">
-      <div v-if="showDonate" class="help-dialog" role="dialog" aria-modal="true" :aria-label="messages.donateTitle" @click.self="showDonate = false">
-        <section class="help-dialog-panel donate-dialog-panel">
+      <div v-if="showDonate" class="dialog-overlay" role="dialog" aria-modal="true" :aria-label="messages.donateTitle" @click.self="showDonate = false">
+        <section class="dialog-panel donate-dialog-panel">
           <header>
             <h2>{{ messages.donateTitle }}</h2>
             <button type="button" :aria-label="messages.closeDonate" :title="messages.closeDonate" @click="showDonate = false">
@@ -366,8 +369,8 @@ onBeforeUnmount(() => {
 
   <Teleport to="body">
     <Transition name="confirm-dialog">
-      <div v-if="showFeedback" class="help-dialog" role="dialog" aria-modal="true" :aria-label="messages.feedbackTitle" @click.self="showFeedback = false">
-        <section class="help-dialog-panel feedback-dialog-panel">
+      <div v-if="showFeedback" class="dialog-overlay" role="dialog" aria-modal="true" :aria-label="messages.feedbackTitle" @click.self="showFeedback = false">
+        <section class="dialog-panel feedback-dialog-panel">
           <header>
             <h2>{{ messages.feedbackTitle }}</h2>
             <button type="button" :aria-label="messages.feedbackClose" :title="messages.feedbackClose" @click="showFeedback = false">

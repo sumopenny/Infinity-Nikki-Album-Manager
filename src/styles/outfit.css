@@ -22,7 +22,7 @@
   display: grid;
   place-items: center;
   padding: clamp(14px, 4vw, 36px);
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--overlay-bg);
   backdrop-filter: blur(5px);
 }
@@ -665,7 +665,7 @@
   display: grid;
   place-items: center;
   padding: clamp(14px, 4vw, 36px);
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--overlay-bg);
   backdrop-filter: blur(5px);
 }

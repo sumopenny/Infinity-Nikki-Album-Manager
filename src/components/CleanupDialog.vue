@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { ref, toRef, watch } from 'vue'
 import { Eraser, FolderOpen, X } from 'lucide-vue-next'
+import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { LocaleMessages } from '../i18n'
 import type { SpecialCleanupItem } from '../utils/file-system/cleanupFileSystem'
 
@@ -21,8 +22,8 @@ const emit = defineEmits<{
 // 清理项展示顺序，与 i18n cleanup.items 对应
 const cleanupItems: SpecialCleanupItem[] = ['lowQuality', 'crashes', 'logs', 'webcache']
 const panelRef = ref<HTMLElement | null>(null)
-let previousBodyOverflow = ''
 let previousActiveElement: HTMLElement | null = null
+useBodyScrollLock(toRef(props, 'visible'))
 
 /** 关闭专项清理窗口。参数：无。 */
 function closeDialog() {
@@ -60,10 +61,7 @@ watch(
   (visible) => {
     if (visible) {
       previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
-      previousBodyOverflow = document.body.style.overflow
-      document.body.style.overflow = 'hidden'
     } else {
-      document.body.style.overflow = previousBodyOverflow
       previousActiveElement?.focus()
       previousActiveElement = null
     }
@@ -71,9 +69,6 @@ watch(
   { immediate: true }
 )
 
-onBeforeUnmount(() => {
-  document.body.style.overflow = previousBodyOverflow
-})
 </script>
 
 <template>
@@ -81,14 +76,14 @@ onBeforeUnmount(() => {
     <Transition name="confirm-dialog">
       <div
         v-if="visible"
-        class="help-dialog cleanup-dialog"
+        class="dialog-overlay cleanup-dialog"
         role="dialog"
         aria-modal="true"
         :aria-label="messages.dialogTitle"
         @click.self="closeDialog"
         @keydown="handleKeydown"
       >
-        <section ref="panelRef" class="help-dialog-panel cleanup-dialog-panel">
+        <section ref="panelRef" class="dialog-panel cleanup-dialog-panel">
           <div class="cleanup-dialog-header">
             <div class="cleanup-dialog-title-group">
               <h2>{{ messages.dialogTitle }}</h2>

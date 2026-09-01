@@ -190,6 +190,7 @@ const isNoteDialogVisible = ref(false)
 const activeView = ref<AlbumView>('all')
 const currentPreview = ref<PhotoItem | null>(null)
 const sharedOutfitSource = ref<SharedOutfitSource | null>(null)
+const hasX6GameAuthorization = ref(false)
 const language = ref<Language>(isLanguage(storedLanguage) ? storedLanguage : DEFAULT_LANGUAGE)
 const directoryState = ref<DirectoryState>({ type: 'none' })
 const statusState = ref<StatusState>({ type: 'initial' })
@@ -551,6 +552,18 @@ async function restoreSavedDirectory() {
   }
 }
 
+/** 静默检查是否存在可复用的 X6Game 授权，用于显示“重新授权”入口。参数：无。 */
+async function restoreSavedX6GameAuthorization() {
+  try {
+    const savedHandle = await getSavedX6GameDirectoryHandle()
+    if (!savedHandle || savedHandle.name !== 'X6Game') return
+    const permission = savedHandle.queryPermission ? await savedHandle.queryPermission({ mode: 'readwrite' }) : 'granted'
+    hasX6GameAuthorization.value = permission === 'granted'
+  } catch {
+    hasX6GameAuthorization.value = false
+  }
+}
+
 /** 选择或重新授权相册目录。参数：无。 */
 async function chooseDirectory() {
   if (isAnyFileOperationBusy.value) return
@@ -577,7 +590,7 @@ async function chooseDirectory() {
 }
 
 /** 清除页面内已加载的相册和选择状态。参数：无。 */
-function resetLoadedAlbumState() {
+function resetLoadedAlbumState(options: { clearSharedOutfit?: boolean } = {}) {
   releasePhotoUrls(photos.value)
   releasePhotoUrls(outfits.value)
   releasePhotoUrls(recentlyDeleted.value)
@@ -592,17 +605,15 @@ function resetLoadedAlbumState() {
   editingOutfit.value = null
   isOutfitEditorVisible.value = false
   isOutfitGuideVisible.value = false
-  sharedOutfitSource.value = null
+  if (options.clearSharedOutfit !== false) sharedOutfitSource.value = null
 }
 
 /** 清除保存的目录授权和当前页面状态。参数：无。 */
 async function clearDirectory() {
   if (isAnyFileOperationBusy.value) return
   await clearSavedAlbumDirectoryHandle()
-  await clearSavedX6GameDirectoryHandle()
-  resetLoadedAlbumState()
+  resetLoadedAlbumState({ clearSharedOutfit: false })
   albumDirectoryHandle.value = null
-  cleanupX6GameHandle.value = null
   activeView.value = 'all'
   directoryState.value = { type: 'none' }
   statusState.value = { type: 'cleared' }
@@ -640,6 +651,7 @@ async function clearCache() {
     localStorage.removeItem(OUTFIT_GUIDE_DISMISSED_KEY)
     localStorage.removeItem(X6GAME_AUTO_PROMPT_DISMISSED_KEY)
     sharedOutfitSource.value = null
+    hasX6GameAuthorization.value = false
     cleanupX6GameHandle.value = null
     isOutfitGuideDismissed.value = false
     isX6GameAutoPromptDismissed.value = false
@@ -670,6 +682,7 @@ async function clearData() {
     clearWebsiteLocalStorage()
     resetLoadedAlbumState()
     cleanupX6GameHandle.value = null
+    hasX6GameAuthorization.value = false
     favoriteIds.value = new Set()
     activeOutfitFilter.value = 'all'
     albumDirectoryHandle.value = null
@@ -783,18 +796,19 @@ function toggleTheme() {
 
 // X6Game 授权与搭配码流程
 /** 获取或恢复当前相册对应的 X6Game 授权，用于自动读取游戏最新搭配码。参数：prompt 表示是否允许弹出授权说明，autoPrompt 表示是否为搭配码界面自动触发。 */
-async function ensureSharedOutfitSource(prompt: boolean, autoPrompt = prompt): Promise<SharedOutfitSource | null> {
+async function ensureSharedOutfitSource(prompt: boolean, autoPrompt = prompt, forcePick = false): Promise<SharedOutfitSource | null> {
   const directoryHandle = albumDirectoryHandle.value
   if (!directoryHandle) return null
-  if (sharedOutfitSource.value) return sharedOutfitSource.value
+  if (sharedOutfitSource.value && !forcePick) return sharedOutfitSource.value
   if (autoPrompt && isX6GameAutoPromptDismissed.value) return null
 
   let didCancelDirectoryPrompt = false
   try {
     const result = await getX6GameDirectoryForAlbum(directoryHandle, locale.value.fileSystem, {
       allowUnrelatedAlbum: true,
+      forcePick,
       beforeRequestX6GamePermission: async () => {
-        if (!prompt) return false
+        if (!prompt || forcePick) return true
         const confirmed = await openConfirmDialog({
           title: locale.value.app.x6GameDirectoryDialogTitle,
           message: locale.value.fileSystem.restoreX6GamePermissionPrompt,
@@ -806,7 +820,7 @@ async function ensureSharedOutfitSource(prompt: boolean, autoPrompt = prompt): P
         return confirmed
       },
       beforePickX6GameDirectory: async () => {
-        if (!prompt) return false
+        if (!prompt || forcePick) return true
         const confirmed = await openConfirmDialog({
           title: locale.value.app.x6GameDirectoryDialogTitle,
           message: locale.value.fileSystem.selectX6GameDirectoryPrompt,
@@ -819,6 +833,7 @@ async function ensureSharedOutfitSource(prompt: boolean, autoPrompt = prompt): P
       }
     })
     sharedOutfitSource.value = { x6GameDirectory: result.directoryHandle }
+    hasX6GameAuthorization.value = true
     isX6GameAutoPromptDismissed.value = false
     didCancelX6GameAutoPrompt.value = false
     if (!suppressLocalPersistence) localStorage.removeItem(X6GAME_AUTO_PROMPT_DISMISSED_KEY)
@@ -837,7 +852,7 @@ async function ensureSharedOutfitSource(prompt: boolean, autoPrompt = prompt): P
 /** 手动授权当前相册对应的 X6Game 文件夹。参数：无。 */
 async function authorizeX6GameDirectory() {
   if (!albumDirectoryHandle.value || isAnyFileOperationBusy.value) return
-  const source = await ensureSharedOutfitSource(true, false)
+  const source = await ensureSharedOutfitSource(true, false, hasX6GameAuthorization.value)
   if (!source) return
   statusState.value = { type: 'custom', message: locale.value.app.authorizeX6GameStatus, tone: 'success' }
 }
@@ -1517,7 +1532,10 @@ async function openCleanupDialog() {
   try {
     // 只在浏览器仍保留授权时直接恢复，不主动弹出权限请求
     const permission = savedHandle.queryPermission ? await savedHandle.queryPermission({ mode: 'readwrite' }) : 'granted'
-    if (permission === 'granted') cleanupX6GameHandle.value = savedHandle
+    if (permission === 'granted') {
+      cleanupX6GameHandle.value = savedHandle
+      hasX6GameAuthorization.value = true
+    }
   } catch {
     // 静默恢复失败时，用户可在窗口内手动授权
   }
@@ -1527,10 +1545,12 @@ async function openCleanupDialog() {
 async function authorizeCleanupFolder() {
   if (isAnyFileOperationBusy.value) return
   let didCancelDirectoryPrompt = false
+  const alreadyAuthorized = Boolean(cleanupX6GameHandle.value || hasX6GameAuthorization.value)
   try {
     const handle = await pickStandaloneX6GameDirectory(locale.value.fileSystem, {
       forcePick: true,
       beforeRequestX6GamePermission: async () => {
+        if (alreadyAuthorized) return true
         const confirmed = await openConfirmDialog({
           title: locale.value.app.x6GameDirectoryDialogTitle,
           message: locale.value.fileSystem.restoreX6GamePermissionPrompt,
@@ -1542,6 +1562,7 @@ async function authorizeCleanupFolder() {
         return confirmed
       },
       beforePickX6GameDirectory: async () => {
+        if (alreadyAuthorized) return true
         const confirmed = await openConfirmDialog({
           title: locale.value.app.x6GameDirectoryDialogTitle,
           message: locale.value.fileSystem.selectX6GameDirectoryPrompt,
@@ -1554,6 +1575,7 @@ async function authorizeCleanupFolder() {
       }
     })
     cleanupX6GameHandle.value = handle
+    hasX6GameAuthorization.value = true
     statusState.value = { type: 'custom', message: locale.value.app.authorizeX6GameStatus, tone: 'success' }
   } catch (error) {
     if (didCancelDirectoryPrompt) return
@@ -1750,6 +1772,7 @@ function scheduleFocusRefresh() {
 // 生命周期
 onMounted(() => {
   void restoreSavedDirectory()
+  void restoreSavedX6GameAuthorization()
   // 没有记录、版本号变化或未勾选“不再提示”时，打开网站自动显示“关于网站”窗口
   if (!storedAboutState || storedAboutState.version !== currentAboutVersion || !storedAboutState.dismissed) {
     isAboutDialogVisible.value = true
@@ -1789,6 +1812,7 @@ onBeforeUnmount(() => {
       :is-refreshing="isRefreshing"
       :is-deleting="isDeleting || isTrashBusy"
       :has-album-directory="Boolean(albumDirectoryHandle)"
+      :has-x6-game-authorization="hasX6GameAuthorization"
       :thumbnail-mode="displayedThumbnailMode"
       :thumbnail-mode-options="thumbnailModeOptions"
       :theme-mode="themeMode"

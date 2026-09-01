@@ -26,15 +26,17 @@ describe('AboutDialog release history', () => {
     const wrapper = mountDialog()
 
     expect(document.body.textContent).toContain('更新记录')
-    ;(document.body.querySelector('.about-history-link') as HTMLButtonElement).click()
+    const historyLink = document.body.querySelector('.about-history-link') as HTMLButtonElement
+    expect(historyLink.parentElement?.classList.contains('about-history-actions')).toBe(true)
+    expect(historyLink.parentElement?.nextElementSibling?.classList.contains('about-current-version-title')).toBe(true)
+    expect(document.body.querySelector('.about-section-heading')).toBeNull()
+    historyLink.click()
     await wrapper.vm.$nextTick()
 
     expect(document.body.textContent).toContain('历史版本记录')
     expect(document.body.querySelector('.about-history-list .about-changelog-entry')?.textContent).toContain('v1.3.2')
     expect(document.body.querySelector('.about-history-list')?.textContent).toContain('v1.3.1')
     expect(document.body.querySelector('.about-history-actions + .about-history-title')?.textContent).toBe('历史版本记录')
-    expect(document.body.querySelector('.about-section-heading')).toBeNull()
-
     ;(document.body.querySelector('.about-history-back') as HTMLButtonElement).click()
     await wrapper.vm.$nextTick()
     expect(document.body.textContent).toContain('当前版本')

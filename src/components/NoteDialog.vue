@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { nextTick, ref, toRef, watch } from 'vue'
 import { X } from 'lucide-vue-next'
+import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
 const props = defineProps<{
   visible: boolean
@@ -22,6 +23,7 @@ const emit = defineEmits<{
 
 const value = ref('')
 const inputRef = ref<HTMLInputElement | null>(null)
+useBodyScrollLock(toRef(props, 'visible'))
 
 watch(() => props.visible, (visible) => {
   if (!visible) return

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { ref, toRef, watch } from 'vue'
 import { X } from 'lucide-vue-next'
+import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { LocaleMessages } from '../i18n'
 
 const props = defineProps<{
@@ -10,8 +11,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{ close: [] }>()
 const panelRef = ref<HTMLElement | null>(null)
-let previousBodyOverflow = ''
 let previousActiveElement: HTMLElement | null = null
+useBodyScrollLock(toRef(props, 'visible'))
 
 function closeDialog() {
   emit('close')
@@ -43,10 +44,7 @@ watch(
   (visible) => {
     if (visible) {
       previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
-      previousBodyOverflow = document.body.style.overflow
-      document.body.style.overflow = 'hidden'
     } else {
-      document.body.style.overflow = previousBodyOverflow
       previousActiveElement?.focus()
       previousActiveElement = null
     }
@@ -54,9 +52,6 @@ watch(
   { immediate: true }
 )
 
-onBeforeUnmount(() => {
-  document.body.style.overflow = previousBodyOverflow
-})
 </script>
 
 <template>
@@ -64,14 +59,14 @@ onBeforeUnmount(() => {
     <Transition name="confirm-dialog">
       <div
         v-if="visible"
-        class="help-dialog fortune-time-dialog"
+        class="dialog-overlay fortune-time-dialog"
         role="dialog"
         aria-modal="true"
         :aria-labelledby="'fortune-time-title'"
         @click.self="closeDialog"
         @keydown="handleKeydown"
       >
-        <section ref="panelRef" class="help-dialog-panel fortune-time-panel">
+        <section ref="panelRef" class="dialog-panel fortune-time-panel">
           <header class="fortune-time-header">
             <h2 id="fortune-time-title">{{ messages.title }}</h2>
             <button type="button" :aria-label="messages.close" :title="messages.close" @click="closeDialog">

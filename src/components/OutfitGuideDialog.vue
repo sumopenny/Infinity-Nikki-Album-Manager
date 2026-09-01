@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { nextTick, ref, toRef, watch } from 'vue'
 import { Archive, FolderOpen, ImagePlus, Sparkles, Tags, X } from 'lucide-vue-next'
+import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { OutfitMessages } from '../i18n'
 
 const props = defineProps<{
@@ -18,8 +19,8 @@ const closeButtonRef = ref<HTMLButtonElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
 const sectionIcons = [ImagePlus, Tags, FolderOpen, Archive]
 const featuredIcon = Sparkles
-let previousBodyOverflow = ''
 let previousActiveElement: HTMLElement | null = null
+useBodyScrollLock(toRef(props, 'visible'))
 
 /** 关闭搭配码引导。参数：无；同时提交当前“不再提示”选项。 */
 function closeGuide() {
@@ -50,11 +51,8 @@ watch(
     if (visible) {
       dontShowAgain.value = props.dismissed
       previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
-      previousBodyOverflow = document.body.style.overflow
-      document.body.style.overflow = 'hidden'
       void nextTick(() => closeButtonRef.value?.focus())
     } else {
-      document.body.style.overflow = previousBodyOverflow
       previousActiveElement?.focus()
       previousActiveElement = null
     }
@@ -69,9 +67,6 @@ watch(
   }
 )
 
-onBeforeUnmount(() => {
-  document.body.style.overflow = previousBodyOverflow
-})
 </script>
 
 <template>

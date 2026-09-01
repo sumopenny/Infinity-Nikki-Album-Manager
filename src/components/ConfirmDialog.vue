@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { nextTick, ref, toRef, watch } from 'vue'
+import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
 export type ConfirmDialogTone = 'info' | 'warning' | 'danger'
 
@@ -19,6 +20,7 @@ const emit = defineEmits<{
 }>()
 
 const confirmButtonRef = ref<HTMLButtonElement | null>(null)
+useBodyScrollLock(toRef(props, 'visible'))
 
 // 聚焦主按钮。参数：无。弹窗打开后让键盘用户可以直接确认或取消。
 function focusConfirmButton() {

@@ -94,7 +94,7 @@ async function getValidatedX6GameDirectory(
     throw new Error(messages.invalidAlbumDirectory)
   }
 
-  const savedHandle = await getSavedX6GameDirectoryHandle()
+  const savedHandle = options.forcePick ? null : await getSavedX6GameDirectoryHandle()
 
   if (savedHandle) {
     let hasPermission = await ensureReadWritePermission(savedHandle, false)
@@ -208,5 +208,4 @@ export async function listGamePlayPhotoAccounts(x6GameHandle: FileSystemDirector
   }
   return accounts.sort()
 }
-
 

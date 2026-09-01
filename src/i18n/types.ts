@@ -68,6 +68,7 @@ export interface LocaleMessages {
     loading: string
     clearDirectory: string
     authorizeX6Game: string
+    reauthorizeX6Game: string
     refreshAlbum: string
     refreshing: string
     thumbnail: string

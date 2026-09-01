@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from 'vue'
 import { ImagePlus, Plus, Upload, X } from 'lucide-vue-next'
 import type { OutfitMessages } from '../i18n'
 import {
@@ -10,6 +10,7 @@ import {
   normalizeOutfitCode,
   type OutfitItem
 } from '../utils/outfit/outfitFileSystem'
+import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
 const props = defineProps<{
   visible: boolean
@@ -42,12 +43,11 @@ const tagEditorRef = ref<HTMLFormElement | null>(null)
 const tagInputRef = ref<HTMLInputElement | null>(null)
 const tagEditorPosition = ref({ top: '0px', left: '0px' })
 const editorOverlayRef = ref<HTMLElement | null>(null)
-let previousBodyOverflow = ''
-let isBodyScrollLockedByEditor = false
 let previousActiveElement: HTMLElement | null = null
 let previewRequestId = 0
 
 const hasImage = computed(() => Boolean(imageFile.value || props.outfit))
+useBodyScrollLock(toRef(props, 'visible'))
 
 function revokePreview() {
   previewRequestId += 1
@@ -187,15 +187,10 @@ function submit() {
 watch(() => props.visible, (visible) => {
   if (visible) {
     previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    previousBodyOverflow = document.body.style.overflow
-    isBodyScrollLockedByEditor = true
-    document.body.style.overflow = 'hidden'
     void resetForm()
     void nextTick(() => codeInput.value?.focus())
   } else {
     closeTagInput()
-    document.body.style.overflow = previousBodyOverflow
-    isBodyScrollLockedByEditor = false
     revokePreview()
     previousActiveElement?.focus()
     previousActiveElement = null
@@ -213,7 +208,6 @@ onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', handleDocumentPointerDown)
   window.removeEventListener('resize', updateTagEditorPosition)
   window.removeEventListener('scroll', updateTagEditorPosition, true)
-  if (isBodyScrollLockedByEditor) document.body.style.overflow = previousBodyOverflow
   revokePreview()
 })
 </script>

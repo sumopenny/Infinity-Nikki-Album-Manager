@@ -324,21 +324,35 @@
   to { transform: rotate(360deg); }
 }
 
-.help-dialog {
+/* 通用弹窗基础：只负责遮罩、居中和面板公共外观。 */
+.dialog-overlay {
   position: fixed;
   z-index: 100;
   inset: 0;
   display: grid;
   place-items: center;
   padding: 20px;
+  overflow: hidden;
+  overscroll-behavior: contain;
   background: rgba(24, 21, 21, 0.52);
   backdrop-filter: blur(6px);
 }
 
-.help-dialog-panel {
-  width: min(760px, 100%);
-  max-height: min(660px, calc(100vh - 40px));
+/* 非标准命名的历史弹窗也统一隔离滚动链，避免滚轮穿透到页面。 */
+:is(.confirm-dialog, .note-dialog, .outfit-guide, .outfit-editor, .lightbox) {
+  overscroll-behavior: contain;
+  overflow: hidden;
+}
+
+:is(.confirm-dialog-panel, .note-dialog-panel, .outfit-guide-panel, .outfit-editor-panel, .lightbox-panel) {
+  overscroll-behavior: contain;
+}
+
+.dialog-panel {
+  width: var(--dialog-width, min(760px, 100%));
+  max-height: var(--dialog-max-height, min(660px, calc(100vh - 40px)));
   overflow: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--line);
   border-radius: 36px;
   background: var(--surface-strong);
@@ -346,26 +360,26 @@
   padding: 18px;
 }
 
-.help-dialog-panel > header {
+.dialog-panel > header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 22px 26px 14px;
 }
 
-.help-dialog-panel h2,
-.help-dialog-panel h3,
-.help-dialog-panel p {
+.dialog-panel h2,
+.dialog-panel h3,
+.dialog-panel p {
   margin: 0;
 }
 
-.help-dialog-panel > header h2 {
+.dialog-panel > header h2 {
   font-size: 21px;
   letter-spacing: 0.5px;
 }
 
 /* 关闭按钮与“关于网站”一致的悬浮圆形样式 */
-.help-dialog-panel > header button {
+.dialog-panel > header button {
   display: grid;
   width: 34px;
   height: 34px;
@@ -377,11 +391,11 @@
   transition: background 0.18s ease, transform 0.18s ease;
 }
 
-.help-dialog-panel > header button:hover {
+.dialog-panel > header button:hover {
   background: color-mix(in srgb, var(--heading) 16%, transparent);
 }
 
-.fortune-time-dialog { z-index: 160; overflow-y: auto; }
+.fortune-time-dialog { z-index: 160; overflow: hidden; }
 .fortune-time-panel { width: min(1120px, 100%); height: min(820px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); display: flex; flex-direction: column; padding: 0; overflow: hidden; }
 .fortune-time-header { flex: 0 0 auto; border-bottom: 1px solid var(--line-soft); }
 .fortune-time-header h2 { font-size: clamp(20px, 2.2vw, 28px); }
@@ -412,9 +426,12 @@
   .fortune-time-header h2 { font-size: 20px; }
 }
 
-/* 专项清理弹窗：复用 help-dialog 遮罩，面板宽度略窄并采用卡片式清理项列表；字号参考“关于网站”（正文 14px、标题 15px） */
+/* 专项清理弹窗：独立声明尺寸与布局，仅复用通用 dialog-panel 基础外观。 */
 .cleanup-dialog-panel {
-  width: min(760px, 100%);
+  --dialog-width: min(960px, 100%);
+  --dialog-max-height: min(660px, calc(100vh - 40px));
+  width: var(--dialog-width);
+  max-height: var(--dialog-max-height);
   display: grid;
   gap: 18px;
   padding: 24px 24px 26px;
@@ -696,7 +713,7 @@
   }
 }
 
-/* 打赏弹窗：复用 help-dialog 遮罩，面板居中展示放大后的内容 */
+/* 打赏弹窗：使用通用 dialog-panel，面板居中展示放大后的内容。 */
 .donate-dialog-panel {
   width: min(640px, 100%);
 }
@@ -812,14 +829,14 @@
 /* 关于网站弹窗：复用帮助弹窗大窗口，内容分区展示简介、功能、操作与更新日志；层级最高，不被其他弹窗和状态提示覆盖 */
 .about-dialog {
   z-index: 150;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .about-dialog-panel {
   position: relative;
-  width: min(1080px, 100%);
-  height: min(660px, calc(100dvh - 72px));
-  max-height: calc(100dvh - 72px);
+  width: min(1120px, 100%);
+  height: min(720px, calc(100dvh - 48px));
+  max-height: calc(100dvh - 48px);
   display: flex;
   flex-direction: column;
   margin: auto;
@@ -872,33 +889,32 @@
   letter-spacing: 0.5px;
 }
 
-.about-section-heading {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  gap: 14px;
-}
-
-.about-section-heading h3 {
-  margin-bottom: 0;
-}
-
-.about-history-link {
+.about-history-link,
+.about-history-back {
   display: inline-flex;
+  min-height: 34px;
   align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  border: 0;
-  background: transparent;
+  gap: 7px;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--pink-deep) 30%, var(--line));
+  border-radius: 10px;
+  background: var(--surface-strong);
   color: var(--pink-deep);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
+  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease;
 }
 
-.about-history-link:hover {
+.about-history-link:hover,
+.about-history-back:hover {
+  border-color: var(--pink-deep);
+  background: color-mix(in srgb, var(--pink-deep) 8%, var(--surface-strong));
   color: var(--heading);
+}
+
+.about-current-version-title {
+  margin-bottom: 12px;
 }
 
 .about-history-section {
@@ -911,28 +927,6 @@
 .about-history-actions {
   display: flex;
   margin-bottom: 14px;
-}
-
-.about-history-back {
-  display: inline-flex;
-  min-height: 34px;
-  align-items: center;
-  gap: 7px;
-  padding: 6px 12px;
-  border: 1px solid color-mix(in srgb, var(--pink-deep) 30%, var(--line));
-  border-radius: 10px;
-  background: var(--surface-strong);
-  color: var(--pink-deep);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 700;
-  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease;
-}
-
-.about-history-back:hover {
-  border-color: var(--pink-deep);
-  background: color-mix(in srgb, var(--pink-deep) 8%, var(--surface-strong));
-  color: var(--heading);
 }
 
 .about-history-title {
@@ -1135,8 +1129,10 @@
 
 @media (max-width: 640px) {
   .about-dialog-panel {
-    height: calc(100dvh - 40px);
-    max-height: calc(100dvh - 40px);
+    width: 100%;
+    height: calc(100dvh - 24px);
+    max-height: calc(100dvh - 24px);
+    border-radius: 20px;
   }
 
   .about-dialog-grid,

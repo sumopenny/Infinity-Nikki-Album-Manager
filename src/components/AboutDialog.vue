@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, ref, toRef, watch } from 'vue'
 import { ArrowLeft, History, Images, Shirt, SquareCheckBig, X } from 'lucide-vue-next'
+import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { LocaleMessages } from '../i18n'
 
 const props = defineProps<{
@@ -21,8 +22,8 @@ const panelRef = ref<HTMLElement | null>(null)
 const currentVersionLabel = computed(() => props.messages.changelog[0]?.version)
 // 功能卡片图标，按 i18n 功能列表顺序展示
 const featureIcons = [Images, SquareCheckBig, Shirt]
-let previousBodyOverflow = ''
 let previousActiveElement: HTMLElement | null = null
+useBodyScrollLock(toRef(props, 'visible'))
 
 /** 关闭关于窗口。参数：无；同时提交当前“不再提示”选项。 */
 function closeDialog() {
@@ -65,11 +66,8 @@ watch(
       dontShowAgain.value = props.dismissed
       showHistory.value = false
       previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
-      previousBodyOverflow = document.body.style.overflow
-      document.body.style.overflow = 'hidden'
       // 不自动聚焦关闭按钮，避免叉号周围出现焦点边框
     } else {
-      document.body.style.overflow = previousBodyOverflow
       previousActiveElement?.focus()
       previousActiveElement = null
     }
@@ -84,9 +82,6 @@ watch(
   }
 )
 
-onBeforeUnmount(() => {
-  document.body.style.overflow = previousBodyOverflow
-})
 </script>
 
 <template>
@@ -94,14 +89,14 @@ onBeforeUnmount(() => {
     <Transition name="confirm-dialog">
       <div
         v-if="visible"
-        class="help-dialog about-dialog"
+        class="dialog-overlay about-dialog"
         role="dialog"
         aria-modal="true"
         :aria-label="messages.title"
         @click.self="closeDialog"
         @keydown="handleKeydown"
       >
-        <section ref="panelRef" class="help-dialog-panel about-dialog-panel">
+        <section ref="panelRef" class="dialog-panel about-dialog-panel">
           <button class="about-dialog-close" type="button" :title="messages.closeAria" :aria-label="messages.closeAria" @click="closeDialog">
             <X :size="19" aria-hidden="true" />
           </button>
@@ -130,13 +125,13 @@ onBeforeUnmount(() => {
             </template>
             <template v-else>
             <section>
-              <div class="about-section-heading">
-                <h3>{{ messages.changelogTitle }}</h3>
+              <div class="about-history-actions">
                 <button class="about-history-link" type="button" @click="openHistory">
-                  <History :size="16" aria-hidden="true" />
+                  <History :size="17" aria-hidden="true" />
                   <span>{{ messages.historyLink }}</span>
                 </button>
               </div>
+              <h3 class="about-current-version-title">{{ messages.changelogTitle }}</h3>
               <div
                 v-for="entry in messages.changelog"
                 :key="entry.version"

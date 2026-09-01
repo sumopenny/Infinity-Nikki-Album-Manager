@@ -16,8 +16,7 @@ export const fortuneTimeZh: LocaleMessages['fortuneTime'] = {
         { date: '9月16日', time: '19:00—22:59', direction: '正南', rating: '最强主推', highlighted: true },
         { date: '9月20日', time: '11:00—12:59', direction: '西南', rating: '中吉备用' },
         { date: '9月21日', time: '15:00—16:59', direction: '正东', rating: '大吉', highlighted: true },
-        { date: '9月22日', time: '11:00—14:59', direction: '正东', rating: '大吉', highlighted: true },
-        { date: '9月24日', time: '05:00—06:59', direction: '正东', rating: '吉，但时间偏早' }
+        { date: '9月22日', time: '11:00—14:59', direction: '正东', rating: '大吉', highlighted: true }
       ],
       recommendedTitle: '最推荐的四个窗口',
       recommendations: [
@@ -48,8 +47,7 @@ export const fortuneTimeEn: LocaleMessages['fortuneTime'] = {
         { date: 'Sep 16', time: '19:00-22:59', direction: 'Due south', rating: 'Top pick', highlighted: true },
         { date: 'Sep 20', time: '11:00-12:59', direction: 'Southwest', rating: 'Moderately auspicious' },
         { date: 'Sep 21', time: '15:00-16:59', direction: 'Due east', rating: 'Highly auspicious', highlighted: true },
-        { date: 'Sep 22', time: '11:00-14:59', direction: 'Due east', rating: 'Highly auspicious', highlighted: true },
-        { date: 'Sep 24', time: '05:00-06:59', direction: 'Due east', rating: 'Auspicious, but early' }
+        { date: 'Sep 22', time: '11:00-14:59', direction: 'Due east', rating: 'Highly auspicious', highlighted: true }
       ],
       recommendedTitle: 'Four most recommended windows',
       recommendations: [
