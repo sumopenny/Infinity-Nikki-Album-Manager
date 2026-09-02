@@ -733,3 +733,7 @@
 9.问题：App.vue 同时承载操作通知、操作锁、视图派生和选择状态逻辑，维护边界不清晰。
    - 状态：部分解决
    - 技术/方法：将通知状态统一到 useOperationNotice.ts，确认弹窗统一到 useConfirmDialog.ts；视图派生收敛到 useAlbumViewModel.ts，选择与收藏联动收敛到 useSelectionState.ts。预览导航和本地偏好保持页面内实现，避免低收益拆分。
+
+10.问题：响应式布局规则集中在 lightbox.css，顶栏、相册导航、图片网格和多选栏的样式职责边界不清晰。
+   - 状态：已解决
+   - 技术/方法：将顶栏断点规则迁移到 top-bar.css，相册导航和网格断点迁移到 album-navigation.css，多选栏基础及移动端规则迁移到 album.css；lightbox.css 仅保留大图预览及其移动端规则。保持选择器和视觉值不变，并通过加载顺序复核避免级联行为变化。

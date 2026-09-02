@@ -227,36 +227,6 @@
   color: var(--muted);
 }
 
-.photo-note-edit {
-  position: absolute;
-  z-index: 5;
-  top: 8px;
-  right: 43px;
-  display: grid;
-  width: 27px;
-  height: 27px;
-  place-items: center;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.38);
-  border-radius: 9px;
-  background: rgba(25, 22, 22, 0.34);
-  color: #e8c76a;
-  appearance: none;
-  line-height: 1;
-  opacity: 0;
-  transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease;
-}
-
-.photo-card:hover .photo-note-edit,
-.photo-note-edit:focus-visible {
-  opacity: 1;
-}
-
-.photo-note-edit:hover {
-  background: rgba(25, 22, 22, 0.56);
-  color: #f4d989;
-}
-
 .header-star-hint,
 .header-menu-button,
 .header-icon-button {
@@ -414,6 +384,69 @@
   padding: 5px 7px;
   font-size: 12px;
   white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .app-header {
+    position: static;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 9px 12px;
+  }
+
+  .brand-lockup {
+    flex: 1 1 180px;
+  }
+
+  .header-actions {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+  }
+
+  .header-search {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100%;
+  }
+
+  .album-name-button {
+    max-width: min(43vw, 230px);
+  }
+}
+
+@media (max-width: 520px) {
+  .header-star-hint {
+    display: none;
+  }
+
+  .brand-lockup h1 {
+    font-size: 17px;
+  }
+
+  .header-actions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .header-actions > button,
+  .header-menu-wrap,
+  .header-menu-wrap > button {
+    width: 100%;
+  }
+
+  .header-icon-button:has(span) {
+    padding: 0 10px;
+  }
+
+  .album-name-button {
+    max-width: none;
+  }
+
+  .header-dropdown {
+    width: max-content;
+    max-width: calc(100vw - 24px);
+  }
 }
 
 .xiaohongshu-link svg {

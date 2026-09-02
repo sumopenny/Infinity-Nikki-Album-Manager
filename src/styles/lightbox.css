@@ -308,179 +308,12 @@
   box-shadow: none;
 }
 
-@media (max-width: 1100px) {
-  .album-content {
-    padding-left: 18px;
-  }
-
-  .photo-grid {
-    grid-template-columns: repeat(auto-fill, minmax(min(168px, 100%), 1fr));
-  }
-
-  .mode-half .photo-grid {
-    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
-  }
-}
-
-@media (max-width: 900px) {
-  .app-header {
-    position: static;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 9px 12px;
-  }
-
-  .brand-lockup {
-    flex: 1 1 180px;
-  }
-
-  .header-actions {
-    flex: 1 1 auto;
-    flex-wrap: wrap;
-  }
-
-  .header-search {
-    grid-column: 1 / -1;
-    grid-row: 1;
-    width: 100%;
-  }
-
-  .album-name-button {
-    max-width: min(43vw, 230px);
-  }
-
-  .album-layout {
-    display: block;
-    padding: 0 12px 90px;
-  }
-
-  .album-layout:not(.without-album)::before {
-    display: none;
-  }
-
-  .sidebar-column {
-    position: static;
-    display: block;
-    height: auto;
-    max-height: none;
-    overflow: visible;
-    padding: 16px 0;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .album-view-nav {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4px;
-    padding-bottom: 14px;
-  }
-
-  .album-view-nav .sidebar-section-title {
-    grid-column: 1 / -1;
-  }
-
-  .album-view-button {
-    min-width: 0;
-    flex-direction: row;
-    padding-inline: 7px;
-  }
-
-  .date-sidebar {
-    margin-top: 14px;
-    overflow: visible;
-    padding-right: 0;
-    scrollbar-gutter: auto;
-  }
-
-  .timeline-year {
-    max-width: 360px;
-  }
-
-  .album-content {
-    padding: 18px 0 32px;
-  }
-
-  .without-album .album-content {
-    min-height: calc(100vh - 112px);
-  }
+.lightbox-delete.is-preview-loading {
+  pointer-events: none;
+  cursor: wait;
 }
 
 @media (max-width: 520px) {
-  .header-star-hint {
-    display: none;
-  }
-
-  .brand-lockup h1 {
-    font-size: 17px;
-  }
-
-  .header-actions {
-    display: grid;
-    width: 100%;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 4px;
-  }
-
-  .header-actions > button,
-  .header-menu-wrap,
-  .header-menu-wrap > button {
-    width: 100%;
-  }
-
-  .header-icon-button:has(span) {
-    padding: 0 10px;
-  }
-
-  .album-name-button {
-    max-width: none;
-  }
-
-  .header-dropdown {
-    width: max-content;
-    max-width: calc(100vw - 24px);
-  }
-
-  .gallery-header {
-    align-items: flex-start;
-  }
-
-  .gallery-header h2 {
-    font-size: 19px;
-  }
-
-  .gallery-header > p {
-    max-width: 48%;
-    text-align: right;
-  }
-
-  .photo-grid,
-  .mode-half .photo-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
-  }
-
-  .selection-bar {
-    right: 8px;
-    bottom: 8px;
-    left: 8px;
-    width: calc(100vw - 16px);
-    max-width: none;
-    min-height: 46px;
-    padding: 5px 6px;
-    overflow-x: auto;
-    justify-content: flex-start;
-  }
-
-  .selection-bar strong {
-    padding-left: 5px;
-  }
-
-  .selection-bar button {
-    flex: 0 0 auto;
-    padding-inline: 8px;
-  }
-
   .lightbox {
     padding: 8px;
   }
@@ -506,7 +339,7 @@
     width: auto;
   }
 
-  /* 触屏没有稳定悬停，移动端切换按钮常显并缩小区域 */
+  /* 触屏没有稳定悬停，移动端切换按钮常显并缩小区域。 */
   .lightbox-nav-zone {
     width: 26%;
     padding: 0 8px;
@@ -517,13 +350,4 @@
     height: 38px;
   }
 }
-
-/* 超窄屏单列必须放在 1100px/520px 多列规则之后，避免被同特异性后置规则覆盖 */
-@media (max-width: 420px) {
-  .photo-grid,
-  .mode-half .photo-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 

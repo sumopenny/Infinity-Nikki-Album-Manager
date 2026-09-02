@@ -114,6 +114,36 @@
   object-fit: cover;
 }
 
+.photo-note-edit {
+  position: absolute;
+  z-index: 5;
+  top: 8px;
+  right: 43px;
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 9px;
+  background: rgba(25, 22, 22, 0.34);
+  color: #e8c76a;
+  appearance: none;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.photo-card:hover .photo-note-edit,
+.photo-note-edit:focus-visible {
+  opacity: 1;
+}
+
+.photo-note-edit:hover {
+  background: rgba(25, 22, 22, 0.56);
+  color: #f4d989;
+}
+
 .photo-card.selected .selected-badge {
   opacity: 1;
   transform: scale(1);
@@ -130,9 +160,107 @@
   fill: var(--favorite-heart-fill);
 }
 
-.lightbox-delete.is-preview-loading {
-  pointer-events: none;
-  cursor: wait;
+.selection-bar {
+  position: fixed;
+  z-index: 55;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0 auto;
+  padding: 7px 8px 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius);
+  background: color-mix(in srgb, var(--surface-strong) 95%, transparent);
+  box-shadow: 0 14px 38px rgba(37, 32, 30, 0.22);
+  backdrop-filter: blur(14px);
+}
+
+.selection-bar strong {
+  padding-right: 5px;
+  color: var(--heading);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.selection-divider {
+  width: 1px;
+  height: 24px;
+  margin: 0 4px;
+  background: var(--line);
+}
+
+.selection-bar button {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--ui-radius);
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.selection-bar button:hover:not(:disabled) {
+  background: var(--soft-accent-bottom);
+}
+
+.selection-bar .selection-danger {
+  background: #bd656a;
+  color: #fff;
+}
+
+.selection-bar .selection-danger:hover:not(:disabled) {
+  background: #a94f55;
+}
+
+.selection-bar .selection-close {
+  width: 46px;
+  padding: 0;
+}
+
+.selection-bar-enter-active,
+.selection-bar-leave-active {
+  transition: opacity var(--motion-base) ease, transform var(--motion-base) ease;
+}
+
+.selection-bar-enter-from,
+.selection-bar-leave-to {
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+@media (max-width: 520px) {
+  .selection-bar {
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    width: calc(100vw - 16px);
+    max-width: none;
+    min-height: 46px;
+    padding: 5px 6px;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .selection-bar strong {
+    padding-left: 5px;
+  }
+
+  .selection-bar button {
+    flex: 0 0 auto;
+    padding-inline: 8px;
+  }
 }
 
 
