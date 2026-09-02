@@ -1,4 +1,5 @@
 // 专项清理文件系统：负责收集、统计并执行低画质图片、日志、崩溃和网页缓存清理。
+import { runWithConcurrency } from '../concurrency'
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
 const LOW_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_LowQuality'
 const SCREENSHOT_DIRECTORY_NAME = 'ScreenShot'
@@ -14,8 +15,6 @@ export interface RelatedPhotoCleanupResult { deletedCount: number; deletedBytes:
 function isImageFile(fileName: string): boolean { return IMAGE_EXTENSIONS.has(fileName.split('.').pop()?.toLowerCase() ?? '') }
 function isMissingDirectoryError(error: unknown): boolean { return error instanceof DOMException && error.name === 'NotFoundError' }
 async function getRequiredNestedDirectory(rootHandle: FileSystemDirectoryHandle, segments: string[]): Promise<FileSystemDirectoryHandle> { let current = rootHandle; for (const segment of segments) current = await current.getDirectoryHandle(segment); return current }
-async function mapWithConcurrency<T, R>(items: T[], worker: (item: T) => Promise<R>, concurrency = 6): Promise<R[]> { const results = new Array<R>(items.length); let nextIndex = 0; const runWorker = async () => { while (nextIndex < items.length) { const index = nextIndex++; results[index] = await worker(items[index]) } }; await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => runWorker())); return results }
-
 async function collectCleanupTarget(
   directoryName: string,
   getDirectoryHandle: () => Promise<FileSystemDirectoryHandle>,
@@ -57,7 +56,7 @@ async function sumEntrySize(handle: FileSystemFileHandle | FileSystemDirectoryHa
   for await (const [, childHandle] of (handle as FileSystemDirectoryHandle).entries()) {
     children.push(childHandle as FileSystemFileHandle | FileSystemDirectoryHandle)
   }
-  const childSums = await mapWithConcurrency(children, sumEntrySize)
+  const childSums = await runWithConcurrency(children, sumEntrySize, { concurrency: 6 })
   for (const childSum of childSums) {
     bytes += childSum.bytes
     fileCount += childSum.fileCount
@@ -164,7 +163,7 @@ export async function executeSpecialCleanup(plan: SpecialCleanupPlan): Promise<R
     for (const entry of target.entries) tasks.push({ kind: 'entry', target, name: entry.name, bytes: entry.bytes, fileCount: entry.fileCount })
   }
 
-  const results = await mapWithConcurrency(tasks, async (task) => {
+  const results = await runWithConcurrency(tasks, async (task) => {
     const path = `${task.target.directoryName}\\${task.name}`
     if (task.kind === 'entry') {
       try {
@@ -188,7 +187,7 @@ export async function executeSpecialCleanup(plan: SpecialCleanupPlan): Promise<R
     } catch {
       return { deletedCount: 0, deletedBytes: 0, failure: { path, reason: 'remove-failed' as const } }
     }
-  }, FILE_DELETE_CONCURRENCY)
+  }, { concurrency: FILE_DELETE_CONCURRENCY })
 
   const deletedCount = results.reduce((sum, result) => sum + result.deletedCount, 0)
   const deletedBytes = results.reduce((sum, result) => sum + result.deletedBytes, 0)
@@ -201,5 +200,4 @@ export async function executeSpecialCleanup(plan: SpecialCleanupPlan): Promise<R
     missingDirectories: plan.missingDirectories
   }
 }
-
 

@@ -1,6 +1,7 @@
 // 搭配文件系统：负责搭配方案扫描、游戏数据导入、标签、保存和删除流程。
 import { fileExists, readIgnoredShareCodes, readTags, writeBlob, writeIgnoredShareCodes, writeJson } from './outfitStorage'
 import { convertImageToWebp, isSupportedImage, validateWrittenFileSize } from './outfitImage'
+import { runWithConcurrency } from '../concurrency'
 import {
   DEFAULT_OUTFIT_TAGS,
   MAX_OUTFIT_TAGS,
@@ -64,23 +65,6 @@ interface ScanResult {
   outfits: OutfitItem[]
   failedCount: number
   pairedImageNames: Set<string>
-}
-
-async function mapWithConcurrency<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<R[]> {
-  const results = new Array<R>(items.length)
-  let nextIndex = 0
-
-  const runWorker = async () => {
-    while (nextIndex < items.length) {
-      const index = nextIndex
-      nextIndex += 1
-      results[index] = await worker(items[index])
-    }
-  }
-
-  const workerCount = Math.min(concurrency, items.length)
-  await Promise.all(Array.from({ length: workerCount }, () => runWorker()))
-  return results
 }
 
 function isMissingEntryError(error: unknown): boolean {
@@ -213,14 +197,14 @@ async function scanOutfits(directory: FileSystemDirectoryHandle, tags: string[])
   let failedCount = 0
   const seenIds = new Set<string>()
   const allowedTags = new Set(tags)
-  const parsedOutfits = await mapWithConcurrency(metadataNames, SCAN_CONCURRENCY, async (metadataName) => {
+  const parsedOutfits = await runWithConcurrency(metadataNames, async (metadataName) => {
     try {
       return await parseOutfit(directory, metadataName, allowedTags)
     } catch {
       // 单个元数据损坏或暂时不可读时计为一次失败，不中断其余方案扫描。
       return null
     }
-  })
+  }, { concurrency: SCAN_CONCURRENCY })
 
   for (const result of parsedOutfits) {
     if (!result) {
@@ -321,12 +305,11 @@ async function findLatestDiyImage(
   return latest
 }
 
-/** 从游戏 ShareCode 与 DIY 目录导入最新搭配方案。参数：directory 为 clothe 目录，existingOutfits 为现有方案，source 为 X6Game 授权目录，onImportStart 在确认开始写入新方案时触发。 */
+/** 从游戏 ShareCode 与 DIY 目录导入最新搭配方案。 */
 async function importLatestSharedOutfit(
   directory: FileSystemDirectoryHandle,
   existingOutfits: OutfitItem[],
-  source: SharedOutfitSource,
-  onImportStart?: () => void
+  source: SharedOutfitSource
 ): Promise<SharedOutfitImportResult> {
   let failureStage: SharedOutfitImportResult['failureStage']
   try {
@@ -353,8 +336,6 @@ async function importLatestSharedOutfit(
       return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage }
     }
 
-    // 确认要导入新方案时通知调用方，让后台静默扫描补显示“更新中”状态
-    onImportStart?.()
     const id = await createAvailableOutfitId(directory, `sharecode-${latestShareCode.playerId}-${Math.floor(latestShareCode.timestamp)}`)
     const imageName = `${id}.webp`
     const metadataName = `${id}.json`
@@ -387,17 +368,14 @@ async function importLatestSharedOutfit(
   }
 }
 
-/** 把未配对的外部图片导入为待填写方案。参数：directory 为 clothe 目录，pairedImageNames 为已有方案的图片名，onImportStart 在发现待导入图片时触发。 */
-async function importExternalImages(directory: FileSystemDirectoryHandle, pairedImageNames: Set<string>, onImportStart?: () => void): Promise<{ imported: number; failed: number }> {
+/** 把未配对的外部图片导入为待填写方案。 */
+async function importExternalImages(directory: FileSystemDirectoryHandle, pairedImageNames: Set<string>): Promise<{ imported: number; failed: number }> {
   const candidates: Array<{ name: string; handle: FileSystemFileHandle }> = []
   for await (const [name, handle] of directory.entries()) {
     if (handle.kind === 'file' && isSupportedImage(name) && !pairedImageNames.has(name)) {
       candidates.push({ name, handle: handle as FileSystemFileHandle })
     }
   }
-  // 发现待导入图片时通知调用方，让后台静默扫描补显示“更新中”状态
-  if (candidates.length) onImportStart?.()
-
   const jobs: Array<{ candidate: typeof candidates[number]; id: string; imageName: string; metadataName: string }> = []
   const reservedIds = new Set<string>()
   for (const candidate of candidates) {
@@ -410,12 +388,7 @@ async function importExternalImages(directory: FileSystemDirectoryHandle, paired
 
   let imported = 0
   let failed = 0
-  let nextIndex = 0
-  const runWorker = async () => {
-    while (nextIndex < jobs.length) {
-      const index = nextIndex
-      nextIndex += 1
-      const { candidate, id, imageName, metadataName } = jobs[index]
+  await runWithConcurrency(jobs, async ({ candidate, id, imageName, metadataName }) => {
       try {
         const source = await candidate.handle.getFile()
         const webp = await convertImageToWebp(source)
@@ -437,16 +410,14 @@ async function importExternalImages(directory: FileSystemDirectoryHandle, paired
         await directory.removeEntry(imageName).catch(() => undefined)
         await directory.removeEntry(metadataName).catch(() => undefined)
       }
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(IMPORT_CONCURRENCY, jobs.length) }, () => runWorker()))
+  }, { concurrency: IMPORT_CONCURRENCY })
   return { imported, failed }
 }
 
-/** 扫描并更新搭配码库。参数：albumDirectory 为相册目录，options.onImportStart 在检测到新增导入时触发，便于调用方补显示进度。 */
+/** 扫描并更新搭配码库，返回完整扫描和导入结果，由调用方统一决定提示。 */
 export async function readOutfitLibrary(
   albumDirectory: FileSystemDirectoryHandle,
-  options: { importExternal?: boolean; create?: boolean; sharedSource?: SharedOutfitSource | null; onImportStart?: () => void } = {}
+  options: { importExternal?: boolean; create?: boolean; sharedSource?: SharedOutfitSource | null } = {}
 ): Promise<OutfitLibraryResult> {
   const directory = await getClotheDirectory(albumDirectory, options.create ?? true)
   if (!directory) return { outfits: [], tags: [...DEFAULT_OUTFIT_TAGS], importedExternalCount: 0, importedSharedCount: 0, failedCount: 0 }
@@ -457,13 +428,13 @@ export async function readOutfitLibrary(
   let externalFailures = 0
   let sharedFailures = 0
   if (options.importExternal ?? true) {
-    const external = await importExternalImages(directory, scan.pairedImageNames, options.onImportStart)
+    const external = await importExternalImages(directory, scan.pairedImageNames)
     importedExternalCount = external.imported
     externalFailures = external.failed
     if (external.imported) scan = await scanOutfits(directory, tags)
   }
   if (options.sharedSource) {
-    const shared = await importLatestSharedOutfit(directory, scan.outfits, options.sharedSource, options.onImportStart)
+    const shared = await importLatestSharedOutfit(directory, scan.outfits, options.sharedSource)
     importedSharedCount = shared.importedCount
     sharedFailures = shared.failedCount
     if (shared.importedCount) scan = await scanOutfits(directory, tags)
@@ -579,7 +550,7 @@ export async function deleteOutfitTag(
 export async function deleteOutfits(outfits: OutfitItem[]): Promise<OutfitDeleteResult> {
   if (!outfits.length) return { deleted: [], failedNames: [] }
 
-  const prepared = await mapWithConcurrency<OutfitItem, PreparedOutfitDelete>(outfits, DELETE_BACKUP_CONCURRENCY, async (outfit) => {
+  const prepared = await runWithConcurrency<OutfitItem, PreparedOutfitDelete>(outfits, async (outfit) => {
     try {
       const image = await outfit.fileHandle.getFile()
       const metadata = await (await outfit.directoryHandle.getFileHandle(outfit.metadataName)).getFile()
@@ -587,10 +558,10 @@ export async function deleteOutfits(outfits: OutfitItem[]): Promise<OutfitDelete
     } catch {
       return { outfit, image: null, metadata: null }
     }
-  })
+  }, { concurrency: DELETE_BACKUP_CONCURRENCY })
   const failedNames = prepared.filter((item) => !item.image || !item.metadata).map((item) => item.outfit.code || item.outfit.name)
   const validPrepared = prepared.filter((item): item is SuccessfulOutfitDelete => Boolean(item.image && item.metadata))
-  const results = await mapWithConcurrency<SuccessfulOutfitDelete, { item: SuccessfulOutfitDelete; ok: boolean }>(validPrepared, DELETE_FILE_CONCURRENCY, async (item) => {
+  const results = await runWithConcurrency<SuccessfulOutfitDelete, { item: SuccessfulOutfitDelete; ok: boolean }>(validPrepared, async (item) => {
     try {
       await item.outfit.directoryHandle.removeEntry(item.outfit.metadataName)
       await item.outfit.directoryHandle.removeEntry(item.outfit.image)
@@ -600,7 +571,7 @@ export async function deleteOutfits(outfits: OutfitItem[]): Promise<OutfitDelete
       await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.metadataName, { create: true }), item.metadata).catch(() => undefined)
       return { item, ok: false }
     }
-  })
+  }, { concurrency: DELETE_FILE_CONCURRENCY })
 
   const deleted = results.filter((result) => result.ok).map((result) => result.item.outfit)
   const failed = [

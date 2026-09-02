@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PhotoItem } from '../../src/utils/photoGrouping'
-import { exportPhotos, importPhotos } from '../../src/utils/file-system/photoTransfer'
+import { preparePhotoTransfer, runPhotoTransfer } from '../../src/utils/file-system/photoTransfer'
 
 class TestFileHandle implements FileSystemFileHandle {
   readonly kind = 'file' as const
@@ -37,7 +37,8 @@ describe('photo transfer', () => {
   it('imports supported files and allocates duplicate names', async () => {
     const directory = new TestDirectory('album')
     directory.files.set('a.jpg', new TestFileHandle('a.jpg'))
-    const result = await importPhotos(directory, [new File(['a'], 'a.jpg', { type: 'image/jpeg' }), new File(['b'], 'b.png', { type: 'image/png' }), new File(['x'], 'note.txt')])
+    const prepared = await preparePhotoTransfer(directory, { kind: 'import', files: [new File(['a'], 'a.jpg', { type: 'image/jpeg' }), new File(['b'], 'b.png', { type: 'image/png' }), new File(['x'], 'note.txt')] })
+    const result = await runPhotoTransfer(directory, prepared)
     expect(result.succeeded).toBe(2)
     expect([...directory.files.keys()]).toEqual(expect.arrayContaining(['a.jpg', 'a_imported_1.jpg', 'b.png']))
   })
@@ -46,7 +47,8 @@ describe('photo transfer', () => {
     const source = new TestDirectory('source')
     const target = new TestDirectory('target')
     const controller = new AbortController()
-    const result = await exportPhotos([photo(source, '1.jpg', 1), photo(source, '2.jpg', 2), photo(source, '3.jpg', 3)], target, {
+    const prepared = await preparePhotoTransfer(target, { kind: 'export', photos: [photo(source, '1.jpg', 1), photo(source, '2.jpg', 2), photo(source, '3.jpg', 3)] })
+    const result = await runPhotoTransfer(target, prepared, {
       concurrency: 8,
       signal: controller.signal,
       onProgress: (progress) => { if (progress.completed === 1) controller.abort() }

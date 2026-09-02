@@ -1,6 +1,7 @@
 // 相册回收站：负责最近删除照片的读取、移动、恢复、永久删除和安全清空。
 import { datePartsFromTimestamp, parsePhotoDate, type PhotoItem, type RecentlyDeletedPhoto } from '../photoGrouping'
 import { formatFileSize, releasePhotoUrl } from './photoUrl'
+import { runWithConcurrency } from '../concurrency'
 
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
 const TRASH_DIRECTORY_NAME = 'trash'
@@ -11,14 +12,6 @@ const FILE_DELETE_CONCURRENCY = 10
 export interface TrashOperationResult<T> { succeeded: T[]; failedNames: string[] }
 export interface MoveToTrashResult extends TrashOperationResult<PhotoItem> { movedPhotos: RecentlyDeletedPhoto[] }
 export interface RestoreTrashResult extends TrashOperationResult<RecentlyDeletedPhoto> { restoredPhotos: PhotoItem[] }
-
-async function mapWithConcurrency<T, R>(items: T[], worker: (item: T) => Promise<R>, concurrency = 6): Promise<R[]> {
-  const results = new Array<R>(items.length)
-  let nextIndex = 0
-  const runWorker = async () => { while (nextIndex < items.length) { const index = nextIndex++; results[index] = await worker(items[index]) } }
-  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => runWorker()))
-  return results
-}
 
 function isImageFile(fileName: string): boolean { return IMAGE_EXTENSIONS.has(fileName.split('.').pop()?.toLowerCase() ?? '') }
 function isMissingDirectoryError(error: unknown): boolean { return error instanceof DOMException && error.name === 'NotFoundError' }
@@ -51,7 +44,7 @@ export async function listRecentlyDeleted(
     candidates.push({ trashName, fileHandle: handle as FileSystemFileHandle, metadata })
   }
 
-  const scannedPhotos = await mapWithConcurrency(candidates, async ({ trashName, fileHandle, metadata }): Promise<RecentlyDeletedPhoto | null> => {
+  const scannedPhotos = await runWithConcurrency(candidates, async ({ trashName, fileHandle, metadata }): Promise<RecentlyDeletedPhoto | null> => {
     let size: number | null = null
     let lastModified: number | undefined
     try {
@@ -81,7 +74,7 @@ export async function listRecentlyDeleted(
       note: '',
       ...parsed
     } satisfies RecentlyDeletedPhoto
-  })
+  }, { concurrency: 6 })
 
   return scannedPhotos
     .filter((photo): photo is RecentlyDeletedPhoto => Boolean(photo))
@@ -105,7 +98,7 @@ export async function movePhotosToRecentlyDeleted(
   const albumDirectoryHandle = photos[0].directoryHandle
   const trashDirectoryHandle = await albumDirectoryHandle.getDirectoryHandle(TRASH_DIRECTORY_NAME, { create: true })
 
-  const results = await mapWithConcurrency(photos, async (photo) => {
+  const results = await runWithConcurrency(photos, async (photo) => {
     const deletedAt = Date.now()
     const wasFavorite = favoriteIds.has(photo.id)
     const trashName = createTrashFileName(photo, wasFavorite, deletedAt)
@@ -141,7 +134,7 @@ export async function movePhotosToRecentlyDeleted(
     } catch {
       return { source: photo, moved: null }
     }
-  }, FILE_COPY_CONCURRENCY)
+  }, { concurrency: FILE_COPY_CONCURRENCY })
 
   for (const result of results) {
     if (result.moved) {
@@ -200,7 +193,7 @@ export async function restoreRecentlyDeletedPhotos(
   const failedNames: string[] = []
   const reservedNames = new Set<string>()
 
-  const results = await mapWithConcurrency(photos, async (photo) => {
+  const results = await runWithConcurrency(photos, async (photo) => {
     let restoreName = ''
     try {
       restoreName = await findAvailableRestoreName(albumDirectoryHandle, photo.originalName, reservedNames)
@@ -240,7 +233,7 @@ export async function restoreRecentlyDeletedPhotos(
       if (restoreName) reservedNames.delete(restoreName)
       return { source: photo, restored: null }
     }
-  }, FILE_COPY_CONCURRENCY)
+  }, { concurrency: FILE_COPY_CONCURRENCY })
 
   for (const result of results) {
     if (result.restored) {
@@ -265,7 +258,7 @@ export async function permanentlyDeleteRecentlyDeleted(
   const succeeded: RecentlyDeletedPhoto[] = []
   const failedNames: string[] = []
 
-  const results = await mapWithConcurrency(photos, async (photo) => {
+  const results = await runWithConcurrency(photos, async (photo) => {
     try {
       await photo.directoryHandle.removeEntry(photo.trashName)
       releasePhotoUrl(photo)
@@ -273,7 +266,7 @@ export async function permanentlyDeleteRecentlyDeleted(
     } catch {
       return { photo, succeeded: false }
     }
-  }, FILE_DELETE_CONCURRENCY)
+  }, { concurrency: FILE_DELETE_CONCURRENCY })
 
   for (const result of results) {
     if (result.succeeded) succeeded.push(result.photo)
@@ -368,4 +361,3 @@ async function rollbackFile(directoryHandle: FileSystemDirectoryHandle, fileName
     // 回滚失败不覆盖触发回滚的原始错误。
   }
 }
-

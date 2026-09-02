@@ -1,12 +1,11 @@
 // 目录访问：负责浏览器目录选择、读写权限、X6Game 授权复用和账号路径验证。
-import type { LocaleMessages } from '../../i18n'
 import { clearSavedX6GameDirectoryHandle, getSavedX6GameDirectoryHandle, saveX6GameDirectoryHandle } from './directoryStorage'
+import { createDirectoryError, normalizeDirectoryError } from './directoryErrors'
+import type { FileSystemMessages } from './directoryErrors'
 
 const HIGH_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_HighQuality'
 const LOW_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_LowQuality'
 const SCREENSHOT_DIRECTORY_NAME = 'ScreenShot'
-type FileSystemMessages = LocaleMessages['fileSystem']
-
 export interface X6GameDirectoryOptions { beforePickX6GameDirectory?: () => boolean | Promise<boolean>; beforeRequestX6GamePermission?: () => boolean | Promise<boolean>; allowUnrelatedAlbum?: boolean; /** 强制打开目录选择器，不复用已保存的授权句柄。 */ forcePick?: boolean }
 function isMobileDevice(): boolean { return /android|iphone|ipod|ipad/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) }
 function getSupportedDirectoryPicker(messages: FileSystemMessages): NonNullable<typeof window.showDirectoryPicker> { if (isMobileDevice()) throw new Error(messages.mobileBrowserUnsupported); if (!window.showDirectoryPicker) throw new Error(messages.unsupportedBrowser); return window.showDirectoryPicker }
@@ -14,7 +13,19 @@ function isCleanupTargetDirectory(name: string): boolean { return name === LOW_Q
 function isMissingDirectoryError(error: unknown): boolean { return error instanceof DOMException && error.name === 'NotFoundError' }
 async function getRequiredNestedDirectory(root: FileSystemDirectoryHandle, segments: string[]): Promise<FileSystemDirectoryHandle> { let current = root; for (const segment of segments) current = await current.getDirectoryHandle(segment); return current }
 async function ensureReadWritePermission(handle: FileSystemDirectoryHandle, requestPermission: boolean): Promise<boolean> { const options = { mode: 'readwrite' as const }; if (handle.queryPermission) { const current = await handle.queryPermission(options); if (current === 'granted') return true; if (!requestPermission) return false } if (!requestPermission && handle.requestPermission) return false; if (!handle.requestPermission) return true; return (await handle.requestPermission(options)) === 'granted' }
-function normalizeDirectoryError(error: unknown, messages: FileSystemMessages): Error { if (!(error instanceof Error)) return new Error(messages.readFailed); const raw = error.message || ''; const name = error.name || ''; const normalized = `${name} ${raw}`.toLowerCase(); if (normalized.includes('system') || raw.includes('系统文件') || name === 'SecurityError') return new Error(messages.systemDirectory); if (name === 'AbortError') return new Error(messages.abortSelection); return error }
+export async function isSameOrNestedDirectory(parent: FileSystemDirectoryHandle, candidate: FileSystemDirectoryHandle): Promise<boolean> { return parent === candidate || (await parent.resolve(candidate)) !== null }
+
+/** 判断导出目标是否为相册本身、其子目录或 trash 目录。 */
+export async function isProtectedAlbumDirectory(album: FileSystemDirectoryHandle, candidate: FileSystemDirectoryHandle): Promise<boolean> {
+  if (await isSameOrNestedDirectory(album, candidate)) return true
+  try {
+    const trash = await album.getDirectoryHandle('trash')
+    return await isSameOrNestedDirectory(trash, candidate)
+  } catch (error) {
+    if (isMissingDirectoryError(error)) return false
+    throw error
+  }
+}
 
 export async function resolveX6GameAccountDirectory(
   x6GameHandle: FileSystemDirectoryHandle,
@@ -23,11 +34,11 @@ export async function resolveX6GameAccountDirectory(
   allowUnrelatedAlbum = false
 ): Promise<string> {
   if (x6GameHandle.name !== 'X6Game') {
-    throw new Error(messages.invalidX6GameDirectory)
+    throw createDirectoryError('invalid-directory', messages)
   }
 
   if (isCleanupTargetDirectory(albumDirectoryHandle.name)) {
-    throw new Error(messages.invalidX6GameDirectory)
+    throw createDirectoryError('invalid-directory', messages)
   }
   if (albumDirectoryHandle.name !== HIGH_QUALITY_DIRECTORY_NAME && allowUnrelatedAlbum) return ''
 
@@ -42,7 +53,7 @@ export async function resolveX6GameAccountDirectory(
     Boolean(accountDirectoryName) && accountDirectoryName !== '.' && accountDirectoryName !== '..' && !/[\\/]/.test(accountDirectoryName)
 
   if (!hasExpectedPath || !hasValidAccountDirectory) {
-    throw new Error(messages.invalidX6GameDirectory)
+    throw createDirectoryError('invalid-directory', messages)
   }
 
   return accountDirectoryName
@@ -61,7 +72,7 @@ async function pickValidatedX6GameDirectory(
   const showDirectoryPicker = getSupportedDirectoryPicker(messages)
 
   if (options.beforePickX6GameDirectory && !(await options.beforePickX6GameDirectory())) {
-    throw new Error(messages.abortSelection)
+    throw createDirectoryError('cancelled', messages)
   }
 
   const directoryHandle = await showDirectoryPicker({
@@ -72,7 +83,7 @@ async function pickValidatedX6GameDirectory(
   const hasPermission = await ensureReadWritePermission(directoryHandle, true)
 
   if (!hasPermission) {
-    throw new Error(messages.permissionRequired)
+    throw createDirectoryError('permission-denied', messages)
   }
 
   const accountDirectoryName = await resolveX6GameAccountDirectory(
@@ -91,7 +102,7 @@ async function getValidatedX6GameDirectory(
   options: X6GameDirectoryOptions = {}
 ): Promise<{ directoryHandle: FileSystemDirectoryHandle; accountDirectoryName: string }> {
   if (isCleanupTargetDirectory(albumDirectoryHandle.name) && !options.allowUnrelatedAlbum) {
-    throw new Error(messages.invalidAlbumDirectory)
+    throw createDirectoryError('invalid-directory', messages, undefined, messages.invalidAlbumDirectory)
   }
 
   const savedHandle = options.forcePick ? null : await getSavedX6GameDirectoryHandle()
@@ -101,7 +112,7 @@ async function getValidatedX6GameDirectory(
 
     if (!hasPermission) {
       if (options.beforeRequestX6GamePermission && !(await options.beforeRequestX6GamePermission())) {
-        throw new Error(messages.abortSelection)
+        throw createDirectoryError('cancelled', messages)
       }
       hasPermission = await ensureReadWritePermission(savedHandle, true)
     }
@@ -153,7 +164,7 @@ export async function pickStandaloneX6GameDirectory(
 
     if (!hasPermission) {
       if (options.beforeRequestX6GamePermission && !(await options.beforeRequestX6GamePermission())) {
-        throw new Error(messages.abortSelection)
+        throw createDirectoryError('cancelled', messages)
       }
       hasPermission = await ensureReadWritePermission(savedHandle, true)
     }
@@ -166,7 +177,7 @@ export async function pickStandaloneX6GameDirectory(
 
   try {
     if (options.beforePickX6GameDirectory && !(await options.beforePickX6GameDirectory())) {
-      throw new Error(messages.abortSelection)
+      throw createDirectoryError('cancelled', messages)
     }
 
     const directoryHandle = await showDirectoryPicker({
@@ -174,11 +185,11 @@ export async function pickStandaloneX6GameDirectory(
       mode: 'readwrite'
     })
     if (directoryHandle.name !== 'X6Game') {
-      throw new Error(messages.invalidX6GameDirectory)
+      throw createDirectoryError('invalid-directory', messages)
     }
     const hasPermission = await ensureReadWritePermission(directoryHandle, true)
     if (!hasPermission) {
-      throw new Error(messages.permissionRequired)
+      throw createDirectoryError('permission-denied', messages)
     }
 
     await saveX6GameDirectoryHandle(directoryHandle)
@@ -208,4 +219,3 @@ export async function listGamePlayPhotoAccounts(x6GameHandle: FileSystemDirector
   }
   return accounts.sort()
 }
-

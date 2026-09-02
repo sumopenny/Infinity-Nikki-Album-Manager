@@ -6,6 +6,8 @@ import { PHOTO_NOTE_LIMIT, normalizePhotoNote } from './photoMetadata'
 import { ensurePhotoUrl, resetPhotoUrl, releasePhotoUrl, releasePhotoUrls } from './photoUrl'
 import { saveAlbumDirectoryHandle, getSavedAlbumDirectoryHandle, clearSavedAlbumDirectoryHandle } from './directoryStorage'
 import { listRecentlyDeleted } from './trashFileSystem'
+import { runWithConcurrency } from '../concurrency'
+import { createDirectoryError, normalizeDirectoryError } from './directoryErrors'
 
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
 const SCAN_CONCURRENCY = 6
@@ -32,32 +34,14 @@ function getSupportedDirectoryPicker(messages: FileSystemMessages): NonNullable<
   return window.showDirectoryPicker
 }
 
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  worker: (item: T) => Promise<R>,
-  concurrency = SCAN_CONCURRENCY
-): Promise<R[]> {
-  const results = new Array<R>(items.length)
-  let nextIndex = 0
-
-  const runWorker = async () => {
-    while (nextIndex < items.length) {
-      const index = nextIndex
-      nextIndex += 1
-      results[index] = await worker(items[index])
-    }
-  }
-
-  const workerCount = Math.min(concurrency, items.length)
-  await Promise.all(Array.from({ length: workerCount }, () => runWorker()))
-  return results
-}
-
-export interface RefreshAlbumResult extends AlbumDirectoryResult {
+export interface RefreshAlbumPhotosResult extends AlbumDirectoryResult {
   addedCount: number
   removedCount: number
   removedPhotos: PhotoItem[]
   replacedPhotos: PhotoItem[]
+}
+
+export interface RefreshAlbumResult extends RefreshAlbumPhotosResult {
   recentlyDeleted: RecentlyDeletedPhoto[]
 }
 
@@ -68,24 +52,6 @@ function isImageFile(fileName: string): boolean {
 
 import { formatFileSize } from './photoUrl'
 export { formatFileSize, ensurePhotoUrl, resetPhotoUrl, releasePhotoUrl, releasePhotoUrls }
-
-function normalizeDirectoryError(error: unknown, messages: FileSystemMessages): Error {
-  if (!(error instanceof Error)) return new Error(messages.readFailed)
-
-  const rawMessage = error.message || ''
-  const errorName = error.name || ''
-  const message = `${errorName} ${rawMessage}`.toLowerCase()
-
-  if (message.includes('system') || rawMessage.includes('系统文件') || errorName === 'SecurityError') {
-    return new Error(messages.systemDirectory)
-  }
-
-  if (errorName === 'AbortError') {
-    return new Error(messages.abortSelection)
-  }
-
-  return error
-}
 
 async function ensureReadWritePermission(
   directoryHandle: FileSystemDirectoryHandle,
@@ -116,7 +82,7 @@ export async function readAlbumDirectory(
 ): Promise<AlbumDirectoryResult> {
   const hasPermission = await ensureReadWritePermission(directoryHandle, options.requestPermission ?? true)
   if (!hasPermission) {
-    throw new Error(options.messages.permissionRequired)
+    throw createDirectoryError('permission-denied', options.messages)
   }
 
   try {
@@ -137,13 +103,13 @@ export async function readAlbumDirectory(
  * 参数：directoryHandle 为当前相册目录，currentPhotos 为页面已有照片，options 为权限和文案。
  * 返回：合并后的照片、变化数量和最近删除列表。
  */
-export async function refreshAlbumDirectory(
+export async function refreshAlbumPhotos(
   directoryHandle: FileSystemDirectoryHandle,
   currentPhotos: PhotoItem[],
   options: { requestPermission?: boolean; messages: FileSystemMessages }
-): Promise<RefreshAlbumResult> {
+): Promise<RefreshAlbumPhotosResult> {
   const hasPermission = await ensureReadWritePermission(directoryHandle, options.requestPermission ?? false)
-  if (!hasPermission) throw new Error(options.messages.permissionRequired)
+  if (!hasPermission) throw createDirectoryError('permission-denied', options.messages)
 
   try {
     const metadata = await readAlbumMetadata(directoryHandle)
@@ -177,12 +143,24 @@ export async function refreshAlbumDirectory(
       addedCount,
       removedCount: removedPhotos.length,
       removedPhotos,
-      replacedPhotos,
-      recentlyDeleted: await listRecentlyDeleted(directoryHandle)
+      replacedPhotos
     }
   } catch (error) {
     throw normalizeDirectoryError(error, options.messages)
   }
+}
+
+/** 兼容入口：并行刷新相册照片和最近删除。新编排流程可分别调用两个扫描函数。 */
+export async function refreshAlbumDirectory(
+  directoryHandle: FileSystemDirectoryHandle,
+  currentPhotos: PhotoItem[],
+  options: { requestPermission?: boolean; messages: FileSystemMessages }
+): Promise<RefreshAlbumResult> {
+  const [album, recentlyDeleted] = await Promise.all([
+    refreshAlbumPhotos(directoryHandle, currentPhotos, options),
+    listRecentlyDeleted(directoryHandle)
+  ])
+  return { ...album, recentlyDeleted }
 }
 
 export async function pickAlbumDirectory(messages: FileSystemMessages): Promise<AlbumDirectoryResult> {
@@ -252,9 +230,10 @@ async function scanAlbumPhotos(directoryHandle: FileSystemDirectoryHandle, metad
     imageHandles.push({ name, handle: handle as FileSystemFileHandle })
   }
 
-  const scannedPhotos = await mapWithConcurrency(
+  const scannedPhotos = await runWithConcurrency(
     imageHandles,
-    ({ name, handle }) => createPhotoItem(name, handle, directoryHandle, metadata)
+    ({ name, handle }) => createPhotoItem(name, handle, directoryHandle, metadata),
+    { concurrency: SCAN_CONCURRENCY }
   )
   const photos = scannedPhotos.filter((photo): photo is PhotoItem => Boolean(photo))
   return photos.sort((a, b) => b.timestamp - a.timestamp)
