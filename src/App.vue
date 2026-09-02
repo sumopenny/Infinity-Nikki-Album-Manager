@@ -219,6 +219,8 @@ const photoTransferRunning = ref(false)
 const photoTransferCancelled = ref(false)
 const photoTransferCompleted = ref(0)
 const photoTransferTotal = ref(0)
+const photoTransferInitialized = ref(false)
+const photoTransferSession = ref(0)
 const photoTransferSucceeded = ref(0)
 const photoTransferFailedNames = ref<string[]>([])
 const photoTransferController = ref<AbortController | null>(null)
@@ -1263,11 +1265,29 @@ async function importOutfits(event: Event) {
 }
 
 function updatePhotoTransferProgress(progress: PhotoTransferProgress) {
+  photoTransferInitialized.value = true
   photoTransferCompleted.value = progress.completed
   photoTransferTotal.value = progress.total
   photoTransferSucceeded.value = progress.succeeded
   photoTransferFailedNames.value = progress.failedNames
   photoTransferCancelled.value = progress.cancelled
+}
+
+/** 重置传输窗口状态，避免上一轮任务的进度在新任务开始时短暂复用。 */
+function preparePhotoTransfer(kind: 'import' | 'export', title: string) {
+  // 每轮传输使用新的会话，避免过渡动画复用上一轮进度条的 DOM 状态。
+  photoTransferSession.value += 1
+  photoTransferKind.value = kind
+  photoTransferTitle.value = title
+  photoTransferCompleted.value = 0
+  photoTransferTotal.value = 0
+  photoTransferSucceeded.value = 0
+  photoTransferFailedNames.value = []
+  photoTransferCancelled.value = false
+  photoTransferInitialized.value = false
+  photoTransferSucceededPhotos.value = []
+  photoTransferRunning.value = true
+  photoTransferVisible.value = true
 }
 
 function openPhotoImportPicker() {
@@ -1284,12 +1304,7 @@ async function importAlbumPhotos(event: Event) {
   const directory = albumDirectoryHandle.value
   if (!directory || !files.length || isAnyFileOperationBusy.value) return
   isImportingPhotos.value = true
-  photoTransferKind.value = 'import'
-  photoTransferTitle.value = locale.value.topBar.importPhotos
-  photoTransferVisible.value = true
-  photoTransferRunning.value = true
-  photoTransferCancelled.value = false
-  photoTransferFailedNames.value = []
+  preparePhotoTransfer('import', locale.value.topBar.importPhotos)
   photoTransferController.value = new AbortController()
   statusState.value = { type: 'custom', message: locale.value.app.importingPhotos, tone: 'info', loading: true }
   try {
@@ -1344,13 +1359,7 @@ async function exportAlbumPhotos(targets: PhotoItem[], allPhotos = false) {
   }
 
   isExportingPhotos.value = true
-  photoTransferKind.value = 'export'
-  photoTransferTitle.value = allPhotos ? locale.value.topBar.exportAllPhotos : locale.value.selectionBar.exportPhotos
-  photoTransferVisible.value = true
-  photoTransferRunning.value = true
-  photoTransferCancelled.value = false
-  photoTransferFailedNames.value = []
-  photoTransferSucceededPhotos.value = []
+  preparePhotoTransfer('export', allPhotos ? locale.value.topBar.exportAllPhotos : locale.value.selectionBar.exportPhotos)
   photoTransferController.value = new AbortController()
   statusState.value = { type: 'custom', message: locale.value.app.exportingPhotos, tone: 'info', loading: true }
   try {
@@ -2239,10 +2248,12 @@ onBeforeUnmount(() => {
     <input ref="photoImportInput" class="visually-hidden" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif" multiple @change="importAlbumPhotos" />
 
     <PhotoTransferProgressDialog
+      :key="photoTransferSession"
       :visible="photoTransferVisible"
       :title="photoTransferTitle"
       :completed="photoTransferCompleted"
       :total="photoTransferTotal"
+      :initialized="photoTransferInitialized"
       :failed-names="photoTransferFailedNames"
       :is-running="photoTransferRunning"
       :is-cancelled="photoTransferCancelled"

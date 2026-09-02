@@ -34,7 +34,7 @@ describe('AboutDialog release history', () => {
     await wrapper.vm.$nextTick()
 
     expect(document.body.textContent).toContain('历史版本记录')
-    expect(document.body.querySelector('.about-history-list .about-changelog-entry')?.textContent).toContain('v1.3.2')
+    expect(document.body.querySelector('.about-history-list .about-changelog-entry')?.textContent).toContain('v1.3.3')
     expect(document.body.querySelector('.about-history-list')?.textContent).toContain('v1.3.1')
     expect(document.body.querySelector('.about-history-actions + .about-history-title')?.textContent).toBe('历史版本记录')
     ;(document.body.querySelector('.about-history-back') as HTMLButtonElement).click()
