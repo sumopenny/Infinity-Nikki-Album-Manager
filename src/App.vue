@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { CircleHelp, Download, FileUp, Plus, Trash2 } from 'lucide-vue-next'
 import AboutDialog from './components/AboutDialog.vue'
 import AlbumViewSwitcher, { type AlbumView } from './components/AlbumViewSwitcher.vue'
@@ -40,7 +40,7 @@ import { clearSavedX6GameDirectoryHandle, getSavedX6GameDirectoryHandle } from '
 import { executeSpecialCleanup, prepareSpecialCleanup, type SpecialCleanupItem } from './utils/file-system/cleanupFileSystem'
 import { savePhotoNote } from './utils/file-system/photoMetadata'
 import { releasePhotoUrl, releasePhotoUrls } from './utils/file-system/photoUrl'
-import { exportPhotos, importPhotos, type PhotoTransferProgress } from './utils/file-system/photoTransfer'
+import { preparePhotoExport, preparePhotoImport, runPhotoExport, runPhotoImport, type PhotoTransferProgress } from './utils/file-system/photoTransfer'
 import {
   deleteOutfit,
   deleteOutfits,
@@ -214,20 +214,9 @@ const isImportingOutfits = ref(false)
 const isExportingOutfits = ref(false)
 const isImportingPhotos = ref(false)
 const isExportingPhotos = ref(false)
-const photoTransferVisible = ref(false)
-const photoTransferRunning = ref(false)
-const photoTransferCancelled = ref(false)
-const photoTransferCompleted = ref(0)
-const photoTransferTotal = ref(0)
-const photoTransferInitialized = ref(false)
-const photoTransferSession = ref(0)
-const photoTransferSucceeded = ref(0)
-const photoTransferFailedNames = ref<string[]>([])
+const photoTransfer = reactive({ phase: 'idle' as 'idle' | 'preparing' | 'running' | 'completed' | 'cancelled', completed: 0, total: 0, succeeded: 0, failedNames: [] as string[], succeededPhotos: [] as PhotoItem[], kind: 'export' as 'import' | 'export', title: '' })
 const photoTransferController = ref<AbortController | null>(null)
-const photoTransferSucceededPhotos = ref<PhotoItem[]>([])
-const photoTransferKind = ref<'import' | 'export'>('export')
-const photoTransferTitle = ref('')
-let photoTransferCloseResolver: (() => void) | null = null
+const photoTransferMovePending = ref<PhotoItem[] | null>(null)
 const isOutfitMutationBusy = ref(false)
 const isPreferenceUpdating = ref(false)
 const confirmDialog = ref<ConfirmDialogState>({
@@ -418,8 +407,14 @@ function closeConfirmDialog(confirmed: boolean) {
 /** 将未知异常转换为页面状态。参数：error 为异常，fallback 为默认状态。 */
 function createErrorStatus(error: unknown, fallback: StatusState): StatusState {
   if (!(error instanceof Error)) return fallback
-  const tone: StatusTone = error.message === locale.value.fileSystem.abortSelection ? 'info' : 'error'
-  return { type: 'custom', message: error.message, tone }
+  if (isUserCancelledFilePicker(error)) return { type: 'custom', message: locale.value.fileSystem.abortSelection, tone: 'info' }
+  return { type: 'custom', message: error.message, tone: 'error' }
+}
+
+/** 统一识别浏览器目录/文件选择器取消，避免直接展示浏览器英文原始报错。 */
+function isUserCancelledFilePicker(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  return error.name === 'AbortError' || error.message === locale.value.fileSystem.abortSelection
 }
 
 // 通用通知、偏好与持久化
@@ -858,7 +853,7 @@ async function ensureSharedOutfitSource(prompt: boolean, autoPrompt = prompt, fo
     if (!suppressLocalPersistence) localStorage.removeItem(X6GAME_AUTO_PROMPT_DISMISSED_KEY)
     return sharedOutfitSource.value
   } catch (error) {
-    if (autoPrompt && (didCancelDirectoryPrompt || (error instanceof Error && error.message === locale.value.fileSystem.abortSelection))) {
+    if (autoPrompt && (didCancelDirectoryPrompt || isUserCancelledFilePicker(error))) {
       dismissX6GameAutoPrompt()
       return null
     }
@@ -1265,29 +1260,29 @@ async function importOutfits(event: Event) {
 }
 
 function updatePhotoTransferProgress(progress: PhotoTransferProgress) {
-  photoTransferInitialized.value = true
-  photoTransferCompleted.value = progress.completed
-  photoTransferTotal.value = progress.total
-  photoTransferSucceeded.value = progress.succeeded
-  photoTransferFailedNames.value = progress.failedNames
-  photoTransferCancelled.value = progress.cancelled
+  photoTransfer.completed = progress.completed
+  photoTransfer.total = progress.total
+  photoTransfer.succeeded = progress.succeeded
+  photoTransfer.failedNames = progress.failedNames
+  if (progress.cancelled) photoTransfer.phase = 'cancelled'
 }
 
-/** 重置传输窗口状态，避免上一轮任务的进度在新任务开始时短暂复用。 */
-function preparePhotoTransfer(kind: 'import' | 'export', title: string) {
-  // 每轮传输使用新的会话，避免过渡动画复用上一轮进度条的 DOM 状态。
-  photoTransferSession.value += 1
-  photoTransferKind.value = kind
-  photoTransferTitle.value = title
-  photoTransferCompleted.value = 0
-  photoTransferTotal.value = 0
-  photoTransferSucceeded.value = 0
-  photoTransferFailedNames.value = []
-  photoTransferCancelled.value = false
-  photoTransferInitialized.value = false
-  photoTransferSucceededPhotos.value = []
-  photoTransferRunning.value = true
-  photoTransferVisible.value = true
+/** 在准备阶段显示加载状态，准备完成后才挂载确定总数的进度窗口。 */
+function beginPhotoTransfer(kind: 'import' | 'export', title: string) {
+  photoTransfer.phase = 'preparing'
+  photoTransfer.kind = kind
+  photoTransfer.title = title
+  photoTransfer.completed = 0
+  photoTransfer.total = 0
+  photoTransfer.succeeded = 0
+  photoTransfer.failedNames = []
+  photoTransfer.succeededPhotos = []
+  photoTransferMovePending.value = null
+}
+
+function showPreparedPhotoTransfer(total: number) {
+  photoTransfer.total = total
+  photoTransfer.phase = 'running'
 }
 
 function openPhotoImportPicker() {
@@ -1304,24 +1299,21 @@ async function importAlbumPhotos(event: Event) {
   const directory = albumDirectoryHandle.value
   if (!directory || !files.length || isAnyFileOperationBusy.value) return
   isImportingPhotos.value = true
-  preparePhotoTransfer('import', locale.value.topBar.importPhotos)
+  beginPhotoTransfer('import', locale.value.topBar.importPhotos)
   photoTransferController.value = new AbortController()
-  statusState.value = { type: 'custom', message: locale.value.app.importingPhotos, tone: 'info', loading: true }
+  closeStatusNotice()
   try {
-    const result = await importPhotos(directory, files, {
+    const prepared = await preparePhotoImport(directory, files)
+    showPreparedPhotoTransfer(prepared.jobs.length)
+    await runPhotoImport(directory, prepared, {
       signal: photoTransferController.value.signal,
       onProgress: updatePhotoTransferProgress
     })
-    photoTransferRunning.value = false
-    statusState.value = {
-      type: 'custom',
-      message: locale.value.app.importCompleted(result.succeeded, result.failedNames.length),
-      tone: result.failedNames.length ? 'warning' : 'success'
-    }
+    photoTransfer.phase = 'completed'
     const refreshed = await refreshAlbumDirectory(directory, photos.value, { requestPermission: false, messages: locale.value.fileSystem })
     applyRefreshResult(refreshed)
   } catch (error) {
-    photoTransferRunning.value = false
+    photoTransfer.phase = 'completed'
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
   } finally {
     isImportingPhotos.value = false
@@ -1359,54 +1351,24 @@ async function exportAlbumPhotos(targets: PhotoItem[], allPhotos = false) {
   }
 
   isExportingPhotos.value = true
-  preparePhotoTransfer('export', allPhotos ? locale.value.topBar.exportAllPhotos : locale.value.selectionBar.exportPhotos)
+  beginPhotoTransfer('export', allPhotos ? locale.value.topBar.exportAllPhotos : locale.value.selectionBar.exportPhotos)
   photoTransferController.value = new AbortController()
-  statusState.value = { type: 'custom', message: locale.value.app.exportingPhotos, tone: 'info', loading: true }
+  closeStatusNotice()
   try {
-    const result = await exportPhotos(source, directory, {
+    const prepared = await preparePhotoExport(source, directory)
+    showPreparedPhotoTransfer(prepared.jobs.length)
+    const result = await runPhotoExport(directory, prepared, {
       signal: photoTransferController.value.signal,
       onProgress: updatePhotoTransferProgress
     })
-    photoTransferSucceededPhotos.value = result.succeededPhotos
-    photoTransferRunning.value = false
-    photoTransferCancelled.value = result.cancelled
+    photoTransfer.succeededPhotos = result.succeededPhotos
+    photoTransfer.phase = result.cancelled ? 'cancelled' : 'completed'
     if (result.cancelled) {
-      statusState.value = { type: 'custom', message: locale.value.app.exportCancelled(result.succeeded), tone: 'warning' }
       return
     }
-    statusState.value = {
-      type: 'custom',
-      message: locale.value.app.exportCompleted(result.succeeded, result.failedNames.length),
-      tone: result.failedNames.length ? 'warning' : 'success'
-    }
-    if (result.succeededPhotos.length) {
-      // 等用户关闭结果窗口后，再进入移动源照片确认，避免两个模态层叠加。
-      await new Promise<void>((resolve) => { photoTransferCloseResolver = resolve })
-      const confirmed = await openConfirmDialog({
-        title: locale.value.app.exportMoveSourceTitle,
-        message: locale.value.app.exportMoveSourceConfirm(result.succeededPhotos.length),
-        tone: 'warning',
-        confirmLabel: locale.value.app.dialogConfirm,
-        cancelLabel: locale.value.app.dialogCancel
-      })
-      if (confirmed) {
-        isDeleting.value = true
-        try {
-          statusState.value = { type: 'custom', message: locale.value.app.movingPhotosToTrash, tone: 'info', loading: true }
-          const moved = await movePhotosToRecentlyDeleted(result.succeededPhotos, favoriteIds.value)
-          const movedIds = new Set(moved.succeeded.map((photo) => photo.id))
-          photos.value = photos.value.filter((photo) => !movedIds.has(photo.id))
-          selectedIds.value = new Set([...selectedIds.value].filter((id) => !movedIds.has(id)))
-          favoriteIds.value = new Set([...favoriteIds.value].filter((id) => !movedIds.has(id)))
-          mergeRecentlyDeleted([...recentlyDeleted.value, ...moved.movedPhotos].sort((a, b) => b.deletedAt - a.deletedAt))
-          statusState.value = { type: 'custom', message: locale.value.trash.movedStatus(moved.succeeded.length, moved.failedNames), tone: moved.failedNames.length ? 'warning' : 'success' }
-        } finally {
-          isDeleting.value = false
-        }
-      }
-    }
+    photoTransferMovePending.value = result.succeededPhotos.length ? result.succeededPhotos : null
   } catch (error) {
-    photoTransferRunning.value = false
+    photoTransfer.phase = 'completed'
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
   } finally {
     isExportingPhotos.value = false
@@ -1415,15 +1377,31 @@ async function exportAlbumPhotos(targets: PhotoItem[], allPhotos = false) {
 }
 
 function cancelPhotoTransfer() {
-  if (!photoTransferRunning.value) return
+  if (photoTransfer.phase !== 'running') return
   photoTransferController.value?.abort()
 }
 
-function closePhotoTransfer() {
-  if (photoTransferRunning.value) return
-  photoTransferVisible.value = false
-  photoTransferCloseResolver?.()
-  photoTransferCloseResolver = null
+async function closePhotoTransfer() {
+  if (photoTransfer.phase === 'running' || photoTransfer.phase === 'preparing') return
+  photoTransfer.phase = 'idle'
+  const succeededPhotos = photoTransferMovePending.value
+  photoTransferMovePending.value = null
+  if (!succeededPhotos?.length) return
+  const confirmed = await openConfirmDialog({ title: locale.value.app.exportMoveSourceTitle, message: locale.value.app.exportMoveSourceConfirm(succeededPhotos.length), tone: 'warning', confirmLabel: locale.value.app.dialogConfirm, cancelLabel: locale.value.app.dialogCancel })
+  if (!confirmed) return
+  isDeleting.value = true
+  try {
+    statusState.value = { type: 'custom', message: locale.value.app.movingPhotosToTrash, tone: 'info', loading: true }
+    const moved = await movePhotosToRecentlyDeleted(succeededPhotos, favoriteIds.value)
+    const movedIds = new Set(moved.succeeded.map((photo) => photo.id))
+    photos.value = photos.value.filter((photo) => !movedIds.has(photo.id))
+    selectedIds.value = new Set([...selectedIds.value].filter((id) => !movedIds.has(id)))
+    favoriteIds.value = new Set([...favoriteIds.value].filter((id) => !movedIds.has(id)))
+    mergeRecentlyDeleted([...recentlyDeleted.value, ...moved.movedPhotos].sort((a, b) => b.deletedAt - a.deletedAt))
+    statusState.value = { type: 'custom', message: locale.value.trash.movedStatus(moved.succeeded.length, moved.failedNames), tone: moved.failedNames.length ? 'warning' : 'success' }
+  } finally {
+    isDeleting.value = false
+  }
 }
 
 // 相册、搭配码与最近删除选择状态
@@ -2248,16 +2226,15 @@ onBeforeUnmount(() => {
     <input ref="photoImportInput" class="visually-hidden" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif" multiple @change="importAlbumPhotos" />
 
     <PhotoTransferProgressDialog
-      :key="photoTransferSession"
-      :visible="photoTransferVisible"
-      :title="photoTransferTitle"
-      :completed="photoTransferCompleted"
-      :total="photoTransferTotal"
-      :initialized="photoTransferInitialized"
-      :failed-names="photoTransferFailedNames"
-      :is-running="photoTransferRunning"
-      :is-cancelled="photoTransferCancelled"
-      :can-cancel="photoTransferKind === 'export'"
+      :visible="photoTransfer.phase !== 'idle'"
+      :title="photoTransfer.title"
+      :completed="photoTransfer.completed"
+      :total="photoTransfer.total"
+      :preparing="photoTransfer.phase === 'preparing'"
+      :failed-names="photoTransfer.failedNames"
+      :is-running="photoTransfer.phase === 'running' || photoTransfer.phase === 'preparing'"
+      :is-cancelled="photoTransfer.phase === 'cancelled'"
+      :can-cancel="photoTransfer.kind === 'export'"
       :cancel-label="locale.app.transferCancel"
       :close-label="locale.app.dialogCloseAria"
       :completed-label="locale.app.transferCompleted"

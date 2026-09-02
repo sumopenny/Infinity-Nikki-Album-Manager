@@ -27,6 +27,9 @@ export interface PhotoTransferOptions {
   onProgress?: (progress: PhotoTransferProgress) => void
 }
 
+export interface PreparedPhotoImport { jobs: Array<{ file: File; name: string }> }
+export interface PreparedPhotoExport { jobs: Array<{ photo: PhotoItem; name: string }> }
+
 function isImageFileName(name: string): boolean {
   return PHOTO_IMAGE_EXTENSIONS.has(name.split('.').pop()?.toLowerCase() ?? '')
 }
@@ -83,10 +86,10 @@ async function copyPhoto(directory: FileSystemDirectoryHandle, name: string, pho
   await writeFile(directory, name, source)
 }
 
-async function runWorkers<T>(items: T[], worker: (item: T) => Promise<void>, concurrency: number): Promise<void> {
+async function runWorkers<T>(items: T[], worker: (item: T) => Promise<void>, concurrency: number, signal?: AbortSignal): Promise<void> {
   let nextIndex = 0
   const run = async () => {
-    while (nextIndex < items.length) {
+    while (nextIndex < items.length && !signal?.aborted) {
       const index = nextIndex++
       await worker(items[index])
     }
@@ -98,24 +101,22 @@ function report(options: PhotoTransferOptions, state: PhotoTransferProgress): vo
   options.onProgress?.({ ...state, failedNames: [...state.failedNames] })
 }
 
-/** 将文件选择器选中的图片复制到当前相册目录。 */
-export async function importPhotos(
-  directory: FileSystemDirectoryHandle,
-  files: File[],
-  options: PhotoTransferOptions = {}
-): Promise<PhotoImportResult> {
+/** 枚举相册现有文件并为待导入图片分配目标文件名。 */
+export async function preparePhotoImport(directory: FileSystemDirectoryHandle, files: File[]): Promise<PreparedPhotoImport> {
   const candidates = files.filter((file) => isImageFileName(file.name))
   const occupied = await listFileNames(directory)
-  const jobs = candidates.map((file) => ({ file, name: allocateName(file.name, occupied, '_imported') }))
-  const state: PhotoImportResult = { completed: 0, total: jobs.length, succeeded: 0, failedNames: [], cancelled: false, importedNames: [] }
+  return { jobs: candidates.map((file) => ({ file, name: allocateName(file.name, occupied, '_imported') })) }
+}
+
+/** 执行已准备好的图片导入任务。 */
+export async function runPhotoImport(
+  directory: FileSystemDirectoryHandle,
+  prepared: PreparedPhotoImport,
+  options: PhotoTransferOptions = {}
+): Promise<PhotoImportResult> {
+  const state: PhotoImportResult = { completed: 0, total: prepared.jobs.length, succeeded: 0, failedNames: [], cancelled: false, importedNames: [] }
   report(options, state)
-  await runWorkers(jobs, async ({ file, name }) => {
-    if (options.signal?.aborted) {
-      state.cancelled = true
-      state.completed += 1
-      report(options, state)
-      return
-    }
+  await runWorkers(prepared.jobs, async ({ file, name }) => {
     try {
       await writeFile(directory, name, file)
       state.succeeded += 1
@@ -126,28 +127,27 @@ export async function importPhotos(
       state.completed += 1
       report(options, state)
     }
-  }, options.concurrency ?? PHOTO_IMPORT_CONCURRENCY)
+  }, options.concurrency ?? PHOTO_IMPORT_CONCURRENCY, options.signal)
+  state.cancelled = Boolean(options.signal?.aborted)
   return state
 }
 
-/** 并发导出照片；取消只停止尚未开始的任务，已开始的单文件写入会完成。 */
-export async function exportPhotos(
-  photos: PhotoItem[],
-  directory: FileSystemDirectoryHandle,
-  options: PhotoTransferOptions = {}
-): Promise<PhotoExportResult> {
+/** 枚举目标目录并预先分配全部导出文件名。 */
+export async function preparePhotoExport(photos: PhotoItem[], directory: FileSystemDirectoryHandle): Promise<PreparedPhotoExport> {
   const occupied = await listFileNames(directory)
   const sorted = [...photos].sort((left, right) => left.timestamp - right.timestamp || left.name.localeCompare(right.name))
-  const jobs = sorted.map((photo) => ({ photo, name: allocateName(photo.name, occupied, '_exported') }))
-  const state: PhotoExportResult = { completed: 0, total: jobs.length, succeeded: 0, failedNames: [], cancelled: false, succeededPhotos: [] }
+  return { jobs: sorted.map((photo) => ({ photo, name: allocateName(photo.name, occupied, '_exported') })) }
+}
+
+/** 并发执行已准备好的导出任务；取消只停止尚未开始的任务。 */
+export async function runPhotoExport(
+  directory: FileSystemDirectoryHandle,
+  prepared: PreparedPhotoExport,
+  options: PhotoTransferOptions = {}
+): Promise<PhotoExportResult> {
+  const state: PhotoExportResult = { completed: 0, total: prepared.jobs.length, succeeded: 0, failedNames: [], cancelled: false, succeededPhotos: [] }
   report(options, state)
-  await runWorkers(jobs, async ({ photo, name }) => {
-    if (options.signal?.aborted) {
-      state.cancelled = true
-      state.completed += 1
-      report(options, state)
-      return
-    }
+  await runWorkers(prepared.jobs, async ({ photo, name }) => {
     try {
       await copyPhoto(directory, name, photo)
       state.succeeded += 1
@@ -158,9 +158,19 @@ export async function exportPhotos(
       state.completed += 1
       report(options, state)
     }
-  }, options.concurrency ?? PHOTO_EXPORT_CONCURRENCY)
-  if (options.signal?.aborted) state.cancelled = true
+  }, options.concurrency ?? PHOTO_EXPORT_CONCURRENCY, options.signal)
+  state.cancelled = Boolean(options.signal?.aborted)
   return state
+}
+
+/** 将文件选择器选中的图片准备并复制到当前相册目录。 */
+export async function importPhotos(directory: FileSystemDirectoryHandle, files: File[], options: PhotoTransferOptions = {}): Promise<PhotoImportResult> {
+  return runPhotoImport(directory, await preparePhotoImport(directory, files), options)
+}
+
+/** 准备并并发导出照片，保留供非界面调用的一步式入口。 */
+export async function exportPhotos(photos: PhotoItem[], directory: FileSystemDirectoryHandle, options: PhotoTransferOptions = {}): Promise<PhotoExportResult> {
+  return runPhotoExport(directory, await preparePhotoExport(photos, directory), options)
 }
 
 export function isSupportedPhotoFile(file: File): boolean {

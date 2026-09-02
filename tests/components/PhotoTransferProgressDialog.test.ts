@@ -7,7 +7,7 @@ const baseProps = {
   title: '导出图片',
   completed: 0,
   total: 0,
-  initialized: false,
+  preparing: false,
   failedNames: [],
   isRunning: true,
   isCancelled: false,
@@ -21,7 +21,7 @@ const baseProps = {
 }
 
 describe('PhotoTransferProgressDialog', () => {
-  it('keeps the first rendered progress at zero until totals are initialized', async () => {
+  it('shows a preparation state before rendering a determinate progress bar', async () => {
     const wrapper = mount(PhotoTransferProgressDialog, {
       props: baseProps,
       global: { stubs: { Teleport: true, Transition: true } }
@@ -29,12 +29,10 @@ describe('PhotoTransferProgressDialog', () => {
 
     const progress = wrapper.get('.photo-transfer-progress')
     expect(progress.attributes('aria-valuenow')).toBe('0')
-    expect(progress.classes()).toContain('is-initializing')
     expect(wrapper.get('.photo-transfer-progress-track span').attributes('style')).toContain('width: 0%')
 
-    await wrapper.setProps({ initialized: true, total: 10, completed: 5 })
+    await wrapper.setProps({ preparing: false, total: 10, completed: 5 })
     expect(wrapper.get('.photo-transfer-progress').attributes('aria-valuenow')).toBe('50')
-    expect(wrapper.get('.photo-transfer-progress').classes()).not.toContain('is-initializing')
     expect(wrapper.get('.photo-transfer-progress-track span').attributes('style')).toContain('width: 50%')
 
     await wrapper.setProps({ visible: false })

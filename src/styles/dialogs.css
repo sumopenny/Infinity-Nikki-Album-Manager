@@ -224,6 +224,7 @@
 
 .photo-transfer-dialog {
   width: min(520px, calc(100vw - 28px));
+  min-height: 258px;
 }
 
 .photo-transfer-header {
@@ -258,11 +259,6 @@
   border-radius: inherit;
   background: var(--primary-button-bg);
   transition: width 0.2s ease;
-}
-
-/* 首次拿到总数前不做宽度过渡，避免复用弹窗时闪出上一轮进度。 */
-.photo-transfer-progress.is-initializing .photo-transfer-progress-track span {
-  transition: none;
 }
 
 .photo-transfer-progress strong {
