@@ -14,11 +14,46 @@ const IMPORT_CONCURRENCY = 27
 interface OutfitMetadata { id: string; image: string; code: string; tags: string[]; createdAt: string; note?: string; diyImageModifiedAt?: number }
 interface BackupManifest { format: string; version: number; exportedAt: string; tags: string[]; outfits: OutfitMetadata[] }
 
-function dateParts(timestamp: number) { const date = new Date(timestamp); const year = String(date.getFullYear()); const month = String(date.getMonth() + 1).padStart(2, '0'); const day = String(date.getDate()).padStart(2, '0'); const hour = String(date.getHours()).padStart(2, '0'); const minute = String(date.getMinutes()).padStart(2, '0'); return { dateKey: `${year}-${month}-${day}`, year, monthDay: `${month}月${day}日`, displayDate: `${year}年${month}月${day}日`, timeText: `${hour}:${minute}`, timestamp } }
-function formatFileSize(size: number): string { if (size < 1024) return `${size} B`; if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`; return `${(size / 1024 / 1024).toFixed(1)} MB` }
-function isSafeOutfitId(value: string): boolean { return value.length > 0 && value.length <= 128 && value !== '.' && value !== '..' && !/[\\/\0]/.test(value) }
-function createOutfitId(): string { if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID(); return `outfit-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` }
-function normalizeTags(value: unknown, allowedTags?: Set<string>): string[] { if (!Array.isArray(value)) return []; const tag = normalizeOutfitTag(value[0]); return isValidOutfitTag(tag) && (!allowedTags || allowedTags.has(tag)) ? [tag] : [] }
+function dateParts(timestamp: number) {
+  const date = new Date(timestamp)
+  const year = String(date.getFullYear())
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hour = String(date.getHours()).padStart(2, '0')
+  const minute = String(date.getMinutes()).padStart(2, '0')
+
+  return {
+    dateKey: `${year}-${month}-${day}`,
+    year,
+    monthDay: `${month}月${day}日`,
+    displayDate: `${year}年${month}月${day}日`,
+    timeText: `${hour}:${minute}`,
+    timestamp
+  }
+}
+
+function formatFileSize(size: number): string {
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / 1024 / 1024).toFixed(1)} MB`
+}
+
+function isSafeOutfitId(value: string): boolean {
+  return value.length > 0 && value.length <= 128 && value !== '.' && value !== '..' && !/[\\/\0]/.test(value)
+}
+
+function createOutfitId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `outfit-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function normalizeTags(value: unknown, allowedTags?: Set<string>): string[] {
+  if (!Array.isArray(value)) return []
+  const tag = normalizeOutfitTag(value[0])
+  return isValidOutfitTag(tag) && (!allowedTags || allowedTags.has(tag)) ? [tag] : []
+}
 
 function backupTimestamp(date = new Date()): string {
   const pad = (value: number) => String(value).padStart(2, '0')

@@ -12,9 +12,24 @@ export interface SpecialCleanupPlan { item: SpecialCleanupItem; fileCount: numbe
 export type RelatedCleanupFailureReason = 'unreadable-size' | 'remove-failed'
 export interface RelatedPhotoCleanupResult { deletedCount: number; deletedBytes: number; failures: Array<{ path: string; reason: RelatedCleanupFailureReason }>; missingDirectories: string[] }
 
-function isImageFile(fileName: string): boolean { return IMAGE_EXTENSIONS.has(fileName.split('.').pop()?.toLowerCase() ?? '') }
-function isMissingDirectoryError(error: unknown): boolean { return error instanceof DOMException && error.name === 'NotFoundError' }
-async function getRequiredNestedDirectory(rootHandle: FileSystemDirectoryHandle, segments: string[]): Promise<FileSystemDirectoryHandle> { let current = rootHandle; for (const segment of segments) current = await current.getDirectoryHandle(segment); return current }
+function isImageFile(fileName: string): boolean {
+  return IMAGE_EXTENSIONS.has(fileName.split('.').pop()?.toLowerCase() ?? '')
+}
+
+function isMissingDirectoryError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'NotFoundError'
+}
+
+async function getRequiredNestedDirectory(
+  rootHandle: FileSystemDirectoryHandle,
+  segments: string[]
+): Promise<FileSystemDirectoryHandle> {
+  let current = rootHandle
+  for (const segment of segments) {
+    current = await current.getDirectoryHandle(segment)
+  }
+  return current
+}
 async function collectCleanupTarget(
   directoryName: string,
   getDirectoryHandle: () => Promise<FileSystemDirectoryHandle>,
@@ -200,4 +215,3 @@ export async function executeSpecialCleanup(plan: SpecialCleanupPlan): Promise<R
     missingDirectories: plan.missingDirectories
   }
 }
-

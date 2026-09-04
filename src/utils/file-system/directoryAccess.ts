@@ -7,13 +7,62 @@ const HIGH_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_HighQuality'
 const LOW_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_LowQuality'
 const SCREENSHOT_DIRECTORY_NAME = 'ScreenShot'
 export interface X6GameDirectoryOptions { beforePickX6GameDirectory?: () => boolean | Promise<boolean>; beforeRequestX6GamePermission?: () => boolean | Promise<boolean>; allowUnrelatedAlbum?: boolean; /** 强制打开目录选择器，不复用已保存的授权句柄。 */ forcePick?: boolean }
-function isMobileDevice(): boolean { return /android|iphone|ipod|ipad/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) }
-function getSupportedDirectoryPicker(messages: FileSystemMessages): NonNullable<typeof window.showDirectoryPicker> { if (isMobileDevice()) throw new Error(messages.mobileBrowserUnsupported); if (!window.showDirectoryPicker) throw new Error(messages.unsupportedBrowser); return window.showDirectoryPicker }
-function isCleanupTargetDirectory(name: string): boolean { return name === LOW_QUALITY_DIRECTORY_NAME || name === SCREENSHOT_DIRECTORY_NAME }
-function isMissingDirectoryError(error: unknown): boolean { return error instanceof DOMException && error.name === 'NotFoundError' }
-async function getRequiredNestedDirectory(root: FileSystemDirectoryHandle, segments: string[]): Promise<FileSystemDirectoryHandle> { let current = root; for (const segment of segments) current = await current.getDirectoryHandle(segment); return current }
-async function ensureReadWritePermission(handle: FileSystemDirectoryHandle, requestPermission: boolean): Promise<boolean> { const options = { mode: 'readwrite' as const }; if (handle.queryPermission) { const current = await handle.queryPermission(options); if (current === 'granted') return true; if (!requestPermission) return false } if (!requestPermission && handle.requestPermission) return false; if (!handle.requestPermission) return true; return (await handle.requestPermission(options)) === 'granted' }
-export async function isSameOrNestedDirectory(parent: FileSystemDirectoryHandle, candidate: FileSystemDirectoryHandle): Promise<boolean> { return parent === candidate || (await parent.resolve(candidate)) !== null }
+function isMobileDevice(): boolean {
+  const isMobileUserAgent = /android|iphone|ipod|ipad/i.test(navigator.userAgent)
+  const isTouchCapableMac = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
+  return isMobileUserAgent || isTouchCapableMac
+}
+
+function getSupportedDirectoryPicker(messages: FileSystemMessages): NonNullable<typeof window.showDirectoryPicker> {
+  if (isMobileDevice()) {
+    throw new Error(messages.mobileBrowserUnsupported)
+  }
+  if (!window.showDirectoryPicker) {
+    throw new Error(messages.unsupportedBrowser)
+  }
+  return window.showDirectoryPicker
+}
+
+function isCleanupTargetDirectory(name: string): boolean {
+  return name === LOW_QUALITY_DIRECTORY_NAME || name === SCREENSHOT_DIRECTORY_NAME
+}
+
+function isMissingDirectoryError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'NotFoundError'
+}
+
+async function getRequiredNestedDirectory(
+  root: FileSystemDirectoryHandle,
+  segments: string[]
+): Promise<FileSystemDirectoryHandle> {
+  let current = root
+  for (const segment of segments) {
+    current = await current.getDirectoryHandle(segment)
+  }
+  return current
+}
+
+async function ensureReadWritePermission(
+  handle: FileSystemDirectoryHandle,
+  requestPermission: boolean
+): Promise<boolean> {
+  const options = { mode: 'readwrite' as const }
+  if (handle.queryPermission) {
+    const current = await handle.queryPermission(options)
+    if (current === 'granted') return true
+    if (!requestPermission) return false
+  }
+  if (!requestPermission && handle.requestPermission) return false
+  if (!handle.requestPermission) return true
+  return (await handle.requestPermission(options)) === 'granted'
+}
+
+export async function isSameOrNestedDirectory(
+  parent: FileSystemDirectoryHandle,
+  candidate: FileSystemDirectoryHandle
+): Promise<boolean> {
+  return parent === candidate || (await parent.resolve(candidate)) !== null
+}
 
 /** 判断导出目标是否为相册本身、其子目录或 trash 目录。 */
 export async function isProtectedAlbumDirectory(album: FileSystemDirectoryHandle, candidate: FileSystemDirectoryHandle): Promise<boolean> {

@@ -73,15 +73,43 @@ const CLEANUP_ACCOUNT_CHOICE_KEY = 'infinity-nikki-cleanup-account-choice'
 const WEBSITE_LOCAL_STORAGE_KEYS = [THUMBNAIL_STORAGE_KEY, OUTFIT_THUMBNAIL_STORAGE_KEY, OUTFIT_GUIDE_DISMISSED_KEY, X6GAME_AUTO_PROMPT_DISMISSED_KEY, THEME_STORAGE_KEY, LANGUAGE_STORAGE_KEY, FAVORITES_STORAGE_KEY, ABOUT_STATE_STORAGE_KEY, CLEANUP_ACCOUNT_CHOICE_KEY]
 const currentAboutVersion = messages.zh.about.changelog[0]?.version.replace(/^v/, '') ?? ''
 
-function isLanguage(value: string | null): value is Language { return value === 'zh' || value === 'en' }
-function readCleanupAccountChoice(): string | null { try { return localStorage.getItem(CLEANUP_ACCOUNT_CHOICE_KEY) } catch { return null } }
-function persistCleanupAccountChoice(choice: string | null): void { try { if (choice) localStorage.setItem(CLEANUP_ACCOUNT_CHOICE_KEY, choice); else localStorage.removeItem(CLEANUP_ACCOUNT_CHOICE_KEY) } catch { /* optional storage */ } }
+function isLanguage(value: string | null): value is Language {
+  return value === 'zh' || value === 'en'
+}
+
+function readCleanupAccountChoice(): string | null {
+  try {
+    return localStorage.getItem(CLEANUP_ACCOUNT_CHOICE_KEY)
+  } catch {
+    return null
+  }
+}
+
+function persistCleanupAccountChoice(choice: string | null): void {
+  try {
+    if (choice) {
+      localStorage.setItem(CLEANUP_ACCOUNT_CHOICE_KEY, choice)
+    } else {
+      localStorage.removeItem(CLEANUP_ACCOUNT_CHOICE_KEY)
+    }
+  } catch {
+    // 本地存储不可用时保留当前会话内的选择，不阻断清理流程。
+  }
+}
 function readStoredAboutState(): { version: string; dismissed: boolean } | null {
   try { const parsed = JSON.parse(localStorage.getItem(ABOUT_STATE_STORAGE_KEY) ?? 'null') as { version?: unknown; dismissed?: unknown } | null; if (parsed && typeof parsed.version === 'string') return { version: parsed.version, dismissed: parsed.dismissed === true } } catch { /* invalid storage is treated as empty */ }
   return null
 }
 function readStoredFavoriteIds(): Set<string> {
-  try { const parsed = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) ?? '[]'); return new Set(Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []) } catch { return new Set() }
+  try {
+    const parsed = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) ?? '[]')
+    const ids = Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string')
+      : []
+    return new Set(ids)
+  } catch {
+    return new Set()
+  }
 }
 
 let suppressLocalPersistence = false
@@ -224,8 +252,17 @@ const hasPreviousPreview = computed(() => currentPreviewIndex.value > 0)
 const hasNextPreview = computed(() => currentPreviewIndex.value >= 0 && currentPreviewIndex.value < previewPhotos.value.length - 1)
 function openPreview(photo: PhotoItem) { currentPreview.value = photo }
 function closePreview() { currentPreview.value = null }
-function showPreviousPreview() { if (hasPreviousPreview.value) currentPreview.value = previewPhotos.value[currentPreviewIndex.value - 1] }
-function showNextPreview() { if (hasNextPreview.value) currentPreview.value = previewPhotos.value[currentPreviewIndex.value + 1] }
+function showPreviousPreview() {
+  if (hasPreviousPreview.value) {
+    currentPreview.value = previewPhotos.value[currentPreviewIndex.value - 1]
+  }
+}
+
+function showNextPreview() {
+  if (hasNextPreview.value) {
+    currentPreview.value = previewPhotos.value[currentPreviewIndex.value + 1]
+  }
+}
 const {
   scopedSelectedPhotos, selectedCount, selectedOutfitCount, trashSelectedCount, allSelected, allOutfitsSelected, allTrashSelected, allSelectedFavorited,
   toggleAll, toggleAllOutfits, toggleOutfit, togglePhoto, toggleTrashPhoto, toggleAllTrash,

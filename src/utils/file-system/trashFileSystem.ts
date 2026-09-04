@@ -13,8 +13,13 @@ export interface TrashOperationResult<T> { succeeded: T[]; failedNames: string[]
 export interface MoveToTrashResult extends TrashOperationResult<PhotoItem> { movedPhotos: RecentlyDeletedPhoto[] }
 export interface RestoreTrashResult extends TrashOperationResult<RecentlyDeletedPhoto> { restoredPhotos: PhotoItem[] }
 
-function isImageFile(fileName: string): boolean { return IMAGE_EXTENSIONS.has(fileName.split('.').pop()?.toLowerCase() ?? '') }
-function isMissingDirectoryError(error: unknown): boolean { return error instanceof DOMException && error.name === 'NotFoundError' }
+function isImageFile(fileName: string): boolean {
+  return IMAGE_EXTENSIONS.has(fileName.split('.').pop()?.toLowerCase() ?? '')
+}
+
+function isMissingDirectoryError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'NotFoundError'
+}
 
 /**
  * 读取最近删除目录并计算每张图片大小。

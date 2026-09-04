@@ -6,6 +6,7 @@ export const MAX_OUTFIT_TAGS = 40
 export const MAX_OUTFIT_TAG_LENGTH = 5
 export const MAX_OUTFIT_CODE_LENGTH = 30
 export const MAX_OUTFIT_NOTE_LENGTH = 15
+const RESERVED_OUTFIT_TAGS = new Set(['全部', '待填写', '未分类', 'all', 'pending', 'uncategorized'])
 
 export interface OutfitItem extends PhotoItem { image: string; code: string; tags: string[]; createdAt: string; metadataName: string; note?: string; diyImageModifiedAt?: number }
 export interface OutfitLibraryResult { outfits: OutfitItem[]; tags: string[]; importedExternalCount: number; importedSharedCount: number; failedCount: number; sharedFailureStage?: SharedOutfitImportResult['failureStage'] }
@@ -15,7 +16,20 @@ export interface SaveOutfitInput { outfit?: OutfitItem; imageFile?: File; code: 
 export interface OutfitImportResult { addedCount: number; duplicateCount: number; failedCount: number; rejectedTagCount: number; library: OutfitLibraryResult }
 export interface OutfitDeleteResult { deleted: OutfitItem[]; failedNames: string[] }
 
-export function normalizeOutfitCode(value: unknown): string { return (typeof value === 'string' ? value : '').replace(/\s/g, '').slice(0, MAX_OUTFIT_CODE_LENGTH) }
-export function normalizeOutfitTag(value: unknown): string { return typeof value === 'string' ? value.trim() : '' }
-export function isValidOutfitTag(value: string): boolean { return value.length > 0 && [...value].length <= MAX_OUTFIT_TAG_LENGTH }
-export function isReservedOutfitTag(value: string): boolean { return new Set(['全部', '待填写', '未分类', 'all', 'pending', 'uncategorized']).has(value.toLowerCase()) }
+export function normalizeOutfitCode(value: unknown): string {
+  return (typeof value === 'string' ? value : '')
+    .replace(/\s/g, '')
+    .slice(0, MAX_OUTFIT_CODE_LENGTH)
+}
+
+export function normalizeOutfitTag(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+export function isValidOutfitTag(value: string): boolean {
+  return value.length > 0 && [...value].length <= MAX_OUTFIT_TAG_LENGTH
+}
+
+export function isReservedOutfitTag(value: string): boolean {
+  return RESERVED_OUTFIT_TAGS.has(value.toLowerCase())
+}
