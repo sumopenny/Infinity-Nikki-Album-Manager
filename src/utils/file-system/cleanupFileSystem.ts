@@ -8,7 +8,7 @@ const FILE_DELETE_CONCURRENCY = 10
 interface RelatedPhotoCleanupTarget { directoryName: string; directoryHandle: FileSystemDirectoryHandle; photoNames: string[] }
 export type SpecialCleanupItem = 'lowQuality' | 'crashes' | 'logs' | 'webcache'
 export interface SpecialCleanupDirectoryTarget { directoryName: string; directoryHandle: FileSystemDirectoryHandle; entries: Array<{ name: string; bytes: number; fileCount: number; sizeKnown: boolean }> }
-export interface SpecialCleanupPlan { item: SpecialCleanupItem; fileCount: number; totalBytes: number; totalBytesKnown: boolean; photoTargets: RelatedPhotoCleanupTarget[]; directoryTargets: SpecialCleanupDirectoryTarget[]; missingDirectories: string[] }
+export interface SpecialCleanupPlan { item: SpecialCleanupItem; fileCount: number; totalBytes: number; totalBytesKnown: boolean; photoTargets: RelatedPhotoCleanupTarget[]; directoryTargets: SpecialCleanupDirectoryTarget[]; missingDirectories: string[]; skippedDirectories: string[] }
 export type RelatedCleanupFailureReason = 'unreadable-size' | 'remove-failed'
 export interface RelatedPhotoCleanupResult { deletedCount: number; deletedBytes: number; failures: Array<{ path: string; reason: RelatedCleanupFailureReason }>; missingDirectories: string[] }
 
@@ -18,6 +18,11 @@ function isImageFile(fileName: string): boolean {
 
 function isMissingDirectoryError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'NotFoundError'
+}
+
+/** 判断两个目录句柄是否指向同一个目录（精确匹配，不含嵌套关系）。 */
+async function isSameDirectoryEntry(a: FileSystemDirectoryHandle, b: FileSystemDirectoryHandle): Promise<boolean> {
+  return a === b || (await a.resolve(b))?.length === 0
 }
 
 async function getRequiredNestedDirectory(
@@ -34,10 +39,17 @@ async function collectCleanupTarget(
   directoryName: string,
   getDirectoryHandle: () => Promise<FileSystemDirectoryHandle>,
   targets: RelatedPhotoCleanupTarget[],
-  missingDirectories: string[]
+  missingDirectories: string[],
+  skippedDirectories: string[],
+  skipDirectoryHandle?: FileSystemDirectoryHandle
 ): Promise<void> {
   try {
     const directoryHandle = await getDirectoryHandle()
+    // 清理目标就是当前正在管理的相册时跳过该目录，避免删除用户正在浏览的内容。
+    if (skipDirectoryHandle && await isSameDirectoryEntry(skipDirectoryHandle, directoryHandle)) {
+      if (!skippedDirectories.includes(directoryName)) skippedDirectories.push(directoryName)
+      return
+    }
     const photoNames: string[] = []
 
     for await (const [name, handle] of directoryHandle.entries()) {
@@ -112,17 +124,20 @@ const SPECIAL_CLEANUP_DIRECTORY_PATHS: Record<Exclude<SpecialCleanupItem, 'lowQu
 
 /**
  * 构建专项清理计划。
- * 参数：x6GameHandle 为已授权的 X6Game 目录，item 为清理项，accountIds 为低画质项的目标账号 id 列表。
- * 返回：清理目标、文件数、预估释放字节数和缺失目录。
+ * 参数：x6GameHandle 为已授权的 X6Game 目录，item 为清理项，accountIds 为低画质项的目标账号 id 列表，
+ * options.skipDirectoryHandle 为当前管理的相册句柄；清理目标与当前相册相同时跳过该目录并记入 skippedDirectories。
+ * 返回：清理目标、文件数、预估释放字节数、缺失目录和因属于当前相册而跳过的目录。
  */
 export async function prepareSpecialCleanup(
   x6GameHandle: FileSystemDirectoryHandle,
   item: SpecialCleanupItem,
-  accountIds: string[] = []
+  accountIds: string[] = [],
+  options: { skipDirectoryHandle?: FileSystemDirectoryHandle } = {}
 ): Promise<SpecialCleanupPlan> {
   const photoTargets: RelatedPhotoCleanupTarget[] = []
   const directoryTargets: SpecialCleanupDirectoryTarget[] = []
   const missingDirectories: string[] = []
+  const skippedDirectories: string[] = []
 
   if (item === 'lowQuality') {
     for (const accountId of accountIds) {
@@ -130,14 +145,18 @@ export async function prepareSpecialCleanup(
         LOW_QUALITY_DIRECTORY_NAME,
         () => getRequiredNestedDirectory(x6GameHandle, ['Saved', 'GamePlayPhotos', accountId, LOW_QUALITY_DIRECTORY_NAME]),
         photoTargets,
-        missingDirectories
+        missingDirectories,
+        skippedDirectories,
+        options.skipDirectoryHandle
       )
     }
     await collectCleanupTarget(
       SCREENSHOT_DIRECTORY_NAME,
       () => x6GameHandle.getDirectoryHandle(SCREENSHOT_DIRECTORY_NAME),
       photoTargets,
-      missingDirectories
+      missingDirectories,
+      skippedDirectories,
+      options.skipDirectoryHandle
     )
   } else {
     const target = SPECIAL_CLEANUP_DIRECTORY_PATHS[item]
@@ -158,7 +177,7 @@ export async function prepareSpecialCleanup(
   )
   const totalBytesKnown = directoryTargets.every((target) => target.entries.every((entry) => entry.sizeKnown))
 
-  return { item, fileCount, totalBytes, totalBytesKnown, photoTargets, directoryTargets, missingDirectories }
+  return { item, fileCount, totalBytes, totalBytesKnown, photoTargets, directoryTargets, missingDirectories, skippedDirectories }
 }
 
 /**

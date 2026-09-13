@@ -321,9 +321,14 @@ async function resolveCleanupAccountIds(x6GameHandle: FileSystemDirectoryHandle)
 async function cleanLowQualityPhotos(x6GameHandle: FileSystemDirectoryHandle) {
   const accountIds = await resolveCleanupAccountIds(x6GameHandle)
   if (!accountIds) { statusState.value = { type: 'custom', message: locale.value.app.relatedCleanupCancelledStatus, tone: 'info' }; return }
-  const plan = await prepareSpecialCleanup(x6GameHandle, 'lowQuality', accountIds)
+  const plan = await prepareSpecialCleanup(x6GameHandle, 'lowQuality', accountIds, { skipDirectoryHandle: albumDirectoryHandle.value ?? undefined })
   if (!plan.fileCount) { statusState.value = { type: 'custom', message: locale.value.app.noRelatedPhotos(plan.missingDirectories), tone: plan.missingDirectories.length ? 'warning' : 'info' }; return }
-  const confirmed = await openConfirmDialog({ title: locale.value.app.relatedCleanupDialogTitle, message: locale.value.app.confirmRelatedCleanup(plan.fileCount, plan.missingDirectories), tone: 'warning', confirmLabel: locale.value.app.dialogConfirm, cancelLabel: locale.value.app.dialogCancel })
+  // 当前相册本身是清理目标时，在确认文案中说明本次只清理另一个目录。
+  const skippedAlbumName = plan.skippedDirectories[0]
+  const cleanupScope = skippedAlbumName
+    ? { skippedAlbumName, remainingTargetNames: [...new Set(plan.photoTargets.map((target) => target.directoryName))] }
+    : undefined
+  const confirmed = await openConfirmDialog({ title: locale.value.app.relatedCleanupDialogTitle, message: locale.value.app.confirmRelatedCleanup(plan.fileCount, plan.missingDirectories, cleanupScope), tone: 'warning', confirmLabel: locale.value.app.dialogConfirm, cancelLabel: locale.value.app.dialogCancel })
   if (!confirmed) { statusState.value = { type: 'custom', message: locale.value.app.relatedCleanupCancelledStatus, tone: 'info' }; return }
   const result = await executeSpecialCleanup(plan)
   statusState.value = { type: 'custom', message: locale.value.app.relatedCleanupStatus(result.deletedCount, result.deletedBytes, result.failures, result.missingDirectories), tone: result.failures.length || result.missingDirectories.length ? 'warning' : 'success' }

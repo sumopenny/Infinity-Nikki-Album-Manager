@@ -271,6 +271,103 @@ describe('album refresh and recently deleted filesystem operations', () => {
     )).resolves.toBe('123456789')
   })
 
+  it('allows X6Game authorization when the album is a cleanup target folder', async () => {
+    const screenShotAlbum = new MemoryDirectoryHandle('ScreenShot')
+    const lowQualityAlbum = new MemoryDirectoryHandle('NikkiPhotos_LowQuality')
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+
+    await expect(resolveX6GameAccountDirectory(
+      x6Game as unknown as FileSystemDirectoryHandle,
+      screenShotAlbum as unknown as FileSystemDirectoryHandle,
+      messages.zh.fileSystem,
+      true
+    )).resolves.toBe('')
+    await expect(resolveX6GameAccountDirectory(
+      x6Game as unknown as FileSystemDirectoryHandle,
+      lowQualityAlbum as unknown as FileSystemDirectoryHandle,
+      messages.zh.fileSystem,
+      true
+    )).resolves.toBe('')
+  })
+
+  it('resolves the account id for a low-quality album at the expected account path', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_LowQuality')
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+    x6Game.resolvedPaths.set(album, ['Saved', 'GamePlayPhotos', '123456789', 'NikkiPhotos_LowQuality'])
+
+    await expect(resolveX6GameAccountDirectory(
+      x6Game as unknown as FileSystemDirectoryHandle,
+      album as unknown as FileSystemDirectoryHandle,
+      messages.zh.fileSystem
+    )).resolves.toBe('123456789')
+  })
+
+  it('skips the ScreenShot cleanup target when it is the current album', async () => {
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+    const saved = new MemoryDirectoryHandle('Saved')
+    const gamePlayPhotos = new MemoryDirectoryHandle('GamePlayPhotos')
+    const account = new MemoryDirectoryHandle('123456789')
+    const lowQuality = new MemoryDirectoryHandle('NikkiPhotos_LowQuality')
+    lowQuality.files.set('low.jpeg', new MemoryFileHandle('low.jpeg', new Blob(['12'])))
+    account.directories.set('NikkiPhotos_LowQuality', lowQuality)
+    gamePlayPhotos.directories.set('123456789', account)
+    saved.directories.set('GamePlayPhotos', gamePlayPhotos)
+    x6Game.directories.set('Saved', saved)
+    const screenShot = new MemoryDirectoryHandle('ScreenShot')
+    screenShot.files.set('screen.png', new MemoryFileHandle('screen.png', new Blob(['123'])))
+    x6Game.directories.set('ScreenShot', screenShot)
+    // 当前相册就是 X6Game 下的 ScreenShot 目录（同一条目）。
+    const album = new MemoryDirectoryHandle('ScreenShot')
+    album.resolvedPaths.set(screenShot, [])
+
+    const plan = await prepareSpecialCleanup(
+      x6Game as unknown as FileSystemDirectoryHandle,
+      'lowQuality',
+      ['123456789'],
+      { skipDirectoryHandle: album as unknown as FileSystemDirectoryHandle }
+    )
+
+    expect(plan.skippedDirectories).toEqual(['ScreenShot'])
+    expect(plan.photoTargets.map((target) => target.directoryName)).toEqual(['NikkiPhotos_LowQuality'])
+    expect(plan.fileCount).toBe(1)
+    expect(plan.missingDirectories).toEqual([])
+  })
+
+  it('skips only the account low-quality folder that matches the current album', async () => {
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+    const saved = new MemoryDirectoryHandle('Saved')
+    const gamePlayPhotos = new MemoryDirectoryHandle('GamePlayPhotos')
+    const accountA = new MemoryDirectoryHandle('account-a')
+    const lowQualityA = new MemoryDirectoryHandle('NikkiPhotos_LowQuality')
+    lowQualityA.files.set('a.jpeg', new MemoryFileHandle('a.jpeg', new Blob(['1'])))
+    accountA.directories.set('NikkiPhotos_LowQuality', lowQualityA)
+    const accountB = new MemoryDirectoryHandle('account-b')
+    const lowQualityB = new MemoryDirectoryHandle('NikkiPhotos_LowQuality')
+    lowQualityB.files.set('b.jpeg', new MemoryFileHandle('b.jpeg', new Blob(['1'])))
+    accountB.directories.set('NikkiPhotos_LowQuality', lowQualityB)
+    gamePlayPhotos.directories.set('account-a', accountA)
+    gamePlayPhotos.directories.set('account-b', accountB)
+    saved.directories.set('GamePlayPhotos', gamePlayPhotos)
+    x6Game.directories.set('Saved', saved)
+    const screenShot = new MemoryDirectoryHandle('ScreenShot')
+    screenShot.files.set('screen.png', new MemoryFileHandle('screen.png', new Blob(['1'])))
+    x6Game.directories.set('ScreenShot', screenShot)
+    // 当前相册是账号 a 的低画质目录，账号 b 的同名目录不受影响。
+    const album = new MemoryDirectoryHandle('NikkiPhotos_LowQuality')
+    album.resolvedPaths.set(lowQualityA, [])
+
+    const plan = await prepareSpecialCleanup(
+      x6Game as unknown as FileSystemDirectoryHandle,
+      'lowQuality',
+      ['account-a', 'account-b'],
+      { skipDirectoryHandle: album as unknown as FileSystemDirectoryHandle }
+    )
+
+    expect(plan.skippedDirectories).toEqual(['NikkiPhotos_LowQuality'])
+    expect(plan.photoTargets.map((target) => target.directoryName)).toEqual(['NikkiPhotos_LowQuality', 'ScreenShot'])
+    expect(plan.fileCount).toBe(2)
+  })
+
   it('counts only successfully removed bytes and returns readable failures', async () => {
     const directory = new MemoryDirectoryHandle('ScreenShot')
     directory.files.set('ok.png', new MemoryFileHandle('ok.png', new Blob(['1234'])))
@@ -289,7 +386,8 @@ describe('album refresh and recently deleted filesystem operations', () => {
         photoNames: ['ok.png', 'locked.png', 'unreadable.png']
       }],
       directoryTargets: [],
-      missingDirectories: []
+      missingDirectories: [],
+      skippedDirectories: []
     })
 
     expect(result.deletedCount).toBe(1)

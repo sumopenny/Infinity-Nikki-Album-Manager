@@ -59,7 +59,7 @@ export interface LocaleMessages {
     successStatus: (count: number, prefix: StatusPrefix) => string
     successSuffix: (suffix: StatusSuffix) => string
     relatedCleanupCancelledStatus: string
-    confirmRelatedCleanup: (count: number, missingDirectories: string[]) => string
+    confirmRelatedCleanup: (count: number, missingDirectories: string[], cleanupScope?: { skippedAlbumName: string; remainingTargetNames: string[] }) => string
     relatedCleanupStatus: (
       deletedCount: number,
       deletedBytes: number,
@@ -279,7 +279,6 @@ export interface LocaleMessages {
     permissionRequired: string
     unsupportedBrowser: string
     mobileBrowserUnsupported: string
-    invalidAlbumDirectory: string
     invalidX6GameDirectory: string
     restoreX6GamePermissionPrompt: string
     selectX6GameDirectoryPrompt: string

@@ -4,8 +4,6 @@ import { createDirectoryError, normalizeDirectoryError } from './directoryErrors
 import type { FileSystemMessages } from './directoryErrors'
 
 const HIGH_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_HighQuality'
-const LOW_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_LowQuality'
-const SCREENSHOT_DIRECTORY_NAME = 'ScreenShot'
 export interface X6GameDirectoryOptions { beforePickX6GameDirectory?: () => boolean | Promise<boolean>; beforeRequestX6GamePermission?: () => boolean | Promise<boolean>; allowUnrelatedAlbum?: boolean; /** 强制打开目录选择器，不复用已保存的授权句柄。 */ forcePick?: boolean }
 function isMobileDevice(): boolean {
   const isMobileUserAgent = /android|iphone|ipod|ipad/i.test(navigator.userAgent)
@@ -21,10 +19,6 @@ function getSupportedDirectoryPicker(messages: FileSystemMessages): NonNullable<
     throw new Error(messages.unsupportedBrowser)
   }
   return window.showDirectoryPicker
-}
-
-function isCleanupTargetDirectory(name: string): boolean {
-  return name === LOW_QUALITY_DIRECTORY_NAME || name === SCREENSHOT_DIRECTORY_NAME
 }
 
 function isMissingDirectoryError(error: unknown): boolean {
@@ -86,9 +80,6 @@ export async function resolveX6GameAccountDirectory(
     throw createDirectoryError('invalid-directory', messages)
   }
 
-  if (isCleanupTargetDirectory(albumDirectoryHandle.name)) {
-    throw createDirectoryError('invalid-directory', messages)
-  }
   if (albumDirectoryHandle.name !== HIGH_QUALITY_DIRECTORY_NAME && allowUnrelatedAlbum) return ''
 
   const relativePath = await x6GameHandle.resolve(albumDirectoryHandle)
@@ -150,10 +141,6 @@ async function getValidatedX6GameDirectory(
   messages: FileSystemMessages,
   options: X6GameDirectoryOptions = {}
 ): Promise<{ directoryHandle: FileSystemDirectoryHandle; accountDirectoryName: string }> {
-  if (isCleanupTargetDirectory(albumDirectoryHandle.name) && !options.allowUnrelatedAlbum) {
-    throw createDirectoryError('invalid-directory', messages, undefined, messages.invalidAlbumDirectory)
-  }
-
   const savedHandle = options.forcePick ? null : await getSavedX6GameDirectoryHandle()
 
   if (savedHandle) {

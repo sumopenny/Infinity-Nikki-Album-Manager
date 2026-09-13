@@ -78,7 +78,7 @@
 
 支持以下清理项：
 
-- 低画质图片和截图（`...\X6Game\ScreenShot` 与 `NikkiPhotos_LowQuality`）：游戏拍照后产生的画质较低的图片，仅删除图片文件。存在多个账号文件夹时，可选择清理全部账号或指定账号 ID。
+- 低画质图片和截图（`...\X6Game\ScreenShot` 与 `NikkiPhotos_LowQuality`）：游戏拍照后产生的画质较低的图片，仅删除图片文件。存在多个账号文件夹时，可选择清理全部账号或指定账号 ID。如果当前管理的相册本身是 `ScreenShot` 或 `NikkiPhotos_LowQuality`，本次清理会跳过该相册目录、只清理另一个目录，并在确认提示中说明，建议管理 `NikkiPhotos_HighQuality` 相册。
 - 游戏崩溃时的快照信息（`...\X6Game\Saved\Crashes`）：删除后将无法通过本地日志向官方反馈历史崩溃原因。
 - 游戏运行日志（`...\X6Game\Saved\Logs`）：删除后无影响。
 - 游戏内置浏览器与登录器缓存（`...\X6Game\Saved\webcache_4430`）：清理过期网页数据，但初次打开活动页面或公告时会加载变慢。

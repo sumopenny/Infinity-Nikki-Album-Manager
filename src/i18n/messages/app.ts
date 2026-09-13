@@ -57,8 +57,13 @@ export const appZh: LocaleMessages['app'] = {
       },
       successSuffix: (suffix) => (suffix === 'continued' ? '已继续使用上次记住的相册文件夹。' : '已记住本次选择的相册文件夹。'),
       relatedCleanupCancelledStatus: '已取消清理，没有删除任何图片。',
-      confirmRelatedCleanup: (count, missingDirectories) => {
+      confirmRelatedCleanup: (count, missingDirectories, cleanupScope) => {
         const missingText = missingDirectories.length ? `\n未找到并将跳过：${missingDirectories.join('、')}。` : ''
+        if (cleanupScope) {
+          const remainingText = cleanupScope.remainingTargetNames.join(' 和 ')
+          const scopeText = `当前相册为 ${cleanupScope.skippedAlbumName}，包含在低画质图片和截图里，本次清理只会清理 ${remainingText}，建议管理 NikkiPhotos_HighQuality 相册。`
+          return `${scopeText}\n确定删除 ${remainingText} 文件夹中的 ${count} 张图片吗？${missingText}`
+        }
         return `确定删除 NikkiPhotos_LowQuality 和 ScreenShot 文件夹中的 ${count} 张图片吗？${missingText}`
       },
       relatedCleanupStatus: (deletedCount, deletedBytes, failures, missingDirectories) => {
@@ -132,8 +137,13 @@ export const appEn: LocaleMessages['app'] = {
       },
       successSuffix: (suffix) => (suffix === 'continued' ? 'Continued using the remembered album folder.' : 'Remembered this album folder.'),
       relatedCleanupCancelledStatus: 'Cleanup cancelled. No images were deleted.',
-      confirmRelatedCleanup: (count, missingDirectories) => {
+      confirmRelatedCleanup: (count, missingDirectories, cleanupScope) => {
         const missingText = missingDirectories.length ? `\nNot found and skipped: ${missingDirectories.join(', ')}.` : ''
+        if (cleanupScope) {
+          const remainingText = cleanupScope.remainingTargetNames.join(' and ')
+          const scopeText = `The current album is ${cleanupScope.skippedAlbumName}, which is included in low-quality photos & screenshots. This cleanup will only clean ${remainingText}. We recommend managing the NikkiPhotos_HighQuality album instead.`
+          return `${scopeText}\nDelete ${count} images from ${remainingText}?${missingText}`
+        }
         return `Delete ${count} images from NikkiPhotos_LowQuality and ScreenShot?${missingText}`
       },
       relatedCleanupStatus: (deletedCount, deletedBytes, failures, missingDirectories) => {
