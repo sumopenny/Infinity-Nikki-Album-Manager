@@ -198,6 +198,29 @@ describe('outfit workspace components', () => {
     expect(wrapper.emitted('edit')).toEqual([[pending]])
   })
 
+  it('renders the parse button with an svg icon and emits parse', async () => {
+    const item = outfit('1', 'ABC-123')
+    const wrapper = mount(OutfitGrid, {
+      props: {
+        outfits: [item],
+        selectedIds: new Set<string>(),
+        thumbnailMode: 'portrait-standard',
+        messages: getOutfitMessages('zh'),
+        disabled: false
+      },
+      global: { stubs: { LazyPhotoImage: true } }
+    })
+
+    const parseButton = wrapper.get('.outfit-card-parse')
+    expect(parseButton.attributes('title')).toBe('解析搭配码')
+    const icon = parseButton.find('svg')
+    expect(icon.exists()).toBe(true)
+    expect(icon.find('path, line, circle, rect, polyline, polygon').exists()).toBe(true)
+    await parseButton.trigger('click')
+    expect(wrapper.emitted('parse')).toEqual([[item]])
+    expect(wrapper.emitted('toggleOutfit')).toBeUndefined()
+  })
+
   it('selects an outfit card by single click without triggering card actions', async () => {
     const item = outfit('1', 'ABC-123', ['甜美'])
     const wrapper = mount(OutfitGrid, {

@@ -304,14 +304,6 @@ onBeforeUnmount(() => {
             <span>{{ messages.clearData }}</span>
           </button>
           <div class="menu-separator"></div>
-          <a href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager" target="_blank" rel="noreferrer" role="menuitem" @click="closeMenus">
-            <Github :size="16" />
-            <span>{{ messages.githubText }}</span>
-          </a>
-          <a href="https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager" target="_blank" rel="noreferrer" role="menuitem" @click="closeMenus">
-            <span class="text-icon">G</span>
-            <span>{{ messages.giteeText }}</span>
-          </a>
           <button type="button" role="menuitem" @click="closeMenus(); showDonate = true">
             <Heart :size="16" />
             <span>{{ messages.donate }}</span>
@@ -333,6 +325,14 @@ onBeforeUnmount(() => {
             <a class="author-social-link douyin-link" href="https://v.douyin.com/VdLd5oOXz8I/" target="_blank" rel="noopener noreferrer" role="menuitem" :title="messages.douyinAuthor" :aria-label="messages.douyinAuthor" @click="closeMenus">
               <Music2 :size="17" aria-hidden="true" />
               <span>{{ messages.douyin }}</span>
+            </a>
+            <a class="author-social-link" href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager" target="_blank" rel="noopener noreferrer" role="menuitem" :title="messages.githubRepo" :aria-label="messages.githubRepo" @click="closeMenus">
+              <Github :size="17" aria-hidden="true" />
+              <span>{{ messages.githubText }}</span>
+            </a>
+            <a class="author-social-link" href="https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager" target="_blank" rel="noopener noreferrer" role="menuitem" :title="messages.giteeRepo" :aria-label="messages.giteeRepo" @click="closeMenus">
+              <span class="text-icon" aria-hidden="true">G</span>
+              <span>{{ messages.giteeText }}</span>
             </a>
           </div>
           </div>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount } from 'vue'
-import { Check, Copy, Edit3, Shirt, Trash2 } from 'lucide-vue-next'
+import { Check, Copy, Edit3, ScanSearch, Shirt, Trash2 } from 'lucide-vue-next'
 import type { OutfitMessages } from '../i18n'
 import type { ThumbnailMode } from '../types/thumbnail'
 import type { OutfitItem } from '../utils/outfit/outfitFileSystem'
@@ -19,6 +19,7 @@ const emit = defineEmits<{
   copy: [outfit: OutfitItem]
   edit: [outfit: OutfitItem]
   delete: [outfit: OutfitItem]
+  parse: [outfit: OutfitItem]
   openPreview: [outfit: OutfitItem]
   toggleOutfit: [outfitId: string]
 }>()
@@ -65,6 +66,16 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
             <span>{{ outfit.tags[0] || messages.uncategorized }}</span>
           </div>
           <span class="selected-badge"><Check :size="15" aria-hidden="true" /></span>
+          <button
+            class="outfit-card-parse"
+            type="button"
+            :title="messages.parse"
+            :aria-label="messages.parse"
+            :disabled="disabled || !outfit.code"
+            @click.stop="$emit('parse', outfit)"
+          >
+            <ScanSearch :size="16" aria-hidden="true" />
+          </button>
           <button
             class="outfit-card-delete"
             type="button"

@@ -38,6 +38,16 @@ export interface OutfitMessages {
   copy: string
   edit: string
   delete: string
+  parse: string
+  parseTitle: string
+  parseLoading: string
+  parseEmpty: string
+  parseInvalidCode: string
+  parseUnavailable: string
+  parseRetry: string
+  parseClose: string
+  parseItemCount: (count: number) => string
+  parseApiCredit: string
   emptyTitle: string
   emptyDescription: string
   imageRequired: string
@@ -124,6 +134,16 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     copy: '复制搭配码',
     edit: '编辑方案',
     delete: '删除方案',
+    parse: '解析搭配码',
+    parseTitle: '搭配码解析',
+    parseLoading: '正在解析搭配码…',
+    parseEmpty: '未解析到搭配部件。',
+    parseInvalidCode: '搭配码无效或不存在。',
+    parseUnavailable: '解析服务暂时不可用，请稍后重试。',
+    parseRetry: '重试',
+    parseClose: '关闭解析窗口',
+    parseItemCount: (count) => `${count} 个部件`,
+    parseApiCredit: '解析 API 由暖暖相册提供',
     emptyTitle: '还没有搭配方案',
     emptyDescription: '添加方案，或把图片放入相册的 clothe 文件夹。',
     imageRequired: '请先选择一张搭配图片。',
@@ -219,6 +239,16 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     copy: 'Copy outfit code',
     edit: 'Edit outfit',
     delete: 'Delete outfit',
+    parse: 'Decode outfit code',
+    parseTitle: 'Outfit code items',
+    parseLoading: 'Decoding outfit code…',
+    parseEmpty: 'No outfit items were found.',
+    parseInvalidCode: 'This outfit code is invalid or does not exist.',
+    parseUnavailable: 'The decoding service is temporarily unavailable. Please try again later.',
+    parseRetry: 'Retry',
+    parseClose: 'Close item list',
+    parseItemCount: (count) => `${count} item${count === 1 ? '' : 's'}`,
+    parseApiCredit: 'Decoding API provided by Nikki Albums',
     emptyTitle: 'No outfit plans yet',
     emptyDescription: 'Add a plan, or place images in the album clothe folder.',
     imageRequired: 'Choose an outfit image first.',

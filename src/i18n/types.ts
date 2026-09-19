@@ -77,6 +77,8 @@ export interface LocaleMessages {
     likeTooltip: string
     githubText: string
     giteeText: string
+    githubRepo: string
+    giteeRepo: string
     languageButton: string
     themeButton: (themeMode: ThemeMode) => string
     chooseDirectory: string

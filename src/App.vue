@@ -13,6 +13,7 @@ import NoteDialog from './components/NoteDialog.vue'
 import OutfitEditor from './components/OutfitEditor.vue'
 import OutfitGrid from './components/OutfitGrid.vue'
 import OutfitGuideDialog from './components/OutfitGuideDialog.vue'
+import OutfitParseDialog from './components/OutfitParseDialog.vue'
 import OutfitSidebar, { type OutfitFilter } from './components/OutfitSidebar.vue'
 import PhotoGrid from './components/PhotoGrid.vue'
 import RecentlyDeletedGrid from './components/RecentlyDeletedGrid.vue'
@@ -131,6 +132,8 @@ const outfitTags = ref<string[]>([])
 const activeOutfitFilter = ref<OutfitFilter>('all')
 const editingOutfit = ref<OutfitItem | null>(null)
 const isOutfitEditorVisible = ref(false)
+const parsingOutfit = ref<OutfitItem | null>(null)
+const isOutfitParseVisible = ref(false)
 const isOutfitGuideVisible = ref(false)
 const isOutfitGuideDismissed = ref(localStorage.getItem(OUTFIT_GUIDE_DISMISSED_KEY) === 'true')
 const isAboutDialogVisible = ref(false)
@@ -707,7 +710,7 @@ function toggleTheme() {
 }
 
 // X6Game 授权与搭配码流程
-/** 获取或恢复当前相册对应的 X6Game 授权，用于自动读取游戏最新搭配码。参数：prompt 表示是否允许弹出授权说明，autoPrompt 表示是否为搭配码界面自动触发。 */
+/** 获取或恢复当前相册对应的 X6Game 授权，用于自动读取游戏最新搭配码。参数：prompt 表示是否允许弹出授权说明（false 时也不弹系统目录选择器，未授权则静默跳过共享导入），autoPrompt 表示是否为搭配码界面自动触发。 */
 async function ensureSharedOutfitSource(prompt: boolean, autoPrompt = prompt, forcePick = false): Promise<SharedOutfitSource | null> {
   const directoryHandle = albumDirectoryHandle.value
   if (!directoryHandle) return null
@@ -732,7 +735,9 @@ async function ensureSharedOutfitSource(prompt: boolean, autoPrompt = prompt, fo
         return confirmed
       },
       beforePickX6GameDirectory: async () => {
-        if (!prompt || forcePick) return true
+        if (forcePick) return true
+        // 刷新、后台扫描等静默流程不弹系统目录选择器：未授权时共享搭配码导入直接跳过
+        if (!prompt) return false
         const confirmed = await openConfirmDialog({
           title: locale.value.app.x6GameDirectoryDialogTitle,
           message: locale.value.fileSystem.selectX6GameDirectoryPrompt,
@@ -895,6 +900,18 @@ function changeOutfitFilter(filter: OutfitFilter) {
 function openOutfitEditor(outfit: OutfitItem | null = null) {
   editingOutfit.value = outfit
   isOutfitEditorVisible.value = true
+}
+
+/** 打开搭配码解析窗口。参数：目标搭配方案；没有搭配码时忽略。 */
+function openOutfitParse(outfit: OutfitItem) {
+  if (!outfit.code) return
+  parsingOutfit.value = outfit
+  isOutfitParseVisible.value = true
+}
+
+function closeOutfitParse() {
+  isOutfitParseVisible.value = false
+  parsingOutfit.value = null
 }
 
 async function editPhotoNote(photo: PhotoItem | null) {
@@ -1686,6 +1703,7 @@ onBeforeUnmount(() => {
           @copy="copyOutfitCode"
           @edit="openOutfitEditor"
           @delete="removeOutfit"
+          @parse="openOutfitParse"
           @open-preview="openPreview"
           @toggle-outfit="toggleOutfit"
         />
@@ -1728,7 +1746,7 @@ onBeforeUnmount(() => {
       :has-previous="hasPreviousPreview"
       :has-next="hasNextPreview"
       :is-deleting="isDeleting || isTrashBusy"
-      :keyboard-enabled="!confirmDialog.visible && !isOutfitEditorVisible"
+      :keyboard-enabled="!confirmDialog.visible && !isOutfitEditorVisible && !isOutfitParseVisible"
       :mode="activeView === 'trash' ? 'trash' : activeView === 'outfits' ? 'outfit' : 'album'"
       :outfit="currentPreviewOutfit"
       :outfit-messages="outfitLocale"
@@ -1757,6 +1775,14 @@ onBeforeUnmount(() => {
       @close="closeOutfitEditor()"
       @save="handleSaveOutfit"
       @add-tag="addOutfitTag($event, true)"
+    />
+
+    <OutfitParseDialog
+      :visible="isOutfitParseVisible"
+      :outfit="parsingOutfit"
+      :language="language"
+      :messages="outfitLocale"
+      @close="closeOutfitParse"
     />
 
     <NoteDialog
