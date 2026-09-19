@@ -73,6 +73,8 @@ export interface LocaleMessages {
     starHint: string
     searchPlaceholder: string
     clearSearch: string
+    like: string
+    likeTooltip: string
     githubText: string
     giteeText: string
     languageButton: string

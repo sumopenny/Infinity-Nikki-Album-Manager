@@ -1,0 +1,11 @@
+name = "infinity-nikki-album-manager"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-09-19"
+
+# D1 数据库绑定：前端函数通过 env.DB 访问。
+# database_id 在创建数据库后填入（wrangler d1 create wxnn-likes 会输出该 id），
+# 或在 Cloudflare 控制台 Pages 项目 → 设置 → 函数 → D1 数据库绑定中配置同名绑定 DB。
+[[d1_databases]]
+binding = "DB"
+database_name = "wxnn-likes"
+database_id = "1fc2cb15-3458-4035-acdd-2a2caa203aa4"

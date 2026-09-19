@@ -488,4 +488,44 @@
   animation: spin 0.8s linear infinite;
 }
 
+/* 点赞计数器：搜索框左侧的爱心按钮 + 计数 */
+.like-counter {
+  display: inline-flex;
+  height: 38px;
+  min-width: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-right: 4px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius);
+  background: var(--surface);
+  color: var(--pink-deep);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  transition: border-color var(--motion-base) ease, background var(--motion-base) ease, transform var(--motion-base) var(--ease-spring);
+}
 
+.like-counter:hover {
+  background: var(--surface-strong);
+  border-color: var(--pink-deep);
+}
+
+.like-counter.liked svg {
+  animation: like-pop 0.4s var(--ease-spring);
+  fill: var(--pink-deep);
+}
+
+.like-counter-number {
+  min-width: 2ch;
+  text-align: center;
+}
+
+@keyframes like-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}

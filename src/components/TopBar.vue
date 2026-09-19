@@ -21,6 +21,7 @@ import {
   X
 } from 'lucide-vue-next'
 import FortuneTimeDialog from './FortuneTimeDialog.vue'
+import LikeCounter from './LikeCounter.vue'
 // 收款码图片，通过 Vite 打包以保证构建后路径正确
 import wxQrCode from '../../img/wx.jpg'
 import zfbQrCode from '../../img/zfb.jpg'
@@ -171,6 +172,7 @@ onBeforeUnmount(() => {
 
     <div class="header-actions">
       <span class="header-star-hint" :title="messages.starHint">{{ messages.starHint }}</span>
+      <LikeCounter :messages="{ like: messages.like, likeTooltip: messages.likeTooltip }" />
       <div class="header-search">
         <input :value="searchQuery ?? ''" type="search" :placeholder="messages.searchPlaceholder" :aria-label="messages.searchPlaceholder" @input="emit('updateSearch', ($event.target as HTMLInputElement).value)" />
         <button v-if="searchQuery" type="button" :title="messages.clearSearch" :aria-label="messages.clearSearch" @click="emit('updateSearch', '')"><X :size="15" /></button>
