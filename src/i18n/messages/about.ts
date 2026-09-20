@@ -11,10 +11,10 @@ export const aboutZh: LocaleMessages['about'] = {
         '搭配码管理：管理星绘图册搭配方案，支持手动添加、批量导入，并自动同步游戏内新搭配码。',
         '专项清理：清理低画质照片、游戏截图、崩溃快照、运行日志和游戏内置网页缓存。'
       ],
-      changelogTitle: '当前版本【2026.9.13更新】',
+      changelogTitle: '当前版本【2026.9.20更新】',
       // 更新日志只保留当前版本，发布新版本时替换该条内容，当前版本会自动带上“当前版本”标识
       changelog: [
-        { version: 'v1.4.1', text: '取消 X6Game 授权相册限制。近期更新：新增相册图片批量导入与导出功能；多选图片底栏支持导出选中图片。' }
+        { version: 'v1.5', text: '新增搭配码解析功能：搭配码页面新增直接输入解析入口，搭配卡片右上角同步新增解析按钮；新增主页点赞功能。' }
       ],
       historyLink: '更新记录',
       historyTitle: '历史版本记录',
@@ -22,6 +22,7 @@ export const aboutZh: LocaleMessages['about'] = {
       historyBackAria: '返回关于网站',
       // 历史记录页从上一正式版本开始展示，当前版本只保留在关于页顶部。
       history: [
+        { version: 'v1.4.1', text: '取消 X6Game 授权相册限制。近期更新：新增相册图片批量导入与导出功能；多选图片底栏支持导出选中图片。' },
         { version: 'v1.4', text: '新增相册图片批量导入与导出功能：相册视图标题区支持导出当前相册全部图片，多选图片底栏支持导出选中图片。导出时取消导出会保留已完成的目标文件和全部源照片；正常完成后，可选择将成功导出的源照片移入最近删除。' },
         { version: 'v1.3.3', text: '新增2.9版本抽卡吉时模块。提升了 ZIP 导入导出、图片处理、批量删除和恢复及专项清理的速度。' },
         { version: 'v1.3.2', text: '新增照片和搭配码备注功能，并增加顶部搜索框；照片搜索文件名/备注，搭配码搜索搭配码/备注；提升了 ZIP 导入导出、图片处理、批量删除和恢复及专项清理的速度。' },
@@ -52,9 +53,9 @@ export const aboutEn: LocaleMessages['about'] = {
         'Outfit codes: manage Starry Gallery outfit plans with manual add, batch import, and auto sync of new in-game outfit codes.',
         'Targeted cleanup: clean low-quality photos, screenshots, crash snapshots, runtime logs, and web cache to free up disk space.'
       ],
-      changelogTitle: 'Current version【2026.9.13 update】',
+      changelogTitle: 'Current version【2026.9.20 update】',
       changelog: [
-        { version: 'v1.4.1', text: 'Removed the album restriction for X6Game authorization. Recent updates: added batch album image import and export; the multi-selection bar supports exporting selected photos.' }
+        { version: 'v1.5', text: 'Added outfit code decoding: the Outfit Code page now provides a direct input and decode entry, and outfit cards now have a decode button in the upper-right corner. Added homepage likes.' }
       ],
       historyLink: 'Release history',
       historyTitle: 'Release history',
@@ -62,6 +63,7 @@ export const aboutEn: LocaleMessages['about'] = {
       historyBackAria: 'Back to About',
       // The history page starts from the previous formal release; the current release stays on the About page.
       history: [
+        { version: 'v1.4.1', text: 'Removed the album restriction for X6Game authorization. Recent updates: added batch album image import and export; the multi-selection bar supports exporting selected photos.' },
         { version: 'v1.4', text: 'Added batch album image import and export: the album view header can export all photos in the current album, while the multi-selection bar can export selected photos. Cancelling an export keeps completed target files and all source photos; after a normal export, you can choose to move successfully exported source photos to Recently Deleted.' },
         { version: 'v1.3.3', text: 'Added the 2.9 version lucky times module. Improved the speed of ZIP import/export, image processing, batch deletion and recovery, and targeted cleanup.' },
         { version: 'v1.3.2', text: "Added remark functionality for photos and outfit codes, and added a top search bar; photos are searched by filename/remark, and outfit codes are searched by outfit code/remark. Improved the speed of ZIP import/export, image processing, batch deletion and recovery, and targeted cleanup." },
