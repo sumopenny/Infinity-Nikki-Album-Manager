@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref, toRef, watch } from 'vue'
-import { Archive, FolderOpen, ImagePlus, Sparkles, Tags, X } from 'lucide-vue-next'
+import { Archive, ImagePlus, ScanSearch, Sparkles, Tags, X } from 'lucide-vue-next'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { OutfitMessages } from '../i18n'
 
@@ -17,7 +17,7 @@ const emit = defineEmits<{
 const dontShowAgain = ref(false)
 const closeButtonRef = ref<HTMLButtonElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
-const sectionIcons = [ImagePlus, Tags, FolderOpen, Archive]
+const sectionIcons = [ScanSearch, Tags, ImagePlus, Archive]
 const featuredIcon = Sparkles
 let previousActiveElement: HTMLElement | null = null
 useBodyScrollLock(toRef(props, 'visible'))

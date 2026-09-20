@@ -140,5 +140,40 @@ describe('App lifecycle coordination', () => {
     expect(readOutfitLibraryMock).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })
+
+  it('opens the shared parse dialog from the outfit code input', async () => {
+    const directoryHandle = { kind: 'directory', name: 'NikkiPhotos_HighQuality' } as FileSystemDirectoryHandle
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(directoryHandle)
+    readAlbumDirectoryMock.mockResolvedValue({ directoryName: directoryHandle.name, directoryHandle, photos: [] })
+    const wrapper = mount(App, {
+      global: {
+        stubs: {
+          OutfitParseDialog: {
+            props: ['visible', 'code'],
+            template: '<div v-if="visible" class="parse-dialog-stub">{{ code }}<button class="parse-dialog-close" @click="$emit(\'close\')">Close</button></div>'
+          }
+        }
+      }
+    })
+    await flushPromises()
+
+    const outfitViewButton = wrapper.findAll('.album-view-button').find((button) => button.text().includes(messages.zh.outfit.viewName))
+    await outfitViewButton?.trigger('click')
+    await flushPromises()
+    const input = wrapper.get('.outfit-parse-form input')
+    const submit = wrapper.get('.outfit-parse-submit')
+    expect(input.attributes('placeholder')).toBe('填入搭配码进行解析')
+    expect(submit.attributes('disabled')).toBeDefined()
+
+    await input.setValue(' ABC 123 ')
+    expect(submit.attributes('disabled')).toBeUndefined()
+    await wrapper.get('.outfit-parse-form').trigger('submit')
+
+    expect(wrapper.get('.parse-dialog-stub').text()).toContain('ABC123')
+    await wrapper.get('.parse-dialog-close').trigger('click')
+    expect((input.element as HTMLInputElement).value).toBe('')
+    expect(submit.attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
 })
 

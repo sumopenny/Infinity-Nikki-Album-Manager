@@ -32,6 +32,13 @@ function outfit(id: string, code: string, tags: string[] = []): OutfitItem {
 describe('outfit workspace components', () => {
   it('keeps operation feedback complete in both locales', () => {
     expect(getOutfitMessages('zh').operations.deletedSelected(2, 1)).toContain('1 个删除失败')
+    expect([
+      getOutfitMessages('zh').parseServicePrefix,
+      getOutfitMessages('zh').parseServiceNikkiAlbums,
+      getOutfitMessages('zh').parseServiceAnd,
+      getOutfitMessages('zh').parseServiceNikkiTracker,
+      getOutfitMessages('zh').parseServiceSuffix
+    ].join('')).toBe('解析服务由暖暖相册和暖暖共鸣录提供')
     expect(getOutfitMessages('en').operations.importCompleted(2, 1, 0, '')).toContain('2 added')
   })
 
@@ -161,9 +168,11 @@ describe('outfit workspace components', () => {
 
     expect(wrapper.text()).toContain('自动更新游戏搭配码')
     expect(wrapper.text()).toContain('搭配截图右下角点击框选按钮')
-    expect(wrapper.text()).toContain('批量导入搭配图片')
+    expect(wrapper.findAll('.outfit-guide-sections > section')).toHaveLength(4)
+    expect(wrapper.findAll('.outfit-guide-sections h3').map((heading) => heading.text())).toEqual(['搭配码解析', '标签与整理', '添加与编辑方案', '导入与导出'])
+    expect(wrapper.text()).not.toContain('批量导入搭配图片')
     expect(wrapper.text()).toContain('clothe')
-    expect(wrapper.text()).toContain('导入与导出')
+    expect(wrapper.text()).toContain('无需先创建搭配方案')
     await wrapper.get('input[type="checkbox"]').setValue(true)
     await wrapper.get('.outfit-guide-panel > footer .primary-button').trigger('click')
     expect(wrapper.emitted('close')).toEqual([[true]])
@@ -194,6 +203,7 @@ describe('outfit workspace components', () => {
     })
 
     expect(wrapper.find('[title="复制搭配码"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.outfit-card-parse').attributes('disabled')).toBeDefined()
     await wrapper.find('.outfit-pending-code').trigger('click')
     expect(wrapper.emitted('edit')).toEqual([[pending]])
   })
@@ -212,7 +222,9 @@ describe('outfit workspace components', () => {
     })
 
     const parseButton = wrapper.get('.outfit-card-parse')
+    const deleteButton = wrapper.get('.outfit-card-delete')
     expect(parseButton.attributes('title')).toBe('解析搭配码')
+    expect(deleteButton.element.compareDocumentPosition(parseButton.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     const icon = parseButton.find('svg')
     expect(icon.exists()).toBe(true)
     expect(icon.find('path, line, circle, rect, polyline, polygon').exists()).toBe(true)

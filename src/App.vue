@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { CircleHelp, Download, FileUp, Plus, Trash2 } from 'lucide-vue-next'
+import { CircleHelp, Download, FileUp, Plus, ScanSearch, Trash2 } from 'lucide-vue-next'
 import AboutDialog from './components/AboutDialog.vue'
 import AlbumViewSwitcher, { type AlbumView } from './components/AlbumViewSwitcher.vue'
 import CleanupAccountPicker from './components/CleanupAccountPicker.vue'
@@ -53,7 +53,9 @@ import {
   type OutfitItem,
   type OutfitLibraryResult,
   type SaveOutfitInput,
-  type SharedOutfitSource
+  type SharedOutfitSource,
+  MAX_OUTFIT_CODE_LENGTH,
+  normalizeOutfitCode
 } from './utils/outfit/outfitFileSystem'
 import { exportOutfitBackup, importOutfitBackup } from './utils/outfit/outfitBackup'
 import { isValidOutfitTag, MAX_OUTFIT_TAG_LENGTH, MAX_OUTFIT_TAGS, normalizeOutfitTag } from './utils/outfit/outfitTypes'
@@ -132,7 +134,9 @@ const outfitTags = ref<string[]>([])
 const activeOutfitFilter = ref<OutfitFilter>('all')
 const editingOutfit = ref<OutfitItem | null>(null)
 const isOutfitEditorVisible = ref(false)
-const parsingOutfit = ref<OutfitItem | null>(null)
+const parseCodeInput = ref('')
+const normalizedParseCodeInput = computed(() => normalizeOutfitCode(parseCodeInput.value))
+const parsingOutfitCode = ref('')
 const isOutfitParseVisible = ref(false)
 const isOutfitGuideVisible = ref(false)
 const isOutfitGuideDismissed = ref(localStorage.getItem(OUTFIT_GUIDE_DISMISSED_KEY) === 'true')
@@ -902,16 +906,22 @@ function openOutfitEditor(outfit: OutfitItem | null = null) {
   isOutfitEditorVisible.value = true
 }
 
-/** 打开搭配码解析窗口。参数：目标搭配方案；没有搭配码时忽略。 */
-function openOutfitParse(outfit: OutfitItem) {
-  if (!outfit.code) return
-  parsingOutfit.value = outfit
+/** 打开搭配码解析窗口。参数：目标搭配方案或直接输入的搭配码；空值时忽略。 */
+function openOutfitParse(target: OutfitItem | string) {
+  const code = normalizeOutfitCode(typeof target === 'string' ? target : target.code)
+  if (!code) return
+  parsingOutfitCode.value = code
   isOutfitParseVisible.value = true
 }
 
 function closeOutfitParse() {
   isOutfitParseVisible.value = false
-  parsingOutfit.value = null
+  parsingOutfitCode.value = ''
+  parseCodeInput.value = ''
+}
+
+function parseEnteredOutfitCode() {
+  openOutfitParse(normalizedParseCodeInput.value)
 }
 
 async function editPhotoNote(photo: PhotoItem | null) {
@@ -1661,6 +1671,19 @@ onBeforeUnmount(() => {
             </h2>
           </div>
           <div v-if="activeView === 'outfits'" class="outfit-header-actions">
+            <form class="outfit-parse-form" @submit.prevent="parseEnteredOutfitCode">
+              <input
+                v-model="parseCodeInput"
+                :maxlength="MAX_OUTFIT_CODE_LENGTH"
+                :placeholder="outfitLocale.parseInputPlaceholder"
+                :aria-label="outfitLocale.parseInputPlaceholder"
+                :disabled="isAnyFileOperationBusy"
+                autocomplete="off"
+              />
+              <button class="outfit-parse-submit" type="submit" :disabled="isAnyFileOperationBusy || !normalizedParseCodeInput">
+                <ScanSearch :size="16" aria-hidden="true" />{{ outfitLocale.parse }}
+              </button>
+            </form>
             <button type="button" :disabled="isAnyFileOperationBusy" @click="chooseOutfitBackup">
               <Download :size="16" aria-hidden="true" />{{ isImportingOutfits ? outfitLocale.importing : outfitLocale.importData }}
             </button>
@@ -1779,7 +1802,7 @@ onBeforeUnmount(() => {
 
     <OutfitParseDialog
       :visible="isOutfitParseVisible"
-      :outfit="parsingOutfit"
+      :code="parsingOutfitCode"
       :language="language"
       :messages="outfitLocale"
       @close="closeOutfitParse"

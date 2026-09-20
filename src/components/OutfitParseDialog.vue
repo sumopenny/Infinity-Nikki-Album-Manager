@@ -3,7 +3,6 @@
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, toRef, watch } from 'vue'
 import { RefreshCw, X } from 'lucide-vue-next'
 import type { Language, OutfitMessages } from '../i18n'
-import type { OutfitItem } from '../utils/outfit/outfitFileSystem'
 import {
   getCatalogEntryName,
   getCatalogImageUrl,
@@ -19,7 +18,7 @@ import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
 const props = defineProps<{
   visible: boolean
-  outfit: OutfitItem | null
+  code: string
   language: Language
   messages: OutfitMessages
 }>()
@@ -44,7 +43,7 @@ let previousActiveElement: HTMLElement | null = null
 
 useBodyScrollLock(toRef(props, 'visible'))
 
-const requestCode = computed(() => decoded.value?.code || props.outfit?.code || '')
+const requestCode = computed(() => decoded.value?.code || props.code)
 
 const items = computed<ParseItemView[]>(() => {
   const result = decoded.value
@@ -67,7 +66,7 @@ const items = computed<ParseItemView[]>(() => {
 /** 解析当前搭配码；重复解析会作废旧请求结果，避免慢响应覆盖新状态。 */
 async function startParse() {
   const currentRequest = (requestId += 1)
-  const code = props.outfit?.code ?? ''
+  const code = props.code
   decoded.value = null
   status.value = 'loading'
 
@@ -159,8 +158,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
             <div v-else-if="status === 'error'" class="outfit-parse-status" role="alert">
               <p>{{ errorKind === 'invalid' ? messages.parseInvalidCode : messages.parseUnavailable }}</p>
-              <button class="primary-button" type="button" @click="startParse">
-                <RefreshCw :size="15" aria-hidden="true" />{{ messages.parseRetry }}
+              <button class="primary-button outfit-parse-retry" type="button" @click="startParse">
+                <RefreshCw :size="15" aria-hidden="true" />
+                <span>{{ messages.parseRetry }}</span>
               </button>
             </div>
 
@@ -193,7 +193,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
           <footer v-if="status === 'success' && items.length" class="outfit-parse-footer">
             <span>{{ messages.parseItemCount(items.length) }}</span>
-            <a href="https://nikki.ranaxro.com/" target="_blank" rel="noopener noreferrer">{{ messages.parseApiCredit }}</a>
+            <span class="outfit-parse-credit">
+              {{ messages.parseServicePrefix }}<a href="https://github.com/RanAxro/nikki_albums" target="_blank" rel="noopener noreferrer">{{ messages.parseServiceNikkiAlbums }}</a>{{ messages.parseServiceAnd }}<a href="https://github.com/dastrokes/gongeo.us-nikki-tracker" target="_blank" rel="noopener noreferrer">{{ messages.parseServiceNikkiTracker }}</a>{{ messages.parseServiceSuffix }}
+            </span>
           </footer>
         </section>
       </div>

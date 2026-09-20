@@ -39,6 +39,7 @@ export interface OutfitMessages {
   edit: string
   delete: string
   parse: string
+  parseInputPlaceholder: string
   parseTitle: string
   parseLoading: string
   parseEmpty: string
@@ -47,7 +48,11 @@ export interface OutfitMessages {
   parseRetry: string
   parseClose: string
   parseItemCount: (count: number) => string
-  parseApiCredit: string
+  parseServicePrefix: string
+  parseServiceNikkiAlbums: string
+  parseServiceAnd: string
+  parseServiceNikkiTracker: string
+  parseServiceSuffix: string
   emptyTitle: string
   emptyDescription: string
   imageRequired: string
@@ -135,6 +140,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     edit: '编辑方案',
     delete: '删除方案',
     parse: '解析搭配码',
+    parseInputPlaceholder: '填入搭配码进行解析',
     parseTitle: '搭配码解析',
     parseLoading: '正在解析搭配码…',
     parseEmpty: '未解析到搭配部件。',
@@ -143,7 +149,11 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     parseRetry: '重试',
     parseClose: '关闭解析窗口',
     parseItemCount: (count) => `${count} 个部件`,
-    parseApiCredit: '解析 API 由暖暖相册提供',
+    parseServicePrefix: '解析服务由',
+    parseServiceNikkiAlbums: '暖暖相册',
+    parseServiceAnd: '和',
+    parseServiceNikkiTracker: '暖暖共鸣录',
+    parseServiceSuffix: '提供',
     emptyTitle: '还没有搭配方案',
     emptyDescription: '添加方案，或把图片放入相册的 clothe 文件夹。',
     imageRequired: '请先选择一张搭配图片。',
@@ -186,10 +196,10 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       ]
     },
     guideSections: [
-      { title: '添加与编辑方案', items: ['点击“添加方案”，可以选择、拖拽或粘贴图片（点击窗口空白处 Ctrl+V 粘贴）。', '搭配码可以留空稍后填写；每个方案最多选择一个标签，双击图片可打开预览。'] },
+      { title: '搭配码解析', items: ['可在搭配页顶部输入搭配码并点击“解析搭配码”，无需先创建搭配方案。', '已填写搭配码的方案可点击卡片右上角的解析按钮，查看搭配部件与染色信息。'] },
       { title: '标签与整理', items: ['左侧可按全部、待填写、未分类和用户标签筛选。最多创建 40 个标签，每个标签不超过 5 个字符。', '删除正在使用的标签只会让相关方案归入“未分类”，不会删除图片或方案。'] },
-      { title: '批量导入搭配图片', items: ['网站会在当前相册中创建 clothe 文件夹来管理搭配码。批量导入图片：直接把保存好的搭配图片放入该文件夹。', '打开相册、刷新相册或页面重新获得焦点时，这些图片会自动转换为待填写方案，再通过编辑补充搭配码和标签。'] },
-      { title: '导入与导出', items: ['“导出数据”会先确认，并在当前相册文件夹中导出为 ZIP，成功提示会显示文件名和保存位置。', '“导入数据”会校验并合并 ZIP，不覆盖已有方案；重复或无效内容会跳过。删除搭配方案是永久删除，不会进入最近删除。'] }
+      { title: '添加与编辑方案', items: ['点击“添加方案”，可以选择、拖拽或粘贴图片（点击窗口空白处 Ctrl+V 粘贴）。', '搭配码可以留空稍后填写；每个方案最多选择一个标签，双击图片可打开预览。'] },
+      { title: '导入与导出', items: ['批量导入时，把搭配图片放入当前相册的 clothe 文件夹；打开、刷新相册或返回页面后会自动转为待填写方案。', '“导出数据”会在当前相册生成 ZIP；“导入数据”会合并有效方案且不覆盖已有内容。删除方案不可恢复。'] }
     ],
     guideDontShowAgain: '不再提示',
     guideConfirm: '知道了',
@@ -240,6 +250,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     edit: 'Edit outfit',
     delete: 'Delete outfit',
     parse: 'Decode outfit code',
+    parseInputPlaceholder: 'Enter an outfit code to decode',
     parseTitle: 'Outfit code items',
     parseLoading: 'Decoding outfit code…',
     parseEmpty: 'No outfit items were found.',
@@ -248,7 +259,11 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     parseRetry: 'Retry',
     parseClose: 'Close item list',
     parseItemCount: (count) => `${count} item${count === 1 ? '' : 's'}`,
-    parseApiCredit: 'Decoding API provided by Nikki Albums',
+    parseServicePrefix: 'Decoding service provided by ',
+    parseServiceNikkiAlbums: 'Nikki Albums',
+    parseServiceAnd: ' and ',
+    parseServiceNikkiTracker: 'Nikki Tracker',
+    parseServiceSuffix: '',
     emptyTitle: 'No outfit plans yet',
     emptyDescription: 'Add a plan, or place images in the album clothe folder.',
     imageRequired: 'Choose an outfit image first.',
@@ -291,10 +306,10 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       ]
     },
     guideSections: [
-      { title: 'Add and edit', items: ['Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press Ctrl+V).', 'The outfit code can be left blank and filled in later. Each plan can use at most one tag, and double-clicking the image opens the preview.'] },
+      { title: 'Decode outfit codes', items: ['Enter a code at the top of the Outfit Code page and click Decode outfit code without creating a plan first.', 'For a plan with a code, click the decode button in the upper-right corner of its card to view outfit items and dye information.'] },
       { title: 'Tags and filters', items: ['Filter by All, Pending, Uncategorized, or user tags. You can create up to 40 tags with no more than 5 characters each.', 'Deleting a tag in use only moves matching plans to Uncategorized; it does not delete their images or plans.'] },
-      { title: 'Bulk import outfit images', items: ['The app creates a clothe folder in the current album to manage outfit codes. To import images in bulk, place your saved outfit images directly in this folder.', 'Opening or refreshing the album, or refocusing the page, converts those images into pending plans for later code and tag editing.'] },
-      { title: 'Import and export', items: ['Export asks for confirmation, then exports a ZIP in the current album folder. The success notice shows the file name and saved location.', 'Import validates and merges a ZIP without replacing existing plans; duplicate or invalid content is skipped. Deleting an outfit is permanent and does not use Recently deleted.'] }
+      { title: 'Add and edit', items: ['Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press Ctrl+V).', 'The outfit code can be left blank and filled in later. Each plan can use at most one tag, and double-clicking the image opens the preview.'] },
+      { title: 'Import and export', items: ['For bulk import, place outfit images in the current album’s clothe folder. Opening or refreshing the album, or returning to the page, converts them into pending plans.', 'Export creates a ZIP in the current album; Import merges valid plans without replacing existing ones. Deleting a plan is permanent.'] }
     ],
     guideDontShowAgain: "Don't show again",
     guideConfirm: 'Got it',

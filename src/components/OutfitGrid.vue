@@ -67,16 +67,6 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
           </div>
           <span class="selected-badge"><Check :size="15" aria-hidden="true" /></span>
           <button
-            class="outfit-card-parse"
-            type="button"
-            :title="messages.parse"
-            :aria-label="messages.parse"
-            :disabled="disabled || !outfit.code"
-            @click.stop="$emit('parse', outfit)"
-          >
-            <ScanSearch :size="16" aria-hidden="true" />
-          </button>
-          <button
             class="outfit-card-delete"
             type="button"
             :title="messages.delete"
@@ -85,6 +75,16 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
             @click.stop="$emit('delete', outfit)"
           >
             <Trash2 :size="16" aria-hidden="true" />
+          </button>
+          <button
+            class="outfit-card-parse"
+            type="button"
+            :title="messages.parse"
+            :aria-label="messages.parse"
+            :disabled="disabled || !outfit.code"
+            @click.stop="$emit('parse', outfit)"
+          >
+            <ScanSearch :size="16" aria-hidden="true" />
           </button>
         </div>
 
