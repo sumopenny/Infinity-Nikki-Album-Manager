@@ -5,7 +5,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>Start-Project</AssemblyName>
+    <AssemblyName>无限暖暖相册启动器</AssemblyName>
     <RootNamespace>StartProjectLauncher</RootNamespace>
     <ApplicationIcon>..\..\img\wxnn.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

@@ -134,7 +134,7 @@ Do not select drive roots, Windows, Program Files, the game install root, or oth
 - Make sure the project has been fully extracted, and do not run it inside the ZIP.
 - Make sure Node.js LTS is installed and the `start` folder is not missing.
 - Check whether security software blocked the EXE or BAT file.
-- You can also run `start\Start-Project.bat` directly to view error details.
+- You can also run `start\Start-Remote-D1-Website.bat` directly to view error details.
 
 ### No photos are displayed
 
@@ -180,17 +180,23 @@ Both commands should print version numbers, which means installation succeeded. 
 3. On first run, dependencies are installed automatically and `http://localhost:5173` opens.
 4. Keep the window open while using it.
 
-If the launcher is unavailable, double-click `start\Start-Project.bat`, or use the development commands below to start manually.
+If the launcher is unavailable, double-click `start\Start-Remote-D1-Website.bat`, or use the development commands below to start manually. The root `无限暖暖相册启动器.exe` also uses this remote D1 launcher.
+
+To run the local site against the online D1 data, double-click `start\Start-Remote-D1-Website.bat`. It proxies only `/api` requests to the deployed Pages API, so the browser never receives D1 credentials. Like actions from this local site write to the online database; use this launcher carefully. The script defaults to `https://infinity-nikki-album-manager.pages.dev`, and accepts another Pages URL as its first argument.
 
 ### Development Commands
 
 ```bash
 npm install       # Install dependencies
 npm run dev       # Start the development server
+set REMOTE_API_ORIGIN=https://infinity-nikki-album-manager.pages.dev
+npm run dev:remote # Start locally and proxy /api to the online D1 API
 npm test          # Run automated tests
 npm run build     # Type-check and build
 npm run preview   # Preview the build result
 ```
+
+`npm run dev` does not connect to the remote database. Remote mode only proxies the deployed Pages API. Wrangler is needed only for remote migrations or Cloudflare deployment commands, not for starting the remote-backed local website.
 
 Stack: Vue 3, TypeScript, Vite, File System Access API, IndexedDB.
 

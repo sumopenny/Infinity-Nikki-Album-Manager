@@ -12,7 +12,7 @@ namespace StartProjectLauncher
         {
             var projectDirectory = AppDomain.CurrentDomain.BaseDirectory;
             var startDirectory = Path.Combine(projectDirectory, "start");
-            var batchPath = Path.Combine(startDirectory, "Start-Project.bat");
+            var batchPath = Path.Combine(startDirectory, "Start-Remote-D1-Website.bat");
 
             if (!File.Exists(batchPath))
             {

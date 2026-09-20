@@ -773,3 +773,11 @@
 6.问题：照片参数解析需要使用 AssemblyScript 编译 WebAssembly，但项目尚未提供 `asc` 编译工具。
    - 状态：部分解决
    - 技术/方法：确认当前 Node.js 22 与 npm 10 满足 AssemblyScript 0.28.20 的运行要求，将该版本精确锁定为项目开发依赖，并验证本地 `asc` 可用；本次只建立编译工具链，WASM 源码、构建脚本和照片解析功能留待算法协议与黄金样本确认后实现。
+
+7.问题：本地启动网站需要读取线上 D1 数据，但普通 Vite 开发服务器不会执行 Pages Functions，且不希望启用本地 D1 调试。
+   - 状态：已解决
+   - 技术/方法：新增 `dev:remote` 模式，在 Vite 服务端只代理 `/api` 请求到指定的线上 Pages API，浏览器仍不直接接触 D1；新增 `start/Start-Remote-D1-Website.bat`，默认连接线上 Pages 地址并明确提示点赞会写入远程数据库。保留原有普通启动器和 Wrangler 远程迁移命令，远程网站启动不依赖 Wrangler。同步更新中英文 README 与 D1 部署教程；已通过 `npm test`、`npm run build`、远程 GET 代理和 BAT ASCII 检查。
+
+8.问题：根目录启动器仍调用旧的本地 Vite 启动脚本，无法按远程 D1 方案启动网站。
+   - 状态：已解决
+   - 技术/方法：将启动器源码改为调用 `start/Start-Remote-D1-Website.bat`，并统一构建脚本与项目文件的输出名称为根目录实际使用的 `无限暖暖相册启动器.exe`；同步更新中英文启动说明并重新生成启动器。

@@ -132,7 +132,7 @@
 - 确认项目已经完整解压，不要在 ZIP 内运行。
 - 确认已安装 Node.js LTS，且 `start` 文件夹没有缺失。
 - 检查安全软件是否拦截 EXE 或 BAT 文件。
-- 也可直接运行 `start\Start-Project.bat` 查看错误信息。
+- 也可直接运行 `start\Start-Remote-D1-Website.bat` 查看错误信息。
 
 ### 网页没有显示照片
 
@@ -177,17 +177,23 @@ npm -v
 3. 首次运行会自动安装依赖并打开 `http://localhost:5173`。
 4. 使用期间不要关闭窗口。
 
-启动器不可用时，可双击 `start\Start-Project.bat`，或使用下方开发命令手动启动。
+启动器不可用时，可双击 `start\Start-Remote-D1-Website.bat`，或使用下方开发命令手动启动。根目录的 `无限暖暖相册启动器.exe` 也会连接这个远程 D1 启动脚本。
+
+如果希望本地页面直接读取线上 D1 数据，请双击 `start\Start-Remote-D1-Website.bat`。它只在本地代理 `/api` 请求到线上 Pages，不会让浏览器直接接触 D1；本地点击点赞会真实写入线上数据库，请谨慎使用。脚本默认使用 `https://infinity-nikki-album-manager.pages.dev`，也可把其他 Pages 地址作为脚本参数传入。
 
 ### 开发命令
 
 ```bash
 npm install       # 安装依赖
 npm run dev       # 启动开发服务器
+set REMOTE_API_ORIGIN=https://infinity-nikki-album-manager.pages.dev
+npm run dev:remote # 本地启动并把 /api 代理到线上 D1 API
 npm test          # 运行自动化测试
 npm run build     # 类型检查并构建
 npm run preview   # 预览构建结果
 ```
+
+`npm run dev` 不会连接远程数据库；远程模式只代理已部署的 Pages API。Wrangler 仅在需要执行远程迁移或 Cloudflare 部署命令时使用，不是远程网站启动的必需依赖。
 
 技术栈：Vue 3、TypeScript、Vite、File System Access API、IndexedDB。
 
