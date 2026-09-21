@@ -685,7 +685,7 @@
 }
 
 .outfit-card-parse:hover:not(:disabled) {
-  border-color: var(--pink-deep);
+  border-color: rgba(255, 255, 255, 0.72);
   background: color-mix(in srgb, var(--pink-deep) 80%, rgba(25, 22, 22, 0.48));
   color: #fff;
 }
@@ -765,7 +765,7 @@
 .outfit-editor-panel > header h2 {
   margin: 0;
   color: var(--heading);
-  font-size: 17px;
+  font-size: 20px;
 }
 
 .outfit-editor-content {
@@ -1052,7 +1052,7 @@
 
 /* 搭配码解析窗口：复用编辑窗口的遮罩与面板骨架，仅定制内容区 */
 .outfit-parse-panel {
-  width: min(680px, 100%);
+  width: min(820px, 100%);
 }
 
 .outfit-parse-content {
@@ -1084,7 +1084,7 @@
   justify-content: center;
   gap: 12px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 16px;
   text-align: center;
 }
 
@@ -1137,7 +1137,7 @@
 
 .outfit-parse-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 12px 10px;
 }
 
@@ -1238,7 +1238,7 @@
 
 @media (max-width: 540px) {
   .outfit-parse-grid {
-    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   }
 }
 

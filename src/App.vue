@@ -215,9 +215,9 @@ function invalidatePendingRefreshes() {
 // 派生视图状态
 const locale = computed(() => messages[language.value])
 const photoParamsMessages = computed(() => language.value === 'zh' ? {
-  title: '照片参数', close: '关闭', cancel: '取消', copy: '复制参数', copied: '已复制', retry: '重试', progress: (value: number) => `${value}%`, noValue: '无', capture: '环境', camera: '相机', image: '画面', action: '动作', light: '灯光', filter: '滤镜', raw: '相机参数', uidPrompt: '请输入拍摄此照片所用账号的 UID', uidPlaceholder: '填写账号 UID', uidParse: '解析'
+  title: '照片参数', close: '关闭', cancel: '取消', copy: '复制参数', copied: '已复制', progress: (value: number) => `${value}%`, noValue: '无', capture: '环境', camera: '相机', image: '画面', action: '动作', light: '灯光', filter: '滤镜', raw: '相机参数', uidPrompt: '请输入拍摄此照片所用账号的 UID', uidPlaceholder: '填写账号 UID', uidParse: '解析'
 } : {
-  title: 'Photo parameters', close: 'Close', cancel: 'Cancel', copy: 'Copy parameters', copied: 'Copied', retry: 'Retry', progress: (value: number) => `${value}%`, noValue: 'None', capture: 'Environment', camera: 'Camera', image: 'Image', action: 'Action', light: 'Light', filter: 'Filter', raw: 'Camera parameters', uidPrompt: 'Enter the UID used to take this photo', uidPlaceholder: 'Enter account UID', uidParse: 'Parse'
+  title: 'Photo parameters', close: 'Close', cancel: 'Cancel', copy: 'Copy parameters', copied: 'Copied', progress: (value: number) => `${value}%`, noValue: 'None', capture: 'Environment', camera: 'Camera', image: 'Image', action: 'Action', light: 'Light', filter: 'Filter', raw: 'Camera parameters', uidPrompt: 'Enter the UID used to take this photo', uidPlaceholder: 'Enter account UID', uidParse: 'Parse'
 })
 const {
   statusState,
@@ -994,7 +994,7 @@ function presentCameraParams(camera: Record<string, unknown>, rawCameraParams: s
   if (momo) resources.push({ title: language.value === 'zh' ? '大喵动作' : 'Momo pose', name: momo.enabled ? (language.value === 'zh' ? '显示大喵' : 'Momo visible') : resourceName('momo', momo.poseId ?? 0, language.value), value: momo.poseId == null ? undefined : String(momo.poseId), imageUrl: momo.poseId == null ? undefined : resourceImage('momo', momo.poseId) })
   photoParamsResult.value = {
     environmentFields: captureTime || photo?.weatherType != null ? [
-      ...(captureTime ? [{ label: language.value === 'zh' ? '拍摄时间' : 'Capture time', value: `${pad(captureTime.hour)}:${pad(captureTime.minute)}:${pad(captureTime.second)}` }] : []),
+      ...(captureTime ? [{ label: language.value === 'zh' ? '游戏时间' : 'Game time', value: `${pad(captureTime.hour)}:${pad(captureTime.minute)}:${pad(captureTime.second)}` }] : []),
       ...(photo?.weatherType != null ? [{ label: language.value === 'zh' ? '天气' : 'Weather', value: weatherName(photo.weatherType, language.value) }] : [])
     ] : [],
     cameraFields: [
@@ -1071,10 +1071,7 @@ async function openPhotoParams(photo: PhotoItem) {
       const uidError = errors.length === 0 || errors.every((code) => code === 'photo_structure_invalid')
       photoParamsUidRequired.value = uidError
       const errorDetails = errors.length ? errors.map((code) => describePhotoParamsError(code)).join('；') : describePhotoParamsError('photo_structure_invalid')
-      const retryHint = uidError
-        ? (language.value === 'zh' ? '。请输入拍摄此照片所用账号的 UID 后重试。' : '. Enter the UID used to take this photo and try again.')
-        : ''
-      throw new Error(`${errorDetails}${retryHint}`)
+      throw new Error(errorDetails)
     }
     photoParamsStage('parsingCamera', 90, '正在整理相机参数…', 'Preparing camera parameters...')
     presentCameraParams(decoded.value.camera, decoded.value.rawCameraParams, decoded.value.photo)
@@ -1123,7 +1120,6 @@ async function parseHeaderCameraParams() {
   await parseRawCameraParams(raw)
 }
 function closePhotoParams() { photoParamsRun += 1; isPhotoParamsVisible.value = false; photoParamsPhoto.value = null; photoParamsResult.value = null; photoParamsError.value = null; photoParamsUidRequired.value = false; photoParamsProgress.value = { stage: 'idle', percent: 0, message: '' } }
-function retryPhotoParams() { if (photoParamsPhoto.value) void openPhotoParams(photoParamsPhoto.value) }
 async function copyRawCameraParams() {
   const raw = photoParamsResult.value?.rawCameraParams
   if (!raw) return
@@ -2011,7 +2007,6 @@ onBeforeUnmount(() => {
       :messages="photoParamsMessages"
       @close="closePhotoParams"
       @cancel="closePhotoParams"
-      @retry="retryPhotoParams"
       @copy="copyRawCameraParams"
       @submit-uid="submitPhotoParamsUid"
     />

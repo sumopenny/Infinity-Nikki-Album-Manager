@@ -28,19 +28,51 @@
 
 /* 照片参数窗口只展示解析结果和资源缩略图，不把照片作为背景或预览内容。 */
 .photo-params-dialog {
+  /* 强调色复用主题粉，按钮与小标题等装饰与搭配编辑窗口一致。 */
+  --dialog-accent: var(--pink-deep);
   /* 外壳尺寸、间距和滚动结构全部继承抽卡吉时窗口。 */
 }
 
 .photo-params-header {
   border-bottom: 1px solid var(--line-soft);
 }
-.photo-params-header-content { min-width: 0; }
-.photo-params-title-row { display: flex; align-items: baseline; gap: 16px; min-width: 0; }
-.photo-params-title-row h2 { flex: 0 0 auto; }
-.photo-params-header .confirm-dialog-kicker { display: flex; align-items: center; gap: 6px; }
-.photo-params-header .confirm-dialog-kicker { margin-bottom: 5px; }
-.photo-params-header .photo-params-file-name { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
-.photo-params-body { scrollbar-gutter: stable; }
+/* ===== Photo Params Header ===== */
+.photo-params-header-content {
+    min-width: 0;
+}
+
+.photo-params-title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    min-width: 0;
+}
+
+.photo-params-title-row h2 {
+    flex: 0 0 auto;
+}
+
+/* 合并重复的 .confirm-dialog-kicker 规则 */
+.photo-params-header .confirm-dialog-kicker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 5px;
+}
+
+.photo-params-header .photo-params-file-name {
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--muted);
+}
+
+/* ===== Photo Params Body ===== */
+.photo-params-body {
+    scrollbar-gutter: stable;
+}
 
 .photo-params-file-name,
 .photo-params-stage,
@@ -56,45 +88,284 @@
   gap: 18px;
   text-align: center;
 }
-.photo-params-error p { margin: 0; }
-.photo-params-error button { width: max-content; }
+/* ===== Photo Params Error ===== */
+.photo-params-error p {
+    margin: 0;
+}
 
-.photo-params-progress { margin-top: 20px; }
-.photo-params-progress-track { height: 8px; border-radius: 99px; background: var(--surface-soft); overflow: hidden; }
-.photo-params-progress-track span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width 0.2s ease; }
-.photo-params-progress strong { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
-.photo-params-content { display: grid; gap: 12px; margin-top: 0; }
-.photo-params-resource-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
-.photo-params-paste { display: grid; gap: 8px; margin-top: 18px; }
-.photo-params-paste label { color: var(--muted); font-size: 13px; font-weight: 700; }
-.photo-params-paste > div { display: flex; align-items: stretch; gap: 8px; }
-.photo-params-paste textarea { min-width: 0; flex: 1; resize: vertical; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); color: var(--text); }
-.photo-params-paste button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-.photo-params-uid-form { display: grid; gap: 8px; margin-top: 14px; }
-.photo-params-uid-form label { color: var(--muted); font-size: 13px; font-weight: 700; }
-.photo-params-uid-form > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 8px; }
-.photo-params-uid-form input { width: 100%; min-width: 0; height: 38px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--ui-radius); background: var(--surface); color: var(--text); outline: none; transition: border-color var(--motion-base) ease, box-shadow var(--motion-base) ease, background var(--motion-base) ease; }
+.photo-params-error button {
+    width: max-content;
+}
+
+/* ===== Photo Params Progress ===== */
+.photo-params-progress {
+    margin-top: 20px;
+}
+
+.photo-params-progress-track {
+    height: 8px;
+    border-radius: 99px;
+    background: var(--surface-soft);
+    overflow: hidden;
+}
+
+.photo-params-progress-track span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
+    transition: width 0.2s ease;
+}
+
+.photo-params-progress strong {
+    display: block;
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+/* ===== Photo Params Content ===== */
+.photo-params-content {
+    display: grid;
+    gap: 12px;
+    margin-top: 0;
+}
+
+.photo-params-resource-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+}
+
+/* ===== Photo Params Paste ===== */
+.photo-params-paste {
+    display: grid;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.photo-params-paste label {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.photo-params-paste > div {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.photo-params-paste textarea {
+    min-width: 0;
+    flex: 1;
+    resize: vertical;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-soft);
+    color: var(--text);
+}
+
+.photo-params-paste button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+/* ===== Photo Params UID Form ===== */
+.photo-params-uid-form {
+    display: grid;
+    width: min(420px, 100%);
+    gap: 8px;
+}
+
+.photo-params-uid-form label {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.photo-params-uid-form > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    /* 输入框有固定高度，居中而非拉伸，与右侧较高的解析按钮垂直对齐 */
+    align-items: center;
+    gap: 8px;
+}
+
+.photo-params-uid-form input {
+    width: 100%;
+    min-width: 0;
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--ui-radius);
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition:
+        border-color var(--motion-base) ease,
+        box-shadow var(--motion-base) ease,
+        background var(--motion-base) ease;
+}
+
 .photo-params-uid-form input:focus,
-.photo-params-uid-form input:focus-visible { border-color: var(--pink-deep); background: var(--surface-strong); box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 14%, transparent); }
-.photo-params-uid-form button { display: inline-flex; width: auto; min-width: max-content; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
-.photo-params-section { padding-top: 16px; border-top: 1px solid var(--line); padding-bottom: 14px; }
-.photo-params-content > .photo-params-section:first-child { padding-top: 0; border-top: 0; }
-.photo-params-section h3 { margin: 0 0 12px; font-size: 14px; }
-.photo-params-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.photo-params-value { display: grid; grid-template-columns: minmax(78px, auto) minmax(100px, 1fr) minmax(54px, auto); align-items: center; gap: 12px; min-height: 44px; padding: 10px 12px; border-radius: 8px; background: var(--surface-soft); }
-.photo-params-value span { color: var(--muted); }
-.photo-params-value strong { text-align: right; }
-.photo-params-value--static { grid-template-columns: minmax(78px, auto) minmax(54px, 1fr); }
-.photo-params-slider { position: relative; display: block; height: 16px; }
-.photo-params-slider::before { position: absolute; top: 50%; right: 0; left: 0; height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--muted) 36%, transparent); content: ''; transform: translateY(-50%); }
-.photo-params-slider i { position: absolute; top: 50%; left: clamp(8px, calc(8px + (100% - 16px) * var(--photo-params-slider-ratio, 0.5)), calc(100% - 8px)); width: 16px; height: 16px; border: 2px solid var(--surface); border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--pink-deep) 42%, transparent), 0 2px 6px color-mix(in srgb, var(--pink-deep) 52%, transparent); transform: translate(-50%, -50%); }
-.photo-params-resource-row { display: flex; align-items: center; gap: 12px; min-height: 96px; }
-.photo-params-resource-row img { width: 96px; height: 96px; border-radius: 8px; object-fit: cover; }
-.photo-params-resource-image-placeholder { display: grid; width: 96px; height: 96px; flex: 0 0 96px; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); color: var(--muted); }
-.photo-params-resource-placeholder { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.photo-params-raw code { display: block; max-height: 100px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--surface-soft); color: var(--muted); font-size: 11px; word-break: break-all; }
-.photo-params-raw button { margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; }
+.photo-params-uid-form input:focus-visible {
+    border-color: var(--pink-deep);
+    background: var(--surface-strong);
+    box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 14%, transparent);
+}
 
+.photo-params-uid-form button {
+    display: inline-flex;
+    width: auto;
+    min-width: max-content;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+/* ===== Photo Params Section ===== */
+.photo-params-section {
+    padding-top: 16px;
+    padding-bottom: 14px;
+    border-top: 1px solid var(--line);
+}
+
+.photo-params-content > .photo-params-section:first-child {
+    padding-top: 0;
+    border-top: 0;
+}
+
+.photo-params-section h3 {
+    margin: 0 0 12px;
+    font-size: 14px;
+}
+
+.photo-params-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+/* ===== Photo Params Value ===== */
+.photo-params-value {
+    display: grid;
+    grid-template-columns: minmax(78px, auto) minmax(100px, 1fr) minmax(54px, auto);
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    padding: 10px 12px;
+    border-radius: 16px;
+    background: var(--surface-soft);
+}
+
+.photo-params-value span {
+    color: var(--muted);
+}
+
+.photo-params-value strong {
+    text-align: right;
+}
+
+.photo-params-value--static {
+    grid-template-columns: minmax(78px, auto) minmax(54px, 1fr);
+}
+
+/* ===== Photo Params Slider ===== */
+.photo-params-slider {
+    position: relative;
+    display: block;
+    height: 16px;
+}
+
+.photo-params-slider::before {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    left: 0;
+    height: 8px;
+    border-radius: 99px;
+    background: color-mix(in srgb, var(--muted) 36%, transparent);
+    content: '';
+    transform: translateY(-50%);
+}
+
+.photo-params-slider i {
+    position: absolute;
+    top: 50%;
+    left: clamp(
+        8px,
+        calc(8px + (100% - 16px) * var(--photo-params-slider-ratio, 0.5)),
+        calc(100% - 8px)
+    );
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--surface);
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--pink-deep) 42%, transparent),
+        0 2px 6px color-mix(in srgb, var(--pink-deep) 52%, transparent);
+    transform: translate(-50%, -50%);
+}
+
+/* ===== Photo Params Resource ===== */
+.photo-params-resource-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 96px;
+}
+
+.photo-params-resource-row img {
+    width: 96px;
+    height: 96px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    object-fit: cover;
+}
+
+.photo-params-resource-image-placeholder {
+    display: grid;
+    width: 96px;
+    height: 96px;
+    flex: 0 0 96px;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface-soft);
+    color: var(--muted);
+}
+
+.photo-params-resource-placeholder {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* ===== Photo Params Raw ===== */
+.photo-params-raw code {
+    display: block;
+    max-height: 100px;
+    overflow: auto;
+    padding: 10px;
+    border-radius: 16px;
+    background: var(--surface-soft);
+    color: var(--muted);
+    font-size: 14px;
+    word-break: break-all;
+}
+
+.photo-params-raw button {
+    display: inline-flex;
+    margin-top: 10px;
+    align-items: center;
+    gap: 6px;
+}
 @media (max-width: 640px) {
   .photo-params-grid { grid-template-columns: 1fr; }
   .photo-params-resource-grid { grid-template-columns: 1fr; }
@@ -425,14 +696,18 @@
 }
 
 .confirm-dialog-button.primary {
-  border: 0;
-  background: linear-gradient(135deg, var(--dialog-accent), color-mix(in srgb, var(--dialog-accent) 72%, var(--heading)));
-  color: #fff;
-  box-shadow: 0 12px 26px color-mix(in srgb, var(--dialog-accent) 32%, transparent);
+    --accent: var(--dialog-accent, var(--notice-info));
+    border: 0;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--dialog-accent, var(--notice-info)) 88%, #fff),
+        var(--dialog-accent, var(--notice-info))
+    );
+    color: #fff;
+    box-shadow: 0 12px 26px color-mix(in srgb, var(--dialog-accent, var(--notice-info)) 32%, transparent);
 }
-
 .confirm-dialog-button.primary:hover {
-  box-shadow: 0 16px 32px color-mix(in srgb, var(--dialog-accent) 42%, transparent);
+  box-shadow: 0 16px 32px color-mix(in srgb, var(--dialog-accent, var(--notice-info)) 42%, transparent);
 }
 
 .confirm-dialog-enter-active,

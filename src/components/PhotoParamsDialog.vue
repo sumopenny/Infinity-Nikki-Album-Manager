@@ -17,7 +17,6 @@ const props = defineProps<{
     cancel: string
     copy: string
     copied: string
-    retry: string
     progress: (value: number) => string
     noValue: string
     capture: string
@@ -33,7 +32,7 @@ const props = defineProps<{
   }
 }>()
 
-const emit = defineEmits<{ close: []; cancel: []; retry: []; copy: []; submitUid: [uid: string] }>()
+const emit = defineEmits<{ close: []; cancel: []; copy: []; submitUid: [uid: string] }>()
 const percent = computed(() => Math.max(0, Math.min(100, Math.round(props.progress.percent))))
 const uidInput = ref('')
 const failedImages = ref<Set<string>>(new Set())
@@ -64,16 +63,16 @@ function markImageFailed(title: string, name: string) { failedImages.value = new
           </div>
 
           <p v-if="progress.stage !== 'ready' && !error" class="photo-params-stage">{{ progress.message }}</p>
-          <form v-if="!result && error && uidRequired" class="photo-params-uid-form" @submit.prevent="uidInput.trim() && emit('submitUid', uidInput.trim())">
+          <div v-if="error" class="photo-params-error">
+          <p>{{ error }}</p>
+          <!-- uid 表单收进报错模块内部，跟随整体垂直居中，避免与报错区堆叠导致窗口出现滚动条。 -->
+          <form v-if="!result && uidRequired" class="photo-params-uid-form" @submit.prevent="uidInput.trim() && emit('submitUid', uidInput.trim())">
             <label for="photo-params-uid-input">{{ messages.uidPrompt }}</label>
             <div>
               <input id="photo-params-uid-input" v-model="uidInput" :placeholder="messages.uidPlaceholder" autocomplete="off" />
               <button type="submit" class="confirm-dialog-button primary" :disabled="!uidInput.trim()"><ScanSearch :size="15" />{{ messages.uidParse }}</button>
             </div>
           </form>
-          <div v-if="error" class="photo-params-error">
-          <p>{{ error }}</p>
-          <button type="button" class="confirm-dialog-button ghost" @click="emit('retry')">{{ messages.retry }}</button>
           </div>
 
           <div v-if="result" class="photo-params-content">
