@@ -56,6 +56,9 @@ export const topBarZh: LocaleMessages['topBar'] = {
       exportAllPhotos: '导出全部图片',
       importingPhotos: '导入中...',
       exportingPhotos: '导出中...'
+      ,photoParams: '解析参数串',
+      cameraParamsPlaceholder: '填写相机参数',
+      cameraParamsParse: '解析相机参数'
     }
 export const topBarEn: LocaleMessages['topBar'] = {
       title: 'Infinity Nikki Album Manager',
@@ -112,5 +115,8 @@ export const topBarEn: LocaleMessages['topBar'] = {
       exportAllPhotos: 'Export all photos',
       importingPhotos: 'Importing...',
       exportingPhotos: 'Exporting...'
+      ,photoParams: 'Parse parameter string',
+      cameraParamsPlaceholder: 'Enter camera parameters',
+      cameraParamsParse: 'Parse camera parameters'
     }
 

@@ -123,6 +123,9 @@ export interface LocaleMessages {
     exportAllPhotos: string
     importingPhotos: string
     exportingPhotos: string
+    photoParams: string
+    cameraParamsPlaceholder: string
+    cameraParamsParse: string
   }
   fortuneTime: {
     title: string
@@ -238,6 +241,7 @@ export interface LocaleMessages {
     noteCancel: string
     noteClose: string
     photoCount: (count: number) => string
+    parsePhoto: string
   }
   lightbox: {
     previousAria: string
@@ -253,6 +257,7 @@ export interface LocaleMessages {
     resetZoom: string
     editNote: string
     noteLabel: string
+    parsePhoto: string
   }
   trash: {
     emptyTitle: string

@@ -15,6 +15,7 @@ export const lightboxZh: LocaleMessages['lightbox'] = {
       ,resetZoom: '恢复 100% 缩放'
       ,editNote: '编辑备注'
       ,noteLabel: '备注'
+      ,parsePhoto: '解析照片参数'
     }
 export const lightboxEn: LocaleMessages['lightbox'] = {
       previousAria: 'View previous photo',
@@ -30,5 +31,6 @@ export const lightboxEn: LocaleMessages['lightbox'] = {
       ,resetZoom: 'Reset zoom to 100%'
       ,editNote: 'Edit note'
       ,noteLabel: 'Note'
+      ,parsePhoto: 'Parse photo parameters'
     }
 

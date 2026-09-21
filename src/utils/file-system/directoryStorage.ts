@@ -4,6 +4,7 @@ const DB_VERSION = 1
 const STORE_NAME = 'album-handles'
 const SAVED_DIRECTORY_KEY = 'current-album-directory'
 const SAVED_X6GAME_DIRECTORY_KEY = 'current-x6game-directory'
+const SAVED_CAMERA_PARAM_UIDS_KEY = 'current-camera-param-uids'
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -50,4 +51,23 @@ export async function getSavedX6GameDirectoryHandle(): Promise<FileSystemDirecto
 
 export async function clearSavedX6GameDirectoryHandle(): Promise<void> {
   await transaction('readwrite', (store) => store.delete(SAVED_X6GAME_DIRECTORY_KEY))
+}
+
+export async function getSavedCameraParamUids(): Promise<string[]> {
+  try {
+    const value = await transaction('readonly', (store) => store.get(SAVED_CAMERA_PARAM_UIDS_KEY))
+    return Array.isArray(value) ? value.filter((uid): uid is string => typeof uid === 'string' && uid.trim().length > 0) : []
+  } catch { return [] }
+}
+
+export async function addSavedCameraParamUid(uid: string): Promise<void> {
+  const normalized = uid.trim()
+  if (!normalized) return
+  const current = await getSavedCameraParamUids()
+  if (current.includes(normalized)) return
+  await transaction('readwrite', (store) => store.put([...current, normalized], SAVED_CAMERA_PARAM_UIDS_KEY))
+}
+
+export async function clearSavedCameraParamUids(): Promise<void> {
+  await transaction('readwrite', (store) => store.delete(SAVED_CAMERA_PARAM_UIDS_KEY))
 }

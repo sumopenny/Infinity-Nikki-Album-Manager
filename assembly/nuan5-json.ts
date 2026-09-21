@@ -1,0 +1,17 @@
+/** 暖暖 JSON 语法校验器：支持标准 JSON 以及 `[:key:value]` IdMap 扩展。 */
+export class Nuan5JsonValidator {
+  private pos:i32=0
+  private items:i32=0
+  constructor(private text:string){}
+  validate():bool{this.skip();if(!this.value(0))return false;this.skip();return this.pos==this.text.length}
+  private skip():void{while(this.pos<this.text.length&&this.text.charCodeAt(this.pos)<=32)this.pos++}
+  private take(c:string):bool{this.skip();if(this.pos>=this.text.length||this.text.charAt(this.pos)!=c)return false;this.pos++;return true}
+  private value(depth:i32):bool{if(depth>64)return false;this.skip();if(this.pos>=this.text.length)return false;const c=this.text.charAt(this.pos);if(c=='{')return this.object(depth+1);if(c=='[')return this.pos+1<this.text.length&&this.text.charAt(this.pos+1)==':'?this.idMap(depth+1):this.array(depth+1);if(c=='"')return this.string();if(this.literal('true')||this.literal('false')||this.literal('null'))return true;return this.number()}
+  private literal(v:string):bool{if(this.text.substr(this.pos,v.length)==v){this.pos+=v.length;return true}return false}
+  private string():bool{if(!this.take('"'))return false;while(this.pos<this.text.length){const code=this.text.charCodeAt(this.pos++);if(code==34)return true;if(code<32)return false;if(code==92){if(this.pos>=this.text.length)return false;const e=this.text.charAt(this.pos++);if('"\\/bfnrt'.indexOf(e)>=0)continue;if(e!='u'||this.pos+4>this.text.length)return false;for(let i=0;i<4;i++){const h=this.text.charCodeAt(this.pos++);if(!((h>=48&&h<=57)||(h>=65&&h<=70)||(h>=97&&h<=102)))return false}}}return false}
+  private number():bool{const start=this.pos;if(this.pos<this.text.length&&this.text.charAt(this.pos)=='-')this.pos++;if(this.pos>=this.text.length)return false;if(this.text.charAt(this.pos)=='0')this.pos++;else{if(this.text.charCodeAt(this.pos)<49||this.text.charCodeAt(this.pos)>57)return false;while(this.pos<this.text.length&&this.text.charCodeAt(this.pos)>=48&&this.text.charCodeAt(this.pos)<=57)this.pos++}if(this.pos<this.text.length&&this.text.charAt(this.pos)=='.'){this.pos++;const s=this.pos;while(this.pos<this.text.length&&this.text.charCodeAt(this.pos)>=48&&this.text.charCodeAt(this.pos)<=57)this.pos++;if(s==this.pos)return false}if(this.pos<this.text.length&&(this.text.charAt(this.pos)=='e'||this.text.charAt(this.pos)=='E')){this.pos++;if(this.pos<this.text.length&&(this.text.charAt(this.pos)=='+'||this.text.charAt(this.pos)=='-'))this.pos++;const s=this.pos;while(this.pos<this.text.length&&this.text.charCodeAt(this.pos)>=48&&this.text.charCodeAt(this.pos)<=57)this.pos++;if(s==this.pos)return false}return this.pos>start}
+  private count():bool{this.items++;return this.items<=100000}
+  private object(depth:i32):bool{if(!this.take('{'))return false;this.skip();if(this.take('}'))return true;while(this.count()){if(!this.string()||!this.take(':')||!this.value(depth))return false;this.skip();if(this.take('}'))return true;if(!this.take(','))return false}return false}
+  private array(depth:i32):bool{if(!this.take('['))return false;this.skip();if(this.take(']'))return true;while(this.count()){if(!this.value(depth))return false;this.skip();if(this.take(']'))return true;if(!this.take(','))return false}return false}
+  private idMap(depth:i32):bool{if(!this.take('[')||!this.take(':'))return false;this.skip();if(this.take(']'))return true;while(this.count()){if(!this.value(depth)||!this.take(':')||!this.value(depth))return false;this.skip();if(this.take(']'))return true;if(!this.take(','))return false}return false}
+}

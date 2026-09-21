@@ -16,6 +16,7 @@ import {
   MoreHorizontal,
   RefreshCw,
   RotateCcw,
+  ScanSearch,
   Sun,
   Trash2,
   X
@@ -60,6 +61,7 @@ const emit = defineEmits<{
   toggleTheme: []
   changeThumbnailMode: [mode: ThumbnailMode]
   openAbout: []
+  openPhotoParams: []
   updateSearch: [value: string]
 }>()
 
@@ -204,6 +206,10 @@ onBeforeUnmount(() => {
           <button type="button" role="menuitem" :disabled="!hasAlbumDirectory || isBusy" @click="runMenuAction(() => emit('authorizeX6Game'))">
             <FolderOpen :size="16" />
             <span>{{ hasX6GameAuthorization ? messages.reauthorizeX6Game : messages.authorizeX6Game }}</span>
+          </button>
+          <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('openPhotoParams'))">
+            <ScanSearch :size="16" />
+            <span>{{ messages.photoParams }}</span>
           </button>
           </div>
         </Teleport>

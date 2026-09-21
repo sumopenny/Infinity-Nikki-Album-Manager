@@ -44,6 +44,7 @@
 - Choose 1:1, Half 1:1, 16:9, 4:3, 9:16, or 3:4 thumbnail ratios.
 - Store outfit images, outfit codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export.
 - Add notes of up to 15 characters to photos and outfit plans, then search the current view by file name, note, or outfit code.
+- Parse CameraParams from photo thumbnails, the full-size viewer, or the input bar in the upper-right of the album view. Full-photo parsing tries all account-directory UIDs under the authorized X6Game folder, then accepts and persists a manually entered UID when needed. The current album folder does not need to be under X6Game. Full-photo results now include capture time and weather when those PhotoInfo fields are present; known weather enum values are shown as Sunny, Rainy, Rainbow, or Sea of Stars. Values are formatted per field like the upstream nikki_albums project: ratios use percentages and continuous values keep one decimal place, slider positions use each upstream field range (unit values 0–1, signed values −1–1, aperture 1–15, raw focal length 0–1/full-photo focal length 10–55mm), and the thumb stays inside the track endpoints. Raw values and re-encoding precision remain unchanged. Light, filter, Momo-pose, and normal-pose resource thumbnails render at 96×96 (the source images are typically 128×128). Light, filter, and Momo-pose names and thumbnails use a resource catalog exported from the `nikki_albums` hot-update database. Normal pose names and thumbnails use the NikkiGallery pose catalog synchronized at build time. Unknown resources keep their raw IDs and show a placeholder.
 - Use the Special Cleanup window to clean low-quality photos and game screenshots, crash snapshots, runtime logs, and the game's built-in browser cache.
 - Open Lucky pull times in the top-right corner to view the entertainment-only Version 2.9 timing table; actual drop rates still follow the game's probabilities.
 
@@ -149,6 +150,7 @@ Browsers block web pages from accessing system folders. Please select `NikkiPhot
 ## Privacy and Safety
 
 - Photos are read locally in your browser.
+- Photo-tail extraction, account-key derivation, AES decryption, and CameraParams parsing run locally inside WASM; photos and parsed results are not uploaded.
 - Album folder authorization and Favorites are stored locally in the current browser; Clear cache in More only clears the `X6Game` authorization and the Outfit Guide “don't show again” state while keeping the current album authorization. Clear data asks for confirmation twice, then clears all website local records and authorizations so the website returns to first-open state.
 - Browser security policies may require folder authorization again.
 - Delete and Special Cleanup modify real files on your computer; Clear cache and Clear data do not delete real photos, `clothe`, `trash`, or other files on your computer.
@@ -193,8 +195,21 @@ set REMOTE_API_ORIGIN=https://infinity-nikki-album-manager.pages.dev
 npm run dev:remote # Start locally and proxy /api to the online D1 API
 npm test          # Run automated tests
 npm run build     # Type-check and build
+npm run build:cloudflare # Refresh normal poses, then build
 npm run preview   # Preview the build result
 ```
+
+The generated photo resource catalog is included in the build. To refresh light, filter, and Momo-pose resources from `nikki_albums` together with the NikkiGallery normal-pose catalog, run:
+
+```bash
+npm run resources:update -- --manifest ../nikki_albums/app_api/hot_update.json
+```
+
+The command decrypts and converts `v1.db` and the language resources, then reads the NikkiGallery pose API during the update step. The deployed site only reads the generated static catalog and does not call the pose API or parse hot-update files at runtime.
+
+Set the Cloudflare Pages build command to `npm run build:cloudflare` and keep the output directory as `dist`. Each build first checks the NikkiGallery version endpoint. It downloads the full dataset only when the version changes or the local pose catalog is missing, and it updates only normal-pose fields. If the API times out, returns an error, or fails validation, the build keeps the catalog committed in the repository and continues. To roll back to a fully offline and reproducible build, change the Cloudflare build command back to `npm run build`.
+
+Optional environment variables: `NIKKIGALLERY_API_BASE` overrides the API root, and `NIKKIGALLERY_API_TIMEOUT_MS` adjusts the request timeout in milliseconds. Run `npm run resources:update:poses -- --strict` for a manual strict check where synchronization failures return a non-zero exit code.
 
 `npm run dev` does not connect to the remote database. Remote mode only proxies the deployed Pages API. Wrangler is needed only for remote migrations or Cloudflare deployment commands, not for starting the remote-backed local website.
 

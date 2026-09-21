@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, Copy, Edit3, Heart, Pencil, RotateCcw, Trash2, X, ZoomIn, ZoomOut } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Copy, Edit3, Heart, Pencil, RotateCcw, ScanSearch, Trash2, X, ZoomIn, ZoomOut } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
 import type { OutfitMessages } from '../i18n'
 import type { PhotoItem } from '../utils/photoGrouping'
@@ -38,6 +38,7 @@ const emit = defineEmits<{
   copyOutfit: []
   editOutfit: []
   editPhotoNote: []
+  parsePhoto: []
 }>()
 
 const displayedPhoto = ref<PhotoItem | null>(null)
@@ -282,6 +283,7 @@ onUnmounted(() => {
               <Edit3 :size="18" />
             </button>
           </template>
+          <button v-if="mode === 'album'" type="button" :title="messages.parsePhoto" :aria-label="messages.parsePhoto" @click="emit('parsePhoto')"><ScanSearch :size="18" /></button>
           <button v-if="mode === 'album'" type="button" :title="messages.editNote" :aria-label="messages.editNote" @click="emit('editPhotoNote')"><Pencil :size="18" /></button>
           <button
             v-if="mode === 'album'"

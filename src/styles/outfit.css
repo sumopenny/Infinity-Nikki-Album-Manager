@@ -1106,6 +1106,11 @@
   letter-spacing: 0;
 }
 
+.camera-params-parse-form {
+  min-width: 250px;
+  flex-basis: 330px;
+}
+
 .outfit-parse-retry svg {
   flex: 0 0 auto;
 }

@@ -21,6 +21,7 @@ export const gridZh: LocaleMessages['grid'] = {
       noteSave: '保存备注',
       noteCancel: '取消',
       noteClose: '关闭备注编辑',
+      parsePhoto: '解析照片参数',
       photoCount: (count) => `${count} 张照片`
     }
 export const gridEn: LocaleMessages['grid'] = {
@@ -43,6 +44,7 @@ export const gridEn: LocaleMessages['grid'] = {
       noteSave: 'Save note',
       noteCancel: 'Cancel',
       noteClose: 'Close note editor',
+      parsePhoto: 'Parse photo parameters',
       photoCount: (count) => `${count} photos`
     }
 

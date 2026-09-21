@@ -134,6 +134,35 @@
   transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease;
 }
 
+.photo-params-parse {
+  position: absolute;
+  z-index: 5;
+  top: 8px;
+  right: 77px;
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 9px;
+  background: rgba(25, 22, 22, 0.34);
+  color: #e8c76a;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.18s ease, background 0.18s ease;
+}
+
+.photo-card:hover .photo-params-parse,
+.photo-card:focus-visible .photo-params-parse,
+.photo-params-parse:focus-visible {
+  opacity: 1;
+}
+
+.photo-params-parse:hover {
+  background: rgba(25, 22, 22, 0.65);
+}
+
 .photo-card:hover .photo-note-edit,
 .photo-note-edit:focus-visible {
   opacity: 1;

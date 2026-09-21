@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount } from 'vue'
-import { Check, Edit3, Heart } from 'lucide-vue-next'
+import { Check, Edit3, Heart, ScanSearch } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
 import type { ThumbnailMode } from '../types/thumbnail'
 import type { DateGroup, PhotoItem } from '../utils/photoGrouping'
@@ -22,6 +22,7 @@ const emit = defineEmits<{
   toggleDate: [dateKey: string]
   openPreview: [photo: PhotoItem]
   editNote: [photo: PhotoItem]
+  parsePhoto: [photo: PhotoItem]
 }>()
 
 const photoLoadQueue = createPhotoLoadQueue(3)
@@ -88,6 +89,15 @@ onBeforeUnmount(() => photoLoadQueue.cancel())
               <span>{{ getPhotoMeta(photo) }}</span>
             </div>
             <span class="selected-badge"><Check :size="15" aria-hidden="true" /></span>
+            <button
+              class="photo-params-parse"
+              type="button"
+              :title="messages.parsePhoto"
+              :aria-label="messages.parsePhoto"
+              @click.stop="emit('parsePhoto', photo)"
+            >
+              <ScanSearch :size="16" aria-hidden="true" />
+            </button>
             <button
               class="favorite-heart"
               type="button"
