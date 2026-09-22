@@ -95,7 +95,6 @@ export interface LocaleMessages {
     parseTools: string
     cameraParamsTitle: string
     outfitCodeTitle: string
-    parseToolsNoAlbum: string
     parseToolsBusy: string
     currentAlbum: string
     view: string

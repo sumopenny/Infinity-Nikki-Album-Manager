@@ -8,7 +8,6 @@ const props = defineProps<{
   cameraParams: string
   outfitCode: string
   outfitMaxLength: number
-  hasAlbumDirectory: boolean
   busy: boolean
   messages: {
     title: string
@@ -19,7 +18,6 @@ const props = defineProps<{
     outfitPlaceholder: string
     cameraSubmit: string
     outfitSubmit: string
-    noAlbumHint: string
     busyHint: string
   }
 }>()
@@ -83,20 +81,19 @@ watch(() => props.visible, (visible) => {
             <button type="button" :title="messages.close" :aria-label="messages.close" @click="closeDialog"><X :size="19" aria-hidden="true" /></button>
           </header>
           <div class="parse-tools-body">
-            <p v-if="!hasAlbumDirectory" class="parse-tools-hint">{{ messages.noAlbumHint }}</p>
-            <p v-else-if="busy" class="parse-tools-hint">{{ messages.busyHint }}</p>
+            <p v-if="busy" class="parse-tools-hint">{{ messages.busyHint }}</p>
             <form class="parse-tools-section" @submit.prevent="emit('parse-camera', cameraParams.trim())">
               <h3>{{ messages.cameraTitle }}</h3>
               <div class="outfit-parse-form parse-tools-form-row">
-                <input :value="cameraParams" :placeholder="messages.cameraPlaceholder" :aria-label="messages.cameraPlaceholder" :disabled="!hasAlbumDirectory || busy" autocomplete="off" @input="emit('update:cameraParams', ($event.target as HTMLInputElement).value)" />
-                <button class="outfit-parse-submit" type="submit" :disabled="!hasAlbumDirectory || busy || !cameraParams.trim()"><ScanSearch :size="16" aria-hidden="true" />{{ messages.cameraSubmit }}</button>
+                <input :value="cameraParams" :placeholder="messages.cameraPlaceholder" :aria-label="messages.cameraPlaceholder" :disabled="busy" autocomplete="off" @input="emit('update:cameraParams', ($event.target as HTMLInputElement).value)" />
+                <button class="outfit-parse-submit" type="submit" :disabled="busy || !cameraParams.trim()"><ScanSearch :size="16" aria-hidden="true" />{{ messages.cameraSubmit }}</button>
               </div>
             </form>
             <form class="parse-tools-section" @submit.prevent="emit('parse-outfit', outfitCode.trim())">
               <h3>{{ messages.outfitTitle }}</h3>
               <div class="outfit-parse-form parse-tools-form-row">
-                <input :value="outfitCode" :maxlength="outfitMaxLength" :placeholder="messages.outfitPlaceholder" :aria-label="messages.outfitPlaceholder" :disabled="!hasAlbumDirectory || busy" autocomplete="off" @input="emit('update:outfitCode', ($event.target as HTMLInputElement).value)" />
-                <button class="outfit-parse-submit" type="submit" :disabled="!hasAlbumDirectory || busy || !outfitCode.trim()"><ScanSearch :size="16" aria-hidden="true" />{{ messages.outfitSubmit }}</button>
+                <input :value="outfitCode" :maxlength="outfitMaxLength" :placeholder="messages.outfitPlaceholder" :aria-label="messages.outfitPlaceholder" :disabled="busy" autocomplete="off" @input="emit('update:outfitCode', ($event.target as HTMLInputElement).value)" />
+                <button class="outfit-parse-submit" type="submit" :disabled="busy || !outfitCode.trim()"><ScanSearch :size="16" aria-hidden="true" />{{ messages.outfitSubmit }}</button>
               </div>
             </form>
           </div>

@@ -2037,7 +2037,6 @@ onBeforeUnmount(() => {
       :camera-params="cameraParamsInput"
       :outfit-code="parseCodeInput"
       :outfit-max-length="MAX_OUTFIT_CODE_LENGTH"
-      :has-album-directory="Boolean(albumDirectoryHandle)"
       :busy="isAnyFileOperationBusy"
       :messages="{
         title: locale.topBar.parseTools,
@@ -2048,7 +2047,6 @@ onBeforeUnmount(() => {
         outfitPlaceholder: outfitLocale.parseInputPlaceholder,
         cameraSubmit: locale.topBar.cameraParamsParse,
         outfitSubmit: outfitLocale.parse,
-        noAlbumHint: locale.topBar.parseToolsNoAlbum,
         busyHint: locale.topBar.parseToolsBusy
       }"
       @close="closeParseTools"
