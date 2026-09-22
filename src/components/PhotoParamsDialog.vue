@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { Copy, ScanSearch, X } from 'lucide-vue-next'
 import type { PhotoItem } from '../utils/photoGrouping'
 import type { PhotoParamsProgress, PhotoParamsResult } from '../utils/photo-params/types'
@@ -17,7 +17,6 @@ const props = defineProps<{
     cancel: string
     copy: string
     copied: string
-    progress: (value: number) => string
     noValue: string
     capture: string
     camera: string
@@ -33,7 +32,6 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ close: []; cancel: []; copy: []; submitUid: [uid: string] }>()
-const percent = computed(() => Math.max(0, Math.min(100, Math.round(props.progress.percent))))
 const uidInput = ref('')
 const failedImages = ref<Set<string>>(new Set())
 watch(() => props.visible, (visible) => { if (!visible) uidInput.value = ''; failedImages.value = new Set() })
@@ -56,13 +54,12 @@ function markImageFailed(title: string, name: string) { failedImages.value = new
           <button type="button" :aria-label="messages.close" :title="messages.close" @click="emit('close')"><X :size="19" aria-hidden="true" /></button>
         </header>
 
-        <div class="fortune-time-body photo-params-body">
-          <div v-if="progress.stage !== 'ready' && !error" class="photo-params-progress" role="progressbar" :aria-valuemin="0" :aria-valuemax="100" :aria-valuenow="percent">
-          <div class="photo-params-progress-track"><span :style="{ width: `${percent}%` }"></span></div>
-          <strong>{{ messages.progress(percent) }}</strong>
+        <div class="fortune-time-body photo-params-body" :class="{ 'is-loading': progress.stage !== 'ready' && !error }">
+          <div v-if="progress.stage !== 'ready' && !error" class="photo-params-loading" role="status" aria-live="polite">
+          <span class="photo-params-spinner" aria-hidden="true"></span>
+          <p>{{ progress.message }}</p>
           </div>
 
-          <p v-if="progress.stage !== 'ready' && !error" class="photo-params-stage">{{ progress.message }}</p>
           <div v-if="error" class="photo-params-error">
           <p>{{ error }}</p>
           <!-- uid 表单收进报错模块内部，跟随整体垂直居中，避免与报错区堆叠导致窗口出现滚动条。 -->

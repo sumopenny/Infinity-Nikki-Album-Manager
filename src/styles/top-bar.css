@@ -355,6 +355,26 @@
   padding-block: 4px;
 }
 
+.header-menu-chevron {
+  transform: rotate(0deg);
+  transition: transform 220ms var(--ease-spring);
+}
+
+.header-menu-chevron.is-open {
+  transform: rotate(-90deg);
+}
+
+.thumbnail-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 4px;
+}
+
+.thumbnail-options .menu-radio {
+  min-width: 0;
+  margin-block: 2px;
+}
+
 
 .menu-separator {
   height: 1px;

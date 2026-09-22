@@ -4,7 +4,7 @@ import type { LocaleMessages } from '../types'
 export const topBarZh: LocaleMessages['topBar'] = {
       title: '无限暖暖相册管理',
       starHint: '',
-      searchPlaceholder: '搜索当前视图',
+      searchPlaceholder: '搜索文件名/备注',
       clearSearch: '清除搜索',
       like: '点赞',
       likeTooltip: '为网站点个赞，可重复点击~',
@@ -23,6 +23,13 @@ export const topBarZh: LocaleMessages['topBar'] = {
       refreshing: '刷新中...',
       thumbnail: '缩略图',
       specialCleanup: '专项清理',
+      tools: '工具',
+      toolsMenuAria: '打开工具菜单',
+      parseTools: '参数/搭配码解析',
+      cameraParamsTitle: '相机参数',
+      outfitCodeTitle: '搭配码',
+      parseToolsNoAlbum: '选择相册后才能使用参数和搭配码解析。',
+      parseToolsBusy: '当前有操作正在进行，请稍后再试。',
       currentAlbum: '当前相册',
       view: '视图',
       more: '更多',
@@ -55,15 +62,14 @@ export const topBarZh: LocaleMessages['topBar'] = {
       importPhotos: '导入图片',
       exportAllPhotos: '导出全部图片',
       importingPhotos: '导入中...',
-      exportingPhotos: '导出中...'
-      ,photoParams: '解析参数串',
+      exportingPhotos: '导出中...',
       cameraParamsPlaceholder: '填写相机参数',
       cameraParamsParse: '解析相机参数'
     }
 export const topBarEn: LocaleMessages['topBar'] = {
       title: 'Infinity Nikki Album Manager',
       starHint: '',
-      searchPlaceholder: 'Search current view',
+      searchPlaceholder: 'Search filenames/notes',
       clearSearch: 'Clear search',
       like: 'Like',
       likeTooltip: 'Like this site — click as many times as you like~',
@@ -82,6 +88,13 @@ export const topBarEn: LocaleMessages['topBar'] = {
       refreshing: 'Refreshing...',
       thumbnail: 'Thumbnail',
       specialCleanup: 'Cleanup',
+      tools: 'Tools',
+      toolsMenuAria: 'Open tools menu',
+      parseTools: 'Parameter / outfit-code parser',
+      cameraParamsTitle: 'Camera parameters',
+      outfitCodeTitle: 'Outfit code',
+      parseToolsNoAlbum: 'Choose an album before using the parameter and outfit-code parsers.',
+      parseToolsBusy: 'An operation is in progress. Try again when it finishes.',
       currentAlbum: 'Current album',
       view: 'View',
       more: 'More',
@@ -114,8 +127,7 @@ export const topBarEn: LocaleMessages['topBar'] = {
       importPhotos: 'Import photos',
       exportAllPhotos: 'Export all photos',
       importingPhotos: 'Importing...',
-      exportingPhotos: 'Exporting...'
-      ,photoParams: 'Parse parameter string',
+      exportingPhotos: 'Exporting...',
       cameraParamsPlaceholder: 'Enter camera parameters',
       cameraParamsParse: 'Parse camera parameters'
     }

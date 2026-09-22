@@ -11,10 +11,10 @@ export const aboutZh: LocaleMessages['about'] = {
         '搭配码管理：管理星绘图册搭配方案，支持手动添加、批量导入，并自动同步游戏内新搭配码。',
         '专项清理：清理低画质照片、游戏截图、崩溃快照、运行日志和游戏内置网页缓存。'
       ],
-      changelogTitle: '当前版本【2026.9.20更新】',
+      changelogTitle: '当前版本【2026.9.22更新】',
       // 更新日志只保留当前版本，发布新版本时替换该条内容，当前版本会自动带上“当前版本”标识
       changelog: [
-        { version: 'v1.5', text: '新增搭配码解析功能：搭配码页面新增直接输入解析入口，搭配卡片右上角同步新增解析按钮；新增主页点赞功能。' }
+        { version: 'v1.6', text: '①新增照片参数解析功能，支持从照片缩略图右上角、大图预览工具栏或“工具”菜单解析，解析结果展示相机、环境、画面、动作、灯光、滤镜等参数，支持复制相机参数一键导入游戏。②新增“工具”菜单，集中专项清理、抽卡吉时、参数/搭配码解析统一解析窗口。③抽卡吉时更新为 2.10 内容。④手机访问网页虽然不能管理相册，但可从工具菜单里使用相机参数、搭配码解析功能' }
       ],
       historyLink: '更新记录',
       historyTitle: '历史版本记录',
@@ -22,6 +22,7 @@ export const aboutZh: LocaleMessages['about'] = {
       historyBackAria: '返回关于网站',
       // 历史记录页从上一正式版本开始展示，当前版本只保留在关于页顶部。
       history: [
+        { version: 'v1.5', text: '新增搭配码解析功能：搭配码页面新增直接输入解析入口，搭配卡片右上角同步新增解析按钮；新增主页点赞功能。' },
         { version: 'v1.4.1', text: '取消 X6Game 授权相册限制。近期更新：新增相册图片批量导入与导出功能；多选图片底栏支持导出选中图片。' },
         { version: 'v1.4', text: '新增相册图片批量导入与导出功能：相册视图标题区支持导出当前相册全部图片，多选图片底栏支持导出选中图片。导出时取消导出会保留已完成的目标文件和全部源照片；正常完成后，可选择将成功导出的源照片移入最近删除。' },
         { version: 'v1.3.3', text: '新增2.9版本抽卡吉时模块。提升了 ZIP 导入导出、图片处理、批量删除和恢复及专项清理的速度。' },
@@ -53,9 +54,9 @@ export const aboutEn: LocaleMessages['about'] = {
         'Outfit codes: manage Starry Gallery outfit plans with manual add, batch import, and auto sync of new in-game outfit codes.',
         'Targeted cleanup: clean low-quality photos, screenshots, crash snapshots, runtime logs, and web cache to free up disk space.'
       ],
-      changelogTitle: 'Current version【2026.9.20 update】',
+      changelogTitle: 'Current version【2026.9.22 update】',
       changelog: [
-        { version: 'v1.5', text: 'Added outfit code decoding: the Outfit Code page now provides a direct input and decode entry, and outfit cards now have a decode button in the upper-right corner. Added homepage likes.' }
+        { version: 'v1.6', text: 'Added photo parameter parsing: parse from the upper-right corner of photo thumbnails, the large preview toolbar, or the new "Tools" menu. Results show camera, environment, scene, pose, lighting, and filter parameters, and camera parameters can be copied for one-click import into the game. Added a "Tools" menu that centralizes targeted cleanup, lucky times, and parameter/outfit code decoding in one window. Lucky times updated to 2.10 content. Although mobile web access cannot manage albums, camera parameter and outfit code decoding are available from the Tools menu.' }
       ],
       historyLink: 'Release history',
       historyTitle: 'Release history',
@@ -63,6 +64,7 @@ export const aboutEn: LocaleMessages['about'] = {
       historyBackAria: 'Back to About',
       // The history page starts from the previous formal release; the current release stays on the About page.
       history: [
+        { version: 'v1.5', text: 'Added outfit code decoding: the Outfit Code page now provides a direct input and decode entry, and outfit cards now have a decode button in the upper-right corner. Added homepage likes.' },
         { version: 'v1.4.1', text: 'Removed the album restriction for X6Game authorization. Recent updates: added batch album image import and export; the multi-selection bar supports exporting selected photos.' },
         { version: 'v1.4', text: 'Added batch album image import and export: the album view header can export all photos in the current album, while the multi-selection bar can export selected photos. Cancelling an export keeps completed target files and all source photos; after a normal export, you can choose to move successfully exported source photos to Recently Deleted.' },
         { version: 'v1.3.3', text: 'Added the 2.9 version lucky times module. Improved the speed of ZIP import/export, image processing, batch deletion and recovery, and targeted cleanup.' },

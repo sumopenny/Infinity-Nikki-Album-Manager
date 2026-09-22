@@ -55,4 +55,14 @@ describe('PhotoParamsDialog', () => {
     expect(optional.find('.photo-params-error').text()).toContain('未找到有效UID账号')
     optional.unmount()
   })
+
+  it('uses a spinner and stage text while parsing without a percentage', () => {
+    const wrapper = mount(PhotoParamsDialog, { props: { visible: true, photo: null, uidRequired: false, progress: { stage: 'decryptingPhoto', percent: 70, message: '正在解密照片参数…' }, result: null, error: null, messages }, global: { stubs: { Teleport: true } } })
+    expect(wrapper.find('.photo-params-spinner').exists()).toBe(true)
+    expect(wrapper.find('.photo-params-loading').text()).toContain('正在解密照片参数…')
+    expect(wrapper.find('.photo-params-loading').text()).not.toContain('70%')
+    expect(wrapper.findAll('.photo-params-stage')).toHaveLength(0)
+    expect(wrapper.find('.photo-params-progress').exists()).toBe(false)
+    wrapper.unmount()
+  })
 })

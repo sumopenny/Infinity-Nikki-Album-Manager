@@ -11,6 +11,7 @@ import {
 import { listRecentlyDeleted } from '../src/utils/file-system/trashFileSystem'
 import { readOutfitLibrary, type OutfitItem } from '../src/utils/outfit/outfitFileSystem'
 import { importOutfitBackup } from '../src/utils/outfit/outfitBackup'
+import { decodeCameraParams } from '../src/utils/photo-params/wasmClient'
 
 vi.mock('../src/utils/file-system/albumFileSystem', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/utils/file-system/albumFileSystem')>()
@@ -37,12 +38,18 @@ vi.mock('../src/utils/outfit/outfitBackup', async (importOriginal) => {
   return { ...actual, importOutfitBackup: vi.fn() }
 })
 
+vi.mock('../src/utils/photo-params/wasmClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/utils/photo-params/wasmClient')>()
+  return { ...actual, decodeCameraParams: vi.fn() }
+})
+
 const getSavedAlbumDirectoryHandleMock = vi.mocked(getSavedAlbumDirectoryHandle)
 const listRecentlyDeletedMock = vi.mocked(listRecentlyDeleted)
 const readAlbumDirectoryMock = vi.mocked(readAlbumDirectory)
 const saveAlbumDirectoryHandleMock = vi.mocked(saveAlbumDirectoryHandle)
 const readOutfitLibraryMock = vi.mocked(readOutfitLibrary)
 const importOutfitBackupMock = vi.mocked(importOutfitBackup)
+const decodeCameraParamsMock = vi.mocked(decodeCameraParams)
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -148,6 +155,7 @@ describe('App lifecycle coordination', () => {
     const wrapper = mount(App, {
       global: {
         stubs: {
+          Teleport: true,
           OutfitParseDialog: {
             props: ['visible', 'code'],
             template: '<div v-if="visible" class="parse-dialog-stub">{{ code }}<button class="parse-dialog-close" @click="$emit(\'close\')">Close</button></div>'
@@ -157,22 +165,55 @@ describe('App lifecycle coordination', () => {
     })
     await flushPromises()
 
-    const outfitViewButton = wrapper.findAll('.album-view-button').find((button) => button.text().includes(messages.zh.outfit.viewName))
-    await outfitViewButton?.trigger('click')
-    await flushPromises()
-    const input = wrapper.get('.outfit-parse-form input')
-    const submit = wrapper.get('.outfit-parse-submit')
+    await wrapper.get('.tools-menu-button').trigger('click')
+    await wrapper.get('.header-dropdown').findAll('button')[2].trigger('click')
+    const input = wrapper.findAll('.parse-tools-section input')[1]
     expect(input.attributes('placeholder')).toBe('填入搭配码进行解析')
-    expect(submit.attributes('disabled')).toBeDefined()
 
     await input.setValue(' ABC 123 ')
-    expect(submit.attributes('disabled')).toBeUndefined()
-    await wrapper.get('.outfit-parse-form').trigger('submit')
+    await flushPromises()
+    await wrapper.findAll('.parse-tools-section')[1].trigger('submit')
 
     expect(wrapper.get('.parse-dialog-stub').text()).toContain('ABC123')
     await wrapper.get('.parse-dialog-close').trigger('click')
-    expect((input.element as HTMLInputElement).value).toBe('')
-    expect(submit.attributes('disabled')).toBeDefined()
+    expect(wrapper.find('.parse-tools-dialog').exists()).toBe(true)
+    expect((wrapper.findAll('.parse-tools-section input')[1].element as HTMLInputElement).value).toBe('')
+    wrapper.unmount()
+  })
+
+  it('returns to the shared parse dialog after closing camera parameter results', async () => {
+    const directoryHandle = { kind: 'directory', name: 'NikkiPhotos_HighQuality' } as FileSystemDirectoryHandle
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(directoryHandle)
+    readAlbumDirectoryMock.mockResolvedValue({ directoryName: directoryHandle.name, directoryHandle, photos: [] })
+    decodeCameraParamsMock.mockResolvedValue({ ok: true, value: {} } as Awaited<ReturnType<typeof decodeCameraParams>>)
+    const wrapper = mount(App, {
+      global: {
+        stubs: {
+          Teleport: true,
+          OutfitParseDialog: {
+            props: ['visible', 'code'],
+            template: '<div v-if="visible" class="parse-dialog-stub" />'
+          },
+          PhotoParamsDialog: {
+            props: ['visible'],
+            template: '<div v-if="visible" class="photo-params-stub"><button class="photo-params-close" @click="$emit(\'close\')">Close</button></div>'
+          }
+        }
+      }
+    })
+    await flushPromises()
+
+    await wrapper.get('.tools-menu-button').trigger('click')
+    await wrapper.get('.header-dropdown').findAll('button')[2].trigger('click')
+    const input = wrapper.findAll('.parse-tools-section input')[0]
+    await input.setValue('camera-raw')
+    await wrapper.findAll('.parse-tools-section')[0].trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.find('.photo-params-stub').exists()).toBe(true)
+    await wrapper.get('.photo-params-close').trigger('click')
+    expect(wrapper.find('.parse-tools-dialog').exists()).toBe(true)
+    expect((wrapper.findAll('.parse-tools-section input')[0].element as HTMLInputElement).value).toBe('')
     wrapper.unmount()
   })
 })

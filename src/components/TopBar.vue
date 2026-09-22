@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   BookHeart,
   Bug,
-  ChevronDown,
+  ChevronLeft,
   Eraser,
   FolderOpen,
   Github,
@@ -14,6 +14,7 @@ import {
   Music2,
   Moon,
   MoreHorizontal,
+  Wrench,
   RefreshCw,
   RotateCcw,
   ScanSearch,
@@ -21,7 +22,6 @@ import {
   Trash2,
   X
 } from 'lucide-vue-next'
-import FortuneTimeDialog from './FortuneTimeDialog.vue'
 import LikeCounter from './LikeCounter.vue'
 // 收款码图片，通过 Vite 打包以保证构建后路径正确
 import wxQrCode from '../../img/wx.jpg'
@@ -31,7 +31,7 @@ import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { ThumbnailMode } from '../types/thumbnail'
 import type { ThemeMode } from '../types/theme'
 
-type OpenMenu = 'album' | 'view' | 'more' | null
+type OpenMenu = 'album' | 'view' | 'tools' | 'more' | null
 
 const props = defineProps<{
   directoryName: string
@@ -45,7 +45,6 @@ const props = defineProps<{
   themeMode: ThemeMode
   language: Language
   messages: LocaleMessages['topBar']
-  fortuneMessages: LocaleMessages['fortuneTime']
   searchQuery?: string
 }>()
 
@@ -55,13 +54,14 @@ const emit = defineEmits<{
   refreshAlbum: []
   authorizeX6Game: []
   openCleanup: []
+  openFortuneTime: []
+  openParseTools: []
   clearCache: []
   clearData: []
   toggleLanguage: []
   toggleTheme: []
   changeThumbnailMode: [mode: ThumbnailMode]
   openAbout: []
-  openPhotoParams: []
   updateSearch: [value: string]
 }>()
 
@@ -72,7 +72,6 @@ const openMenu = ref<OpenMenu>(null)
 const showDonate = ref(false)
 const showFeedback = ref(false)
 useBodyScrollLock(computed(() => showDonate.value || showFeedback.value))
-const showFortuneTime = ref(false)
 // iframe 懒加载：首次打开弹窗时才设置 src，避免启动时请求第三方页面
 const feedbackLoaded = ref(false)
 const feedbackLoadFailed = ref(false)
@@ -180,6 +179,18 @@ onBeforeUnmount(() => {
         <button v-if="searchQuery" type="button" :title="messages.clearSearch" :aria-label="messages.clearSearch" @click="emit('updateSearch', '')"><X :size="15" /></button>
       </div>
 
+      <button
+        class="header-icon-button refresh-album-button"
+        type="button"
+        :title="messages.refreshAlbum"
+        :aria-label="messages.refreshAlbum"
+        :disabled="!hasAlbumDirectory || isBusy || isRefreshing"
+        @click="emit('refreshAlbum')"
+      >
+        <RefreshCw :size="17" :class="{ spinning: isRefreshing }" aria-hidden="true" />
+        <span>{{ messages.refreshAlbum }}</span>
+      </button>
+
       <div class="header-menu-wrap">
         <button
           class="header-menu-button album-name-button"
@@ -191,7 +202,7 @@ onBeforeUnmount(() => {
         >
           <FolderOpen :size="16" aria-hidden="true" />
           <span>{{ hasAlbumDirectory ? directoryName : messages.currentAlbum }}</span>
-          <ChevronDown :size="14" aria-hidden="true" />
+          <ChevronLeft class="header-menu-chevron" :class="{ 'is-open': openMenu === 'album' }" :size="14" aria-hidden="true" />
         </button>
         <Teleport to="body">
           <div v-if="openMenu === 'album'" ref="dropdownRef" class="header-dropdown" :style="{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }" role="menu">
@@ -206,10 +217,6 @@ onBeforeUnmount(() => {
           <button type="button" role="menuitem" :disabled="!hasAlbumDirectory || isBusy" @click="runMenuAction(() => emit('authorizeX6Game'))">
             <FolderOpen :size="16" />
             <span>{{ hasX6GameAuthorization ? messages.reauthorizeX6Game : messages.authorizeX6Game }}</span>
-          </button>
-          <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('openPhotoParams'))">
-            <ScanSearch :size="16" />
-            <span>{{ messages.photoParams }}</span>
           </button>
           </div>
         </Teleport>
@@ -226,7 +233,7 @@ onBeforeUnmount(() => {
         >
           <Grid2X2 :size="16" aria-hidden="true" />
           <span>{{ messages.view }}</span>
-          <ChevronDown :size="14" aria-hidden="true" />
+          <ChevronLeft class="header-menu-chevron" :class="{ 'is-open': openMenu === 'view' }" :size="14" aria-hidden="true" />
         </button>
         <Teleport to="body">
           <div v-if="openMenu === 'view'" ref="dropdownRef" class="header-dropdown view-dropdown" :style="{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }" role="menu">
@@ -236,19 +243,21 @@ onBeforeUnmount(() => {
             <span>{{ messages.themeButton(themeMode) }}</span>
           </button>
           <div class="menu-section-label">{{ messages.thumbnail }}</div>
-          <button
-            v-for="option in thumbnailModeOptions"
-            :key="option.value"
-            class="menu-radio"
-            :class="{ active: option.value === thumbnailMode }"
-            type="button"
-            role="menuitemradio"
-            :aria-checked="option.value === thumbnailMode"
-            @click="runMenuAction(() => emit('changeThumbnailMode', option.value))"
-          >
-            <span class="radio-mark"></span>
-            <span>{{ option.label }}</span>
-          </button>
+          <div class="thumbnail-options">
+            <button
+              v-for="option in thumbnailModeOptions"
+              :key="option.value"
+              class="menu-radio"
+              :class="{ active: option.value === thumbnailMode }"
+              type="button"
+              role="menuitemradio"
+              :aria-checked="option.value === thumbnailMode"
+              @click="runMenuAction(() => emit('changeThumbnailMode', option.value))"
+            >
+              <span class="radio-mark"></span>
+              <span>{{ option.label }}</span>
+            </button>
+          </div>
           <div class="menu-separator"></div>
           <button type="button" role="menuitem" @click="runMenuAction(() => emit('toggleLanguage'))">
             <Languages :size="16" />
@@ -258,33 +267,20 @@ onBeforeUnmount(() => {
         </Teleport>
       </div>
 
-      <button
-        class="header-icon-button refresh-album-button"
-        type="button"
-        :title="messages.refreshAlbum"
-        :aria-label="messages.refreshAlbum"
-        :disabled="!hasAlbumDirectory || isBusy || isRefreshing"
-        @click="emit('refreshAlbum')"
-      >
-        <RefreshCw :size="17" :class="{ spinning: isRefreshing }" aria-hidden="true" />
-        <span>{{ messages.refreshAlbum }}</span>
-      </button>
-
-      <button
-        class="header-icon-button cleanup-button"
-        type="button"
-        :title="messages.specialCleanup"
-        :aria-label="messages.specialCleanup"
-        @click="emit('openCleanup')"
-      >
-        <Eraser :size="17" aria-hidden="true" />
-        <span>{{ messages.specialCleanup }}</span>
-      </button>
-
-      <button class="header-icon-button fortune-time-trigger" type="button" :title="messages.fortuneTime" :aria-label="messages.fortuneTime" @click="closeMenus(); showFortuneTime = true">
-        <span aria-hidden="true">✦</span>
-        <span>{{ messages.fortuneTime }}</span>
-      </button>
+      <div class="header-menu-wrap">
+        <button class="header-icon-button tools-menu-button" type="button" :title="messages.tools" :aria-label="messages.toolsMenuAria" aria-haspopup="menu" :aria-expanded="openMenu === 'tools'" @click.stop="toggleMenu('tools', $event)">
+          <Wrench :size="17" aria-hidden="true" />
+          <span>{{ messages.tools }}</span>
+          <ChevronLeft class="header-menu-chevron" :class="{ 'is-open': openMenu === 'tools' }" :size="14" aria-hidden="true" />
+        </button>
+        <Teleport to="body">
+          <div v-if="openMenu === 'tools'" ref="dropdownRef" class="header-dropdown" :style="{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }" role="menu">
+            <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('openCleanup'))"><Eraser :size="16" /><span>{{ messages.specialCleanup }}</span></button>
+            <button type="button" role="menuitem" @click="runMenuAction(() => emit('openFortuneTime'))"><span class="menu-symbol" aria-hidden="true">✦</span><span>{{ messages.fortuneTime }}</span></button>
+            <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('openParseTools'))"><ScanSearch :size="16" /><span>{{ messages.parseTools }}</span></button>
+          </div>
+        </Teleport>
+      </div>
 
       <div class="header-menu-wrap">
         <button
@@ -298,6 +294,7 @@ onBeforeUnmount(() => {
         >
           <MoreHorizontal :size="19" aria-hidden="true" />
           <span>{{ messages.more }}</span>
+          <ChevronLeft class="header-menu-chevron" :class="{ 'is-open': openMenu === 'more' }" :size="14" aria-hidden="true" />
         </button>
         <Teleport to="body">
           <div v-if="openMenu === 'more'" ref="dropdownRef" class="header-dropdown header-dropdown-right" :style="{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }" role="menu">
@@ -402,5 +399,4 @@ onBeforeUnmount(() => {
     </Transition>
   </Teleport>
 
-  <FortuneTimeDialog :visible="showFortuneTime" :messages="fortuneMessages" @close="showFortuneTime = false" />
 </template>

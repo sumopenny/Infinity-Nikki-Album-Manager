@@ -90,6 +90,13 @@ export interface LocaleMessages {
     refreshing: string
     thumbnail: string
     specialCleanup: string
+    tools: string
+    toolsMenuAria: string
+    parseTools: string
+    cameraParamsTitle: string
+    outfitCodeTitle: string
+    parseToolsNoAlbum: string
+    parseToolsBusy: string
     currentAlbum: string
     view: string
     more: string
@@ -123,7 +130,6 @@ export interface LocaleMessages {
     exportAllPhotos: string
     importingPhotos: string
     exportingPhotos: string
-    photoParams: string
     cameraParamsPlaceholder: string
     cameraParamsParse: string
   }

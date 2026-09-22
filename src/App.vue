@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { CircleHelp, Download, FileUp, Plus, ScanSearch, Trash2 } from 'lucide-vue-next'
+import { CircleHelp, Download, FileUp, Plus, Trash2 } from 'lucide-vue-next'
 import AboutDialog from './components/AboutDialog.vue'
 import AlbumViewSwitcher, { type AlbumView } from './components/AlbumViewSwitcher.vue'
 import CleanupAccountPicker from './components/CleanupAccountPicker.vue'
@@ -14,6 +14,8 @@ import OutfitEditor from './components/OutfitEditor.vue'
 import OutfitGrid from './components/OutfitGrid.vue'
 import OutfitGuideDialog from './components/OutfitGuideDialog.vue'
 import OutfitParseDialog from './components/OutfitParseDialog.vue'
+import ParseToolsDialog from './components/ParseToolsDialog.vue'
+import FortuneTimeDialog from './components/FortuneTimeDialog.vue'
 import OutfitSidebar, { type OutfitFilter } from './components/OutfitSidebar.vue'
 import PhotoGrid from './components/PhotoGrid.vue'
 import RecentlyDeletedGrid from './components/RecentlyDeletedGrid.vue'
@@ -141,11 +143,14 @@ const activeOutfitFilter = ref<OutfitFilter>('all')
 const editingOutfit = ref<OutfitItem | null>(null)
 const isOutfitEditorVisible = ref(false)
 const parseCodeInput = ref('')
-const normalizedParseCodeInput = computed(() => normalizeOutfitCode(parseCodeInput.value))
 const cameraParamsInput = ref('')
 const normalizedCameraParamsInput = computed(() => cameraParamsInput.value.trim())
+const isParseToolsVisible = ref(false)
+const isFortuneTimeVisible = ref(false)
 const parsingOutfitCode = ref('')
 const isOutfitParseVisible = ref(false)
+const reopenParseToolsAfterOutfitClose = ref(false)
+const reopenParseToolsAfterPhotoClose = ref(false)
 const isOutfitGuideVisible = ref(false)
 const isOutfitGuideDismissed = ref(localStorage.getItem(OUTFIT_GUIDE_DISMISSED_KEY) === 'true')
 const isAboutDialogVisible = ref(false)
@@ -938,13 +943,28 @@ function openOutfitParse(target: OutfitItem | string) {
 }
 
 function closeOutfitParse() {
+  const shouldReopenParseTools = reopenParseToolsAfterOutfitClose.value
+  reopenParseToolsAfterOutfitClose.value = false
   isOutfitParseVisible.value = false
   parsingOutfitCode.value = ''
   parseCodeInput.value = ''
+  if (shouldReopenParseTools) isParseToolsVisible.value = true
 }
 
-function parseEnteredOutfitCode() {
-  openOutfitParse(normalizedParseCodeInput.value)
+function openParseTools() {
+  isParseToolsVisible.value = true
+}
+
+function closeParseTools() {
+  isParseToolsVisible.value = false
+}
+
+function parseToolsOutfitCode(code: string) {
+  const normalizedCode = normalizeOutfitCode(code)
+  if (!normalizedCode) return
+  reopenParseToolsAfterOutfitClose.value = true
+  closeParseTools()
+  openOutfitParse(normalizedCode)
 }
 
 async function editPhotoNote(photo: PhotoItem | null) {
@@ -984,12 +1004,18 @@ function presentCameraParams(camera: Record<string, unknown>, rawCameraParams: s
   const pad = (value: unknown) => String(Math.max(0, Math.floor(Number(value) || 0))).padStart(2, '0')
   const light = (photo?.light ?? camera.light) as { id?: string; strength?: number } | undefined
   const filter = (photo?.filter ?? camera.filter) as { id?: string; strength?: number } | undefined
+  const resourceId = (resource: { id?: string } | undefined) => {
+    const id = String(resource?.id ?? '').trim()
+    return id && id !== 'None' ? id : undefined
+  }
+  const lightId = resourceId(light)
+  const filterId = resourceId(filter)
   const momo = camera.momo as { enabled?: boolean; poseId?: number; horizontal?: number; distance?: number; height?: number; rotation?: number } | null
   const poseId = photo?.poseId as string | number | undefined
   const resources: PhotoParamsResult['resourceGroups'] = [
     { title: photoParamsMessages.value.action, name: poseId == null ? photoParamsMessages.value.noValue : resourceName('pose', poseId, language.value), imageUrl: poseId == null ? undefined : resourceImage('pose', poseId) },
-    { title: photoParamsMessages.value.light, name: resourceName('light', light?.id ?? 'None', language.value), value: light ? formatPercent(light.strength) : undefined, imageUrl: resourceImage('light', light?.id ?? 'None') },
-    { title: photoParamsMessages.value.filter, name: resourceName('filter', filter?.id ?? 'None', language.value), value: filter ? formatPercent(filter.strength) : undefined, imageUrl: resourceImage('filter', filter?.id ?? 'None') }
+    { title: photoParamsMessages.value.light, name: lightId ? resourceName('light', lightId, language.value) : photoParamsMessages.value.noValue, value: lightId ? formatPercent(light?.strength) : undefined, imageUrl: lightId ? resourceImage('light', lightId) : undefined },
+    { title: photoParamsMessages.value.filter, name: filterId ? resourceName('filter', filterId, language.value) : photoParamsMessages.value.noValue, value: filterId ? formatPercent(filter?.strength) : undefined, imageUrl: filterId ? resourceImage('filter', filterId) : undefined }
   ]
   if (momo) resources.push({ title: language.value === 'zh' ? '大喵动作' : 'Momo pose', name: momo.enabled ? (language.value === 'zh' ? '显示大喵' : 'Momo visible') : resourceName('momo', momo.poseId ?? 0, language.value), value: momo.poseId == null ? undefined : String(momo.poseId), imageUrl: momo.poseId == null ? undefined : resourceImage('momo', momo.poseId) })
   photoParamsResult.value = {
@@ -1038,6 +1064,7 @@ function describePhotoParamsError(code: string, languageCode: Language = languag
 
 /** 读取照片并调用 WASM；UID 只由已授权的 X6Game 路径推断，协议判断全部留在 WASM。 */
 async function openPhotoParams(photo: PhotoItem) {
+  reopenParseToolsAfterPhotoClose.value = false
   const run = ++photoParamsRun
   isPhotoParamsVisible.value = true
   photoParamsPhoto.value = photo
@@ -1112,14 +1139,27 @@ async function submitPhotoParamsUid(uid: string) {
 
 function openCameraParamsTool() { photoParamsRun += 1; isPhotoParamsVisible.value = true; photoParamsPhoto.value = null; photoParamsResult.value = null; photoParamsError.value = null; photoParamsUidRequired.value = false; photoParamsProgress.value = { stage: 'idle', percent: 0, message: '' } }
 async function parseRawCameraParams(raw: string) { const run = ++photoParamsRun; photoParamsResult.value = null; photoParamsError.value = null; photoParamsUidRequired.value = false; photoParamsStage('loadingWasm', 40, '正在加载本地解析模块…', 'Loading local parser...'); try { const decoded = await decodeCameraParams<Record<string, unknown>>(raw); if (run !== photoParamsRun) return; if (!decoded.ok || !decoded.value) throw new Error(describePhotoParamsError(decoded.errorCode ?? 'camera_decrypt_failed')); presentCameraParams(decoded.value, raw); photoParamsStage('ready', 100, '解析完成', 'Parsed') } catch (error) { if (run !== photoParamsRun) return; photoParamsError.value = error instanceof Error ? error.message : String(error); photoParamsStage('error', 100, '解析失败', 'Parsing failed') } }
-async function parseHeaderCameraParams() {
-  const raw = normalizedCameraParamsInput.value
+async function parseHeaderCameraParams(input?: string) {
+  const raw = (input ?? normalizedCameraParamsInput.value).trim()
   if (!raw) return
+  reopenParseToolsAfterPhotoClose.value = true
   cameraParamsInput.value = ''
+  closeParseTools()
   openCameraParamsTool()
   await parseRawCameraParams(raw)
 }
-function closePhotoParams() { photoParamsRun += 1; isPhotoParamsVisible.value = false; photoParamsPhoto.value = null; photoParamsResult.value = null; photoParamsError.value = null; photoParamsUidRequired.value = false; photoParamsProgress.value = { stage: 'idle', percent: 0, message: '' } }
+function closePhotoParams() {
+  const shouldReopenParseTools = reopenParseToolsAfterPhotoClose.value
+  reopenParseToolsAfterPhotoClose.value = false
+  photoParamsRun += 1
+  isPhotoParamsVisible.value = false
+  photoParamsPhoto.value = null
+  photoParamsResult.value = null
+  photoParamsError.value = null
+  photoParamsUidRequired.value = false
+  photoParamsProgress.value = { stage: 'idle', percent: 0, message: '' }
+  if (shouldReopenParseTools) isParseToolsVisible.value = true
+}
 async function copyRawCameraParams() {
   const raw = photoParamsResult.value?.rawCameraParams
   if (!raw) return
@@ -1791,20 +1831,20 @@ onBeforeUnmount(() => {
       :theme-mode="themeMode"
       :language="language"
       :messages="locale.topBar"
-      :fortune-messages="locale.fortuneTime"
       :search-query="searchQuery"
       @choose-directory="chooseDirectory"
       @clear-directory="clearDirectory"
       @refresh-album="refreshAlbum(true)"
       @authorize-x6-game="authorizeX6GameDirectory"
       @open-cleanup="openCleanupDialog"
+      @open-fortune-time="isFortuneTimeVisible = true"
+      @open-parse-tools="openParseTools"
       @clear-cache="clearCache"
       @clear-data="clearData"
       @change-thumbnail-mode="changeThumbnailMode"
       @toggle-language="toggleLanguage"
       @toggle-theme="toggleTheme"
       @open-about="openAboutDialog"
-      @open-photo-params="openCameraParamsTool"
       @update-search="searchQuery = $event"
     />
 
@@ -1872,19 +1912,6 @@ onBeforeUnmount(() => {
             </h2>
           </div>
           <div v-if="activeView === 'outfits'" class="outfit-header-actions">
-            <form class="outfit-parse-form" @submit.prevent="parseEnteredOutfitCode">
-              <input
-                v-model="parseCodeInput"
-                :maxlength="MAX_OUTFIT_CODE_LENGTH"
-                :placeholder="outfitLocale.parseInputPlaceholder"
-                :aria-label="outfitLocale.parseInputPlaceholder"
-                :disabled="isAnyFileOperationBusy"
-                autocomplete="off"
-              />
-              <button class="outfit-parse-submit" type="submit" :disabled="isAnyFileOperationBusy || !normalizedParseCodeInput">
-                <ScanSearch :size="16" aria-hidden="true" />{{ outfitLocale.parse }}
-              </button>
-            </form>
             <button type="button" :disabled="isAnyFileOperationBusy" @click="chooseOutfitBackup">
               <Download :size="16" aria-hidden="true" />{{ isImportingOutfits ? outfitLocale.importing : outfitLocale.importData }}
             </button>
@@ -1896,12 +1923,6 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <div v-else-if="activeView !== 'trash'" class="outfit-header-actions photo-header-actions">
-            <form class="outfit-parse-form camera-params-parse-form" @submit.prevent="parseHeaderCameraParams">
-              <input v-model="cameraParamsInput" :placeholder="locale.topBar.cameraParamsPlaceholder" :aria-label="locale.topBar.cameraParamsPlaceholder" :disabled="isAnyFileOperationBusy" autocomplete="off" />
-              <button class="outfit-parse-submit" type="submit" :disabled="isAnyFileOperationBusy || !normalizedCameraParamsInput">
-                <ScanSearch :size="16" aria-hidden="true" />{{ locale.topBar.cameraParamsParse }}
-              </button>
-            </form>
             <button type="button" :disabled="isAnyFileOperationBusy" @click="openPhotoImportPicker">
               <Download :size="16" aria-hidden="true" />{{ isImportingPhotos ? locale.topBar.importingPhotos : locale.topBar.importPhotos }}
             </button>
@@ -2010,6 +2031,34 @@ onBeforeUnmount(() => {
       @copy="copyRawCameraParams"
       @submit-uid="submitPhotoParamsUid"
     />
+
+    <ParseToolsDialog
+      :visible="isParseToolsVisible"
+      :camera-params="cameraParamsInput"
+      :outfit-code="parseCodeInput"
+      :outfit-max-length="MAX_OUTFIT_CODE_LENGTH"
+      :has-album-directory="Boolean(albumDirectoryHandle)"
+      :busy="isAnyFileOperationBusy"
+      :messages="{
+        title: locale.topBar.parseTools,
+        close: locale.app.dialogCloseAria,
+        cameraTitle: locale.topBar.cameraParamsTitle,
+        outfitTitle: locale.topBar.outfitCodeTitle,
+        cameraPlaceholder: locale.topBar.cameraParamsPlaceholder,
+        outfitPlaceholder: outfitLocale.parseInputPlaceholder,
+        cameraSubmit: locale.topBar.cameraParamsParse,
+        outfitSubmit: outfitLocale.parse,
+        noAlbumHint: locale.topBar.parseToolsNoAlbum,
+        busyHint: locale.topBar.parseToolsBusy
+      }"
+      @close="closeParseTools"
+      @update:camera-params="cameraParamsInput = $event"
+      @update:outfit-code="parseCodeInput = $event"
+      @parse-camera="parseHeaderCameraParams"
+      @parse-outfit="parseToolsOutfitCode"
+    />
+
+    <FortuneTimeDialog :visible="isFortuneTimeVisible" :messages="locale.fortuneTime" @close="isFortuneTimeVisible = false" />
 
     <OutfitEditor
       ref="outfitEditorRef"
