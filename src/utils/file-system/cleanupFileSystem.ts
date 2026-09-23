@@ -11,6 +11,7 @@ export interface SpecialCleanupDirectoryTarget { directoryName: string; director
 export interface SpecialCleanupPlan { item: SpecialCleanupItem; fileCount: number; totalBytes: number; totalBytesKnown: boolean; photoTargets: RelatedPhotoCleanupTarget[]; directoryTargets: SpecialCleanupDirectoryTarget[]; missingDirectories: string[]; skippedDirectories: string[] }
 export type RelatedCleanupFailureReason = 'unreadable-size' | 'remove-failed'
 export interface RelatedPhotoCleanupResult { deletedCount: number; deletedBytes: number; failures: Array<{ path: string; reason: RelatedCleanupFailureReason }>; missingDirectories: string[] }
+export interface MatchingPhotoCleanupPlan { photoTargets: RelatedPhotoCleanupTarget[]; matchedCount: number; missingDirectories: string[]; skippedDirectories: string[] }
 
 function isImageFile(fileName: string): boolean {
   return IMAGE_EXTENSIONS.has(fileName.split('.').pop()?.toLowerCase() ?? '')
@@ -61,6 +62,71 @@ async function collectCleanupTarget(
     if (!isMissingDirectoryError(error)) throw error
     // 多账号场景下同目录名只记录一次，避免重复提示。
     if (!missingDirectories.includes(directoryName)) missingDirectories.push(directoryName)
+  }
+}
+
+/** 仅为当前账号的低画质目录和截图目录收集与选中照片同名的图片。 */
+export async function prepareMatchingPhotoCleanup(
+  x6GameHandle: FileSystemDirectoryHandle,
+  accountId: string,
+  photoNames: string[],
+  skipDirectoryHandle?: FileSystemDirectoryHandle
+): Promise<MatchingPhotoCleanupPlan> {
+  if (x6GameHandle.name !== 'X6Game' || !accountId || accountId === '.' || accountId === '..' || /[\\/]/.test(accountId)) {
+    throw new Error('Invalid X6Game account directory')
+  }
+  const wantedNames = new Set(photoNames)
+  const photoTargets: RelatedPhotoCleanupTarget[] = []
+  const missingDirectories: string[] = []
+  const skippedDirectories: string[] = []
+  await collectCleanupTarget(
+    LOW_QUALITY_DIRECTORY_NAME,
+    () => getRequiredNestedDirectory(x6GameHandle, ['Saved', 'GamePlayPhotos', accountId, LOW_QUALITY_DIRECTORY_NAME]),
+    photoTargets,
+    missingDirectories,
+    skippedDirectories,
+    skipDirectoryHandle
+  )
+  await collectCleanupTarget(
+    SCREENSHOT_DIRECTORY_NAME,
+    () => x6GameHandle.getDirectoryHandle(SCREENSHOT_DIRECTORY_NAME),
+    photoTargets,
+    missingDirectories,
+    skippedDirectories,
+    skipDirectoryHandle
+  )
+  for (const target of photoTargets) target.photoNames = target.photoNames.filter((name) => wantedNames.has(name))
+  return {
+    photoTargets: photoTargets.filter((target) => target.photoNames.length > 0),
+    matchedCount: photoTargets.reduce((count, target) => count + target.photoNames.length, 0),
+    missingDirectories,
+    skippedDirectories
+  }
+}
+
+/** 永久删除精准匹配计划中的图片；不读取或修改相册源照片。 */
+export async function executeMatchingPhotoCleanup(plan: MatchingPhotoCleanupPlan): Promise<RelatedPhotoCleanupResult> {
+  const tasks = plan.photoTargets.flatMap((target) => target.photoNames.map((name) => ({ target, name })))
+  const results = await runWithConcurrency(tasks, async ({ target, name }) => {
+    let fileSize = 0
+    try {
+      const fileHandle = await target.directoryHandle.getFileHandle(name)
+      fileSize = (await fileHandle.getFile()).size
+    } catch {
+      fileSize = 0
+    }
+    try {
+      await target.directoryHandle.removeEntry(name)
+      return { deletedCount: 1, deletedBytes: fileSize, failure: null }
+    } catch {
+      return { deletedCount: 0, deletedBytes: 0, failure: { path: target.directoryName + '\\' + name, reason: 'remove-failed' as const } }
+    }
+  }, { concurrency: FILE_DELETE_CONCURRENCY })
+  return {
+    deletedCount: results.reduce((count, result) => count + result.deletedCount, 0),
+    deletedBytes: results.reduce((bytes, result) => bytes + result.deletedBytes, 0),
+    failures: results.flatMap((result) => result.failure ? [result.failure] : []),
+    missingDirectories: plan.missingDirectories
   }
 }
 

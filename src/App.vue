@@ -43,7 +43,7 @@ import {
 import { clearRecentlyDeleted, listRecentlyDeleted, movePhotosToRecentlyDeleted, permanentlyDeleteRecentlyDeleted, restoreRecentlyDeletedPhotos } from './utils/file-system/trashFileSystem'
 import { getX6GameDirectoryForAlbum, isProtectedAlbumDirectory, listGamePlayPhotoAccounts, pickStandaloneX6GameDirectory, resolveX6GameAccountDirectory } from './utils/file-system/directoryAccess'
 import { addSavedCameraParamUid, clearSavedCameraParamUids, clearSavedX6GameDirectoryHandle, getSavedCameraParamUids, getSavedX6GameDirectoryHandle } from './utils/file-system/directoryStorage'
-import { executeSpecialCleanup, prepareSpecialCleanup, type SpecialCleanupItem } from './utils/file-system/cleanupFileSystem'
+import { executeMatchingPhotoCleanup, executeSpecialCleanup, prepareMatchingPhotoCleanup, prepareSpecialCleanup, type SpecialCleanupItem } from './utils/file-system/cleanupFileSystem'
 import { savePhotoNote } from './utils/file-system/photoMetadata'
 import { releasePhotoUrl, releasePhotoUrls } from './utils/file-system/photoUrl'
 import { preparePhotoTransfer, runPhotoTransfer, type PhotoTransferProgress } from './utils/file-system/photoTransfer'
@@ -1676,6 +1676,45 @@ async function deleteSelectedPhotos() {
   await movePhotosToTrash(scopedSelectedPhotos.value)
 }
 
+/** 永久删除当前账号两个低画质目录中与选中照片同名的图片，不触碰当前相册源文件。 */
+async function deleteMatchingLowQualityPhotos() {
+  const albumHandle = albumDirectoryHandle.value
+  const targets = scopedSelectedPhotos.value
+  if (!albumHandle || !targets.length || isAnyFileOperationBusy.value || activeView.value === 'trash' || activeView.value === 'outfits') return
+
+  activeOperation.value = 'cleanup'
+  statusState.value = { type: 'custom', message: locale.value.app.permanentlyDeletingPhotos, tone: 'info', loading: true }
+  let cancelledAuthorization = false
+  try {
+    const { directoryHandle: x6GameHandle, accountDirectoryName } = await getX6GameDirectoryForAlbum(albumHandle, locale.value.fileSystem, {
+      beforeRequestX6GamePermission: async () => {
+        const confirmed = await openConfirmDialog({ title: locale.value.app.x6GameDirectoryDialogTitle, message: locale.value.fileSystem.restoreX6GamePermissionPrompt, tone: 'info', confirmLabel: locale.value.app.dialogContinueAuthorization, cancelLabel: locale.value.app.dialogCancel })
+        cancelledAuthorization = !confirmed
+        return confirmed
+      },
+      beforePickX6GameDirectory: async () => {
+        const confirmed = await openConfirmDialog({ title: locale.value.app.x6GameDirectoryDialogTitle, message: locale.value.fileSystem.selectX6GameDirectoryPrompt, tone: 'info', confirmLabel: locale.value.app.dialogOk, cancelLabel: locale.value.app.dialogCancel })
+        cancelledAuthorization = !confirmed
+        return confirmed
+      }
+    })
+    const plan = await prepareMatchingPhotoCleanup(x6GameHandle, accountDirectoryName, targets.map((photo) => photo.name), albumHandle)
+    if (!plan.matchedCount) {
+      statusState.value = { type: 'custom', message: locale.value.app.noMatchingRelatedPhotos(plan.missingDirectories, plan.skippedDirectories), tone: plan.missingDirectories.length ? 'warning' : 'info' }
+      return
+    }
+    const confirmed = await openConfirmDialog({ title: locale.value.app.relatedPhotoDeleteDialogTitle, message: locale.value.app.confirmRelatedPhotoDelete(plan.matchedCount, plan.skippedDirectories), tone: 'warning', confirmLabel: locale.value.app.dialogConfirm, cancelLabel: locale.value.app.dialogCancel })
+    if (!confirmed) { statusState.value = { type: 'custom', message: locale.value.app.relatedPhotoDeleteCancelledStatus, tone: 'info' }; return }
+    const result = await executeMatchingPhotoCleanup(plan)
+    statusState.value = { type: 'custom', message: locale.value.app.relatedPhotoDeleteStatus(result.deletedCount, result.failures), tone: result.failures.length ? 'warning' : 'success' }
+  } catch (error) {
+    if (cancelledAuthorization) statusState.value = { type: 'custom', message: locale.value.app.relatedPhotoDeleteCancelledStatus, tone: 'info' }
+    else statusState.value = createErrorStatus(error, { type: 'readFailed' })
+  } finally {
+    if (activeOperation.value === 'cleanup') activeOperation.value = null
+  }
+}
+
 /** 将当前预览照片移到最近删除。参数：无。 */
 async function deleteCurrentPreview() {
   if (!currentPreview.value || activeView.value === 'trash') return
@@ -2036,11 +2075,12 @@ onBeforeUnmount(() => {
       :all-selected="activeView === 'trash' ? allTrashSelected : activeView === 'outfits' ? allOutfitsSelected : allSelected"
       :all-selected-favorited="allSelectedFavorited"
       :all-items-selected="activeView === 'trash' && allTrashSelected"
-      :is-busy="activeView === 'outfits' ? isAnyFileOperationBusy : isDeleting || isTrashBusy"
+      :is-busy="isAnyFileOperationBusy"
       :messages="locale.selectionBar"
       @toggle-all="activeView === 'trash' ? toggleAllTrash() : activeView === 'outfits' ? toggleAllOutfits() : toggleAll()"
       @favorite="favoriteSelectedPhotos"
       @unfavorite="unfavoriteSelectedPhotos"
+      @delete-related="deleteMatchingLowQualityPhotos"
       @delete="activeView === 'trash' ? permanentlyDeleteSelectedTrash() : activeView === 'outfits' ? deleteSelectedOutfits() : deleteSelectedPhotos()"
       @export="exportAlbumPhotos(scopedSelectedPhotos)"
       @restore="restoreSelectedTrash"

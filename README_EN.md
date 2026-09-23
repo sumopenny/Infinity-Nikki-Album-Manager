@@ -44,7 +44,8 @@
 - Choose 1:1, Half 1:1, 16:9, 4:3, 9:16, or 3:4 thumbnail ratios.
 - Store outfit images, outfit codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export.
 - Add notes of up to 15 characters to photos and outfit plans, then search the current view by file name, note, or outfit code.
-- Parse CameraParams from photo thumbnails or the full-size viewer. The upper-right Tools menu opens a shared Parameter / outfit-code parser window for direct CameraParams and outfit-code input. Full-photo parsing tries all account-directory UIDs under the authorized X6Game folder, then accepts and persists a manually entered UID when needed. The current album folder does not need to be under X6Game. Full-photo results now include capture time and weather when those PhotoInfo fields are present; known weather enum values are shown as Sunny, Rainy, Rainbow, or Sea of Stars. Values are formatted per field like the upstream nikki_albums project: ratios use percentages and continuous values keep one decimal place, slider positions use each upstream field range (unit values 0–1, signed values −1–1, aperture 1–15, raw focal length 0–1/full-photo focal length 10–55mm), and the thumb stays inside the track endpoints. Raw values and re-encoding precision remain unchanged. Light, filter, Momo-pose, and normal-pose resource thumbnails render at 96×96 (the source images are typically 128×128). Light, filter, and Momo-pose names and thumbnails use a resource catalog exported from the `nikki_albums` hot-update database. Normal pose names and thumbnails use the NikkiGallery pose catalog synchronized at build time. Unknown resources keep their raw IDs and show a placeholder.
+- Parse CameraParams from photo thumbnails or the full-size viewer. The upper-right Tools menu opens a shared Parameter / outfit-code parser window for direct camera-parameter and outfit-code input. Photo parsing shows capture time, weather, focal length, aperture, vignette, image adjustments, normal poses, lights, filters, Momo poses, and camera parameters that can be imported into the game. The Parameter / outfit-code parser window in the Tools menu can also be used on mobile devices.
+- After selecting one or more photos, use the selection bar to permanently delete same-name images from `ScreenShot` and the current account's `NikkiPhotos_LowQuality` folder. The action requires confirmation and cannot be undone; selected photos in the current album are never deleted.
 - Open Special Cleanup from the upper-right Tools menu to clean low-quality photos and game screenshots, crash snapshots, runtime logs, and the game's built-in browser cache.
 - Open Lucky pull times from the upper-right Tools menu to view the entertainment-only Version 2.10 timing table; actual drop rates still follow the game's probabilities.
 
@@ -72,9 +73,7 @@ Entering Outfit codes opens a standalone guide. Please read it carefully.
 
 - Export data generates a ZIP file in the currently selected album folder and preserves outfit codes, tags, notes, and creation times. Import data validates and merges the ZIP without replacing existing plans; duplicate or invalid content is skipped. Imports validate the complete backup first, then extract and write images in bounded batches to reduce browser memory use with large backups. <span style="color: red;">Deleting an outfit plan is permanent and does not go to Recently Deleted.</span>
 - JPG, PNG, and WebP sources are decoded for validation only once before saving. JPG and PNG files are still converted locally to WebP, and images are never uploaded.
-- The album supports batch image import through the file picker. The gallery header exports all photos, while the selection bar exports only selected photos. Exports copy files to a chosen folder with up to eight concurrent tasks, cancellation, per-file failures, and automatic conflict renaming.
-- After a normal export, you can move only successfully exported source photos to Recently Deleted. Cancelling keeps completed target files and all source photos.
-- Batch outfit deletion processes image and metadata files concurrently, updates the automatic-import ignore list once, and updates the page directly without rescanning the entire `clothe` folder.
+- The album supports batch image import through the file picker. The gallery header exports all photos, while the selection bar exports only selected photos. After a successful export, you can choose to move successfully exported source photos to Recently Deleted. Cancelling keeps completed target files and all source photos.
 - Single-click outfit plans to select multiple items and show the bottom toolbar. <span style="color: red;">Deleted outfit plans cannot be restored, so check the plan information before confirming.</span>
 
 ## Special Cleanup
@@ -123,9 +122,6 @@ Do not select drive roots, Windows, Program Files, the game install root, or oth
 - Click Refresh album to sync the folder immediately; the page also syncs when it regains focus and reports newly added or externally removed photos.
 - Recently Deleted is sorted by deletion time, with total photo count and total size shown at the top.
 - Supports single or batch restore, permanent deletion, select all, large preview, and permanently clearing everything.
-- Album and Recently Deleted scans process up to 6 files concurrently. Batch moves to Recently Deleted and restores process up to 27 images concurrently, while permanent deletion processes up to 10. Successful moves update the list directly without rescanning the entire `trash` folder.
-- Clear all removes the `trash` directory directly only when it contains no unknown entries; otherwise it deletes only the photos listed by the page.
-- When restoring and a file with the same name already exists in the original album, `_restored_1`, `_restored_2`, and later suffixes are used automatically without overwriting existing photos.
 - Recently Deleted photos do not expire automatically and remain until restored or manually permanently deleted.
 
 

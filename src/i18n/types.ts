@@ -52,6 +52,11 @@ export interface LocaleMessages {
     dialogCloseAria: string
     dialogCancel: string
     dialogConfirm: string
+    relatedPhotoDeleteDialogTitle: string
+    confirmRelatedPhotoDelete: (count: number, skippedDirectories: string[]) => string
+    relatedPhotoDeleteCancelledStatus: string
+    relatedPhotoDeleteStatus: (deletedCount: number, failures: Array<{ path: string; reason: RelatedCleanupFailureReason }>) => string
+    noMatchingRelatedPhotos: (missingDirectories: string[], skippedDirectories: string[]) => string
     dialogContinueAuthorization: string
     dialogOk: string
     relatedCleanupDialogTitle: string
@@ -192,6 +197,7 @@ export interface LocaleMessages {
     deselectAll: string
     favorite: string
     unfavorite: string
+    deleteRelated: string
     delete: string
     restore: string
     permanentlyDelete: string

@@ -2,10 +2,11 @@
 import type { LocaleMessages } from '../types'
 
 export const updateLogZh: LocaleMessages['updateLog'] = {
-  title: '更新记录', currentTitle: '当前版本', currentVersion: 'v1.6', currentDate: '2026.9.22 更新',
-  currentItems: ['新增照片参数解析功能，支持从照片缩略图右上角、大图预览工具栏或“工具”菜单解析，解析结果展示相机、环境、画面、动作、灯光、滤镜等参数，支持复制相机参数一键导入游戏。', '新增“工具”菜单，集中专项清理、抽卡吉时、参数/搭配码解析统一解析窗口。', '抽卡吉时更新为 2.10 内容。', '手机访问网页虽然不能管理相册，但可从工具菜单里使用相机参数、搭配码解析功能。'],
+  title: '更新记录', currentTitle: '当前版本', currentVersion: 'v1.6.1', currentDate: '2026.9.23 更新',
+  currentItems: ['新增选中照片后可删除对应低画质图片的功能：按名称匹配并永久删除当前账号 ScreenShot 和 NikkiPhotos_LowQuality 中的图片，保留当前相册原图。', '改版“更新记录”窗口，重新整理更新版本的展示。', '优化了一些问题并和暖暖出去看了场电影💅。'],
   historyTitle: '历史版本记录',
   history: [
+    { version: 'v1.6', items: ['新增照片参数解析功能，支持从照片缩略图右上角、大图预览工具栏或“工具”菜单解析，解析结果展示相机、环境、画面、动作、灯光、滤镜等参数，支持复制相机参数一键导入游戏。', '新增“工具”菜单，集中专项清理、抽卡吉时、参数/搭配码解析统一解析窗口。', '抽卡吉时更新为 2.10 内容。', '手机访问网页虽然不能管理相册，但可从工具菜单里使用相机参数、搭配码解析功能。'] },
     { version: 'v1.5', items: ['新增搭配码解析功能：搭配码页面新增直接输入解析入口，搭配卡片右上角同步新增解析按钮。', '新增主页点赞功能。'] },
     { version: 'v1.4.1', items: ['取消 X6Game 授权相册限制。', '新增相册图片批量导入与导出功能。', '多选图片底栏支持导出选中图片。'] },
     { version: 'v1.4', items: ['新增相册图片批量导入与导出功能。', '导出时取消会保留已完成的目标文件和源照片。', '正常完成导出后，可选择将成功导出的源照片移入最近删除。'] },
@@ -28,10 +29,11 @@ export const updateLogZh: LocaleMessages['updateLog'] = {
 }
 
 export const updateLogEn: LocaleMessages['updateLog'] = {
-  title: 'Release history', currentTitle: 'Current version', currentVersion: 'v1.6', currentDate: 'Updated 2026.9.22',
-  currentItems: ['Added photo parameter decoding from photo thumbnails, the large-preview toolbar, or the Tools menu. Results include camera, environment, scene, pose, lighting, and filter parameters, and camera parameters can be copied for one-click import into the game.', 'Added a Tools menu that centralizes targeted cleanup, lucky pull times, and parameter/outfit-code decoding.', 'Updated lucky pull times to version 2.10 content.', 'Mobile web access cannot manage albums, but camera-parameter and outfit-code decoding are available from the Tools menu.'],
+  title: 'Release history', currentTitle: 'Current version', currentVersion: 'v1.6.1', currentDate: 'Updated 2026.9.23',
+  currentItems: ['Added deletion of the matching low-quality images for selected photos: images are matched by name and permanently deleted from the current account\'s ScreenShot and NikkiPhotos_LowQuality folders, while the original photos in the album are kept.', 'Redesigned the Release history window and reorganized how releases are presented.', 'Fixed various issues and went to see a movie with Nikki 💅.'],
   historyTitle: 'Previous releases',
   history: [
+    { version: 'v1.6', items: ['Added photo parameter decoding from photo thumbnails, the large-preview toolbar, or the Tools menu. Results include camera, environment, scene, pose, lighting, and filter parameters, and camera parameters can be copied for one-click import into the game.', 'Added a Tools menu that centralizes targeted cleanup, lucky pull times, and parameter/outfit-code decoding.', 'Updated lucky pull times to version 2.10 content.', 'Mobile web access cannot manage albums, but camera-parameter and outfit-code decoding are available from the Tools menu.'] },
     { version: 'v1.5', items: ['Added outfit-code decoding: the Outfit Code page now provides a direct input and decode entry, and outfit cards now have a decode button in the upper-right corner.', 'Added homepage likes.'] },
     { version: 'v1.4.1', items: ['Removed the X6Game album-location restriction.', 'Added batch album photo import and export.', 'The selection bar can export selected photos.'] },
     { version: 'v1.4', items: ['Added batch album photo import and export.', 'Cancelling an export keeps completed target files and source photos.', 'After a completed export, successfully exported source photos can be moved to Recently Deleted.'] },

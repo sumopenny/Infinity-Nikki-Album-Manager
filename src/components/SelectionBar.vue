@@ -19,6 +19,7 @@ defineEmits<{
   toggleAll: []
   favorite: []
   unfavorite: []
+  deleteRelated: []
   delete: []
   restore: []
   export: []
@@ -46,6 +47,10 @@ defineEmits<{
         <button type="button" :disabled="isBusy" @click="$emit('export')">
           <FileUp :size="16" aria-hidden="true" />
           <span>{{ messages.exportPhotos }}</span>
+        </button>
+        <button class="selection-danger" type="button" :disabled="isBusy" @click="$emit('deleteRelated')">
+          <Trash2 :size="16" aria-hidden="true" />
+          <span>{{ messages.deleteRelated }}</span>
         </button>
         <button class="selection-danger" type="button" :disabled="isBusy" @click="$emit('delete')">
           <Trash2 :size="16" aria-hidden="true" />

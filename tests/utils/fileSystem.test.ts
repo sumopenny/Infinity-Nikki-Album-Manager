@@ -7,7 +7,7 @@ import {
   refreshAlbumDirectory
 } from '../../src/utils/file-system/albumFileSystem'
 import { clearRecentlyDeleted, listRecentlyDeleted, movePhotosToRecentlyDeleted, permanentlyDeleteRecentlyDeleted, restoreRecentlyDeletedPhotos } from '../../src/utils/file-system/trashFileSystem'
-import { executeSpecialCleanup, prepareSpecialCleanup } from '../../src/utils/file-system/cleanupFileSystem'
+import { executeMatchingPhotoCleanup, executeSpecialCleanup, prepareMatchingPhotoCleanup, prepareSpecialCleanup } from '../../src/utils/file-system/cleanupFileSystem'
 import { listGamePlayPhotoAccounts, resolveX6GameAccountDirectory } from '../../src/utils/file-system/directoryAccess'
 
 beforeAll(() => {
@@ -366,6 +366,91 @@ describe('album refresh and recently deleted filesystem operations', () => {
     expect(plan.skippedDirectories).toEqual(['NikkiPhotos_LowQuality'])
     expect(plan.photoTargets.map((target) => target.directoryName)).toEqual(['NikkiPhotos_LowQuality', 'ScreenShot'])
     expect(plan.fileCount).toBe(2)
+  })
+
+  it('permanently deletes only selected-name matches and preserves the source album photo', async () => {
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+    const saved = new MemoryDirectoryHandle('Saved')
+    const gamePlayPhotos = new MemoryDirectoryHandle('GamePlayPhotos')
+    const account = new MemoryDirectoryHandle('account-a')
+    const lowQuality = new MemoryDirectoryHandle('NikkiPhotos_LowQuality')
+    const screenshot = new MemoryDirectoryHandle('ScreenShot')
+    const selectedName = 'same-name.png'
+    lowQuality.files.set(selectedName, new MemoryFileHandle(selectedName))
+    lowQuality.files.set('unselected.png', new MemoryFileHandle('unselected.png'))
+    screenshot.files.set(selectedName, new MemoryFileHandle(selectedName))
+    screenshot.files.set('other.png', new MemoryFileHandle('other.png'))
+    account.directories.set('NikkiPhotos_LowQuality', lowQuality)
+    gamePlayPhotos.directories.set('account-a', account)
+    saved.directories.set('GamePlayPhotos', gamePlayPhotos)
+    x6Game.directories.set('Saved', saved)
+    x6Game.directories.set('ScreenShot', screenshot)
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    album.files.set(selectedName, new MemoryFileHandle(selectedName))
+
+    const plan = await prepareMatchingPhotoCleanup(
+      x6Game as unknown as FileSystemDirectoryHandle,
+      'account-a',
+      [selectedName],
+      album as unknown as FileSystemDirectoryHandle
+    )
+    const result = await executeMatchingPhotoCleanup(plan)
+
+    expect(plan.matchedCount).toBe(2)
+    expect(result.deletedCount).toBe(2)
+    expect(lowQuality.files.has(selectedName)).toBe(false)
+    expect(screenshot.files.has(selectedName)).toBe(false)
+    expect(lowQuality.files.has('unselected.png')).toBe(true)
+    expect(screenshot.files.has('other.png')).toBe(true)
+    expect(album.files.has(selectedName)).toBe(true)
+  })
+
+  it('skips the current album directory when it is a low-quality target', async () => {
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+    const saved = new MemoryDirectoryHandle('Saved')
+    const gamePlayPhotos = new MemoryDirectoryHandle('GamePlayPhotos')
+    const account = new MemoryDirectoryHandle('account-a')
+    const lowQuality = new MemoryDirectoryHandle('NikkiPhotos_LowQuality')
+    const selectedName = 'source.png'
+    lowQuality.files.set(selectedName, new MemoryFileHandle(selectedName))
+    account.directories.set('NikkiPhotos_LowQuality', lowQuality)
+    gamePlayPhotos.directories.set('account-a', account)
+    saved.directories.set('GamePlayPhotos', gamePlayPhotos)
+    x6Game.directories.set('Saved', saved)
+    const screenshot = new MemoryDirectoryHandle('ScreenShot')
+    x6Game.directories.set('ScreenShot', screenshot)
+
+    const plan = await prepareMatchingPhotoCleanup(
+      x6Game as unknown as FileSystemDirectoryHandle,
+      'account-a',
+      [selectedName],
+      lowQuality as unknown as FileSystemDirectoryHandle
+    )
+    const result = await executeMatchingPhotoCleanup(plan)
+
+    expect(plan.skippedDirectories).toEqual(['NikkiPhotos_LowQuality'])
+    expect(plan.matchedCount).toBe(0)
+    expect(result.deletedCount).toBe(0)
+    expect(lowQuality.files.has(selectedName)).toBe(true)
+  })
+
+  it('still attempts permanent deletion when a matched file size cannot be read', async () => {
+    const directory = new MemoryDirectoryHandle('ScreenShot')
+    directory.files.set('unreadable.png', new MemoryFileHandle('unreadable.png', new Blob(['x']), true))
+    directory.failRemoveName = 'locked.png'
+    directory.files.set('locked.png', new MemoryFileHandle('locked.png'))
+    const plan = {
+      photoTargets: [{ directoryName: 'ScreenShot', directoryHandle: directory as unknown as FileSystemDirectoryHandle, photoNames: ['unreadable.png', 'locked.png'] }],
+      matchedCount: 2,
+      missingDirectories: [],
+      skippedDirectories: []
+    }
+
+    const result = await executeMatchingPhotoCleanup(plan)
+
+    expect(result.deletedCount).toBe(1)
+    expect(directory.files.has('unreadable.png')).toBe(false)
+    expect(result.failures).toEqual([{ path: 'ScreenShot\\locked.png', reason: 'remove-failed' }])
   })
 
   it('counts only successfully removed bytes and returns readable failures', async () => {
