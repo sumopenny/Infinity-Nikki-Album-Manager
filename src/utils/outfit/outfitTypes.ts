@@ -14,7 +14,18 @@ export interface SharedOutfitSource { x6GameDirectory: FileSystemDirectoryHandle
 export interface SharedOutfitImportResult { importedCount: number; duplicateCount: number; failedCount: number; failureStage?: 'duplicate' | 'missing-image' | 'image-not-updated' | 'image-write-failed' }
 export interface SaveOutfitInput { outfit?: OutfitItem; imageFile?: File; code: string; tag: string | null; note?: string }
 export interface OutfitImportResult { addedCount: number; duplicateCount: number; failedCount: number; rejectedTagCount: number; library: OutfitLibraryResult }
-export interface OutfitDeleteResult { deleted: OutfitItem[]; failedNames: string[] }
+export interface OutfitDeleteResult {
+  deleted: OutfitItem[]
+  failedNames: string[]
+  rollbackFailedNames: string[]
+}
+
+export class OutfitDeleteRollbackError extends Error {
+  constructor(readonly cause: unknown, readonly rollbackFailedNames: string[]) {
+    super(`Failed to restore deleted outfit files: ${rollbackFailedNames.join(', ')}`, { cause })
+    this.name = 'OutfitDeleteRollbackError'
+  }
+}
 
 export function normalizeOutfitCode(value: unknown): string {
   return (typeof value === 'string' ? value : '')

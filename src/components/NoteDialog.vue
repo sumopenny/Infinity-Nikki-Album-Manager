@@ -41,7 +41,7 @@ function handleKeydown(event: KeyboardEvent) {
     <Transition name="confirm-dialog">
       <div v-if="visible" class="note-dialog" role="dialog" aria-modal="true" :aria-label="title" @click.self="emit('cancel')" @keydown="handleKeydown">
         <section class="note-dialog-panel">
-          <button class="about-dialog-close" type="button" :title="closeLabel" :aria-label="closeLabel" :disabled="busy" @click="emit('cancel')"><X :size="19" aria-hidden="true" /></button>
+          <button class="note-dialog-close" type="button" :title="closeLabel" :aria-label="closeLabel" :disabled="busy" @click="emit('cancel')"><X :size="19" aria-hidden="true" /></button>
           <header>
             <h2>{{ title }}</h2>
           </header>

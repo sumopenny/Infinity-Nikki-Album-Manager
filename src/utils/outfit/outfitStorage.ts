@@ -50,11 +50,18 @@ export async function readTags(directory: FileSystemDirectoryHandle): Promise<st
 export async function readIgnoredShareCodes(directory: FileSystemDirectoryHandle): Promise<Set<string>> {
   try {
     const parsed: unknown = JSON.parse(await (await directory.getFileHandle(IGNORED_SHARE_CODES_FILE_NAME)).getFile().then((file) => file.text()))
-    return Array.isArray(parsed) ? new Set(parsed.map((item) => normalizeOutfitCode(item)).filter(Boolean)) : new Set()
-  } catch (error) { if (isMissingEntryError(error)) return new Set(); return new Set() }
+    if (!Array.isArray(parsed)) throw new Error('Invalid ignored share codes file')
+    return new Set(parsed.map((item) => normalizeOutfitCode(item)).filter(Boolean))
+  } catch (error) {
+    if (isMissingEntryError(error)) return new Set()
+    throw error
+  }
 }
 
 export async function writeIgnoredShareCodes(directory: FileSystemDirectoryHandle, codes: Set<string>): Promise<void> {
-  if (!codes.size) { await directory.removeEntry(IGNORED_SHARE_CODES_FILE_NAME).catch(() => undefined); return }
+  if (!codes.size) {
+    try { await directory.removeEntry(IGNORED_SHARE_CODES_FILE_NAME) } catch (error) { if (!isMissingEntryError(error)) throw error }
+    return
+  }
   await writeJson(directory, IGNORED_SHARE_CODES_FILE_NAME, [...codes])
 }

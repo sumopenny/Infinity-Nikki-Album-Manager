@@ -15,7 +15,8 @@ import {
   type SharedOutfitSource,
   type SharedOutfitImportResult,
   type SaveOutfitInput,
-  type OutfitDeleteResult
+  type OutfitDeleteResult,
+  OutfitDeleteRollbackError
 } from './outfitTypes'
 
 export {
@@ -30,6 +31,7 @@ export {
   isReservedOutfitTag
 } from './outfitTypes'
 export type { OutfitItem, OutfitLibraryResult, SharedOutfitSource, SharedOutfitImportResult, SaveOutfitInput, OutfitImportResult, OutfitDeleteResult } from './outfitTypes'
+export { OutfitDeleteRollbackError } from './outfitTypes'
 export { convertImageToWebp } from './outfitImage'
 
 const CLOTHE_DIRECTORY_NAME = 'clothe'
@@ -319,7 +321,6 @@ async function importLatestSharedOutfit(
     if (!latestShareCode) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
     const ignoredShareCodes = await readIgnoredShareCodes(directory)
     if (ignoredShareCodes.has(latestShareCode.code)) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
-    if (ignoredShareCodes.size) await writeIgnoredShareCodes(directory, new Set())
     if (existingOutfits.some((outfit) => outfit.code === latestShareCode.code)) {
       return { importedCount: 0, duplicateCount: 1, failedCount: 0, failureStage: 'duplicate' }
     }
@@ -356,10 +357,21 @@ async function importLatestSharedOutfit(
         failureStage = 'image-write-failed'
         throw error
       }
+      if (ignoredShareCodes.size) {
+        try {
+          await writeIgnoredShareCodes(directory, new Set())
+        } catch (error) {
+          await writeIgnoredShareCodes(directory, ignoredShareCodes).catch(() => undefined)
+          throw error
+        }
+      }
       return { importedCount: 1, duplicateCount: 0, failedCount: 0 }
     } catch (error) {
       await directory.removeEntry(imageName).catch(() => undefined)
       await directory.removeEntry(metadataName).catch(() => undefined)
+      if (ignoredShareCodes.size) {
+        await writeIgnoredShareCodes(directory, ignoredShareCodes).catch(() => undefined)
+      }
       throw error
     }
   } catch {
@@ -548,7 +560,7 @@ export async function deleteOutfitTag(
  * 任一提交步骤失败都会恢复本批已删除文件，避免图片与元数据只删除一半。
  */
 export async function deleteOutfits(outfits: OutfitItem[]): Promise<OutfitDeleteResult> {
-  if (!outfits.length) return { deleted: [], failedNames: [] }
+  if (!outfits.length) return { deleted: [], failedNames: [], rollbackFailedNames: [] }
 
   const prepared = await runWithConcurrency<OutfitItem, PreparedOutfitDelete>(outfits, async (outfit) => {
     try {
@@ -561,24 +573,36 @@ export async function deleteOutfits(outfits: OutfitItem[]): Promise<OutfitDelete
   }, { concurrency: DELETE_BACKUP_CONCURRENCY })
   const failedNames = prepared.filter((item) => !item.image || !item.metadata).map((item) => item.outfit.code || item.outfit.name)
   const validPrepared = prepared.filter((item): item is SuccessfulOutfitDelete => Boolean(item.image && item.metadata))
-  const results = await runWithConcurrency<SuccessfulOutfitDelete, { item: SuccessfulOutfitDelete; ok: boolean }>(validPrepared, async (item) => {
+  const results = await runWithConcurrency<SuccessfulOutfitDelete, { item: SuccessfulOutfitDelete; ok: boolean; rollbackFailed: boolean }>(validPrepared, async (item) => {
     try {
       await item.outfit.directoryHandle.removeEntry(item.outfit.metadataName)
       await item.outfit.directoryHandle.removeEntry(item.outfit.image)
-      return { item, ok: true }
+      return { item, ok: true, rollbackFailed: false }
     } catch {
-      await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.image, { create: true }), item.image).catch(() => undefined)
-      await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.metadataName, { create: true }), item.metadata).catch(() => undefined)
-      return { item, ok: false }
+      let rollbackFailed = false
+      try {
+        await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.image, { create: true }), item.image)
+      } catch {
+        rollbackFailed = true
+      }
+      try {
+        await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.metadataName, { create: true }), item.metadata)
+      } catch {
+        rollbackFailed = true
+      }
+      return { item, ok: false, rollbackFailed }
     }
   }, { concurrency: DELETE_FILE_CONCURRENCY })
 
   const deleted = results.filter((result) => result.ok).map((result) => result.item.outfit)
+  const rollbackFailedNames = results
+    .filter((result) => result.rollbackFailed)
+    .map((result) => result.item.outfit.code || result.item.outfit.name)
   const failed = [
     ...failedNames,
     ...results.filter((result) => !result.ok).map((result) => result.item.outfit.code || result.item.outfit.name)
   ]
-  if (!deleted.length) return { deleted, failedNames: failed }
+  if (!deleted.length) return { deleted, failedNames: failed, rollbackFailedNames }
 
   try {
     const codes = await readIgnoredShareCodes(deleted[0].directoryHandle)
@@ -588,18 +612,38 @@ export async function deleteOutfits(outfits: OutfitItem[]): Promise<OutfitDelete
     }
     await writeIgnoredShareCodes(deleted[0].directoryHandle, codes)
   } catch (error) {
+    const rollbackFailures: string[] = []
     for (const item of results.filter((result) => result.ok).map((result) => result.item)) {
-      await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.image, { create: true }), item.image).catch(() => undefined)
-      await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.metadataName, { create: true }), item.metadata).catch(() => undefined)
+      let restored = true
+      try {
+        await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.image, { create: true }), item.image)
+      } catch {
+        restored = false
+      }
+      try {
+        await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.metadataName, { create: true }), item.metadata)
+      } catch {
+        restored = false
+      }
+      if (!restored) rollbackFailures.push(item.outfit.code || item.outfit.name)
+    }
+    if (rollbackFailures.length) {
+      throw new OutfitDeleteRollbackError(error, rollbackFailures)
     }
     throw error
   }
 
-  return { deleted, failedNames: failed }
+  return { deleted, failedNames: failed, rollbackFailedNames }
 }
 
 export async function deleteOutfit(outfit: OutfitItem): Promise<void> {
   const result = await deleteOutfits([outfit])
+  if (result.rollbackFailedNames.length) {
+    throw new OutfitDeleteRollbackError(
+      new Error(`Unable to delete outfit: ${result.failedNames[0] || outfit.name}`),
+      result.rollbackFailedNames
+    )
+  }
   if (result.failedNames.length) throw new Error(`Unable to delete outfit: ${result.failedNames[0] || outfit.name}`)
 }
 

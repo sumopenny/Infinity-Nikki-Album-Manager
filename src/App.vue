@@ -50,6 +50,7 @@ import { preparePhotoTransfer, runPhotoTransfer, type PhotoTransferProgress } fr
 import {
   deleteOutfit,
   deleteOutfits,
+  OutfitDeleteRollbackError,
   deleteOutfitTag,
   readOutfitLibrary,
   saveOutfit,
@@ -89,9 +90,21 @@ function isLanguage(value: string | null): value is Language {
   return value === 'zh' || value === 'en'
 }
 
+function readLocalStorage(key: string): string | null {
+  try { return localStorage.getItem(key) } catch { return null }
+}
+
+function writeLocalStorage(key: string, value: string): void {
+  try { localStorage.setItem(key, value) } catch { /* 持久化不可用时保留当前会话状态。 */ }
+}
+
+function removeLocalStorage(key: string): void {
+  try { localStorage.removeItem(key) } catch { /* 持久化不可用时不阻断当前操作。 */ }
+}
+
 function readCleanupAccountChoice(): string | null {
   try {
-    return localStorage.getItem(CLEANUP_ACCOUNT_CHOICE_KEY)
+    return readLocalStorage(CLEANUP_ACCOUNT_CHOICE_KEY)
   } catch {
     return null
   }
@@ -100,21 +113,21 @@ function readCleanupAccountChoice(): string | null {
 function persistCleanupAccountChoice(choice: string | null): void {
   try {
     if (choice) {
-      localStorage.setItem(CLEANUP_ACCOUNT_CHOICE_KEY, choice)
+      writeLocalStorage(CLEANUP_ACCOUNT_CHOICE_KEY, choice)
     } else {
-      localStorage.removeItem(CLEANUP_ACCOUNT_CHOICE_KEY)
+      removeLocalStorage(CLEANUP_ACCOUNT_CHOICE_KEY)
     }
   } catch {
     // 本地存储不可用时保留当前会话内的选择，不阻断清理流程。
   }
 }
 function readStoredAboutState(): { version: string; dismissed: boolean } | null {
-  try { const parsed = JSON.parse(localStorage.getItem(ABOUT_STATE_STORAGE_KEY) ?? 'null') as { version?: unknown; dismissed?: unknown } | null; if (parsed && typeof parsed.version === 'string') return { version: parsed.version, dismissed: parsed.dismissed === true } } catch { /* invalid storage is treated as empty */ }
+  try { const parsed = JSON.parse(readLocalStorage(ABOUT_STATE_STORAGE_KEY) ?? 'null') as { version?: unknown; dismissed?: unknown } | null; if (parsed && typeof parsed.version === 'string') return { version: parsed.version, dismissed: parsed.dismissed === true } } catch { /* invalid storage is treated as empty */ }
   return null
 }
 function readStoredFavoriteIds(): Set<string> {
   try {
-    const parsed = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) ?? '[]')
+    const parsed = JSON.parse(readLocalStorage(FAVORITES_STORAGE_KEY) ?? '[]')
     const ids = Array.isArray(parsed)
       ? parsed.filter((item): item is string => typeof item === 'string')
       : []
@@ -125,10 +138,10 @@ function readStoredFavoriteIds(): Set<string> {
 }
 
 let suppressLocalPersistence = false
-const storedThumbnailMode = localStorage.getItem(THUMBNAIL_STORAGE_KEY)
-const storedOutfitThumbnailMode = localStorage.getItem(OUTFIT_THUMBNAIL_STORAGE_KEY)
-const storedThemeMode = localStorage.getItem(THEME_STORAGE_KEY)
-const storedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY)
+const storedThumbnailMode = readLocalStorage(THUMBNAIL_STORAGE_KEY)
+const storedOutfitThumbnailMode = readLocalStorage(OUTFIT_THUMBNAIL_STORAGE_KEY)
+const storedThemeMode = readLocalStorage(THEME_STORAGE_KEY)
+const storedLanguage = readLocalStorage(LANGUAGE_STORAGE_KEY)
 
 const storedAboutState = readStoredAboutState()
 
@@ -153,12 +166,12 @@ const isOutfitParseVisible = ref(false)
 const reopenParseToolsAfterOutfitClose = ref(false)
 const reopenParseToolsAfterPhotoClose = ref(false)
 const isOutfitGuideVisible = ref(false)
-const isOutfitGuideDismissed = ref(localStorage.getItem(OUTFIT_GUIDE_DISMISSED_KEY) === 'true')
+const isOutfitGuideDismissed = ref(readLocalStorage(OUTFIT_GUIDE_DISMISSED_KEY) === 'true')
 const isUpdateLogVisible = ref(false)
 const isHelpAboutVisible = ref(false)
 // 版本号变化时本地记录失效，“不再提示”勾选状态随之重置
 const isAboutDialogDismissed = ref(storedAboutState?.version === currentAboutVersion && storedAboutState.dismissed === true)
-const isX6GameAutoPromptDismissed = ref(localStorage.getItem(X6GAME_AUTO_PROMPT_DISMISSED_KEY) === 'true')
+const isX6GameAutoPromptDismissed = ref(readLocalStorage(X6GAME_AUTO_PROMPT_DISMISSED_KEY) === 'true')
 const didCancelX6GameAutoPrompt = ref(false)
 const outfitSidebarRef = ref<InstanceType<typeof OutfitSidebar> | null>(null)
 const outfitEditorRef = ref<InstanceType<typeof OutfitEditor> | null>(null)
@@ -221,11 +234,7 @@ function invalidatePendingRefreshes() {
 
 // 派生视图状态
 const locale = computed(() => messages[language.value])
-const photoParamsMessages = computed(() => language.value === 'zh' ? {
-  title: '照片参数', close: '关闭', cancel: '取消', copy: '复制参数', copied: '已复制', progress: (value: number) => `${value}%`, noValue: '无', capture: '环境', camera: '相机', image: '画面', action: '动作', light: '灯光', filter: '滤镜', raw: '相机参数', uidPrompt: '请输入拍摄此照片所用账号的 UID', uidPlaceholder: '填写账号 UID', uidParse: '解析'
-} : {
-  title: 'Photo parameters', close: 'Close', cancel: 'Cancel', copy: 'Copy parameters', copied: 'Copied', progress: (value: number) => `${value}%`, noValue: 'None', capture: 'Environment', camera: 'Camera', image: 'Image', action: 'Action', light: 'Light', filter: 'Filter', raw: 'Camera parameters', uidPrompt: 'Enter the UID used to take this photo', uidPlaceholder: 'Enter account UID', uidParse: 'Parse'
-})
+const photoParamsMessages = computed(() => locale.value.photoParams)
 const {
   statusState,
   statusMessage,
@@ -388,11 +397,11 @@ async function cleanSpecialItem(item: SpecialCleanupItem) {
 }
 // 通用通知、偏好与持久化
 watch(favoriteIds, (ids) => {
-  if (!suppressLocalPersistence) localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...ids]))
+  if (!suppressLocalPersistence) writeLocalStorage(FAVORITES_STORAGE_KEY, JSON.stringify([...ids]))
 }, { deep: true })
 watch(language, (value) => {
   document.documentElement.lang = value === 'zh' ? 'zh-CN' : 'en'
-  if (!suppressLocalPersistence) localStorage.setItem(LANGUAGE_STORAGE_KEY, value)
+  if (!suppressLocalPersistence) writeLocalStorage(LANGUAGE_STORAGE_KEY, value)
 }, { immediate: true })
 watch(themeMode, (value) => {
   const root = document.documentElement
@@ -482,7 +491,7 @@ async function applyPreference(preference: 'language' | 'theme') {
     language.value = language.value === 'zh' ? 'en' : 'zh'
   } else {
     themeMode.value = themeMode.value === 'light' ? 'dark' : 'light'
-    if (!suppressLocalPersistence) localStorage.setItem(THEME_STORAGE_KEY, themeMode.value)
+    if (!suppressLocalPersistence) writeLocalStorage(THEME_STORAGE_KEY, themeMode.value)
   }
 
   await nextTick()
@@ -576,7 +585,12 @@ function resetLoadedAlbumState(options: { clearSharedOutfit?: boolean } = {}) {
 /** 清除保存的目录授权和当前页面状态。参数：无。 */
 async function clearDirectory() {
   if (isAnyFileOperationBusy.value) return
-  await clearSavedAlbumDirectoryHandle()
+  try {
+    await clearSavedAlbumDirectoryHandle()
+  } catch (error) {
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+    return
+  }
   resetLoadedAlbumState({ clearSharedOutfit: false })
   albumDirectoryHandle.value = null
   activeView.value = 'all'
@@ -586,14 +600,14 @@ async function clearDirectory() {
 
 /** 移除浏览器保存的网站本地键值。参数：无。 */
 function clearWebsiteLocalStorage() {
-  for (const key of WEBSITE_LOCAL_STORAGE_KEYS) localStorage.removeItem(key)
+  for (const key of WEBSITE_LOCAL_STORAGE_KEYS) removeLocalStorage(key)
 }
 
 /** 标记搭配码界面不再自动弹出 X6Game 授权窗口。参数：无。 */
 function dismissX6GameAutoPrompt() {
   isX6GameAutoPromptDismissed.value = true
   didCancelX6GameAutoPrompt.value = true
-  if (!suppressLocalPersistence) localStorage.setItem(X6GAME_AUTO_PROMPT_DISMISSED_KEY, 'true')
+  if (!suppressLocalPersistence) writeLocalStorage(X6GAME_AUTO_PROMPT_DISMISSED_KEY, 'true')
   statusState.value = { type: 'custom', message: locale.value.app.x6GameAuthorizationCancelledStatus, tone: 'info' }
 }
 
@@ -612,10 +626,10 @@ async function clearCache() {
   if (!confirmed) return
 
   try {
-  await clearSavedX6GameDirectoryHandle()
-  await clearSavedCameraParamUids()
-    localStorage.removeItem(OUTFIT_GUIDE_DISMISSED_KEY)
-    localStorage.removeItem(X6GAME_AUTO_PROMPT_DISMISSED_KEY)
+    await clearSavedX6GameDirectoryHandle()
+    await clearSavedCameraParamUids()
+    removeLocalStorage(OUTFIT_GUIDE_DISMISSED_KEY)
+    removeLocalStorage(X6GAME_AUTO_PROMPT_DISMISSED_KEY)
     sharedOutfitSource.value = null
     hasX6GameAuthorization.value = false
     cleanupX6GameHandle.value = null
@@ -664,6 +678,8 @@ async function clearData() {
     didCancelX6GameAutoPrompt.value = false
     statusState.value = { type: 'custom', message: locale.value.app.clearDataStatus, tone: 'success' }
     await nextTick()
+  } catch (error) {
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
   } finally {
     suppressLocalPersistence = false
   }
@@ -731,11 +747,11 @@ async function refreshAlbum(manual: boolean) {
 function changeThumbnailMode(mode: ThumbnailMode) {
   if (activeView.value === 'outfits') {
     outfitThumbnailMode.value = mode
-    if (!suppressLocalPersistence) localStorage.setItem(OUTFIT_THUMBNAIL_STORAGE_KEY, mode)
+    if (!suppressLocalPersistence) writeLocalStorage(OUTFIT_THUMBNAIL_STORAGE_KEY, mode)
     return
   }
   thumbnailMode.value = mode
-  if (!suppressLocalPersistence) localStorage.setItem(THUMBNAIL_STORAGE_KEY, mode)
+  if (!suppressLocalPersistence) writeLocalStorage(THUMBNAIL_STORAGE_KEY, mode)
 }
 
 /** 切换亮暗主题。参数：无。 */
@@ -787,7 +803,7 @@ async function ensureSharedOutfitSource(prompt: boolean, autoPrompt = prompt, fo
     hasX6GameAuthorization.value = true
     isX6GameAutoPromptDismissed.value = false
     didCancelX6GameAutoPrompt.value = false
-    if (!suppressLocalPersistence) localStorage.removeItem(X6GAME_AUTO_PROMPT_DISMISSED_KEY)
+    if (!suppressLocalPersistence) removeLocalStorage(X6GAME_AUTO_PROMPT_DISMISSED_KEY)
     return sharedOutfitSource.value
   } catch (error) {
     if (autoPrompt && (didCancelDirectoryPrompt || isUserCancelledFilePicker(error))) {
@@ -902,8 +918,8 @@ function changeAlbumView(view: AlbumView) {
 function closeOutfitGuide(dontShowAgain: boolean) {
   isOutfitGuideDismissed.value = dontShowAgain
   if (!suppressLocalPersistence) {
-    if (dontShowAgain) localStorage.setItem(OUTFIT_GUIDE_DISMISSED_KEY, 'true')
-    else localStorage.removeItem(OUTFIT_GUIDE_DISMISSED_KEY)
+    if (dontShowAgain) writeLocalStorage(OUTFIT_GUIDE_DISMISSED_KEY, 'true')
+    else removeLocalStorage(OUTFIT_GUIDE_DISMISSED_KEY)
   }
   isOutfitGuideVisible.value = false
 }
@@ -917,7 +933,7 @@ function openUpdateLog() {
 function closeUpdateLog(dontShowAgain: boolean) {
   isAboutDialogDismissed.value = dontShowAgain
   if (!suppressLocalPersistence) {
-    localStorage.setItem(ABOUT_STATE_STORAGE_KEY, JSON.stringify({ version: currentAboutVersion, dismissed: dontShowAgain }))
+    writeLocalStorage(ABOUT_STATE_STORAGE_KEY, JSON.stringify({ version: currentAboutVersion, dismissed: dontShowAgain }))
   }
   isUpdateLogVisible.value = false
 }
@@ -979,8 +995,8 @@ async function editPhotoNote(photo: PhotoItem | null) {
   isNoteDialogVisible.value = true
 }
 
-function photoParamsStage(stage: PhotoParamsProgress['stage'], percent: number, zh: string, en: string) {
-  photoParamsProgress.value = { stage, percent, message: language.value === 'zh' ? zh : en }
+function photoParamsStage(stage: PhotoParamsProgress['stage'], percent: number) {
+  photoParamsProgress.value = { stage, percent, message: photoParamsMessages.value.stages[stage] }
 }
 
 function presentCameraParams(camera: Record<string, unknown>, rawCameraParams: string, photo?: Record<string, unknown>) {
@@ -1022,49 +1038,36 @@ function presentCameraParams(camera: Record<string, unknown>, rawCameraParams: s
     { title: photoParamsMessages.value.light, name: lightId ? resourceName('light', lightId, language.value) : photoParamsMessages.value.noValue, value: lightId ? formatPercent(light?.strength) : undefined, imageUrl: lightId ? resourceImage('light', lightId) : undefined },
     { title: photoParamsMessages.value.filter, name: filterId ? resourceName('filter', filterId, language.value) : photoParamsMessages.value.noValue, value: filterId ? formatPercent(filter?.strength) : undefined, imageUrl: filterId ? resourceImage('filter', filterId) : undefined }
   ]
-  if (momo) resources.push({ title: language.value === 'zh' ? '大喵动作' : 'Momo pose', name: momo.enabled ? (language.value === 'zh' ? '显示大喵' : 'Momo visible') : resourceName('momo', momo.poseId ?? 0, language.value), value: momo.poseId == null ? undefined : String(momo.poseId), imageUrl: momo.poseId == null ? undefined : resourceImage('momo', momo.poseId) })
+  if (momo) resources.push({ title: photoParamsMessages.value.labels.momoPose, name: momo.enabled ? photoParamsMessages.value.labels.momoVisible : resourceName('momo', momo.poseId ?? 0, language.value), value: momo.poseId == null ? undefined : String(momo.poseId), imageUrl: momo.poseId == null ? undefined : resourceImage('momo', momo.poseId) })
   photoParamsResult.value = {
     environmentFields: captureTime || photo?.weatherType != null ? [
-      ...(captureTime ? [{ label: language.value === 'zh' ? '游戏时间' : 'Game time', value: `${pad(captureTime.hour)}:${pad(captureTime.minute)}:${pad(captureTime.second)}` }] : []),
-      ...(photo?.weatherType != null ? [{ label: language.value === 'zh' ? '天气' : 'Weather', value: weatherName(photo.weatherType, language.value) }] : [])
+      ...(captureTime ? [{ label: photoParamsMessages.value.labels.gameTime, value: `${pad(captureTime.hour)}:${pad(captureTime.minute)}:${pad(captureTime.second)}` }] : []),
+      ...(photo?.weatherType != null ? [{ label: photoParamsMessages.value.labels.weather, value: weatherName(photo.weatherType, language.value) }] : [])
     ] : [],
     cameraFields: [
-      { label: language.value === 'zh' ? '焦距' : 'Focal length', value: focal ? `${formatNumber(focal.millimeters, 0)}mm` : photoParamsMessages.value.noValue, position: focal?.position },
-      { label: language.value === 'zh' ? '光圈' : 'Aperture', value: preferred('apertureValue'), position: sliderPercent(number('aperture', photo ?? camera), PHOTO_PARAM_RANGES.aperture) },
-      { label: language.value === 'zh' ? '晕影' : 'Vignette', value: formatPercent((photo ?? camera).vignette), position: sliderPercent(number('vignette', photo ?? camera), PHOTO_PARAM_RANGES.unit) }
+      { label: photoParamsMessages.value.labels.focalLength, value: focal ? `${formatNumber(focal.millimeters, 0)}mm` : photoParamsMessages.value.noValue, position: focal?.position },
+      { label: photoParamsMessages.value.labels.aperture, value: preferred('apertureValue'), position: sliderPercent(number('aperture', photo ?? camera), PHOTO_PARAM_RANGES.aperture) },
+      { label: photoParamsMessages.value.labels.vignette, value: formatPercent((photo ?? camera).vignette), position: sliderPercent(number('vignette', photo ?? camera), PHOTO_PARAM_RANGES.unit) }
     ],
     imageFields: [
-      { key: 'bloomIntensity', zh: '柔光强度', en: 'Bloom', range: PHOTO_PARAM_RANGES.unit, format: 'percent' },
-      { key: 'bloomRange', zh: '柔光范围', en: 'Bloom range', range: PHOTO_PARAM_RANGES.signed, format: 'number' },
-      { key: 'brightness', zh: '亮度', en: 'Brightness', range: PHOTO_PARAM_RANGES.unit, format: 'percent' },
-      { key: 'exposure', zh: '曝光', en: 'Exposure', range: PHOTO_PARAM_RANGES.signed, format: 'number' },
-      { key: 'contrast', zh: '对比度', en: 'Contrast', range: PHOTO_PARAM_RANGES.unit, format: 'percent' },
-      { key: 'saturation', zh: '饱和度', en: 'Saturation', range: PHOTO_PARAM_RANGES.signed, format: 'number' },
-      { key: 'vibrance', zh: '自然饱和', en: 'Vibrance', range: PHOTO_PARAM_RANGES.signed, format: 'number' },
-      { key: 'highlights', zh: '高光', en: 'Highlights', range: PHOTO_PARAM_RANGES.signed, format: 'number' },
-      { key: 'shadows', zh: '阴影', en: 'Shadows', range: PHOTO_PARAM_RANGES.signed, format: 'number' }
-    ].map(({ key, zh, en, range, format }) => ({ label: language.value === 'zh' ? zh : en, value: format === 'percent' ? formatPercent(camera[key]) : display(key), position: sliderPercent(camera[key], range) })),
+      { key: 'bloomIntensity' as const, range: PHOTO_PARAM_RANGES.unit, format: 'percent' },
+      { key: 'bloomRange' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' },
+      { key: 'brightness' as const, range: PHOTO_PARAM_RANGES.unit, format: 'percent' },
+      { key: 'exposure' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' },
+      { key: 'contrast' as const, range: PHOTO_PARAM_RANGES.unit, format: 'percent' },
+      { key: 'saturation' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' },
+      { key: 'vibrance' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' },
+      { key: 'highlights' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' },
+      { key: 'shadows' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' }
+    ].map(({ key, range, format }) => ({ label: photoParamsMessages.value.labels.imageFields[key], value: format === 'percent' ? formatPercent(camera[key]) : display(key), position: sliderPercent(camera[key], range) })),
     resourceGroups: resources,
     rawCameraParams
   }
 }
 
-function describePhotoParamsError(code: string, languageCode: Language = language.value): string {
-  const meanings: Record<string, [string, string]> = {
-    jpeg_tail_not_found: ['未找到 JPEG 参数尾段', 'The JPEG parameter tail was not found'],
-    jpeg_second_end_marker_missing: ['缺少第二个 JPEG 结束标记', 'The second JPEG end marker is missing'],
-    base64_invalid: ['照片尾部不是有效的 Base64 数据', 'The photo tail is not valid Base64 data'],
-    photo_structure_invalid: ['未找到有效UID账号', 'No valid UID account found'],
-    camera_params_missing: ['照片中没有 CameraParams 参数', 'The photo does not contain CameraParams'],
-    camera_base64_invalid: ['CameraParams 不是有效的 Base64 数据', 'CameraParams is not valid Base64 data'],
-    camera_decrypt_failed: ['CameraParams 解密失败', 'CameraParams decryption failed'],
-    camera_params_invalid_length: ['CameraParams 数组长度不是支持的 31、32 或 40 项', 'The CameraParams array length is not a supported 31, 32, or 40 items'],
-    camera_params_encode_failed: ['CameraParams 原始数组不存在或格式无效', 'The raw CameraParams array is missing or invalid']
-  }
-  const meaning = meanings[code]
-  return languageCode === 'zh'
-    ? `错误码：${code}；含义：${meaning?.[0] ?? '未知解析错误'}`
-    : `Error code: ${code}; Meaning: ${meaning?.[1] ?? 'Unknown parsing error'}`
+function describePhotoParamsError(code: string): string {
+  const messages = photoParamsMessages.value.errors
+  return messages.format(code, messages.descriptions[code] ?? messages.unknownMeaning)
 }
 
 /** 读取照片并调用 WASM；UID 只由已授权的 X6Game 路径推断，协议判断全部留在 WASM。 */
@@ -1077,17 +1080,17 @@ async function openPhotoParams(photo: PhotoItem) {
   photoParamsError.value = null
   photoParamsUidRequired.value = false
   try {
-    photoParamsStage('resolvingUid', 10, '正在识别照片账号…', 'Resolving photo account...')
+    photoParamsStage('resolvingUid', 10)
     await nextTick()
     const x6Game = await getSavedX6GameDirectoryHandle()
-    if (!x6Game) throw new Error(language.value === 'zh' ? '请先授权 X6Game 文件夹。' : 'Authorize the X6Game folder first.')
-    photoParamsStage('readingPhoto', 30, '正在读取照片数据…', 'Reading photo data...')
+    if (!x6Game) throw new Error(photoParamsMessages.value.authorizationRequired)
+    photoParamsStage('readingPhoto', 30)
     await nextTick()
     const bytes = new Uint8Array(await (await photo.fileHandle.getFile()).arrayBuffer())
     if (run !== photoParamsRun) return
-    photoParamsStage('loadingWasm', 50, '正在加载本地解析模块…', 'Loading local parser...')
+    photoParamsStage('loadingWasm', 50)
     await nextTick()
-    photoParamsStage('decryptingPhoto', 70, '正在解密照片参数…', 'Decrypting photo parameters...')
+    photoParamsStage('decryptingPhoto', 70)
     const directoryUids = await listGamePlayPhotoAccounts(x6Game)
     const savedUids = await getSavedCameraParamUids()
     const candidateUids = [...new Set([...directoryUids, ...savedUids])]
@@ -1105,13 +1108,13 @@ async function openPhotoParams(photo: PhotoItem) {
       const errorDetails = errors.length ? errors.map((code) => describePhotoParamsError(code)).join('；') : describePhotoParamsError('photo_structure_invalid')
       throw new Error(errorDetails)
     }
-    photoParamsStage('parsingCamera', 90, '正在整理相机参数…', 'Preparing camera parameters...')
+    photoParamsStage('parsingCamera', 90)
     presentCameraParams(decoded.value.camera, decoded.value.rawCameraParams, decoded.value.photo)
-    photoParamsStage('ready', 100, '解析完成', 'Parsed')
+    photoParamsStage('ready', 100)
   } catch (error) {
     if (run !== photoParamsRun) return
     photoParamsError.value = error instanceof Error ? error.message : String(error)
-    photoParamsStage('error', 100, '解析失败', 'Parsing failed')
+    photoParamsStage('error', 100)
   }
 }
 
@@ -1123,7 +1126,7 @@ async function submitPhotoParamsUid(uid: string) {
   photoParamsResult.value = null
   photoParamsError.value = null
   photoParamsUidRequired.value = true
-  photoParamsStage('readingPhoto', 30, '正在读取照片数据…', 'Reading photo data...')
+  photoParamsStage('readingPhoto', 30)
   try {
     const bytes = new Uint8Array(await (await photo.fileHandle.getFile()).arrayBuffer())
     const decoded = await decodePhoto<{ rawCameraParams: string; photo: Record<string, unknown>; camera: Record<string, unknown> }>(bytes, normalized)
@@ -1134,16 +1137,33 @@ async function submitPhotoParamsUid(uid: string) {
     }
     await addSavedCameraParamUid(normalized)
     presentCameraParams(decoded.value.camera, decoded.value.rawCameraParams, decoded.value.photo)
-    photoParamsStage('ready', 100, '解析完成', 'Parsed')
+    photoParamsStage('ready', 100)
   } catch (error) {
     if (run !== photoParamsRun) return
     photoParamsError.value = error instanceof Error ? error.message : String(error)
-    photoParamsStage('error', 100, '解析失败', 'Parsing failed')
+    photoParamsStage('error', 100)
   }
 }
 
 function openCameraParamsTool() { photoParamsRun += 1; isPhotoParamsVisible.value = true; photoParamsPhoto.value = null; photoParamsResult.value = null; photoParamsError.value = null; photoParamsUidRequired.value = false; photoParamsProgress.value = { stage: 'idle', percent: 0, message: '' } }
-async function parseRawCameraParams(raw: string) { const run = ++photoParamsRun; photoParamsResult.value = null; photoParamsError.value = null; photoParamsUidRequired.value = false; photoParamsStage('loadingWasm', 40, '正在加载本地解析模块…', 'Loading local parser...'); try { const decoded = await decodeCameraParams<Record<string, unknown>>(raw); if (run !== photoParamsRun) return; if (!decoded.ok || !decoded.value) throw new Error(describePhotoParamsError(decoded.errorCode ?? 'camera_decrypt_failed')); presentCameraParams(decoded.value, raw); photoParamsStage('ready', 100, '解析完成', 'Parsed') } catch (error) { if (run !== photoParamsRun) return; photoParamsError.value = error instanceof Error ? error.message : String(error); photoParamsStage('error', 100, '解析失败', 'Parsing failed') } }
+async function parseRawCameraParams(raw: string) {
+  const run = ++photoParamsRun
+  photoParamsResult.value = null
+  photoParamsError.value = null
+  photoParamsUidRequired.value = false
+  photoParamsStage('loadingWasm', 40)
+  try {
+    const decoded = await decodeCameraParams<Record<string, unknown>>(raw)
+    if (run !== photoParamsRun) return
+    if (!decoded.ok || !decoded.value) throw new Error(describePhotoParamsError(decoded.errorCode ?? 'camera_decrypt_failed'))
+    presentCameraParams(decoded.value, raw)
+    photoParamsStage('ready', 100)
+  } catch (error) {
+    if (run !== photoParamsRun) return
+    photoParamsError.value = error instanceof Error ? error.message : String(error)
+    photoParamsStage('error', 100)
+  }
+}
 async function parseHeaderCameraParams(input?: string) {
   const raw = (input ?? normalizedCameraParamsInput.value).trim()
   if (!raw) return
@@ -1333,7 +1353,16 @@ async function removeOutfit(outfit: OutfitItem) {
     showOutfitStatus(outfitLocale.value.operations.outfitDeleted)
   } catch (error) {
     await refreshOutfitLibrary(false).catch(() => undefined)
-    showOutfitStatus(outfitLocale.value.operations.deleteIncomplete, 'warning')
+    if (error instanceof OutfitDeleteRollbackError && error.rollbackFailedNames.length) {
+      await openConfirmDialog({
+        title: outfitLocale.value.operations.deleteIncomplete,
+        message: outfitLocale.value.operations.rollbackFailed(error.rollbackFailedNames),
+        tone: 'warning',
+        confirmLabel: locale.value.app.dialogOk
+      })
+    } else {
+      showOutfitStatus(outfitLocale.value.operations.deleteIncomplete, 'warning')
+    }
   } finally {
     if (activeOperation.value === 'mutating-outfits') activeOperation.value = null
   }
@@ -1358,13 +1387,32 @@ async function deleteSelectedOutfits() {
     const result = await deleteOutfits(targets)
     const deletedIds = new Set(result.deleted.map((outfit) => outfit.id))
     const failedNames = result.failedNames
+    const rollbackFailedNames = result.rollbackFailedNames
     result.deleted.forEach((outfit) => releasePhotoUrl(outfit))
     if (currentPreview.value && deletedIds.has(currentPreview.value.id)) currentPreview.value = null
     selectedOutfitIds.value = new Set([...selectedOutfitIds.value].filter((id) => !deletedIds.has(id)))
     outfits.value = outfits.value.filter((outfit) => !deletedIds.has(outfit.id))
     showOutfitStatus(outfitLocale.value.operations.deletedSelected(deletedIds.size, failedNames.length), failedNames.length ? 'warning' : 'success')
+    if (rollbackFailedNames.length) {
+      await openConfirmDialog({
+        title: outfitLocale.value.operations.deleteIncomplete,
+        message: outfitLocale.value.operations.rollbackFailed(rollbackFailedNames),
+        tone: 'warning',
+        confirmLabel: locale.value.app.dialogOk
+      })
+    }
   } catch (error) {
-    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+    if (error instanceof OutfitDeleteRollbackError && error.rollbackFailedNames.length) {
+      await refreshOutfitLibrary(false).catch(() => undefined)
+      await openConfirmDialog({
+        title: outfitLocale.value.operations.deleteIncomplete,
+        message: outfitLocale.value.operations.rollbackFailed(error.rollbackFailedNames),
+        tone: 'warning',
+        confirmLabel: locale.value.app.dialogOk
+      })
+    } else {
+      statusState.value = createErrorStatus(error, { type: 'readFailed' })
+    }
   } finally {
     if (activeOperation.value === 'mutating-outfits') activeOperation.value = null
   }

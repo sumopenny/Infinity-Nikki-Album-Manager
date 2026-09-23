@@ -1,4 +1,4 @@
-// 点赞计数器组件测试：拉取展示、乐观更新与服务端对账、接口不可用时隐藏
+// 点赞计数器组件测试：拉取展示、乐观更新、串行请求与接口不可用状态
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import LikeCounter from '../src/components/LikeCounter.vue'
@@ -69,6 +69,29 @@ describe('LikeCounter', () => {
     await wrapper.find('button').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('5')
+    expect(wrapper.find('button').exists()).toBe(true)
+  })
+
+  it('快速连续点赞时串行发送请求并保留未确认的乐观计数', async () => {
+    let resolveFirst: ((response: Response) => void) | undefined
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(async () => jsonResponse({ count: 20 }))
+      .mockImplementationOnce(async () => new Promise<Response>((resolve) => { resolveFirst = resolve }))
+      .mockImplementationOnce(async () => jsonResponse({ count: 22 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const wrapper = mount(LikeCounter, { props: { messages } })
+    await flushPromises()
+    await wrapper.find('button').trigger('click')
+    await wrapper.find('button').trigger('click')
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('22')
+    resolveFirst?.(jsonResponse({ count: 21 }))
+    await flushPromises()
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(wrapper.text()).toContain('22')
   })
 
   it('接口不可用时隐藏计数器而不是报错', async () => {

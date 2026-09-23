@@ -15,6 +15,7 @@ import { trashEn } from './messages/trash'
 import { dateEn } from './messages/date'
 import { fileSystemEn } from './messages/fileSystem'
 import { outfitMessages } from './messages/outfit'
+import { photoParamsEn } from './messages/photoParams'
 
 export const en: LocaleMessages = {
   app: appEn,
@@ -30,6 +31,7 @@ export const en: LocaleMessages = {
   lightbox: lightboxEn,
   trash: trashEn,
   date: dateEn,
-  fileSystem: fileSystemEn
-  ,outfit: outfitMessages.en
+  fileSystem: fileSystemEn,
+  outfit: outfitMessages.en,
+  photoParams: photoParamsEn
 }

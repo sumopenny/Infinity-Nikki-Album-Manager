@@ -78,6 +78,7 @@ export interface OutfitMessages {
     deleteIncomplete: string
     deletingSelected: string
     deletedSelected: (deletedCount: number, failedCount: number) => string
+    rollbackFailed: (fileNames: string[]) => string
     exportTitle: string
     exportConfirm: (directoryName: string) => string
     exportAction: string
@@ -179,6 +180,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       deleteIncomplete: '方案未能完整清理，请检查 clothe 文件夹中的残留文件。',
       deletingSelected: '正在永久删除搭配方案…',
       deletedSelected: (deletedCount, failedCount) => `已永久删除 ${deletedCount} 个搭配方案${failedCount ? `，${failedCount} 个删除失败。` : '。'}`,
+      rollbackFailed: (fileNames) => `删除过程发生错误，以下搭配方案无法完整恢复：${fileNames.join('、')}。请手动检查相册 clothe 文件夹。`,
       exportTitle: '导出搭配码数据',
       exportConfirm: (directoryName) => `导出的 ZIP 将自动保存在当前相册文件夹“${directoryName}”中。是否继续？`,
       exportAction: '开始导出',
@@ -289,6 +291,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       deleteIncomplete: 'The outfit could not be fully removed. Check the clothe folder for leftover files.',
       deletingSelected: 'Permanently deleting outfits…',
       deletedSelected: (deletedCount, failedCount) => `Permanently deleted ${deletedCount} outfit(s)${failedCount ? `; ${failedCount} failed.` : '.'}`,
+      rollbackFailed: (fileNames) => `A delete failed and these outfits could not be fully restored: ${fileNames.join(', ')}. Manually inspect the album's clothe folder.`,
       exportTitle: 'Export outfit code data',
       exportConfirm: (directoryName) => `The exported ZIP will be saved automatically in the current album folder “${directoryName}”. Continue?`,
       exportAction: 'Export',

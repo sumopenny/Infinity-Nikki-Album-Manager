@@ -29,6 +29,10 @@ async function getExports(): Promise<PhotoParamsExports> {
       })
       .then((bytes) => loader.instantiate(bytes, {}))
       .then((module) => module.exports as unknown as PhotoParamsExports)
+      .catch((error: unknown) => {
+        exportsPromise = null
+        throw error
+      })
   }
   return exportsPromise
 }

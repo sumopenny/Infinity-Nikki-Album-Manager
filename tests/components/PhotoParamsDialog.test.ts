@@ -1,12 +1,12 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import PhotoParamsDialog from '../../src/components/PhotoParamsDialog.vue'
-
-const messages = { title: '照片参数', close: '关闭', cancel: '取消', copy: '复制', copied: '已复制', retry: '重试', progress: (value: number) => `${value}%`, noValue: '无', capture: '环境', camera: '相机', image: '画面', action: '动作', light: '灯光', filter: '滤镜', raw: '原始参数', uidPrompt: '请输入 UID', uidPlaceholder: '填写 UID', uidParse: '解析' }
+import { photoParamsZh as messages } from '../../src/i18n/messages/photoParams'
 
 describe('PhotoParamsDialog', () => {
   it('does not render a photo preview', async () => {
     const wrapper = mount(PhotoParamsDialog, { props: { visible: true, photo: { id: '1', name: 'photo.jpeg' } as any, uidRequired: false, progress: { stage: 'idle', percent: 0, message: '' }, result: null, error: null, messages }, global: { stubs: { Teleport: true } } })
+    expect(wrapper.get('.confirm-dialog-kicker').text()).toContain(messages.eyebrow)
     expect(wrapper.find('.photo-params-dialog img').exists()).toBe(false)
     expect(wrapper.find('textarea').exists()).toBe(false)
     wrapper.unmount()

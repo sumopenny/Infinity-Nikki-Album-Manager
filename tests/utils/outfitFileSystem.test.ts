@@ -704,6 +704,35 @@ describe('outfit filesystem', () => {
     expect(clothe.files.has(second.metadataName)).toBe(false)
     expect(JSON.parse(await clothe.files.get('ignored-sharecodes.json')!.getFile().then((file) => file.text())))
       .toEqual(expect.arrayContaining(['FIRST#', 'SECOND#']))
+    expect(result.rollbackFailedNames).toEqual([])
+  })
+
+  it('retains ignored share codes when importing the next shared outfit fails', async () => {
+    const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
+    const clothe = new MemoryDirectoryHandle('clothe')
+    const ignored = new MemoryFileHandle('ignored-sharecodes.json', new Blob([JSON.stringify(['OLD#'])]))
+    clothe.files.set(ignored.name, ignored)
+    album.directories.set('clothe', clothe)
+    clothe.failJsonWriteNames.add('sharecode-103203027-300.json')
+    const x6Game = new MemoryDirectoryHandle('X6Game')
+    const saved = new MemoryDirectoryHandle('Saved')
+    const shareCode = new MemoryDirectoryHandle('ShareCode')
+    const diy = new MemoryDirectoryHandle('DIY')
+    const playerDiy = new MemoryDirectoryHandle('103203027')
+    x6Game.directories.set('Saved', saved)
+    saved.directories.set('ShareCode', shareCode)
+    saved.directories.set('DIY', diy)
+    diy.directories.set('103203027', playerDiy)
+    shareCode.files.set('103203027diy_history_sharecode.json', new MemoryFileHandle('103203027diy_history_sharecode.json', new Blob([JSON.stringify([{ RoleID: '103203027', ShareCode: 'NEW#' }])]), 300))
+    playerDiy.files.set('latest.png', new MemoryFileHandle('latest.png', new Blob(['image'], { type: 'image/png' }), 300))
+
+    const result = await readOutfitLibrary(asDirectory(album), {
+      importExternal: false,
+      sharedSource: { x6GameDirectory: asDirectory(x6Game) }
+    })
+
+    expect(result.failedCount).toBe(1)
+    expect(JSON.parse(await clothe.files.get('ignored-sharecodes.json')!.getFile().then((file) => file.text()))).toEqual(['OLD#'])
   })
 
   it('restores outfit metadata when the tag file commit fails', async () => {

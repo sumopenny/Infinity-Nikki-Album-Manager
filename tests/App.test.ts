@@ -195,8 +195,8 @@ describe('App lifecycle coordination', () => {
             template: '<div v-if="visible" class="parse-dialog-stub" />'
           },
           PhotoParamsDialog: {
-            props: ['visible'],
-            template: '<div v-if="visible" class="photo-params-stub"><button class="photo-params-close" @click="$emit(\'close\')">Close</button></div>'
+            props: ['visible', 'messages'],
+            template: '<div v-if="visible" class="photo-params-stub"><span>{{ messages.eyebrow }} {{ messages.labels.focalLength }} {{ messages.stages.ready }}</span><button class="photo-params-close" @click="$emit(\'close\')">Close</button></div>'
           }
         }
       }
@@ -210,7 +210,12 @@ describe('App lifecycle coordination', () => {
     await wrapper.findAll('.parse-tools-section')[0].trigger('submit')
     await flushPromises()
 
-    expect(wrapper.find('.photo-params-stub').exists()).toBe(true)
+    expect(wrapper.get('.photo-params-stub').text()).toContain('照片参数解析 焦距 解析完成')
+    await wrapper.get('.view-menu-button').trigger('click')
+    await wrapper.get('.view-dropdown').findAll('button').at(-1)!.trigger('click')
+    await new Promise((resolve) => window.setTimeout(resolve, 300))
+    await flushPromises()
+    expect(wrapper.get('.photo-params-stub').text()).toContain('PHOTO PARAMETERS Focal length Parsed')
     await wrapper.get('.photo-params-close').trigger('click')
     expect(wrapper.find('.parse-tools-dialog').exists()).toBe(true)
     expect((wrapper.findAll('.parse-tools-section input')[0].element as HTMLInputElement).value).toBe('')

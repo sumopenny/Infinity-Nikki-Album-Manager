@@ -15,6 +15,7 @@ import { trashZh } from './messages/trash'
 import { dateZh } from './messages/date'
 import { fileSystemZh } from './messages/fileSystem'
 import { outfitMessages } from './messages/outfit'
+import { photoParamsZh } from './messages/photoParams'
 
 export const zh: LocaleMessages = {
   app: appZh,
@@ -30,6 +31,7 @@ export const zh: LocaleMessages = {
   lightbox: lightboxZh,
   trash: trashZh,
   date: dateZh,
-  fileSystem: fileSystemZh
-  ,outfit: outfitMessages.zh
+  fileSystem: fileSystemZh,
+  outfit: outfitMessages.zh,
+  photoParams: photoParamsZh
 }

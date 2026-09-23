@@ -9,6 +9,8 @@ const props = defineProps<{
 const count = ref<number | null>(null)
 const available = ref(true)
 const justLiked = ref(false)
+let likeQueue: Promise<void> = Promise.resolve()
+let pendingLikes = 0
 
 const formattedCount = computed(() => (count.value === null ? '…' : count.value.toLocaleString()))
 
@@ -25,21 +27,30 @@ async function loadCount() {
   }
 }
 
-/** 点赞一次：乐观 +1，随后以服务端返回的真实总数为准；失败则回退。参数：无。 */
+/** 点赞请求串行发送，避免服务端响应乱序覆盖较新的计数。 */
 async function like() {
   if (count.value === null) return
-  count.value += 1
+  const currentCount = count.value
+  pendingLikes += 1
+  count.value = currentCount + 1
   justLiked.value = true
   window.setTimeout(() => { justLiked.value = false }, 400)
 
-  try {
-    const response = await fetch('/api/like', { method: 'POST', headers: { accept: 'application/json' } })
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    const data = (await response.json()) as { count?: unknown }
-    if (typeof data.count === 'number') count.value = data.count
-  } catch {
-    count.value -= 1
-  }
+  likeQueue = likeQueue.catch(() => undefined).then(async () => {
+    const confirmedCount = count.value ?? currentCount
+    try {
+      const response = await fetch('/api/like', { method: 'POST', headers: { accept: 'application/json' } })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const data = (await response.json()) as { count?: unknown }
+      if (typeof data.count === 'number') count.value = data.count + pendingLikes - 1
+      else count.value = Math.max(0, (count.value ?? confirmedCount) - 1)
+    } catch {
+      count.value = Math.max(0, (count.value ?? confirmedCount) - 1)
+    } finally {
+      pendingLikes -= 1
+    }
+  })
+  await likeQueue
 }
 
 onMounted(loadCount)

@@ -2,12 +2,14 @@
 import type { ThemeMode } from '../types/theme'
 import type { RelatedCleanupFailureReason, SpecialCleanupItem } from '../utils/file-system/cleanupFileSystem'
 import type { OutfitMessages } from './messages/outfit'
+import type { PhotoParamsMessages } from './messages/photoParams'
 export type Language = 'zh' | 'en'
 export type StatusPrefix = 'read' | 'restored'
 export type StatusSuffix = 'continued' | 'remembered'
 
 export interface LocaleMessages {
   outfit: OutfitMessages
+  photoParams: PhotoParamsMessages
   app: {
     noDirectory: string
     initialStatus: string
