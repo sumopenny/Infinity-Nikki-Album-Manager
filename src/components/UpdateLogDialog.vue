@@ -1,0 +1,66 @@
+<script setup lang="ts">
+import { computed, nextTick, ref, watch } from 'vue'
+import { History, X } from 'lucide-vue-next'
+import { useBodyScrollLock } from '../utils/bodyScrollLock'
+import type { LocaleMessages } from '../i18n'
+
+const props = defineProps<{ visible: boolean; dismissed: boolean; messages: LocaleMessages['updateLog'] }>()
+const emit = defineEmits<{ close: [dontShowAgain: boolean] }>()
+const dontShowAgain = ref(false)
+const panelRef = ref<HTMLElement | null>(null)
+let previousActiveElement: HTMLElement | null = null
+useBodyScrollLock(computed(() => props.visible))
+
+function closeDialog() { emit('close', dontShowAgain.value) }
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') { closeDialog(); return }
+  if (event.key !== 'Tab' || !panelRef.value) return
+  const focusable = [...panelRef.value.querySelectorAll<HTMLElement>('button, input, [href], [tabindex]:not([tabindex="-1"])')].filter((element) => !element.hasAttribute('disabled'))
+  if (!focusable.length) return
+  const first = focusable[0], last = focusable[focusable.length - 1]
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+}
+watch(() => props.visible, (visible) => {
+  if (visible) {
+    dontShowAgain.value = props.dismissed
+    previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    void nextTick(() => panelRef.value?.focus())
+  } else { previousActiveElement?.focus(); previousActiveElement = null }
+})
+</script>
+
+<template>
+  <Teleport to="body">
+    <Transition name="confirm-dialog">
+      <div v-if="visible" class="dialog-overlay update-log-dialog" role="dialog" aria-modal="true" :aria-label="messages.title" @click.self="closeDialog" @keydown="handleKeydown">
+        <section ref="panelRef" class="dialog-panel update-log-panel" tabindex="-1">
+          <header class="update-log-header">
+            <div><p class="update-log-eyebrow"><History :size="15" aria-hidden="true" /> RELEASE NOTES</p><h2>{{ messages.title }}</h2></div>
+            <button class="update-log-close-button" type="button" :title="messages.closeAria" :aria-label="messages.closeAria" @click="closeDialog"><X :size="19" aria-hidden="true" /></button>
+          </header>
+          <div class="update-log-body">
+            <section>
+              <h3 class="update-log-section-title">{{ messages.currentTitle }}【{{ messages.currentDate }}】</h3>
+              <article class="update-log-entry is-current update-log-current">
+                <span class="update-log-version">{{ messages.currentVersion }}</span>
+                <ul><li v-for="item in messages.currentItems" :key="item">{{ item }}</li></ul>
+              </article>
+            </section>
+            <section class="update-log-history">
+              <h3 class="update-log-section-title">{{ messages.historyTitle }}</h3>
+              <article v-for="entry in messages.history" :key="entry.version" class="update-log-history-entry">
+                <span class="update-log-version">{{ entry.version }}</span>
+                <ul><li v-for="item in entry.items" :key="item">{{ item }}</li></ul>
+              </article>
+            </section>
+          </div>
+          <footer class="update-log-footer">
+            <label><input v-model="dontShowAgain" type="checkbox" /><span>{{ messages.dontShowAgain }}</span></label>
+            <button class="primary-button" type="button" @click="closeDialog">{{ messages.confirm }}</button>
+          </footer>
+        </section>
+      </div>
+    </Transition>
+  </Teleport>
+</template>

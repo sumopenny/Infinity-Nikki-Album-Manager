@@ -115,5 +115,30 @@ describe('TopBar', () => {
     expect(wrapper.get('.header-dropdown').text()).not.toContain(messages.zh.topBar.parseTools)
     wrapper.unmount()
   })
+
+  it('opens the update log and help entries from the more menu', async () => {
+    const wrapper = mountTopBar(false)
+    await wrapper.get('.more-menu-button').trigger('click')
+
+    const menu = wrapper.get('.header-dropdown')
+    expect(menu.text()).toContain(messages.zh.topBar.updateLog)
+    expect(menu.text()).toContain(messages.zh.topBar.helpAbout)
+
+    const items = menu.findAll('button')
+    const updateLogItem = items.find((item) => item.text().includes(messages.zh.topBar.updateLog))
+    const helpAboutItem = items.find((item) => item.text().includes(messages.zh.topBar.helpAbout))
+    expect(updateLogItem).toBeDefined()
+    expect(helpAboutItem).toBeDefined()
+
+    await updateLogItem!.trigger('click')
+    expect(wrapper.emitted('openUpdateLog')).toHaveLength(1)
+
+    await wrapper.get('.more-menu-button').trigger('click')
+    const reopenedMenu = wrapper.get('.header-dropdown')
+    const reopenedHelpAboutItem = reopenedMenu.findAll('button').find((item) => item.text().includes(messages.zh.topBar.helpAbout))
+    await reopenedHelpAboutItem!.trigger('click')
+    expect(wrapper.emitted('openHelpAbout')).toHaveLength(1)
+    wrapper.unmount()
+  })
 })
 

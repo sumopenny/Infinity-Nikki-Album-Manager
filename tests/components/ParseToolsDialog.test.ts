@@ -11,18 +11,16 @@ const messages = {
   outfitPlaceholder: '填写搭配码',
   cameraSubmit: '解析相机参数',
   outfitSubmit: '解析搭配码',
-  noAlbumHint: '请先选择相册',
   busyHint: '请稍候'
 }
 
-function mountDialog(overrides: Partial<{ visible: boolean; hasAlbumDirectory: boolean; busy: boolean }> = {}) {
+function mountDialog(overrides: Partial<{ visible: boolean; busy: boolean }> = {}) {
   return mount(ParseToolsDialog, {
     props: {
       visible: true,
       cameraParams: '',
       outfitCode: '',
       outfitMaxLength: 64,
-      hasAlbumDirectory: true,
       busy: false,
       messages,
       ...overrides
@@ -49,13 +47,7 @@ describe('ParseToolsDialog', () => {
     expect(wrapper.emitted('parse-outfit')).toEqual([['outfit-code']])
   })
 
-  it('disables both inputs while the album is unavailable or busy', () => {
-    const noAlbum = mountDialog({ hasAlbumDirectory: false })
-    expect(noAlbum.text()).toContain(messages.noAlbumHint)
-    expect(noAlbum.findAll('input').every((input) => input.element.disabled)).toBe(true)
-    expect(noAlbum.findAll('button').filter((button) => button.attributes('type') === 'submit').every((button) => button.element.disabled)).toBe(true)
-    noAlbum.unmount()
-
+  it('disables both inputs while busy', () => {
     const busy = mountDialog({ busy: true })
     expect(busy.text()).toContain(messages.busyHint)
     expect(busy.findAll('input').every((input) => input.element.disabled)).toBe(true)

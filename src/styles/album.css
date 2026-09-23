@@ -206,9 +206,10 @@
   padding: 7px 8px 7px 14px;
   border: 1px solid var(--line);
   border-radius: var(--ui-radius);
-  background: color-mix(in srgb, var(--surface-strong) 95%, transparent);
+  background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
   box-shadow: 0 14px 38px rgba(37, 32, 30, 0.22);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px) saturate(1.35);
+  -webkit-backdrop-filter: blur(14px) saturate(1.35);
 }
 
 .selection-bar strong {

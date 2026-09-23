@@ -123,7 +123,8 @@ export interface LocaleMessages {
     feedbackTitle: string
     feedbackOpenExternal: string
     feedbackClose: string
-    about: string
+    updateLog: string
+    helpAbout: string
     fortuneTime: string
     importPhotos: string
     exportAllPhotos: string
@@ -152,20 +153,34 @@ export interface LocaleMessages {
     summary: string
     footnote: string
   }
-  about: {
+  updateLog: {
     title: string
+    currentTitle: string
+    currentVersion: string
+    currentDate: string
+    currentItems: string[]
+    historyTitle: string
+    history: Array<{ version: string; date?: string; items: string[] }>
+    dontShowAgain: string
+    confirm: string
+    closeAria: string
+  }
+  helpAbout: {
+    title: string
+    eyebrow: string
     introTitle: string
     intro: string
+    privacyNote: string
     featuresTitle: string
-    features: string[]
-    changelogTitle: string
-    changelog: Array<{ version: string; text: string }>
-    historyLink: string
-    historyTitle: string
-    historyBack: string
-    historyBackAria: string
-    history: Array<{ version: string; text: string }>
-    dontShowAgain: string
+    features: Array<{ icon: string; title: string; text: string }>
+    tutorialTitle: string
+    tutorialSections: Array<{ title: string; items: string[] }>
+    notesTitle: string
+    notes: string[]
+    mouseTitle: string
+    mouseItems: string[]
+    keyboardTitle: string
+    keyboardItems: string[]
     confirm: string
     closeAria: string
   }

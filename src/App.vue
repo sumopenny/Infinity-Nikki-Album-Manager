@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { CircleHelp, Download, FileUp, Plus, Trash2 } from 'lucide-vue-next'
-import AboutDialog from './components/AboutDialog.vue'
+import UpdateLogDialog from './components/UpdateLogDialog.vue'
+import HelpAboutDialog from './components/HelpAboutDialog.vue'
 import AlbumViewSwitcher, { type AlbumView } from './components/AlbumViewSwitcher.vue'
 import CleanupAccountPicker from './components/CleanupAccountPicker.vue'
 import CleanupDialog from './components/CleanupDialog.vue'
@@ -82,7 +83,7 @@ const FAVORITES_STORAGE_KEY = 'infinity-nikki-favorite-photo-ids'
 const ABOUT_STATE_STORAGE_KEY = 'infinity-nikki-about-state'
 const CLEANUP_ACCOUNT_CHOICE_KEY = 'infinity-nikki-cleanup-account-choice'
 const WEBSITE_LOCAL_STORAGE_KEYS = [THUMBNAIL_STORAGE_KEY, OUTFIT_THUMBNAIL_STORAGE_KEY, OUTFIT_GUIDE_DISMISSED_KEY, X6GAME_AUTO_PROMPT_DISMISSED_KEY, THEME_STORAGE_KEY, LANGUAGE_STORAGE_KEY, FAVORITES_STORAGE_KEY, ABOUT_STATE_STORAGE_KEY, CLEANUP_ACCOUNT_CHOICE_KEY]
-const currentAboutVersion = messages.zh.about.changelog[0]?.version.replace(/^v/, '') ?? ''
+const currentAboutVersion = messages.zh.updateLog.currentVersion.replace(/^v/, '')
 
 function isLanguage(value: string | null): value is Language {
   return value === 'zh' || value === 'en'
@@ -153,7 +154,8 @@ const reopenParseToolsAfterOutfitClose = ref(false)
 const reopenParseToolsAfterPhotoClose = ref(false)
 const isOutfitGuideVisible = ref(false)
 const isOutfitGuideDismissed = ref(localStorage.getItem(OUTFIT_GUIDE_DISMISSED_KEY) === 'true')
-const isAboutDialogVisible = ref(false)
+const isUpdateLogVisible = ref(false)
+const isHelpAboutVisible = ref(false)
 // 版本号变化时本地记录失效，“不再提示”勾选状态随之重置
 const isAboutDialogDismissed = ref(storedAboutState?.version === currentAboutVersion && storedAboutState.dismissed === true)
 const isX6GameAutoPromptDismissed = ref(localStorage.getItem(X6GAME_AUTO_PROMPT_DISMISSED_KEY) === 'true')
@@ -906,19 +908,22 @@ function closeOutfitGuide(dontShowAgain: boolean) {
   isOutfitGuideVisible.value = false
 }
 
-/** 从更多菜单打开“关于网站”窗口。参数：无。 */
-function openAboutDialog() {
-  isAboutDialogVisible.value = true
+/** 从更多菜单打开更新记录窗口。参数：无。 */
+function openUpdateLog() {
+  isUpdateLogVisible.value = true
 }
 
-/** 关闭“关于网站”窗口。参数：dontShowAgain 表示当前版本是否不再自动弹出；同时把版本号和勾选状态保存到本地。 */
-function closeAboutDialog(dontShowAgain: boolean) {
+/** 关闭更新记录窗口。参数：dontShowAgain 表示当前版本是否不再自动弹出；同时把版本号和勾选状态保存到本地。 */
+function closeUpdateLog(dontShowAgain: boolean) {
   isAboutDialogDismissed.value = dontShowAgain
   if (!suppressLocalPersistence) {
     localStorage.setItem(ABOUT_STATE_STORAGE_KEY, JSON.stringify({ version: currentAboutVersion, dismissed: dontShowAgain }))
   }
-  isAboutDialogVisible.value = false
+  isUpdateLogVisible.value = false
 }
+
+function openHelpAbout() { isHelpAboutVisible.value = true }
+function closeHelpAbout() { isHelpAboutVisible.value = false }
 
 function showOutfitStatus(message: string, tone: StatusTone = 'success', loading = false) {
   statusState.value = { type: 'custom', message, tone, loading }
@@ -1785,9 +1790,9 @@ function scheduleFocusRefresh() {
 onMounted(() => {
   void restoreSavedDirectory()
   void restoreSavedX6GameAuthorization()
-  // 没有记录、版本号变化或未勾选“不再提示”时，打开网站自动显示“关于网站”窗口
+  // 没有记录、版本号变化或未勾选“不再提示”时，打开网站自动显示更新记录
   if (!storedAboutState || storedAboutState.version !== currentAboutVersion || !storedAboutState.dismissed) {
-    isAboutDialogVisible.value = true
+    isUpdateLogVisible.value = true
   }
   nextTick(() => {
     updateSidebarStickyOffset()
@@ -1844,7 +1849,8 @@ onBeforeUnmount(() => {
       @change-thumbnail-mode="changeThumbnailMode"
       @toggle-language="toggleLanguage"
       @toggle-theme="toggleTheme"
-      @open-about="openAboutDialog"
+      @open-update-log="openUpdateLog"
+      @open-help-about="openHelpAbout"
       @update-search="searchQuery = $event"
     />
 
@@ -2100,12 +2106,17 @@ onBeforeUnmount(() => {
       @close="closeOutfitGuide"
     />
 
-    <AboutDialog
-      :visible="isAboutDialogVisible"
+    <UpdateLogDialog
+      :visible="isUpdateLogVisible"
       :dismissed="isAboutDialogDismissed"
-      :messages="locale.about"
-      :top-bar-messages="locale.topBar"
-      @close="closeAboutDialog"
+      :messages="locale.updateLog"
+      @close="closeUpdateLog"
+    />
+
+    <HelpAboutDialog
+      :visible="isHelpAboutVisible"
+      :messages="locale.helpAbout"
+      @close="closeHelpAbout"
     />
 
     <CleanupDialog

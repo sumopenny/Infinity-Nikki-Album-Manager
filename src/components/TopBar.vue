@@ -9,7 +9,8 @@ import {
   Github,
   Grid2X2,
   Heart,
-  Info,
+  History,
+  BookOpen,
   Languages,
   Music2,
   Moon,
@@ -61,7 +62,8 @@ const emit = defineEmits<{
   toggleLanguage: []
   toggleTheme: []
   changeThumbnailMode: [mode: ThumbnailMode]
-  openAbout: []
+  openUpdateLog: []
+  openHelpAbout: []
   updateSearch: [value: string]
 }>()
 
@@ -315,9 +317,13 @@ onBeforeUnmount(() => {
             <Bug :size="16" />
             <span>{{ messages.feedback }}</span>
           </button>
-          <button type="button" role="menuitem" @click="runMenuAction(() => emit('openAbout'))">
-            <Info :size="16" />
-            <span>{{ messages.about }}</span>
+          <button type="button" role="menuitem" @click="runMenuAction(() => emit('openUpdateLog'))">
+            <History :size="16" />
+            <span>{{ messages.updateLog }}</span>
+          </button>
+          <button type="button" role="menuitem" @click="runMenuAction(() => emit('openHelpAbout'))">
+            <BookOpen :size="16" />
+            <span>{{ messages.helpAbout }}</span>
           </button>
           <div class="menu-author">{{ messages.author }}</div>
           <div class="author-social-links">

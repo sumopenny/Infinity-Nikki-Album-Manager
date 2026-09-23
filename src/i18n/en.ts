@@ -3,7 +3,8 @@ import type { LocaleMessages } from './types'
 import { appEn } from './messages/app'
 import { topBarEn } from './messages/topBar'
 import { fortuneTimeEn } from './messages/fortuneTime'
-import { aboutEn } from './messages/about'
+import { helpAboutEn } from './messages/helpAbout'
+import { updateLogEn } from './messages/updateLog'
 import { selectionBarEn } from './messages/selectionBar'
 import { cleanupEn } from './messages/cleanup'
 import { viewNavEn } from './messages/viewNav'
@@ -19,7 +20,8 @@ export const en: LocaleMessages = {
   app: appEn,
   topBar: topBarEn,
   fortuneTime: fortuneTimeEn,
-  about: aboutEn,
+  updateLog: updateLogEn,
+  helpAbout: helpAboutEn,
   selectionBar: selectionBarEn,
   cleanup: cleanupEn,
   viewNav: viewNavEn,

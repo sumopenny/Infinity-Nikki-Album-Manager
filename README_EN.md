@@ -35,8 +35,8 @@
 
 - Group photos by year, month, and date with a collapsible timeline and quick date jumps.
 - Report issues directly through the Feedback entry in the More menu.
-- The About window shows the current release and historical release notes.
-- The About window opens automatically when the site loads, with an introduction, usage tips, and the changelog; check "Don't show again" to hide it until the next version update.
+- The Release history window shows the current release and historical release notes; Help and introduction contains the site overview, features, tutorials, and important notes.
+- The Release history window opens automatically when the site loads; check "Don't show again" to hide it until the next version update.
 - Deleted high-quality photos move to the current album's `trash` folder for preview, restore, or permanent deletion.
 - Single-click to select a photo and show the bottom action bar.
 - Double-click to open the large preview with 50%–300% zoom, mouse-wheel zooming, and drag-to-pan after zooming in.

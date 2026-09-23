@@ -1,5 +1,64 @@
 /* 弹窗与操作提示样式：通知、确认弹窗、帮助窗口、清理窗口、反馈窗口、打赏窗口、关闭按钮和弹窗动画。 */
 /* Notices and dialogs */
+
+/* 通用弹窗基础：所有具体弹窗样式都在此基础上覆盖。 */
+.dialog-overlay {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background: rgba(24, 21, 21, 0.52);
+  backdrop-filter: blur(6px);
+}
+
+.dialog-panel {
+  width: var(--dialog-width, min(760px, 100%));
+  max-height: var(--dialog-max-height, min(660px, calc(100vh - 40px)));
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: 36px;
+  background: var(--surface-strong);
+  box-shadow: var(--dialog-shadow);
+}
+
+.dialog-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 26px 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.dialog-panel h2,
+.dialog-panel h3,
+.dialog-panel p { margin: 0; }
+
+.dialog-panel > header h2 {
+  font-size: 21px;
+  letter-spacing: 0.5px;
+}
+
+.dialog-panel > header button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--heading) 8%, transparent);
+  color: var(--text);
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.dialog-panel > header button:hover {
+  background: color-mix(in srgb, var(--heading) 16%, transparent);
+}
+
 /* 操作提示：页面顶部居中悬浮卡片，毛玻璃 + 强调色微光 */
 .operation-notice {
   --notice-accent: var(--notice-info);
@@ -460,6 +519,113 @@
   .photo-params-uid-form > div { grid-template-columns: minmax(0, 1fr) auto; }
 }
 
+/* 更新记录与使用帮助：统一标准弹窗外壳，正文各自只保留一个滚动容器。 */
+.update-log-panel,
+.help-about-panel {
+  position: relative;
+  width: min(1120px, 100%);
+  height: min(720px, calc(100dvh - 48px));
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--dialog-shadow);
+}
+.update-log-panel:focus,
+.update-log-panel:focus-visible,
+.help-about-panel:focus,
+.help-about-panel:focus-visible {
+  outline: none;
+}
+.update-log-header,
+.help-about-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.update-log-header h2,
+.help-about-header h2 { margin: 0; color: var(--heading); font-size: 22px; }
+.update-log-close-button { display: grid; width: 36px; height: 36px; place-items: center; padding: 0; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--heading) 8%, transparent); color: var(--text); cursor: pointer; }
+.update-log-header button,
+.help-about-header button { display: grid; width: 36px; height: 36px; place-items: center; padding: 0; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--heading) 8%, transparent); color: var(--text); }
+.update-log-header button:hover,
+.help-about-header button:hover { background: color-mix(in srgb, var(--heading) 16%, transparent); }
+.update-log-header button:focus-visible,
+.help-about-header button:focus-visible { outline: none; box-shadow: none; }
+.update-log-eyebrow,
+.help-about-eyebrow { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; color: var(--pink-deep); font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+.update-log-body,
+.help-about-body { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; gap: 28px; padding: 26px 30px; overflow-y: auto; color: var(--text); }
+.update-log-body h3,
+.help-about-body h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; color: var(--heading); font-size: 15px; }
+.update-log-section-title::before,
+.help-about-body h3::before { width: 6px; height: 17px; flex: 0 0 6px; border-radius: 3px; background: var(--title-gradient); content: ""; }
+.update-log-entry { display: flex; align-items: baseline; gap: 12px; margin-top: 8px; }
+.update-log-version { flex-shrink: 0; padding: 2px 10px; border-radius: 999px; background: var(--pink-deep); color: #fff; font-size: 11px; font-weight: 700; }
+.update-log-current { margin: 10px 0 0; padding: 16px 18px; }
+.update-log-entry.is-current { border: 1px solid color-mix(in srgb, var(--pink-deep) 40%, transparent); border-radius: 16px; background: linear-gradient(120deg, color-mix(in srgb, var(--pink-deep) 13%, var(--surface-strong)), color-mix(in srgb, #d9b86a 10%, var(--surface-strong))); box-shadow: 0 10px 26px color-mix(in srgb, var(--pink-deep) 18%, transparent); }
+.update-log-entry.is-current .update-log-version { background: var(--title-gradient); font-size: 13px; box-shadow: 0 2px 8px color-mix(in srgb, var(--pink-deep) 35%, transparent); }
+.update-log-entry.is-current li { color: var(--heading); font-weight: 600; }
+:root[data-theme='dark'] .update-log-entry.is-current .update-log-version { color: #6b4a4d; }
+.update-log-current ul,
+.update-log-history-entry ul,
+.help-about-body ul { margin: 12px 0 0; padding-left: 20px; }
+.update-log-current ul { flex: 1; margin: 0; }
+.update-log-current li,
+.update-log-history-entry li,
+.help-about-body li { margin: 6px 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
+.update-log-current li { color: var(--heading); font-weight: 600; }
+.update-log-history { padding-top: 4px; }
+.update-log-history-entry { padding: 14px 0; border-bottom: 1px solid var(--line-soft); }
+.update-log-history-entry:last-child { border-bottom: 0; }
+.update-log-history-entry ul { margin-top: 8px; padding-left: 20px; list-style: disc; }
+.update-log-history-entry li { margin: 3px 0; }
+.update-log-footer { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 26px; border-top: 1px solid var(--line); }
+.update-log-footer label { display: inline-flex; align-items: center; gap: 8px; color: var(--text); font-size: 12px; font-weight: 700; cursor: pointer; }
+.update-log-footer input { display: grid; width: 18px; height: 18px; margin: 0; appearance: none; place-content: center; border: 1px solid var(--pink-deep); border-radius: 4px; background: var(--surface-strong); cursor: pointer; }
+.update-log-footer input::before { color: #fff; content: "✓"; font-size: 11px; font-weight: 800; line-height: 1; opacity: 0; }
+.update-log-footer input:checked { background: var(--pink-deep); }
+.update-log-footer input:checked::before { opacity: 1; }
+.update-log-footer .primary-button { min-width: 92px; min-height: 38px; justify-content: center; border-radius: 10px; font-size: 11px; }
+.help-about-intro { padding: 18px 20px; border: 1px solid color-mix(in srgb, var(--pink-deep) 22%, var(--line)); border-radius: var(--radius-md); background: color-mix(in srgb, var(--pink-deep) 6%, var(--surface-strong)); }
+.help-about-body p { margin: 8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.75; }
+.help-about-privacy { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px !important; color: var(--heading) !important; }
+.help-about-privacy svg { flex: 0 0 auto; color: var(--notice-success); }
+.help-about-feature-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.help-about-feature { display: flex; gap: 11px; min-width: 0; padding: 15px; border: 1px solid var(--line-soft); border-radius: var(--radius-md); background: color-mix(in srgb, var(--surface-strong) 92%, var(--soft-accent)); }
+.help-about-feature > span { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; border-radius: 10px; background: var(--title-gradient); color: #fff; }
+.help-about-feature h4,
+.help-about-tutorial-grid h4 { margin: 0; color: var(--heading); font-size: 13px; }
+.help-about-feature p { margin-top: 5px; font-size: 12px; line-height: 1.6; }
+.help-about-tutorial-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.help-about-tutorial-grid article,
+.help-about-shortcuts section { padding: 15px 17px; border: 1px solid var(--line-soft); border-radius: var(--radius-md); background: color-mix(in srgb, var(--heading) 3%, var(--surface-strong)); }
+.help-about-tutorial-grid ul { margin-top: 8px; }
+.help-about-tutorial-grid li,
+.help-about-notes li,
+.help-about-shortcuts li { font-size: 12px; }
+.help-about-notes { padding: 14px 18px !important; border-radius: var(--radius-md); border-left: 3px solid var(--pink-deep); background: color-mix(in srgb, var(--pink-deep) 5%, var(--surface-strong)); }
+.help-about-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.help-about-footer { display: flex; flex-shrink: 0; justify-content: flex-end; padding: 14px 24px; border-top: 1px solid var(--line-soft); }
+.help-about-footer .primary-button { min-width: 92px; min-height: 38px; border-radius: 10px; }
+@media (max-width: 640px) {
+  .update-log-panel,
+  .help-about-panel { width: 100%; height: calc(100dvh - 24px); max-height: calc(100dvh - 24px); border-radius: 20px; }
+  .update-log-header,
+  .help-about-header { padding: 16px 18px; }
+  .update-log-body,
+  .help-about-body { padding: 20px 18px; }
+  .help-about-feature-grid,
+  .help-about-tutorial-grid,
+  .help-about-shortcuts { grid-template-columns: 1fr; }
+}
+
 .operation-notice.is-success {
   --notice-accent: var(--notice-success);
 }
@@ -473,8 +639,6 @@
 }
 
 .operation-notice.is-loading {
-  background: color-mix(in srgb, var(--surface-strong) 92%, transparent);
-  backdrop-filter: none;
   contain: layout paint;
 }
 
@@ -832,20 +996,6 @@
   to { transform: rotate(360deg); }
 }
 
-/* 通用弹窗基础：只负责遮罩、居中和面板公共外观。 */
-.dialog-overlay {
-  position: fixed;
-  z-index: 100;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  overflow: hidden;
-  overscroll-behavior: contain;
-  background: rgba(24, 21, 21, 0.52);
-  backdrop-filter: blur(6px);
-}
-
 /* 非标准命名的历史弹窗也统一隔离滚动链，避免滚轮穿透到页面。 */
 :is(.confirm-dialog, .note-dialog, .outfit-guide, .outfit-editor, .lightbox) {
   overscroll-behavior: contain;
@@ -854,54 +1004,6 @@
 
 :is(.confirm-dialog-panel, .note-dialog-panel, .outfit-guide-panel, .outfit-editor-panel, .lightbox-panel) {
   overscroll-behavior: contain;
-}
-
-.dialog-panel {
-  width: var(--dialog-width, min(760px, 100%));
-  max-height: var(--dialog-max-height, min(660px, calc(100vh - 40px)));
-  overflow: auto;
-  overscroll-behavior: contain;
-  border: 1px solid var(--line);
-  border-radius: 36px;
-  background: var(--surface-strong);
-  box-shadow: var(--dialog-shadow);
-  padding: 18px;
-}
-
-.dialog-panel > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 22px 26px 14px;
-  border-bottom: 1px solid var(--line-soft);
-}
-
-.dialog-panel h2,
-.dialog-panel h3,
-.dialog-panel p {
-  margin: 0;
-}
-
-.dialog-panel > header h2 {
-  font-size: 21px;
-  letter-spacing: 0.5px;
-}
-
-/* 关闭按钮与“关于网站”一致的悬浮圆形样式 */
-.dialog-panel > header button {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border: 0;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--heading) 8%, transparent);
-  color: var(--text);
-  transition: background 0.18s ease, transform 0.18s ease;
-}
-
-.dialog-panel > header button:hover {
-  background: color-mix(in srgb, var(--heading) 16%, transparent);
 }
 
 .fortune-time-dialog { z-index: 160; overflow: hidden; }
@@ -943,7 +1045,7 @@
   max-height: var(--dialog-max-height);
   display: grid;
   gap: 18px;
-  padding: 24px 24px 26px;
+  padding: 0;
 }
 
 .cleanup-dialog-header {
@@ -951,6 +1053,8 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  padding: 22px 24px 14px;
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .cleanup-dialog-title-group {
@@ -1012,6 +1116,7 @@
 .cleanup-list {
   display: grid;
   gap: 14px;
+  padding: 0 24px 26px;
 }
 
 .cleanup-item {
@@ -1205,6 +1310,7 @@
 @media (max-width: 560px) {
   .cleanup-dialog-header {
     flex-direction: column;
+    padding: 17px 18px 12px;
   }
 
   .cleanup-dialog-header-actions {
@@ -1215,6 +1321,10 @@
   .cleanup-item {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .cleanup-list {
+    padding: 0 16px 20px;
   }
 
   .cleanup-item-action {
