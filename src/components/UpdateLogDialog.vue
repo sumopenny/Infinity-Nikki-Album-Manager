@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { History, X } from 'lucide-vue-next'
+import { CircleHelp, History, X } from 'lucide-vue-next'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { LocaleMessages } from '../i18n'
 
 const props = defineProps<{ visible: boolean; dismissed: boolean; messages: LocaleMessages['updateLog'] }>()
-const emit = defineEmits<{ close: [dontShowAgain: boolean] }>()
+const emit = defineEmits<{ close: [dontShowAgain: boolean]; openHelp: [] }>()
 const dontShowAgain = ref(false)
 const panelRef = ref<HTMLElement | null>(null)
 let previousActiveElement: HTMLElement | null = null
 useBodyScrollLock(computed(() => props.visible))
 
 function closeDialog() { emit('close', dontShowAgain.value) }
+function openHelp() { emit('openHelp') }
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') { closeDialog(); return }
   if (event.key !== 'Tab' || !panelRef.value) return
@@ -36,7 +37,7 @@ watch(() => props.visible, (visible) => {
       <div v-if="visible" class="dialog-overlay update-log-dialog" role="dialog" aria-modal="true" :aria-label="messages.title" @click.self="closeDialog" @keydown="handleKeydown">
         <section ref="panelRef" class="dialog-panel update-log-panel" tabindex="-1">
           <header class="update-log-header">
-            <div><p class="update-log-eyebrow"><History :size="15" aria-hidden="true" /> RELEASE NOTES</p><h2>{{ messages.title }}</h2></div>
+            <div><p class="update-log-eyebrow"><History :size="15" aria-hidden="true" /> RELEASE NOTES</p><div class="update-log-title-row"><h2>{{ messages.title }}</h2><button class="update-log-help-button" type="button" :title="messages.helpAbout" :aria-label="messages.helpAbout" @click="openHelp"><CircleHelp :size="14" aria-hidden="true" /><span>{{ messages.helpAbout }}</span></button></div></div>
             <button class="update-log-close-button" type="button" :title="messages.closeAria" :aria-label="messages.closeAria" @click="closeDialog"><X :size="19" aria-hidden="true" /></button>
           </header>
           <div class="update-log-body">

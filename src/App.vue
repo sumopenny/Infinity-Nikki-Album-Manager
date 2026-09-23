@@ -169,6 +169,8 @@ const isOutfitGuideVisible = ref(false)
 const isOutfitGuideDismissed = ref(readLocalStorage(OUTFIT_GUIDE_DISMISSED_KEY) === 'true')
 const isUpdateLogVisible = ref(false)
 const isHelpAboutVisible = ref(false)
+// 标记使用帮助是否从更新记录窗口跳来，关闭帮助后返回更新记录窗口
+const returnToUpdateLog = ref(false)
 // 版本号变化时本地记录失效，“不再提示”勾选状态随之重置
 const isAboutDialogDismissed = ref(storedAboutState?.version === currentAboutVersion && storedAboutState.dismissed === true)
 const isX6GameAutoPromptDismissed = ref(readLocalStorage(X6GAME_AUTO_PROMPT_DISMISSED_KEY) === 'true')
@@ -939,7 +941,21 @@ function closeUpdateLog(dontShowAgain: boolean) {
 }
 
 function openHelpAbout() { isHelpAboutVisible.value = true }
-function closeHelpAbout() { isHelpAboutVisible.value = false }
+function closeHelpAbout() {
+  isHelpAboutVisible.value = false
+  // 从更新记录窗口跳来时，关闭帮助窗口后仍返回更新记录窗口。
+  if (returnToUpdateLog.value) {
+    returnToUpdateLog.value = false
+    isUpdateLogVisible.value = true
+  }
+}
+
+/** 从更新记录窗口跳转使用帮助：暂不结算更新记录的关闭状态，帮助关闭后返回。 */
+function openHelpFromUpdateLog() {
+  returnToUpdateLog.value = true
+  isUpdateLogVisible.value = false
+  isHelpAboutVisible.value = true
+}
 
 function showOutfitStatus(message: string, tone: StatusTone = 'success', loading = false) {
   statusState.value = { type: 'custom', message, tone, loading }
@@ -2199,6 +2215,7 @@ onBeforeUnmount(() => {
       :dismissed="isAboutDialogDismissed"
       :messages="locale.updateLog"
       @close="closeUpdateLog"
+      @open-help="openHelpFromUpdateLog"
     />
 
     <HelpAboutDialog

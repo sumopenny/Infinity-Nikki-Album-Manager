@@ -558,6 +558,26 @@
 .help-about-header button:hover { background: color-mix(in srgb, var(--heading) 16%, transparent); }
 .update-log-header button:focus-visible,
 .help-about-header button:focus-visible { outline: none; box-shadow: none; }
+.update-log-title-row { display: flex; align-items: center; gap: 12px; }
+.update-log-header .update-log-help-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pink-deep) 10%, transparent);
+  color: var(--pink-deep);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--motion-base) ease, transform var(--motion-base) var(--ease-spring);
+}
+.update-log-header .update-log-help-button:hover { background: color-mix(in srgb, var(--pink-deep) 18%, transparent); transform: translateY(-1px); }
+.update-log-header .update-log-help-button:active { transform: translateY(0) scale(.97); }
+.update-log-header .update-log-help-button:focus-visible { outline: 2px solid color-mix(in srgb, var(--pink-deep) 55%, transparent); outline-offset: 2px; box-shadow: none; }
 .update-log-eyebrow,
 .help-about-eyebrow { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; color: var(--pink-deep); font-size: 10px; font-weight: 800; letter-spacing: .12em; }
 .update-log-body,

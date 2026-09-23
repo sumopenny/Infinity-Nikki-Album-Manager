@@ -2,7 +2,7 @@
 import type { LocaleMessages } from '../types'
 
 export const updateLogZh: LocaleMessages['updateLog'] = {
-  title: '更新记录', currentTitle: '当前版本', currentVersion: 'v1.6.1', currentDate: '2026.9.23 更新',
+  title: '更新记录', helpAbout: '使用帮助', currentTitle: '当前版本', currentVersion: 'v1.6.1', currentDate: '2026.9.23 更新',
   currentItems: ['新增选中照片后可删除对应低画质图片的功能：按名称匹配并永久删除当前账号 ScreenShot 和 NikkiPhotos_LowQuality 中的图片，保留当前相册原图。', '改版“更新记录”窗口，重新整理更新版本的展示。', '优化了一些问题并和暖暖出去看了场电影💅。'],
   historyTitle: '历史版本记录',
   history: [
@@ -29,7 +29,7 @@ export const updateLogZh: LocaleMessages['updateLog'] = {
 }
 
 export const updateLogEn: LocaleMessages['updateLog'] = {
-  title: 'Release history', currentTitle: 'Current version', currentVersion: 'v1.6.1', currentDate: 'Updated 2026.9.23',
+  title: 'Release history', helpAbout: 'Help', currentTitle: 'Current version', currentVersion: 'v1.6.1', currentDate: 'Updated 2026.9.23',
   currentItems: ['Added deletion of the matching low-quality images for selected photos: images are matched by name and permanently deleted from the current account\'s ScreenShot and NikkiPhotos_LowQuality folders, while the original photos in the album are kept.', 'Redesigned the Release history window and reorganized how releases are presented.', 'Fixed various issues and went to see a movie with Nikki 💅.'],
   historyTitle: 'Previous releases',
   history: [

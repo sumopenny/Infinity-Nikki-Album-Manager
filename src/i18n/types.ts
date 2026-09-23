@@ -162,6 +162,7 @@ export interface LocaleMessages {
   }
   updateLog: {
     title: string
+    helpAbout: string
     currentTitle: string
     currentVersion: string
     currentDate: string
