@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { ScanSearch, X } from 'lucide-vue-next'
+import { ScanSearch, Upload, X } from 'lucide-vue-next'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
 const props = defineProps<{
@@ -19,6 +19,8 @@ const props = defineProps<{
     cameraSubmit: string
     outfitSubmit: string
     busyHint: string
+    upload: string
+    uploadHint: string
   }
 }>()
 
@@ -28,14 +30,24 @@ const emit = defineEmits<{
   'update:outfitCode': [value: string]
   'parse-camera': [value: string]
   'parse-outfit': [value: string]
+  upload: [file: File]
 }>()
 
 const panelRef = ref<HTMLElement | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 let previousActiveElement: HTMLElement | null = null
 useBodyScrollLock(computed(() => props.visible))
 
 function closeDialog() {
   emit('close')
+}
+
+function chooseFile() { fileInput.value?.click() }
+function onFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (file) emit('upload', file)
 }
 
 function handleKeydown(event: KeyboardEvent) {
@@ -82,6 +94,12 @@ watch(() => props.visible, (visible) => {
           </header>
           <div class="parse-tools-body">
             <p v-if="busy" class="parse-tools-hint">{{ messages.busyHint }}</p>
+            <section class="parse-tools-section parse-tools-upload">
+              <h3>{{ messages.upload }}</h3>
+              <p>{{ messages.uploadHint }}</p>
+              <input ref="fileInput" class="visually-hidden" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif" :disabled="busy" @change="onFileChange" />
+              <button class="outfit-parse-submit" type="button" :disabled="busy" @click="chooseFile"><Upload :size="16" aria-hidden="true" />{{ messages.upload }}</button>
+            </section>
             <form class="parse-tools-section" @submit.prevent="emit('parse-camera', cameraParams.trim())">
               <h3>{{ messages.cameraTitle }}</h3>
               <div class="outfit-parse-form parse-tools-form-row">

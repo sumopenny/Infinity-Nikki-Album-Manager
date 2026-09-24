@@ -77,6 +77,9 @@ export interface LocaleMessages {
   }
   topBar: {
     title: string
+    logo: string
+    brandName: string
+    subtitle: string
     starHint: string
     searchPlaceholder: string
     clearSearch: string

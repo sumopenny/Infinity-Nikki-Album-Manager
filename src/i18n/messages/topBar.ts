@@ -2,7 +2,10 @@
 import type { LocaleMessages } from '../types'
 
 export const topBarZh: LocaleMessages['topBar'] = {
-      title: '无限暖暖相册管理',
+      title: '暖立方',
+      logo: 'Nikki³',
+      brandName: '暖立方',
+      subtitle: '无限暖暖工具集',
       starHint: '',
       searchPlaceholder: '搜索文件名/备注',
       clearSearch: '清除搜索',
@@ -67,7 +70,10 @@ export const topBarZh: LocaleMessages['topBar'] = {
       cameraParamsParse: '解析相机参数'
     }
 export const topBarEn: LocaleMessages['topBar'] = {
-      title: 'Infinity Nikki Album Manager',
+      title: 'NikkiCube',
+      logo: 'Nikki³',
+      brandName: 'NikkiCube',
+      subtitle: 'Infinity Nikki Toolkit',
       starHint: '',
       searchPlaceholder: 'Search filenames/notes',
       clearSearch: 'Clear search',

@@ -1,13 +1,13 @@
 @echo off
 setlocal
-title Infinity Nikki Album Manager - One Click Start
+title NikkiCube - One Click Start
 
 for %%I in ("%~dp0..") do set "PROJECT_DIR=%%~fI"
 cd /d "%PROJECT_DIR%"
 
 echo.
 echo ============================================================
-echo  Infinity Nikki Album Manager - One Click Start
+echo  NikkiCube - One Click Start
 echo ============================================================
 echo.
 echo This launcher will install dependencies if needed, then start

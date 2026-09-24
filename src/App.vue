@@ -1935,6 +1935,7 @@ onBeforeUnmount(() => {
       @cancel="closePhotoParams"
       @copy="copyRawCameraParams"
       @submit-uid="photoParams.submitUid"
+      @upload="photoParams.openForFile"
     />
 
     <ParseToolsDialog
@@ -1952,13 +1953,16 @@ onBeforeUnmount(() => {
         outfitPlaceholder: outfitLocale.parseInputPlaceholder,
         cameraSubmit: locale.topBar.cameraParamsParse,
         outfitSubmit: outfitLocale.parse,
-        busyHint: locale.topBar.parseToolsBusy
+        busyHint: locale.topBar.parseToolsBusy,
+        upload: photoParamsMessages.upload,
+        uploadHint: photoParamsMessages.uploadHint
       }"
       @close="closeParseTools"
       @update:camera-params="cameraParamsInput = $event"
       @update:outfit-code="parseCodeInput = $event"
       @parse-camera="parseHeaderCameraParams"
       @parse-outfit="parseToolsOutfitCode"
+      @upload="photoParams.openForFile"
     />
 
     <FortuneTimeDialog :visible="isFortuneTimeVisible" :messages="locale.fortuneTime" @close="isFortuneTimeVisible = false" />

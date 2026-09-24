@@ -1,6 +1,6 @@
 @echo off
 setlocal
-title Infinity Nikki Album Manager - Remote D1 Website
+title NikkiCube - Remote D1 Website
 
 for %%I in ("%~dp0..") do set "PROJECT_DIR=%%~fI"
 cd /d "%PROJECT_DIR%"
@@ -10,7 +10,7 @@ if not defined REMOTE_API_ORIGIN set "REMOTE_API_ORIGIN=https://infinity-nikki-a
 
 echo.
 echo ============================================================
-echo  Infinity Nikki Album Manager - Remote D1 Website
+echo  NikkiCube - Remote D1 Website
 echo ============================================================
 echo.
 echo This launcher serves the local website and proxies /api to:

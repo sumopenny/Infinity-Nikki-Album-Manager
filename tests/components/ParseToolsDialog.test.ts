@@ -11,7 +11,9 @@ const messages = {
   outfitPlaceholder: '填写搭配码',
   cameraSubmit: '解析相机参数',
   outfitSubmit: '解析搭配码',
-  busyHint: '请稍候'
+  busyHint: '请稍候',
+  upload: '上传图片解析',
+  uploadHint: '选择本地游戏原图'
 }
 
 function mountDialog(overrides: Partial<{ visible: boolean; busy: boolean }> = {}) {
@@ -32,7 +34,7 @@ function mountDialog(overrides: Partial<{ visible: boolean; busy: boolean }> = {
 describe('ParseToolsDialog', () => {
   it('renders both parser sections and emits their values', async () => {
     const wrapper = mountDialog()
-    const inputs = wrapper.findAll('input')
+    const inputs = wrapper.findAll('input:not([type="file"])')
     await inputs[0].setValue('camera-raw')
     await inputs[1].setValue('outfit-code')
     await wrapper.setProps({ cameraParams: 'camera-raw', outfitCode: 'outfit-code' })
@@ -42,7 +44,7 @@ describe('ParseToolsDialog', () => {
     expect(wrapper.text()).toContain(messages.cameraTitle)
     expect(wrapper.text()).toContain(messages.outfitTitle)
     expect(wrapper.findAll('.outfit-parse-form')).toHaveLength(2)
-    expect(wrapper.findAll('.outfit-parse-submit')).toHaveLength(2)
+    expect(wrapper.findAll('.outfit-parse-submit')).toHaveLength(3)
     expect(wrapper.emitted('parse-camera')).toEqual([['camera-raw']])
     expect(wrapper.emitted('parse-outfit')).toEqual([['outfit-code']])
   })

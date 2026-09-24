@@ -7,7 +7,7 @@ import type { PhotoParamsMessages } from '../i18n/messages/photoParams'
 
 const props = defineProps<{
   visible: boolean
-  photo: PhotoItem | null
+  photo: PhotoItem | { name: string } | null
   progress: PhotoParamsProgress
   result: PhotoParamsResult | null
   error: string | null

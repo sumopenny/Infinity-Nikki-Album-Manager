@@ -124,6 +124,8 @@
   font-size: 15px;
 }
 
+.parse-tools-upload .outfit-parse-submit { border-radius: 12px; }
+
 .parse-tools-hint {
   margin: 0;
   color: var(--muted);
@@ -259,6 +261,7 @@
 }
 .photo-params-body.is-loading { justify-content: center; }
 .photo-params-loading p { max-width: 100%; margin: 0; overflow-wrap: anywhere; }
+
 .photo-params-spinner {
     width: 26px;
     height: 26px;

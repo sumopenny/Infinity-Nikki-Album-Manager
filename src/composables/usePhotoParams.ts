@@ -17,7 +17,8 @@ export function usePhotoParams(options: {
   messages: ComputedRef<PhotoParamsMessages>
 }) {
   const { language, messages } = options
-  const photo = ref<PhotoItem | null>(null)
+  const photo = ref<PhotoItem | { name: string } | null>(null)
+  const uploadFile = ref<File | null>(null)
   const isVisible = ref(false)
   const result = ref<PhotoParamsResult | null>(null)
   const error = ref<string | null>(null)
@@ -100,10 +101,31 @@ export function usePhotoParams(options: {
     }
   }
 
+  async function parsePhotoBytes(bytes: Uint8Array, candidateUids: string[], run: number) {
+    setStage('loadingWasm', 50)
+    await nextTick()
+    setStage('decryptingPhoto', 70)
+    let decoded: Awaited<ReturnType<typeof decodePhoto<DecodedPhoto>>> | null = null
+    const errors: string[] = []
+    for (const uid of candidateUids) {
+      const attempt = await decodePhoto<DecodedPhoto>(bytes, uid)
+      if (attempt.ok && attempt.value) { decoded = attempt; break }
+      if (attempt.errorCode && !errors.includes(attempt.errorCode)) errors.push(attempt.errorCode)
+    }
+    if (run !== runId) return null
+    if (!decoded?.value) {
+      uidRequired.value = true
+      const errorDetails = errors.length ? errors.map(describeError).join('；') : describeError('photo_structure_invalid')
+      throw new Error(errorDetails)
+    }
+    return decoded.value
+  }
+
   async function openForPhoto(selectedPhoto: PhotoItem) {
     const run = ++runId
     isVisible.value = true
     photo.value = selectedPhoto
+    uploadFile.value = null
     result.value = null
     error.value = null
     uidRequired.value = false
@@ -116,27 +138,47 @@ export function usePhotoParams(options: {
       await nextTick()
       const bytes = new Uint8Array(await (await selectedPhoto.fileHandle.getFile()).arrayBuffer())
       if (run !== runId) return
-      setStage('loadingWasm', 50)
-      await nextTick()
-      setStage('decryptingPhoto', 70)
       const directoryUids = await listGamePlayPhotoAccounts(x6Game)
       const savedUids = await getSavedCameraParamUids()
       const candidateUids = [...new Set([...directoryUids, ...savedUids])]
-      let decoded: Awaited<ReturnType<typeof decodePhoto<DecodedPhoto>>> | null = null
-      const errors: string[] = []
-      for (const uid of candidateUids) {
-        const attempt = await decodePhoto<DecodedPhoto>(bytes, uid)
-        if (attempt.ok && attempt.value) { decoded = attempt; break }
-        if (attempt.errorCode && !errors.includes(attempt.errorCode)) errors.push(attempt.errorCode)
-      }
-      if (run !== runId) return
-      if (!decoded?.value) {
-        uidRequired.value = errors.length === 0 || errors.every((code) => code === 'photo_structure_invalid')
-        const errorDetails = errors.length ? errors.map(describeError).join('；') : describeError('photo_structure_invalid')
-        throw new Error(errorDetails)
-      }
+      const decoded = await parsePhotoBytes(bytes, candidateUids, run)
+      if (!decoded) return
       setStage('parsingCamera', 90)
-      presentCameraParams(decoded.value.camera, decoded.value.rawCameraParams, decoded.value.photo)
+      presentCameraParams(decoded.camera, decoded.rawCameraParams, decoded.photo)
+      setStage('ready', 100)
+    } catch (caught) {
+      if (run !== runId) return
+      error.value = caught instanceof Error ? caught.message : String(caught)
+      setStage('error', 100)
+    }
+  }
+
+  async function openForFile(file: File) {
+    const run = ++runId
+    isVisible.value = true
+    photo.value = { name: file.name } as PhotoItem
+    uploadFile.value = file
+    result.value = null
+    error.value = null
+    uidRequired.value = false
+    try {
+      setStage('readingPhoto', 30)
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      if (run !== runId) return
+      const directoryUids = await (async () => {
+        const x6Game = await getSavedX6GameDirectoryHandle()
+        return x6Game ? listGamePlayPhotoAccounts(x6Game) : []
+      })()
+      const savedUids = await getSavedCameraParamUids()
+      const candidateUids = [...new Set([...directoryUids, ...savedUids])]
+      if (!candidateUids.length) {
+        uidRequired.value = true
+        throw new Error(describeError('photo_structure_invalid'))
+      }
+      const decoded = await parsePhotoBytes(bytes, candidateUids, run)
+      if (!decoded) return
+      setStage('parsingCamera', 90)
+      presentCameraParams(decoded.camera, decoded.rawCameraParams, decoded.photo)
       setStage('ready', 100)
     } catch (caught) {
       if (run !== runId) return
@@ -155,7 +197,12 @@ export function usePhotoParams(options: {
     uidRequired.value = true
     setStage('readingPhoto', 30)
     try {
-      const bytes = new Uint8Array(await (await selectedPhoto.fileHandle.getFile()).arrayBuffer())
+      const bytes = uploadFile.value
+        ? new Uint8Array(await uploadFile.value.arrayBuffer())
+        : 'fileHandle' in selectedPhoto
+          ? new Uint8Array(await (await selectedPhoto.fileHandle.getFile()).arrayBuffer())
+          : null
+      if (!bytes) return
       const decoded = await decodePhoto<DecodedPhoto>(bytes, normalized)
       if (run !== runId) return
       if (!decoded.ok || !decoded.value) {
@@ -176,6 +223,7 @@ export function usePhotoParams(options: {
     runId += 1
     isVisible.value = true
     photo.value = null
+    uploadFile.value = null
     result.value = null
     error.value = null
     uidRequired.value = false
@@ -205,6 +253,7 @@ export function usePhotoParams(options: {
     runId += 1
     isVisible.value = false
     photo.value = null
+    uploadFile.value = null
     result.value = null
     error.value = null
     uidRequired.value = false
@@ -213,5 +262,5 @@ export function usePhotoParams(options: {
 
   onScopeDispose(() => { runId += 1 })
 
-  return { photo, isVisible, result, error, uidRequired, progress, openForPhoto, submitUid, openCameraParamsTool, parseRawCameraParams, close }
+  return { photo, isVisible, result, error, uidRequired, progress, openForPhoto, openForFile, submitUid, openCameraParamsTool, parseRawCameraParams, close }
 }

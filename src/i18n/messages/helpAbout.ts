@@ -2,8 +2,8 @@
 import type { LocaleMessages } from '../types'
 
 export const helpAboutZh: LocaleMessages['helpAbout'] = {
-  title: '使用帮助与介绍', eyebrow: 'INFINITY NIKKI ALBUM', introTitle: '网站介绍',
-  intro: '无限暖暖相册管理是一个在浏览器本地运行的照片与搭配码管理工具，帮助你整理游戏截图、管理搭配方案并解析照片参数。',
+  title: '使用帮助与介绍', eyebrow: '暖立方 · 无限暖暖工具集', introTitle: '网站介绍',
+  intro: '暖立方是一个在浏览器本地运行的无限暖暖工具集，覆盖相册管理、搭配码、照片参数解析和专项清理，帮助你整理游戏照片与搭配资料。',
   privacyNote: '照片、搭配码、备注和本地设置保存在你的设备上，网站不会上传本地照片。部分搭配码解析服务和外部链接按对应功能说明工作。',
   featuresTitle: '特色功能',
   features: [
@@ -28,8 +28,8 @@ export const helpAboutZh: LocaleMessages['helpAbout'] = {
 }
 
 export const helpAboutEn: LocaleMessages['helpAbout'] = {
-  title: 'Help and introduction', eyebrow: 'INFINITY NIKKI ALBUM', introTitle: 'About this site',
-  intro: 'Infinity Nikki Album Manager is a browser-local tool for organizing screenshots, managing outfit codes, and decoding photo parameters.',
+  title: 'Help and introduction', eyebrow: 'NikkiCube · Infinity Nikki Toolkit', introTitle: 'About this site',
+  intro: 'NikkiCube is a browser-local Infinity Nikki Toolkit for album management, outfit codes, photo-parameter decoding, and targeted cleanup.',
   privacyNote: 'Photos, outfit codes, notes, and local settings stay on your device. The site does not upload local photos. Some outfit-code services and external links follow their own feature descriptions.',
   featuresTitle: 'Highlights',
   features: [

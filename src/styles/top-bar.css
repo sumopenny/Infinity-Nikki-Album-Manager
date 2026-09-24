@@ -29,7 +29,33 @@
 }
 
 .brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   min-width: 190px;
+}
+
+.brand-icon {
+  display: block;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  object-fit: contain;
+  border-radius: 8px;
+  border-color: var(--pink-deep);
+  background: var(--surface-strong);
+  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 24%, transparent);
+}
+
+.brand-copy {
+  min-width: 0;
+}
+
+.brand-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  white-space: nowrap;
 }
 
 .brand-lockup p {
@@ -50,7 +76,7 @@
   font-size: clamp(17px, 1.6vw, 22px);
   line-height: 1.15;
   letter-spacing: 0;
-  animation: title-gradient-flow 4.8s ease-in-out infinite;
+  animation: title-gradient-flow 2.0s ease-in-out infinite;
 }
 
 .header-actions {
@@ -355,6 +381,15 @@
   padding-block: 4px;
 }
 
+.brand-lockup .brand-logo {
+  display: block;
+  margin: 0;
+  color: var(--pink-deep);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
 .header-menu-chevron {
   transform: rotate(0deg);
   transition: transform 220ms var(--ease-spring);
@@ -439,7 +474,7 @@
     display: none;
   }
 
-  .brand-lockup h1 {
+.brand-lockup h1 {
     font-size: 17px;
   }
 
@@ -467,6 +502,15 @@
     width: max-content;
     max-width: calc(100vw - 24px);
   }
+}
+
+.brand-lockup .brand-subtitle {
+  display: block;
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .xiaohongshu-link svg {

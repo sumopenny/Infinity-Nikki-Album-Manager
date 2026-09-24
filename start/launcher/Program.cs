@@ -18,7 +18,7 @@ namespace StartProjectLauncher
             {
                 MessageBox.Show(
                     "未找到启动脚本：" + batchPath,
-                    "Infinity Nikki Album Manager",
+                    "暖立方 NikkiCube",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
                 return;
@@ -38,7 +38,7 @@ namespace StartProjectLauncher
             {
                 MessageBox.Show(
                     "启动失败：" + exception.Message,
-                    "Infinity Nikki Album Manager",
+                    "暖立方 NikkiCube",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }

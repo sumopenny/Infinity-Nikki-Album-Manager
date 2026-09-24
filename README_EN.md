@@ -1,8 +1,9 @@
-# Infinity Nikki Album Manager
+# NikkiCube
 
 <div align="center">
-  <img src="img/wxnn.ico" alt="Infinity Nikki Album Manager" width="72" height="72">
-  <p><strong>Browse, organize, favorite, preview, and clean local Infinity Nikki albums in your browser.</strong></p>
+  <img src="img/wxnn.ico" alt="Nikki³ NikkiCube" width="72" height="72">
+  <p><strong>Nikki³ · Infinity Nikki Toolkit</strong></p>
+  <p>NikkiCube runs locally in your browser to manage albums, outfit codes, photo parameters, and targeted cleanup.</p>
   <p style="color: orange;">If you run into any issues, please fill out the survey in the site's Feedback section, or report them through GitHub/Gitee Issues or the author's social platforms.</p>
   <p>
     <a href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases">GitHub Releases</a> ·
@@ -45,6 +46,7 @@
 - Store outfit images, outfit codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export.
 - Add notes of up to 15 characters to photos and outfit plans, then search the current view by file name, note, or outfit code.
 - Parse CameraParams from photo thumbnails or the full-size viewer. The upper-right Tools menu opens a shared Parameter / outfit-code parser window for direct camera-parameter and outfit-code input. Photo parsing shows capture time, weather, focal length, aperture, vignette, image adjustments, normal poses, lights, filters, Momo poses, and camera parameters that can be imported into the game. The Parameter / outfit-code parser window in the Tools menu can also be used on mobile devices.
+- The photo-parameter window can parse one local original game image selected on a computer or phone. The file is read temporarily in the browser only: it is not uploaded or added to the album. Saved UIDs are tried automatically, with manual UID retry when needed.
 - After selecting one or more photos, use the selection bar to permanently delete same-name images from `ScreenShot` and the current account's `NikkiPhotos_LowQuality` folder. The action requires confirmation and cannot be undone; selected photos in the current album are never deleted.
 - Open Special Cleanup from the upper-right Tools menu to clean low-quality photos and game screenshots, crash snapshots, runtime logs, and the game's built-in browser cache.
 - Open Lucky pull times from the upper-right Tools menu to view the entertainment-only Version 2.10 timing table; actual drop rates still follow the game's probabilities.
@@ -175,11 +177,11 @@ Both commands should print version numbers, which means installation succeeded. 
 ### Study Code or Run Locally
 
 1. Download and extract the project from [GitHub Releases](https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases) or [Gitee Releases](https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager/releases), or clone the source repository.
-2. Double-click `无限暖暖相册启动器.exe` in the project root.
+2. Double-click `网站启动器.exe` in the project root.
 3. On first run, dependencies are installed automatically and `http://localhost:5173` opens.
 4. Keep the window open while using it.
 
-If the launcher is unavailable, double-click `start\Start-Remote-D1-Website.bat`, or use the development commands below to start manually. The root `无限暖暖相册启动器.exe` also uses this remote D1 launcher.
+If the launcher is unavailable, double-click `start\Start-Remote-D1-Website.bat`, or use the development commands below to start manually. The root `网站启动器.exe` also uses this remote D1 launcher.
 
 To run the local site against the online D1 data, double-click `start\Start-Remote-D1-Website.bat`. It proxies only `/api` requests to the deployed Pages API, so the browser never receives D1 credentials. Like actions from this local site write to the online database; use this launcher carefully. The script defaults to `https://infinity-nikki-album-manager.pages.dev`, and accepts another Pages URL as its first argument.
 
@@ -187,12 +189,12 @@ To run the local site against the online D1 data, double-click `start\Start-Remo
 
 ```bash
 npm install       # Install dependencies
-npm run dev       # Start the development server
+npm run dev       # Refresh poses and bilingual catalogs, then start the dev server
 set REMOTE_API_ORIGIN=https://infinity-nikki-album-manager.pages.dev
-npm run dev:remote # Start locally and proxy /api to the online D1 API
+npm run dev:remote # Also refresh poses and catalogs before proxying /api to the online D1 API
 npm test          # Run automated tests
 npm run build     # Type-check and build
-npm run build:cloudflare # Refresh normal poses, then build
+npm run build:cloudflare # Refresh normal poses and item catalogs, then build
 npm run preview   # Preview the build result
 ```
 
@@ -204,11 +206,21 @@ npm run resources:update -- --manifest ../nikki_albums/app_api/hot_update.json
 
 The command decrypts and converts `v1.db` and the language resources, then reads the NikkiGallery pose API during the update step. The deployed site only reads the generated static catalog and does not call the pose API or parse hot-update files at runtime.
 
-Set the Cloudflare Pages build command to `npm run build:cloudflare` and keep the output directory as `dist`. Each build first checks the NikkiGallery version endpoint. It downloads the full dataset only when the version changes or the local pose catalog is missing, and it updates only normal-pose fields. If the API times out, returns an error, or fails validation, the build keeps the catalog committed in the repository and continues. To roll back to a fully offline and reproducible build, change the Cloudflare build command back to `npm run build`.
+To refresh the Chinese and English item and makeup catalogs used by outfit-code parsing separately, run:
 
-Optional environment variables: `NIKKIGALLERY_API_BASE` overrides the API root, and `NIKKIGALLERY_API_TIMEOUT_MS` adjusts the request timeout in milliseconds. Run `npm run resources:update:poses -- --strict` for a manual strict check where synchronization failures return a non-zero exit code.
+```bash
+npm run resources:update:items
+```
+
+The command reads `item.json` and `makeup.json` for both languages from the `master` branch of `dastrokes/gongeo.us-nikki-tracker`, validates them, and atomically replaces `src/data/itemCatalog.json`. By default, a timeout, HTTP error, or validation failure keeps the existing catalog and lets the build continue; `npm run resources:update:items -- --strict` makes synchronization failures return a non-zero exit code. Item images are still loaded at runtime from `cdn.gongeo.us`; the build updates the ID and name mapping only.
+
+Set the Cloudflare Pages build command to `npm run build:cloudflare` and keep the output directory as `dist`. Each build checks the NikkiGallery pose version and fetches the latest Chinese and English item catalogs. If an upstream request times out, returns an error, or fails validation, the build keeps the catalog committed in the repository and continues. Upstream changes do not trigger Cloudflare Pages builds by themselves, so use a scheduled job or Deploy Hook to run deployments periodically. To roll back to a fully offline and reproducible build, change the Cloudflare build command back to `npm run build`.
+
+Optional environment variables: `NIKKIGALLERY_API_BASE` overrides the pose API root, `NIKKIGALLERY_API_TIMEOUT_MS` adjusts the pose request timeout, `GONGEO_CATALOG_BASE_URL` overrides the raw item-catalog JSON base URL, and `GONGEO_CATALOG_TIMEOUT_MS` adjusts the item-catalog request timeout. Run `npm run resources:update:poses -- --strict` and `npm run resources:update:items -- --strict` for strict synchronization checks.
 
 `npm run dev` does not connect to the remote database. Remote mode only proxies the deployed Pages API. Wrangler is needed only for remote migrations or Cloudflare deployment commands, not for starting the remote-backed local website.
+
+Running `npm run dev` or `npm run dev:remote` first checks and updates the NikkiGallery normal-pose catalog and the Chinese and English item/makeup catalogs, then starts Vite. On synchronization failure, the scripts keep the existing catalogs and continue by default. This does not run a full production build or update light, filter, and Momo-pose resources.
 
 Stack: Vue 3, TypeScript, Vite, File System Access API, IndexedDB.
 

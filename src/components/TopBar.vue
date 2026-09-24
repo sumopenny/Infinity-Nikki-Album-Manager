@@ -31,6 +31,7 @@ import type { Language, LocaleMessages } from '../i18n'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { ThumbnailMode } from '../types/thumbnail'
 import type { ThemeMode } from '../types/theme'
+import brandIcon from '../../img/wxnn.ico'
 
 type OpenMenu = 'album' | 'view' | 'tools' | 'more' | null
 
@@ -169,8 +170,14 @@ onBeforeUnmount(() => {
 <template>
   <header ref="headerRef" class="app-header">
     <div class="brand-lockup">
-      <p>INFINITY NIKKI ALBUM</p>
-      <h1>{{ messages.title }}</h1>
+      <img class="brand-icon" :src="brandIcon" :alt="messages.brandName" />
+      <div class="brand-copy">
+        <p class="brand-subtitle">{{ messages.subtitle }}</p>
+        <div class="brand-title-row">
+          <h1>{{ messages.brandName }}</h1>
+          <span class="brand-logo">{{ messages.logo }}</span>
+        </div>
+      </div>
     </div>
 
     <div class="header-actions">
