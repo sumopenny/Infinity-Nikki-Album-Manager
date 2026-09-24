@@ -17,6 +17,7 @@ export interface PhotoParamsMessages {
   close: string
   copy: string
   copied: string
+  copyFailed: string
   noValue: string
   capture: string
   camera: string
@@ -48,7 +49,7 @@ export interface PhotoParamsMessages {
 }
 
 export const photoParamsZh: PhotoParamsMessages = {
-  title: '照片参数', eyebrow: 'PHOTO PARAMETERS', close: '关闭', copy: '复制参数', copied: '已复制',
+  title: '照片参数', eyebrow: 'PHOTO PARAMETERS', close: '关闭', copy: '复制参数', copied: '已复制', copyFailed: '复制失败',
   noValue: '无', capture: '环境', camera: '相机', image: '画面',
   action: '动作', light: '灯光', filter: '滤镜', raw: '相机参数',
   uidPrompt: '请输入拍摄此照片所用账号的 UID', uidPlaceholder: '填写账号 UID', uidParse: '解析',
@@ -90,7 +91,7 @@ export const photoParamsZh: PhotoParamsMessages = {
 }
 
 export const photoParamsEn: PhotoParamsMessages = {
-  title: 'Photo parameters', eyebrow: 'PHOTO PARAMETERS', close: 'Close', copy: 'Copy parameters', copied: 'Copied',
+  title: 'Photo parameters', eyebrow: 'PHOTO PARAMETERS', close: 'Close', copy: 'Copy parameters', copied: 'Copied', copyFailed: 'Copy failed',
   noValue: 'None', capture: 'Environment', camera: 'Camera', image: 'Image',
   action: 'Action', light: 'Light', filter: 'Filter', raw: 'Camera parameters',
   uidPrompt: 'Enter the UID used to take this photo', uidPlaceholder: 'Enter account UID', uidParse: 'Parse',

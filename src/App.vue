@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CircleHelp, Download, FileUp, Plus, Trash2 } from 'lucide-vue-next'
 import UpdateLogDialog from './components/UpdateLogDialog.vue'
 import HelpAboutDialog from './components/HelpAboutDialog.vue'
@@ -42,11 +42,11 @@ import {
 } from './utils/file-system/albumFileSystem'
 import { clearRecentlyDeleted, listRecentlyDeleted, movePhotosToRecentlyDeleted, permanentlyDeleteRecentlyDeleted, restoreRecentlyDeletedPhotos } from './utils/file-system/trashFileSystem'
 import { getX6GameDirectoryForAlbum, isProtectedAlbumDirectory, listGamePlayPhotoAccounts, pickStandaloneX6GameDirectory, resolveX6GameAccountDirectory } from './utils/file-system/directoryAccess'
-import { addSavedCameraParamUid, clearSavedCameraParamUids, clearSavedX6GameDirectoryHandle, getSavedCameraParamUids, getSavedX6GameDirectoryHandle } from './utils/file-system/directoryStorage'
+import { clearSavedCameraParamUids, clearSavedX6GameDirectoryHandle, getSavedX6GameDirectoryHandle } from './utils/file-system/directoryStorage'
 import { executeMatchingPhotoCleanup, executeSpecialCleanup, prepareMatchingPhotoCleanup, prepareSpecialCleanup, type SpecialCleanupItem } from './utils/file-system/cleanupFileSystem'
 import { savePhotoNote } from './utils/file-system/photoMetadata'
 import { releasePhotoUrl, releasePhotoUrls } from './utils/file-system/photoUrl'
-import { preparePhotoTransfer, runPhotoTransfer, type PhotoTransferProgress } from './utils/file-system/photoTransfer'
+import { preparePhotoTransfer, runPhotoTransfer } from './utils/file-system/photoTransfer'
 import {
   deleteOutfit,
   deleteOutfits,
@@ -68,11 +68,8 @@ import { useOperationNotice, type StatusState, type StatusTone } from './composa
 import { useConfirmDialog } from './composables/useConfirmDialog'
 import { useAlbumViewModel } from './composables/useAlbumViewModel'
 import { useSelectionState } from './composables/useSelectionState'
-import { decodeCameraParams, decodePhoto } from './utils/photo-params/wasmClient'
-import type { PhotoParamsProgress, PhotoParamsResult } from './utils/photo-params/types'
-import { resourceImage, resourceName } from './utils/photo-params/resourceManifest'
-import { PHOTO_PARAM_RANGES, photoFocalLengthDisplay, rawFocalLengthDisplay, sliderPercent } from './utils/photo-params/slider'
-import { weatherName } from './utils/photo-params/weather'
+import { usePhotoParams } from './composables/usePhotoParams'
+import { usePhotoTransfer } from './composables/usePhotoTransfer'
 
 const THUMBNAIL_STORAGE_KEY = 'infinity-nikki-thumbnail-mode'
 const OUTFIT_THUMBNAIL_STORAGE_KEY = 'infinity-nikki-outfit-thumbnail-mode'
@@ -189,20 +186,11 @@ const noteDialogPhoto = ref<PhotoItem | null>(null)
 const isNoteDialogVisible = ref(false)
 const activeView = ref<AlbumView>('all')
 const currentPreview = ref<PhotoItem | null>(null)
-const photoParamsPhoto = ref<PhotoItem | null>(null)
-const isPhotoParamsVisible = ref(false)
-const photoParamsResult = ref<PhotoParamsResult | null>(null)
-const photoParamsError = ref<string | null>(null)
-const photoParamsUidRequired = ref(false)
-const photoParamsProgress = ref<PhotoParamsProgress>({ stage: 'idle', percent: 0, message: '' })
-let photoParamsRun = 0
 const sharedOutfitSource = ref<SharedOutfitSource | null>(null)
 const hasX6GameAuthorization = ref(false)
 const language = ref<Language>(isLanguage(storedLanguage) ? storedLanguage : DEFAULT_LANGUAGE)
 const directoryState = ref<DirectoryState>({ type: 'none' })
-const photoTransfer = reactive({ phase: 'idle' as 'idle' | 'preparing' | 'running' | 'completed' | 'cancelled', completed: 0, total: 0, succeeded: 0, failedNames: [] as string[], succeededPhotos: [] as PhotoItem[], kind: 'export' as 'import' | 'export', title: '' })
-const photoTransferController = ref<AbortController | null>(null)
-const photoTransferMovePending = ref<PhotoItem[] | null>(null)
+const { state: photoTransfer, begin: beginPhotoTransfer, showPrepared: showPreparedPhotoTransfer, updateProgress: updatePhotoTransferProgress, createController: createPhotoTransferController, markCompleted: markPhotoTransferCompleted, markExportResult: markPhotoTransferExportResult, cancel: cancelPhotoTransferRequest, takeMovePending: takePhotoTransferMovePending, clearController: clearPhotoTransferController } = usePhotoTransfer()
 const isPreferenceUpdating = ref(false)
 const showCleanupDialog = ref(false)
 const cleanupX6GameHandle = ref<FileSystemDirectoryHandle | null>(null)
@@ -237,6 +225,15 @@ function invalidatePendingRefreshes() {
 // 派生视图状态
 const locale = computed(() => messages[language.value])
 const photoParamsMessages = computed(() => locale.value.photoParams)
+const photoParams = usePhotoParams({ language, messages: photoParamsMessages })
+const {
+  photo: photoParamsPhoto,
+  isVisible: isPhotoParamsVisible,
+  result: photoParamsResult,
+  error: photoParamsError,
+  uidRequired: photoParamsUidRequired,
+  progress: photoParamsProgress
+} = photoParams
 const {
   statusState,
   statusMessage,
@@ -1011,174 +1008,9 @@ async function editPhotoNote(photo: PhotoItem | null) {
   isNoteDialogVisible.value = true
 }
 
-function photoParamsStage(stage: PhotoParamsProgress['stage'], percent: number) {
-  photoParamsProgress.value = { stage, percent, message: photoParamsMessages.value.stages[stage] }
-}
-
-function presentCameraParams(camera: Record<string, unknown>, rawCameraParams: string, photo?: Record<string, unknown>) {
-  const formatNumber = (value: unknown, digits: number) => {
-    const parsed = Number(value)
-    if (!Number.isFinite(parsed)) return photoParamsMessages.value.noValue
-    return parsed.toFixed(digits)
-  }
-  const formatPercent = (value: unknown) => {
-    const parsed = Number(value)
-    if (!Number.isFinite(parsed)) return photoParamsMessages.value.noValue
-    return `${Math.round(parsed * 100)}%`
-  }
-  const preferred = (key: string) => String(photo?.[key] ?? camera[key] ?? photoParamsMessages.value.noValue)
-  const display = (key: string, source: Record<string, unknown> = camera) => {
-    const value = source[key]
-    if (value == null) return photoParamsMessages.value.noValue
-    if (['bloomIntensity', 'brightness', 'contrast'].includes(key)) return formatPercent(value)
-    return formatNumber(value, 1)
-  }
-  const number = (key: string, source: Record<string, unknown> = camera) => Number(source[key])
-  const focal = photo?.focalLength != null
-    ? photoFocalLengthDisplay(photo.focalLength)
-    : rawFocalLengthDisplay(camera.focalLength)
-  const captureTime = photo?.captureTime as { hour?: number; minute?: number; second?: number } | undefined
-  const pad = (value: unknown) => String(Math.max(0, Math.floor(Number(value) || 0))).padStart(2, '0')
-  const light = (photo?.light ?? camera.light) as { id?: string; strength?: number } | undefined
-  const filter = (photo?.filter ?? camera.filter) as { id?: string; strength?: number } | undefined
-  const resourceId = (resource: { id?: string } | undefined) => {
-    const id = String(resource?.id ?? '').trim()
-    return id && id !== 'None' ? id : undefined
-  }
-  const lightId = resourceId(light)
-  const filterId = resourceId(filter)
-  const momo = camera.momo as { enabled?: boolean; poseId?: number; horizontal?: number; distance?: number; height?: number; rotation?: number } | null
-  const poseId = photo?.poseId as string | number | undefined
-  const resources: PhotoParamsResult['resourceGroups'] = [
-    { title: photoParamsMessages.value.action, name: poseId == null ? photoParamsMessages.value.noValue : resourceName('pose', poseId, language.value), imageUrl: poseId == null ? undefined : resourceImage('pose', poseId) },
-    { title: photoParamsMessages.value.light, name: lightId ? resourceName('light', lightId, language.value) : photoParamsMessages.value.noValue, value: lightId ? formatPercent(light?.strength) : undefined, imageUrl: lightId ? resourceImage('light', lightId) : undefined },
-    { title: photoParamsMessages.value.filter, name: filterId ? resourceName('filter', filterId, language.value) : photoParamsMessages.value.noValue, value: filterId ? formatPercent(filter?.strength) : undefined, imageUrl: filterId ? resourceImage('filter', filterId) : undefined }
-  ]
-  if (momo) resources.push({ title: photoParamsMessages.value.labels.momoPose, name: momo.enabled ? photoParamsMessages.value.labels.momoVisible : resourceName('momo', momo.poseId ?? 0, language.value), value: momo.poseId == null ? undefined : String(momo.poseId), imageUrl: momo.poseId == null ? undefined : resourceImage('momo', momo.poseId) })
-  photoParamsResult.value = {
-    environmentFields: captureTime || photo?.weatherType != null ? [
-      ...(captureTime ? [{ label: photoParamsMessages.value.labels.gameTime, value: `${pad(captureTime.hour)}:${pad(captureTime.minute)}:${pad(captureTime.second)}` }] : []),
-      ...(photo?.weatherType != null ? [{ label: photoParamsMessages.value.labels.weather, value: weatherName(photo.weatherType, language.value) }] : [])
-    ] : [],
-    cameraFields: [
-      { label: photoParamsMessages.value.labels.focalLength, value: focal ? `${formatNumber(focal.millimeters, 0)}mm` : photoParamsMessages.value.noValue, position: focal?.position },
-      { label: photoParamsMessages.value.labels.aperture, value: preferred('apertureValue'), position: sliderPercent(number('aperture', photo ?? camera), PHOTO_PARAM_RANGES.aperture) },
-      { label: photoParamsMessages.value.labels.vignette, value: formatPercent((photo ?? camera).vignette), position: sliderPercent(number('vignette', photo ?? camera), PHOTO_PARAM_RANGES.unit) }
-    ],
-    imageFields: [
-      { key: 'bloomIntensity' as const, range: PHOTO_PARAM_RANGES.unit, format: 'percent' },
-      { key: 'bloomRange' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' },
-      { key: 'brightness' as const, range: PHOTO_PARAM_RANGES.unit, format: 'percent' },
-      { key: 'exposure' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' },
-      { key: 'contrast' as const, range: PHOTO_PARAM_RANGES.unit, format: 'percent' },
-      { key: 'saturation' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' },
-      { key: 'vibrance' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' },
-      { key: 'highlights' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' },
-      { key: 'shadows' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' }
-    ].map(({ key, range, format }) => ({ label: photoParamsMessages.value.labels.imageFields[key], value: format === 'percent' ? formatPercent(camera[key]) : display(key), position: sliderPercent(camera[key], range) })),
-    resourceGroups: resources,
-    rawCameraParams
-  }
-}
-
-function describePhotoParamsError(code: string): string {
-  const messages = photoParamsMessages.value.errors
-  return messages.format(code, messages.descriptions[code] ?? messages.unknownMeaning)
-}
-
-/** 读取照片并调用 WASM；UID 只由已授权的 X6Game 路径推断，协议判断全部留在 WASM。 */
-async function openPhotoParams(photo: PhotoItem) {
+function openPhotoParams(photo: PhotoItem) {
   reopenParseToolsAfterPhotoClose.value = false
-  const run = ++photoParamsRun
-  isPhotoParamsVisible.value = true
-  photoParamsPhoto.value = photo
-  photoParamsResult.value = null
-  photoParamsError.value = null
-  photoParamsUidRequired.value = false
-  try {
-    photoParamsStage('resolvingUid', 10)
-    await nextTick()
-    const x6Game = await getSavedX6GameDirectoryHandle()
-    if (!x6Game) throw new Error(photoParamsMessages.value.authorizationRequired)
-    photoParamsStage('readingPhoto', 30)
-    await nextTick()
-    const bytes = new Uint8Array(await (await photo.fileHandle.getFile()).arrayBuffer())
-    if (run !== photoParamsRun) return
-    photoParamsStage('loadingWasm', 50)
-    await nextTick()
-    photoParamsStage('decryptingPhoto', 70)
-    const directoryUids = await listGamePlayPhotoAccounts(x6Game)
-    const savedUids = await getSavedCameraParamUids()
-    const candidateUids = [...new Set([...directoryUids, ...savedUids])]
-    let decoded: Awaited<ReturnType<typeof decodePhoto<{ rawCameraParams: string; photo: Record<string, unknown>; camera: Record<string, unknown> }>>> | null = null
-    const errors: string[] = []
-    for (const uid of candidateUids) {
-      const attempt = await decodePhoto<{ rawCameraParams: string; photo: Record<string, unknown>; camera: Record<string, unknown> }>(bytes, uid)
-      if (attempt.ok && attempt.value) { decoded = attempt; break }
-      if (attempt.errorCode && !errors.includes(attempt.errorCode)) errors.push(attempt.errorCode)
-    }
-    if (run !== photoParamsRun) return
-    if (!decoded?.value) {
-      const uidError = errors.length === 0 || errors.every((code) => code === 'photo_structure_invalid')
-      photoParamsUidRequired.value = uidError
-      const errorDetails = errors.length ? errors.map((code) => describePhotoParamsError(code)).join('；') : describePhotoParamsError('photo_structure_invalid')
-      throw new Error(errorDetails)
-    }
-    photoParamsStage('parsingCamera', 90)
-    presentCameraParams(decoded.value.camera, decoded.value.rawCameraParams, decoded.value.photo)
-    photoParamsStage('ready', 100)
-  } catch (error) {
-    if (run !== photoParamsRun) return
-    photoParamsError.value = error instanceof Error ? error.message : String(error)
-    photoParamsStage('error', 100)
-  }
-}
-
-async function submitPhotoParamsUid(uid: string) {
-  const photo = photoParamsPhoto.value
-  const normalized = uid.trim()
-  if (!photo || !normalized) return
-  const run = ++photoParamsRun
-  photoParamsResult.value = null
-  photoParamsError.value = null
-  photoParamsUidRequired.value = true
-  photoParamsStage('readingPhoto', 30)
-  try {
-    const bytes = new Uint8Array(await (await photo.fileHandle.getFile()).arrayBuffer())
-    const decoded = await decodePhoto<{ rawCameraParams: string; photo: Record<string, unknown>; camera: Record<string, unknown> }>(bytes, normalized)
-    if (run !== photoParamsRun) return
-    if (!decoded.ok || !decoded.value) {
-      photoParamsUidRequired.value = decoded.errorCode === 'photo_structure_invalid'
-      throw new Error(describePhotoParamsError(decoded.errorCode ?? 'photo_structure_invalid'))
-    }
-    await addSavedCameraParamUid(normalized)
-    presentCameraParams(decoded.value.camera, decoded.value.rawCameraParams, decoded.value.photo)
-    photoParamsStage('ready', 100)
-  } catch (error) {
-    if (run !== photoParamsRun) return
-    photoParamsError.value = error instanceof Error ? error.message : String(error)
-    photoParamsStage('error', 100)
-  }
-}
-
-function openCameraParamsTool() { photoParamsRun += 1; isPhotoParamsVisible.value = true; photoParamsPhoto.value = null; photoParamsResult.value = null; photoParamsError.value = null; photoParamsUidRequired.value = false; photoParamsProgress.value = { stage: 'idle', percent: 0, message: '' } }
-async function parseRawCameraParams(raw: string) {
-  const run = ++photoParamsRun
-  photoParamsResult.value = null
-  photoParamsError.value = null
-  photoParamsUidRequired.value = false
-  photoParamsStage('loadingWasm', 40)
-  try {
-    const decoded = await decodeCameraParams<Record<string, unknown>>(raw)
-    if (run !== photoParamsRun) return
-    if (!decoded.ok || !decoded.value) throw new Error(describePhotoParamsError(decoded.errorCode ?? 'camera_decrypt_failed'))
-    presentCameraParams(decoded.value, raw)
-    photoParamsStage('ready', 100)
-  } catch (error) {
-    if (run !== photoParamsRun) return
-    photoParamsError.value = error instanceof Error ? error.message : String(error)
-    photoParamsStage('error', 100)
-  }
+  return photoParams.openForPhoto(photo)
 }
 async function parseHeaderCameraParams(input?: string) {
   const raw = (input ?? normalizedCameraParamsInput.value).trim()
@@ -1186,19 +1018,13 @@ async function parseHeaderCameraParams(input?: string) {
   reopenParseToolsAfterPhotoClose.value = true
   cameraParamsInput.value = ''
   closeParseTools()
-  openCameraParamsTool()
-  await parseRawCameraParams(raw)
+  photoParams.openCameraParamsTool()
+  await photoParams.parseRawCameraParams(raw)
 }
 function closePhotoParams() {
   const shouldReopenParseTools = reopenParseToolsAfterPhotoClose.value
   reopenParseToolsAfterPhotoClose.value = false
-  photoParamsRun += 1
-  isPhotoParamsVisible.value = false
-  photoParamsPhoto.value = null
-  photoParamsResult.value = null
-  photoParamsError.value = null
-  photoParamsUidRequired.value = false
-  photoParamsProgress.value = { stage: 'idle', percent: 0, message: '' }
+  photoParams.close()
   if (shouldReopenParseTools) isParseToolsVisible.value = true
 }
 async function copyRawCameraParams() {
@@ -1208,7 +1034,7 @@ async function copyRawCameraParams() {
     await navigator.clipboard.writeText(raw)
     showStatus({ message: photoParamsMessages.value.copied, tone: 'success' })
   } catch {
-    showStatus({ message: language.value === 'zh' ? '复制失败' : 'Copy failed', tone: 'error' })
+      showStatus({ message: photoParamsMessages.value.copyFailed, tone: 'error' })
   }
 }
 
@@ -1494,32 +1320,6 @@ async function importOutfits(event: Event) {
   }
 }
 
-function updatePhotoTransferProgress(progress: PhotoTransferProgress) {
-  photoTransfer.completed = progress.completed
-  photoTransfer.total = progress.total
-  photoTransfer.succeeded = progress.succeeded
-  photoTransfer.failedNames = progress.failedNames
-  if (progress.cancelled) photoTransfer.phase = 'cancelled'
-}
-
-/** 在准备阶段显示加载状态，准备完成后才挂载确定总数的进度窗口。 */
-function beginPhotoTransfer(kind: 'import' | 'export', title: string) {
-  photoTransfer.phase = 'preparing'
-  photoTransfer.kind = kind
-  photoTransfer.title = title
-  photoTransfer.completed = 0
-  photoTransfer.total = 0
-  photoTransfer.succeeded = 0
-  photoTransfer.failedNames = []
-  photoTransfer.succeededPhotos = []
-  photoTransferMovePending.value = null
-}
-
-function showPreparedPhotoTransfer(total: number) {
-  photoTransfer.total = total
-  photoTransfer.phase = 'running'
-}
-
 function openPhotoImportPicker() {
   if (!albumDirectoryHandle.value || isAnyFileOperationBusy.value) return
   suppressNextFocusRefresh = true
@@ -1535,24 +1335,24 @@ async function importAlbumPhotos(event: Event) {
   if (!directory || !files.length || isAnyFileOperationBusy.value) return
   activeOperation.value = 'importing-photos'
   beginPhotoTransfer('import', locale.value.topBar.importPhotos)
-  photoTransferController.value = new AbortController()
+  const controller = createPhotoTransferController()
   closeStatusNotice()
   try {
     const prepared = await preparePhotoTransfer(directory, { kind: 'import', files })
     showPreparedPhotoTransfer(prepared.jobs.length)
     await runPhotoTransfer(directory, prepared, {
-      signal: photoTransferController.value.signal,
+      signal: controller.signal,
       onProgress: updatePhotoTransferProgress
     })
-    photoTransfer.phase = 'completed'
+    markPhotoTransferCompleted()
     const refreshed = await refreshAlbumDirectory(directory, photos.value, { requestPermission: false, messages: locale.value.fileSystem })
     applyRefreshResult(refreshed)
   } catch (error) {
-    photoTransfer.phase = 'completed'
+    markPhotoTransferCompleted()
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
   } finally {
     if (activeOperation.value === 'importing-photos') activeOperation.value = null
-    photoTransferController.value = null
+    clearPhotoTransferController()
   }
 }
 
@@ -1606,40 +1406,35 @@ async function exportAlbumPhotos(targets: PhotoItem[], allPhotos = false) {
 
   activeOperation.value = 'exporting-photos'
   beginPhotoTransfer('export', allPhotos ? locale.value.topBar.exportAllPhotos : locale.value.selectionBar.exportPhotos)
-  photoTransferController.value = new AbortController()
+  const controller = createPhotoTransferController()
   closeStatusNotice()
   try {
     const prepared = await preparePhotoTransfer(directory, { kind: 'export', photos: source })
     showPreparedPhotoTransfer(prepared.jobs.length)
     const result = await runPhotoTransfer(directory, prepared, {
-      signal: photoTransferController.value.signal,
+      signal: controller.signal,
       onProgress: updatePhotoTransferProgress
     })
-    photoTransfer.succeededPhotos = result.succeededPhotos
-    photoTransfer.phase = result.cancelled ? 'cancelled' : 'completed'
+    markPhotoTransferExportResult(result.succeededPhotos, result.cancelled)
     if (result.cancelled) {
       return
     }
-    photoTransferMovePending.value = result.succeededPhotos.length ? result.succeededPhotos : null
   } catch (error) {
-    photoTransfer.phase = 'completed'
+    markPhotoTransferCompleted()
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
   } finally {
     if (activeOperation.value === 'exporting-photos') activeOperation.value = null
-    photoTransferController.value = null
+    clearPhotoTransferController()
   }
 }
 
 function cancelPhotoTransfer() {
-  if (photoTransfer.phase !== 'running') return
-  photoTransferController.value?.abort()
+  cancelPhotoTransferRequest()
 }
 
 async function closePhotoTransfer() {
   if (photoTransfer.phase === 'running' || photoTransfer.phase === 'preparing') return
-  photoTransfer.phase = 'idle'
-  const succeededPhotos = photoTransferMovePending.value
-  photoTransferMovePending.value = null
+  const succeededPhotos = takePhotoTransferMovePending()
   if (!succeededPhotos?.length) return
   const confirmed = await openConfirmDialog({ title: locale.value.app.exportMoveSourceTitle, message: locale.value.app.exportMoveSourceConfirm(succeededPhotos.length), tone: 'warning', confirmLabel: locale.value.app.dialogConfirm, cancelLabel: locale.value.app.dialogCancel })
   if (!confirmed) return
@@ -2139,7 +1934,7 @@ onBeforeUnmount(() => {
       @close="closePhotoParams"
       @cancel="closePhotoParams"
       @copy="copyRawCameraParams"
-      @submit-uid="submitPhotoParamsUid"
+      @submit-uid="photoParams.submitUid"
     />
 
     <ParseToolsDialog

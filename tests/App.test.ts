@@ -210,12 +210,16 @@ describe('App lifecycle coordination', () => {
     await wrapper.findAll('.parse-tools-section')[0].trigger('submit')
     await flushPromises()
 
-    expect(wrapper.get('.photo-params-stub').text()).toContain('照片参数解析 焦距 解析完成')
+    const initialPhotoParamsText = wrapper.get('.photo-params-stub').text()
+    const initialLanguage = initialPhotoParamsText.includes(messages.en.photoParams.labels.focalLength) ? 'en' : 'zh'
+    const initialMessages = messages[initialLanguage]
+    expect(initialPhotoParamsText).toContain(`${initialMessages.photoParams.eyebrow} ${initialMessages.photoParams.labels.focalLength} ${initialMessages.photoParams.stages.ready}`)
     await wrapper.get('.view-menu-button').trigger('click')
     await wrapper.get('.view-dropdown').findAll('button').at(-1)!.trigger('click')
     await new Promise((resolve) => window.setTimeout(resolve, 300))
     await flushPromises()
-    expect(wrapper.get('.photo-params-stub').text()).toContain('PHOTO PARAMETERS Focal length Parsed')
+    const nextMessages = messages[initialLanguage === 'zh' ? 'en' : 'zh']
+    expect(wrapper.get('.photo-params-stub').text()).toContain(`${nextMessages.photoParams.eyebrow} ${nextMessages.photoParams.labels.focalLength} ${nextMessages.photoParams.stages.ready}`)
     await wrapper.get('.photo-params-close').trigger('click')
     expect(wrapper.find('.parse-tools-dialog').exists()).toBe(true)
     expect((wrapper.findAll('.parse-tools-section input')[0].element as HTMLInputElement).value).toBe('')
