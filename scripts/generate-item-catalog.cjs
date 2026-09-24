@@ -129,7 +129,7 @@ async function buildCatalog(options) {
 }
 
 async function writeJsonAtomic(output, catalog) {
-  const serialized = JSON.stringify(catalog)
+  const serialized = `${JSON.stringify(catalog, null, 2)}\n`
   let current = null
   try { current = fs.readFileSync(output, 'utf8') } catch (error) { if (error.code !== 'ENOENT') throw error }
   if (current === serialized) return false
