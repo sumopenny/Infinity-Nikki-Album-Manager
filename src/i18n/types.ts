@@ -85,6 +85,8 @@ export interface LocaleMessages {
     clearSearch: string
     like: string
     likeTooltip: string
+    officialSite: string
+    officialSiteHint: string
     githubText: string
     giteeText: string
     githubRepo: string

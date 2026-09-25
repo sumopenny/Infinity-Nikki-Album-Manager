@@ -7,6 +7,7 @@ import {
   Eraser,
   FolderOpen,
   Github,
+  Globe,
   Grid2X2,
   Heart,
   History,
@@ -182,6 +183,19 @@ onBeforeUnmount(() => {
 
     <div class="header-actions">
       <span class="header-star-hint" :title="messages.starHint">{{ messages.starHint }}</span>
+      <a
+        class="official-site-link"
+        href="https://nikki3.pages.dev/"
+        target="_blank"
+        rel="noopener noreferrer"
+        :title="messages.officialSiteHint"
+        :aria-label="messages.officialSiteHint"
+      >
+        <span class="official-site-glow" aria-hidden="true"></span>
+        <Globe :size="16" aria-hidden="true" class="official-site-icon" />
+        <span class="official-site-text">{{ messages.officialSite }}</span>
+        <span class="official-site-spark" aria-hidden="true">✦</span>
+      </a>
       <LikeCounter :messages="{ like: messages.like, likeTooltip: messages.likeTooltip }" />
       <div class="header-search">
         <input :value="searchQuery ?? ''" type="search" :placeholder="messages.searchPlaceholder" :aria-label="messages.searchPlaceholder" @input="emit('updateSearch', ($event.target as HTMLInputElement).value)" />

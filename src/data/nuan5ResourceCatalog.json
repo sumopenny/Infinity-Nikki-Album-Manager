@@ -6,7 +6,7 @@
       "zh": "c10bb28a-fd10-4276-9e21-e18a9829a6b0",
       "en": "c10bb28a-fd10-4276-9e21-e18a9829a6b0"
     },
-    "pose": "2.9.3"
+    "pose": "2.10.0"
   },
   "templates": {
     "light": {
@@ -1362,6 +1362,33 @@
         "image": "T_Icon_Performance_077_Respond.png"
       },
       {
+        "key": "1340020048",
+        "aliases": [
+          "1340020048"
+        ],
+        "zh": "香甜加倍",
+        "en": "香甜加倍",
+        "image": "T_Icon_Performance_086.png"
+      },
+      {
+        "key": "13400200480",
+        "aliases": [
+          "13400200480"
+        ],
+        "zh": "香甜加倍_发起",
+        "en": "香甜加倍_发起",
+        "image": "T_Icon_Performance_086_Host.png"
+      },
+      {
+        "key": "13400200481",
+        "aliases": [
+          "13400200481"
+        ],
+        "zh": "香甜加倍_接受",
+        "en": "香甜加倍_接受",
+        "image": "T_Icon_Performance_086_Respond.png"
+      },
+      {
         "key": "1340020001",
         "aliases": [
           "1340020001"
@@ -2008,6 +2035,33 @@
         "zh": "你不乖哦",
         "en": "你不乖哦",
         "image": "T_Icon_Performance_100.png"
+      },
+      {
+        "key": "1340010043",
+        "aliases": [
+          "1340010043"
+        ],
+        "zh": "呐喊",
+        "en": "呐喊",
+        "image": "T_Icon_Performance_083.png"
+      },
+      {
+        "key": "1340010056",
+        "aliases": [
+          "1340010056"
+        ],
+        "zh": "拉伸一下",
+        "en": "拉伸一下",
+        "image": "T_Icon_Performance_109.png"
+      },
+      {
+        "key": "1340010058",
+        "aliases": [
+          "1340010058"
+        ],
+        "zh": "暖暖韵律",
+        "en": "暖暖韵律",
+        "image": "T_Icon_Performance_111.png"
       },
       {
         "key": "1090010001",
@@ -3358,6 +3412,60 @@
         "zh": "乘光启行",
         "en": "乘光启行",
         "image": "T_Icon_Trends_Flybriskly.png"
+      },
+      {
+        "key": "1090010160",
+        "aliases": [
+          "1090010160"
+        ],
+        "zh": "俯身轻抚",
+        "en": "俯身轻抚",
+        "image": "T_Icon_Static_85.png"
+      },
+      {
+        "key": "1090010161",
+        "aliases": [
+          "1090010161"
+        ],
+        "zh": "戳戳你",
+        "en": "戳戳你",
+        "image": "T_Icon_Static_86.png"
+      },
+      {
+        "key": "1090010162",
+        "aliases": [
+          "1090010162"
+        ],
+        "zh": "回眸敛意",
+        "en": "回眸敛意",
+        "image": "T_Icon_Static_87.png"
+      },
+      {
+        "key": "1090010163",
+        "aliases": [
+          "1090010163"
+        ],
+        "zh": "金铃碎舞",
+        "en": "金铃碎舞",
+        "image": "T_Icon_Trends_Mask.png"
+      },
+      {
+        "key": "1090010164",
+        "aliases": [
+          "1090010164"
+        ],
+        "zh": "数星星",
+        "en": "数星星",
+        "image": "T_Icon_Static_91.png"
+      },
+      {
+        "key": "1090010165",
+        "aliases": [
+          "1090010165"
+        ],
+        "zh": "回身致意",
+        "en": "回身致意",
+        "image": "T_Icon_Static_92.png"
       },
       {
         "key": "1090011001",
@@ -5637,6 +5745,78 @@
         "image": "T_Icon_S0117_Idle_01.png"
       },
       {
+        "key": "1090012176",
+        "aliases": [
+          "1090012176"
+        ],
+        "zh": "倚光而憩",
+        "en": "倚光而憩",
+        "image": "T_Icon_S0399_Trends_01.png"
+      },
+      {
+        "key": "1090012177",
+        "aliases": [
+          "1090012177"
+        ],
+        "zh": "翩若流金",
+        "en": "翩若流金",
+        "image": "T_Icon_S0399_Static_01.png"
+      },
+      {
+        "key": "1090012178",
+        "aliases": [
+          "1090012178"
+        ],
+        "zh": "步泛金曦",
+        "en": "步泛金曦",
+        "image": "T_Icon_S0399_Suit_01.png"
+      },
+      {
+        "key": "1090012179",
+        "aliases": [
+          "1090012179"
+        ],
+        "zh": "金羽归时",
+        "en": "金羽归时",
+        "image": "T_Icon_S0399_Idle_01.png"
+      },
+      {
+        "key": "1090012180",
+        "aliases": [
+          "1090012180"
+        ],
+        "zh": "玫瑰的独白",
+        "en": "玫瑰的独白",
+        "image": "T_Icon_S0347_Trends_01.png"
+      },
+      {
+        "key": "1090012181",
+        "aliases": [
+          "1090012181"
+        ],
+        "zh": "闻香而至",
+        "en": "闻香而至",
+        "image": "T_Icon_S0347_Static_01.png"
+      },
+      {
+        "key": "1090012182",
+        "aliases": [
+          "1090012182"
+        ],
+        "zh": "玫瑰的邀约",
+        "en": "玫瑰的邀约",
+        "image": "T_Icon_S0347_Suit_01.png"
+      },
+      {
+        "key": "1090012183",
+        "aliases": [
+          "1090012183"
+        ],
+        "zh": "轻拂花香",
+        "en": "轻拂花香",
+        "image": "T_Icon_S0347_Idle_01.png"
+      },
+      {
         "key": "1090012184",
         "aliases": [
           "1090012184"
@@ -5842,6 +6022,24 @@
         "zh": "希光同愿",
         "en": "希光同愿",
         "image": "T_Icon_S0117_Scene_01.png"
+      },
+      {
+        "key": "1090060023",
+        "aliases": [
+          "1090060023"
+        ],
+        "zh": "揽金而栖",
+        "en": "揽金而栖",
+        "image": "T_Icon_S0399_Scene_01.png"
+      },
+      {
+        "key": "1090060024",
+        "aliases": [
+          "1090060024"
+        ],
+        "zh": "花香沉醉",
+        "en": "花香沉醉",
+        "image": "T_Icon_S0347_Scene_01.png"
       }
     ],
     "momo_pose": [

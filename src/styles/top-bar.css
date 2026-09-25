@@ -552,6 +552,145 @@
   animation: spin 0.8s linear infinite;
 }
 
+/* 官方网站入口：流金渐变描边 + 呼吸光晕 + 图标浮动的精致炫酷按钮 */
+.official-site-link {
+  position: relative;
+  display: inline-flex;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-right: 4px;
+  padding: 0 13px 0 11px;
+  border-radius: var(--ui-radius);
+  overflow: hidden;
+  color: #8a5a3b;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  isolation: isolate;
+  transition: color var(--motion-base) ease, transform var(--motion-base) var(--ease-spring), box-shadow var(--motion-base) ease;
+}
+
+/* 底层铺一个渐变，用于制造流金描边效果 */
+.official-site-link::before {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(115deg, #f2c778, #e8a35c 28%, #d98a8a 62%, #f2c778 100%);
+  background-size: 260% 260%;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  content: '';
+  animation: official-border-flow 4s linear infinite;
+}
+
+/* 内层底色，盖住描边内部 */
+.official-site-link::after {
+  position: absolute;
+  inset: 1.5px;
+  z-index: -1;
+  border-radius: calc(var(--ui-radius) - 1.5px);
+  background: linear-gradient(115deg, #fff6e6, #fdeee6);
+  content: '';
+  transition: background var(--motion-base) ease;
+}
+
+/* 光晕层：轻微呼吸放大，制造「显眼但不刺眼」的聚焦感 */
+.official-site-glow {
+  position: absolute;
+  inset: -10px;
+  z-index: -3;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, #f2c778 40%, transparent), transparent 62%);
+  filter: blur(8px);
+  opacity: 0.55;
+  animation: official-glow-breathe 2.8s ease-in-out infinite;
+}
+
+.official-site-icon {
+  color: #d9903f;
+  filter: drop-shadow(0 1px 2px rgba(217, 144, 63, 0.35));
+  animation: official-icon-float 3.4s ease-in-out infinite;
+}
+
+.official-site-text {
+  letter-spacing: 0.01em;
+}
+
+.official-site-spark {
+  color: #e0a03c;
+  font-size: 11px;
+  line-height: 1;
+  animation: official-spark-twinkle 1.9s ease-in-out infinite;
+}
+
+.official-site-link:hover {
+  color: #6d4226;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px color-mix(in srgb, #e8a35c 32%, transparent);
+}
+
+.official-site-link:hover::after {
+  background: linear-gradient(115deg, #fff2d8, #fde3d4);
+}
+
+.official-site-link:hover .official-site-glow {
+  opacity: 0.85;
+}
+
+.official-site-link:hover .official-site-icon {
+  animation: official-icon-float 1.6s ease-in-out infinite;
+}
+
+.official-site-link:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* 流金描边流转 */
+@keyframes official-border-flow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 260% 50%; }
+}
+
+/* 光晕呼吸 */
+@keyframes official-glow-breathe {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.75; transform: scale(1.12); }
+}
+
+/* 图标轻微上下浮动 */
+@keyframes official-icon-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+/* 星星闪烁 */
+@keyframes official-spark-twinkle {
+  0%, 100% { opacity: 0.35; transform: scale(0.85) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.2) rotate(18deg); }
+}
+
+/* 深色主题下适配内层底色与文字 */
+:root[data-theme='dark'] .official-site-link {
+  color: #ffe7c4;
+}
+
+:root[data-theme='dark'] .official-site-link::after {
+  background: linear-gradient(115deg, #2a2118, #291f1f);
+}
+
+:root[data-theme='dark'] .official-site-link:hover {
+  color: #fff2dd;
+}
+
+:root[data-theme='dark'] .official-site-link:hover::after {
+  background: linear-gradient(115deg, #332818, #32231f);
+}
+
 /* 点赞计数器：搜索框左侧的爱心按钮 + 计数 */
 .like-counter {
   display: inline-flex;
