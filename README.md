@@ -15,44 +15,87 @@
 </div>
 
 ---
-### 使用可以直接打开网站：https://infinity-nikki-album-manager.pages.dev/ 。
-### 或者访问 Vercel （需要VPN）：https://infinity-nikki-album-manager.vercel.app 。
+### 官网：https://nikki3.pages.dev/
 
-> 本地部署运行时再下载压缩包或clone项目。点击跳转本地部署教程：[开发者本地运行](#开发者本地运行)
+### 在线使用（工具集）：https://infinity-nikki-album-manager.pages.dev/
+
+> 工具集 Vercel 备选地址（需要 VPN）：https://infinity-nikki-album-manager.vercel.app
+>
+> 本地部署运行时再下载压缩包或 clone 项目。点击跳转本地部署教程：[本地安装](#本地安装)
 
 ---
-## 网站界面
+## 网站与界面
+
 <div align="center">
-  <img src="img/1.webp" alt="项目界面" width="49%">
-  <img src="img/2.webp" alt="项目界面" width="49%">
-  <img src="img/3.webp" alt="项目界面" width="49%">
-  <img src="img/搭配码编辑.webp" alt="项目界面" width="49%">
-  <img src="img/搭配码.webp" alt="项目界面" width="90%">
- 
+  <img src="img/1.webp" alt="Nikki³ 官网首页：站点介绍与功能一览" width="46%">
+  <p><sub>官网首页：站点介绍、功能一览与界面预览，从这里进入工具集</sub></p>
+</div>
+
+### 相册浏览
+
+<div align="center">
+  <img src="img/2.webp" alt="网站主界面：照片时间轴" width="49%">
+  <img src="img/3.webp" alt="大图查看：缩放、拖动与键盘翻页" width="49%">
+  <p><sub>左 · 主界面：按“年份 &gt; 月份 &gt; 日期”折叠的照片时间轴 ｜ 右 · 大图查看：50%–300% 缩放、拖动与键盘翻页</sub></p>
+</div>
+
+### 搭配码
+
+<div align="center">
+  <img src="img/9.webp" alt="搭配码界面：搭配方案、标签与待填写方案" width="49%">
+  <img src="img/10.webp" alt="搭配码编辑窗口：添加图片、填写搭配码与选择标签" width="49%">
+  <p><sub>左 · 搭配码界面：方案列表、标签与待填写方案 ｜ 右 · 搭配码编辑窗口：添加图片、填写搭配码与选择标签</sub></p>
+</div>
+
+### 解析与清理
+
+<div align="center">
+  <img src="img/4.webp" alt="搭配码解析：部件与妆容图鉴对照" width="49%">
+  <img src="img/5.webp" alt="专项清理：低画质图片、崩溃快照、运行日志与网页缓存" width="49%">
+  <p><sub>左 · 搭配码解析：部件与妆容图鉴对照 ｜ 右 · 专项清理：低画质图片、崩溃快照、运行日志与游戏内置浏览器缓存</sub></p>
+</div>
+
+### 小工具
+
+<div align="center">
+  <img src="img/7.webp" alt="照片参数解析：拍摄时间、天气、焦距、光圈、动作、灯光与滤镜" width="35%">
+  <img src="img/8.webp" alt="抽卡吉时：当前版本时间表" width="63%">
+  <p><sub>左 · 照片参数解析：拍摄时间、天气、焦距、光圈、普通动作、灯光与滤镜 ｜ 右 · 抽卡吉时：当前版本时间表（仅供娱乐，实际出率以游戏概率为准）</sub></p>
 </div>
 
 
 ## 功能
 
+### 相册浏览
+
 - 按“年份 > 月份 > 日期”分组，支持折叠时间轴和日期快速跳转。
-- 通过“更多”菜单的“问题反馈”入口直接反馈问题。
-- “更新记录”窗口提供当前版本与历史版本更新内容；“使用帮助与介绍”窗口集中展示网站介绍、特色功能、使用教程和注意事项。
 - 单击选择后从页面底部显示操作栏。
 - 双击打开大图预览，支持 50%–300% 缩放、滚轮缩放和放大后拖动。
 - 支持键盘翻页和删除当前预览照片。
 - 提供 1:1、半尺寸 1:1、16:9、4:3、9:16、3:4 缩略图比例。
-- 在本地保存搭配图片、搭配码和标签，支持待填写方案、自动接收图片以及 ZIP 导入导出。
 - 支持为照片和搭配方案添加最多 15 个字符的备注，并在顶部搜索文件名和备注。
+- 相册支持通过文件选择器批量导入图片；标题区可全量导出当前相册，多选底栏可导出选中照片。导出正常完成后，可选择将成功导出的源照片移入最近删除；取消导出会保留已完成目标文件和全部源照片。
+
+### 搭配码与参数解析
+
+- 在本地保存搭配图片、搭配码和标签，支持待填写方案、自动接收图片以及 ZIP 导入导出。
 - 照片缩略图和大图预览提供参数解析入口；右上角“工具”菜单中的“参数/搭配码解析”窗口集中提供 相机参数和搭配码输入。解析照片会展示拍摄时间、天气、焦距、光圈、晕影、画面调节、普通动作、灯光、滤镜、大喵动作及可导入游戏的相机参数，且菜单中的“参数/搭配码解析”窗口可通过手机访问网站使用。
 - 照片参数窗口支持从电脑或手机选择单张本地游戏原图解析；文件只在浏览器内临时读取，不上传服务器，也不会加入相册。已保存 UID 会自动尝试，失败时可手动输入 UID 重试。
-- 相册支持通过文件选择器批量导入图片；标题区可全量导出当前相册，多选底栏可导出选中照片。导出正常完成后，可选择将成功导出的源照片移入最近删除；取消导出会保留已完成目标文件和全部源照片。
+
+### 文件清理
+
 - 照片单选或多选后，可在操作栏永久删除 `ScreenShot` 和当前账号 `NikkiPhotos_LowQuality` 中与选中照片同名的图片，当前相册里的选中照片不会被删除。
 - 通过右上角“工具”菜单中的“专项清理”窗口清理低画质照片与游戏截图、崩溃快照、运行日志和游戏内置浏览器缓存。
+
+### 小工具与帮助
+
 - 通过右上角“工具”菜单中的“抽卡吉时”查看当前版本抽卡玄学时间表；实际出率仍以游戏概率为准。
+- “更新记录”窗口提供当前版本与历史版本更新内容；“使用帮助与介绍”窗口集中展示网站介绍、特色功能、使用教程和注意事项。
+- 通过“更多”菜单的“问题反馈”入口直接反馈问题。
 
 ## 快速开始
 
-直接打开 https://infinity-nikki-album-manager.pages.dev/ 即可使用，也可通过下载压缩包或 clone 项目来本地运行，点击跳转本地部署教程：[开发者本地运行](#开发者本地运行)。
+官网入口：https://nikki3.pages.dev/ 。工具集直接打开 https://infinity-nikki-album-manager.pages.dev/ 即可使用，也可通过下载压缩包或 clone 项目来本地运行，点击跳转本地部署教程：[本地安装](#本地安装)。
 
 > 如果国内直连地址临时不可用，可尝试 Vercel 备选地址（需要外网环境）：https://infinity-nikki-album-manager.vercel.app
 
@@ -69,7 +112,7 @@
 - 使用<span style="color: orange;">自动更新搭配码</span>功能需要授权当前游戏的 `X6Game` 文件夹，可前往页面右上角当前相册下拉菜单进行授权。<span style="color: red;">使用方式是：在游戏内点击分享按钮，需要在搭配截图右下角点击框选按钮，框选完成后点击生成搭配码，再返回网页。网站只有在检测到新搭配码且游戏搭配图片的最后修改时间也已更新时才会导入；已有相同搭配码、图片未更新或找不到图片时会跳过并提示。</span>
 
 <div align="center">
-  <img src="img/自动更新步骤.webp" alt="项目界面" width="70%">
+  <img src="img/自动更新步骤.webp" alt="游戏内自动更新搭配码的操作步骤" width="70%">
 </div>
 
 - “导出数据”会在当前选择的相册文件夹中生成 ZIP 数据文件，并保留搭配码、标签、备注和创建时间。“导入数据”不会覆盖已有方案，重复或无效内容会跳过；导入会先校验完整备份，再分批解压和写入图片，减少大备份占用的浏览器内存。
@@ -194,30 +237,6 @@ npm run build     # 类型检查并构建
 npm run build:cloudflare # 刷新普通动作和中英文图鉴后构建
 npm run preview   # 预览构建结果
 ```
-
-照片资源目录已随源码生成并参与构建；如果需要刷新 `nikki_albums` 中的灯光、滤镜、大喵动作资源和 NikkiGallery 普通动作目录，可以运行：
-
-```bash
-npm run resources:update -- --manifest ../nikki_albums/app_api/hot_update.json
-```
-
-该命令在构建期解密并转换 `v1.db` 和语言资源，同时读取 NikkiGallery 动作接口；网站运行时只读取生成的静态目录，不会直接请求动作接口或解析热更新文件。
-
-如果需要单独刷新搭配码解析使用的中英文部件与妆容图鉴，可以运行：
-
-```bash
-npm run resources:update:items
-```
-
-该命令从 `dastrokes/gongeo.us-nikki-tracker` 的 `master` 分支读取中英文 `item.json` 和 `makeup.json`，校验后原子替换 `src/data/itemCatalog.json`。远程接口超时、返回错误或数据校验失败时，默认保留已有目录并继续构建；使用 `npm run resources:update:items -- --strict` 可让同步失败返回非零退出码。图鉴图片仍由运行时访问 `cdn.gongeo.us`，构建过程只更新部件 ID 与名称映射。
-
-Cloudflare Pages 的构建命令应设置为 `npm run build:cloudflare`，构建输出目录保持 `dist`。该命令每次构建先检查 NikkiGallery 动作版本，并拉取最新中英文部件图鉴；接口超时、返回错误或数据校验失败时会保留仓库内已有目录并继续构建。上游更新不会自动触发 Cloudflare Pages 构建，需要使用定时任务或 Deploy Hook 定期触发部署。需要恢复为完全离线、可复现的静态构建时，将 Cloudflare 构建命令改回 `npm run build`。
-
-可选环境变量：`NIKKIGALLERY_API_BASE` 用于覆盖动作接口根地址，`NIKKIGALLERY_API_TIMEOUT_MS` 用于调整动作接口超时毫秒数；`GONGEO_CATALOG_BASE_URL` 用于覆盖图鉴原始 JSON 根地址，`GONGEO_CATALOG_TIMEOUT_MS` 用于调整图鉴同步超时毫秒数。手动严格检查可执行 `npm run resources:update:poses -- --strict` 和 `npm run resources:update:items -- --strict`。
-
-`npm run dev` 不会连接远程数据库；远程模式只代理已部署的 Pages API。Wrangler 仅在需要执行远程迁移或 Cloudflare 部署命令时使用，不是远程网站启动的必需依赖。
-
-执行 `npm run dev` 或 `npm run dev:remote` 时，会先检查并更新 NikkiGallery 普通动作和中英文部件/妆容图鉴，再启动 Vite。同步失败时按更新脚本的默认策略保留已有目录并继续；此步骤不会执行完整生产构建，也不会更新灯光、滤镜和大喵动作资源。
 
 技术栈：Vue 3、TypeScript、Vite、File System Access API、IndexedDB。
 

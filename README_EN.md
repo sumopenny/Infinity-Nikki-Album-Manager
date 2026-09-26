@@ -15,45 +15,89 @@
 </div>
 
 ---
-### Open the website directly: https://infinity-nikki-album-manager.pages.dev/ .
-### Or use Vercel (VPN may be required): https://infinity-nikki-album-manager.vercel.app .
+### Official site: https://nikki3.pages.dev/
 
+### Use it online (toolkit): https://infinity-nikki-album-manager.pages.dev/
+
+> Toolkit Vercel fallback (VPN may be required): https://infinity-nikki-album-manager.vercel.app
+>
 > For local deployment, download the archive or clone the project. Jump to the local deployment guide: [Local Setup for Developers](#local-setup-for-developers)
 
 ---
-## Website UI
-<div align="center">
-  <img src="img/1.webp" alt="Project UI" width="49%">
-  <img src="img/2.webp" alt="Project UI" width="49%">
-  <img src="img/3.webp" alt="Project UI" width="49%">
-  <img src="img/搭配码编辑.webp" alt="Project UI" width="49%">
-  <img src="img/搭配码.webp" alt="Project UI" width="90%">
+## Website and UI
 
+<div align="center">
+  <img src="img/1.webp" alt="Nikki³ official site home page: overview and feature list" width="46%">
+  <p><sub>Official home page: site overview, feature list, and UI previews, with the entry into the toolkit</sub></p>
+</div>
+
+### Browsing the album
+
+<div align="center">
+  <img src="img/2.webp" alt="Main interface: photo timeline" width="49%">
+  <img src="img/3.webp" alt="Large preview: zoom, pan, and keyboard paging" width="49%">
+  <p><sub>Left · Main interface: photo timeline grouped by year / month / day ｜ Right · Large preview: 50%–300% zoom, pan, and keyboard paging</sub></p>
+</div>
+
+### Outfit codes
+
+<div align="center">
+  <img src="img/9.webp" alt="Outfit codes: plans, tags, and pending plans" width="49%">
+  <img src="img/10.webp" alt="Outfit editor: add an image, enter a code, and pick a tag" width="49%">
+  <p><sub>Left · Outfit codes: plan list, tags, and pending plans ｜ Right · Outfit editor: add an image, enter a code, and pick a tag</sub></p>
+</div>
+
+### Parsing and cleanup
+
+<div align="center">
+  <img src="img/4.webp" alt="Outfit code parsing: item and makeup catalog lookup" width="49%">
+  <img src="img/5.webp" alt="Special cleanup: low-quality images, crash snapshots, logs, and web cache" width="49%">
+  <p><sub>Left · Outfit code parsing: item and makeup catalog lookup ｜ Right · Special cleanup: low-quality images, crash snapshots, runtime logs, and the game's built-in browser cache</sub></p>
+</div>
+
+### Small tools
+
+<div align="center">
+  <img src="img/7.webp" alt="Photo parameter parsing: capture time, weather, focal length, aperture, poses, lights, and filters" width="35%">
+  <img src="img/8.webp" alt="Lucky pull times: current version timing table" width="63%">
+  <p><sub>Left · Photo parameter parsing: capture time, weather, focal length, aperture, normal poses, lights, and filters ｜ Right · Lucky pull times: the current version table, for entertainment only</sub></p>
 </div>
 
 
 ## Features
 
+### Browsing the album
+
 - Group photos by year, month, and date with a collapsible timeline and quick date jumps.
-- Report issues directly through the Feedback entry in the More menu.
-- The Release history window shows the current release and historical release notes; Help and introduction contains the site overview, features, tutorials, and important notes.
-- The Release history window opens automatically when the site loads; check "Don't show again" to hide it until the next version update.
-- Deleted high-quality photos move to the current album's `trash` folder for preview, restore, or permanent deletion.
 - Single-click to select a photo and show the bottom action bar.
 - Double-click to open the large preview with 50%–300% zoom, mouse-wheel zooming, and drag-to-pan after zooming in.
 - Use the keyboard to navigate photos and delete the current preview photo.
 - Choose 1:1, Half 1:1, 16:9, 4:3, 9:16, or 3:4 thumbnail ratios.
-- Store outfit images, outfit codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export.
 - Add notes of up to 15 characters to photos and outfit plans, then search the current view by file name, note, or outfit code.
+- The album supports batch image import through the file picker. The gallery header exports all photos, while the selection bar exports only selected photos. After a successful export, you can choose to move successfully exported source photos to Recently Deleted. Cancelling keeps completed target files and all source photos.
+
+### Outfit codes and parameter parsing
+
+- Store outfit images, outfit codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export.
 - Parse CameraParams from photo thumbnails or the full-size viewer. The upper-right Tools menu opens a shared Parameter / outfit-code parser window for direct camera-parameter and outfit-code input. Photo parsing shows capture time, weather, focal length, aperture, vignette, image adjustments, normal poses, lights, filters, Momo poses, and camera parameters that can be imported into the game. The Parameter / outfit-code parser window in the Tools menu can also be used on mobile devices.
 - The photo-parameter window can parse one local original game image selected on a computer or phone. The file is read temporarily in the browser only: it is not uploaded or added to the album. Saved UIDs are tried automatically, with manual UID retry when needed.
+
+### File cleanup
+
+- Deleted high-quality photos move to the current album's `trash` folder for preview, restore, or permanent deletion.
 - After selecting one or more photos, use the selection bar to permanently delete same-name images from `ScreenShot` and the current account's `NikkiPhotos_LowQuality` folder. The action requires confirmation and cannot be undone; selected photos in the current album are never deleted.
 - Open Special Cleanup from the upper-right Tools menu to clean low-quality photos and game screenshots, crash snapshots, runtime logs, and the game's built-in browser cache.
+
+### Tools and help
+
 - Open Lucky pull times from the upper-right Tools menu to view the entertainment-only Version 2.10 timing table; actual drop rates still follow the game's probabilities.
+- The Release history window shows the current release and historical release notes; Help and introduction contains the site overview, features, tutorials, and important notes.
+- The Release history window opens automatically when the site loads; check "Don't show again" to hide it until the next version update.
+- Report issues directly through the Feedback entry in the More menu.
 
 ## Quick Start
 
-Open https://infinity-nikki-album-manager.pages.dev/ directly to use it. You can also download the archive or clone the project to run it locally. Jump to the local deployment guide: [Local Setup for Developers](#local-setup-for-developers).
+Official site: https://nikki3.pages.dev/. Open https://infinity-nikki-album-manager.pages.dev/ directly to use the toolkit. You can also download the archive or clone the project to run it locally. Jump to the local deployment guide: [Local Setup for Developers](#local-setup-for-developers).
 
 > If the China-accessible site is temporarily unavailable, try the Vercel fallback (VPN required): https://infinity-nikki-album-manager.vercel.app
 
@@ -70,7 +114,7 @@ Entering Outfit codes opens a standalone guide. Please read it carefully.
 - Using the <span style="color: orange;">auto update outfit code</span> feature requires authorizing the current game's `X6Game` folder. You can authorize it from the Current album menu in the upper-right corner. <span style="color: red;">How to use: in the game, tap Share, tap the selection button at the lower-right corner of the outfit screenshot, tap Generate Outfit Code after the selection is complete, then return to the web page. The website imports only when both the outfit code is new and the game's outfit image has a newer last-modified time; existing codes, unchanged images, or missing images are skipped with a status message.</span>
 
 <div align="center">
-  <img src="img/自动更新步骤.webp" alt="Project UI" width="70%">
+  <img src="img/自动更新步骤.webp" alt="In-game steps for auto-updating outfit codes" width="70%">
 </div>
 
 - Export data generates a ZIP file in the currently selected album folder and preserves outfit codes, tags, notes, and creation times. Import data validates and merges the ZIP without replacing existing plans; duplicate or invalid content is skipped. Imports validate the complete backup first, then extract and write images in bounded batches to reduce browser memory use with large backups. <span style="color: red;">Deleting an outfit plan is permanent and does not go to Recently Deleted.</span>
@@ -197,30 +241,6 @@ npm run build     # Type-check and build
 npm run build:cloudflare # Refresh normal poses and item catalogs, then build
 npm run preview   # Preview the build result
 ```
-
-The generated photo resource catalog is included in the build. To refresh light, filter, and Momo-pose resources from `nikki_albums` together with the NikkiGallery normal-pose catalog, run:
-
-```bash
-npm run resources:update -- --manifest ../nikki_albums/app_api/hot_update.json
-```
-
-The command decrypts and converts `v1.db` and the language resources, then reads the NikkiGallery pose API during the update step. The deployed site only reads the generated static catalog and does not call the pose API or parse hot-update files at runtime.
-
-To refresh the Chinese and English item and makeup catalogs used by outfit-code parsing separately, run:
-
-```bash
-npm run resources:update:items
-```
-
-The command reads `item.json` and `makeup.json` for both languages from the `master` branch of `dastrokes/gongeo.us-nikki-tracker`, validates them, and atomically replaces `src/data/itemCatalog.json`. By default, a timeout, HTTP error, or validation failure keeps the existing catalog and lets the build continue; `npm run resources:update:items -- --strict` makes synchronization failures return a non-zero exit code. Item images are still loaded at runtime from `cdn.gongeo.us`; the build updates the ID and name mapping only.
-
-Set the Cloudflare Pages build command to `npm run build:cloudflare` and keep the output directory as `dist`. Each build checks the NikkiGallery pose version and fetches the latest Chinese and English item catalogs. If an upstream request times out, returns an error, or fails validation, the build keeps the catalog committed in the repository and continues. Upstream changes do not trigger Cloudflare Pages builds by themselves, so use a scheduled job or Deploy Hook to run deployments periodically. To roll back to a fully offline and reproducible build, change the Cloudflare build command back to `npm run build`.
-
-Optional environment variables: `NIKKIGALLERY_API_BASE` overrides the pose API root, `NIKKIGALLERY_API_TIMEOUT_MS` adjusts the pose request timeout, `GONGEO_CATALOG_BASE_URL` overrides the raw item-catalog JSON base URL, and `GONGEO_CATALOG_TIMEOUT_MS` adjusts the item-catalog request timeout. Run `npm run resources:update:poses -- --strict` and `npm run resources:update:items -- --strict` for strict synchronization checks.
-
-`npm run dev` does not connect to the remote database. Remote mode only proxies the deployed Pages API. Wrangler is needed only for remote migrations or Cloudflare deployment commands, not for starting the remote-backed local website.
-
-Running `npm run dev` or `npm run dev:remote` first checks and updates the NikkiGallery normal-pose catalog and the Chinese and English item/makeup catalogs, then starts Vite. On synchronization failure, the scripts keep the existing catalogs and continue by default. This does not run a full production build or update light, filter, and Momo-pose resources.
 
 Stack: Vue 3, TypeScript, Vite, File System Access API, IndexedDB.
 
