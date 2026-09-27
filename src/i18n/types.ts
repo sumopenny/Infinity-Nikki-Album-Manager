@@ -1,5 +1,4 @@
 // 国际化公共类型：定义语言键、状态文案参数、完整界面文案结构和各模块字段类型。
-import type { ThemeMode } from '../types/theme'
 import type { RelatedCleanupFailureReason, SpecialCleanupItem } from '../utils/file-system/cleanupFileSystem'
 import type { OutfitMessages } from './messages/outfit'
 import type { PhotoParamsMessages } from './messages/photoParams'
@@ -91,8 +90,12 @@ export interface LocaleMessages {
     giteeText: string
     githubRepo: string
     giteeRepo: string
-    languageButton: string
-    themeButton: (themeMode: ThemeMode) => string
+    languageZh: string
+    languageEn: string
+    languageToggleAria: string
+    themeLight: string
+    themeDark: string
+    themeToggleAria: string
     chooseDirectory: string
     loading: string
     clearDirectory: string

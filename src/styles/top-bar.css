@@ -364,6 +364,7 @@
   font-size: 13px;
   text-align: left;
   text-decoration: none;
+  transition: background var(--motion-base) ease, color var(--motion-base) ease;
 }
 
 .header-dropdown button:hover:not(:disabled),
@@ -379,6 +380,64 @@
   min-height: 48px;
   margin-block: 8px;
   padding-block: 4px;
+}
+
+/* 视图菜单顶部的主题 / 语言胶囊：一行并排两个，胶囊内部左右两半各自可点 */
+.view-toggle-row {
+  display: flex;
+  gap: 6px;
+  padding: 2px 3px 0;
+}
+
+.view-toggle-pill {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line-soft) 62%, transparent);
+}
+
+/* 选择器需要写得比 .header-dropdown button 更具体，才能盖掉它的整行按钮样式 */
+.view-dropdown .view-toggle-option {
+  width: auto;
+  min-height: 0;
+  flex: 1 1 0;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 4px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  transition:
+    background var(--motion-fast) var(--ease-spring),
+    color var(--motion-fast) var(--ease-spring),
+    border-color var(--motion-fast) var(--ease-spring);
+}
+
+.view-dropdown .view-toggle-option:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-strong) 70%, transparent);
+  color: var(--heading);
+}
+
+.view-dropdown .view-toggle-option.active {
+  border-color: color-mix(in srgb, var(--pink-deep) 46%, transparent);
+  background: color-mix(in srgb, var(--pink-deep) 18%, var(--surface-strong));
+  color: var(--heading);
+  font-weight: 500;
+}
+
+.view-dropdown .view-toggle-option.active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--pink-deep) 24%, var(--surface-strong));
+  color: var(--heading);
 }
 
 .brand-lockup .brand-logo {

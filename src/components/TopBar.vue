@@ -12,7 +12,6 @@ import {
   Heart,
   History,
   BookOpen,
-  Languages,
   Music2,
   Moon,
   MoreHorizontal,
@@ -129,6 +128,16 @@ function closeMenus() {
 function runMenuAction(action: () => void) {
   closeMenus()
   action()
+}
+
+/** 视图菜单里的主题胶囊：只有点到与当前不同的那半边才触发切换。参数：mode 为目标主题。 */
+function selectTheme(mode: ThemeMode) {
+  if (mode !== props.themeMode) emit('toggleTheme')
+}
+
+/** 视图菜单里的语言胶囊：只有点到与当前不同的那半边才触发切换。参数：language 为目标语言。 */
+function selectLanguage(language: Language) {
+  if (language !== props.language) emit('toggleLanguage')
 }
 
 /** 打开问题反馈弹窗，首次打开时加载问卷 iframe。参数：无。 */
@@ -260,11 +269,52 @@ onBeforeUnmount(() => {
         </button>
         <Teleport to="body">
           <div v-if="openMenu === 'view'" ref="dropdownRef" class="header-dropdown view-dropdown" :style="{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }" role="menu">
-          <button type="button" role="menuitem" @click="runMenuAction(() => emit('toggleTheme'))">
-            <Sun v-if="themeMode === 'dark'" :size="16" />
-            <Moon v-else :size="16" />
-            <span>{{ messages.themeButton(themeMode) }}</span>
-          </button>
+          <div class="view-toggle-row">
+            <div class="view-toggle-pill" role="group" :aria-label="messages.themeToggleAria">
+              <button
+                type="button"
+                class="view-toggle-option"
+                :class="{ active: themeMode === 'light' }"
+                :aria-pressed="themeMode === 'light'"
+                :title="messages.themeLight"
+                :aria-label="messages.themeLight"
+                @click="selectTheme('light')"
+              >
+                <Sun :size="15" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                class="view-toggle-option"
+                :class="{ active: themeMode === 'dark' }"
+                :aria-pressed="themeMode === 'dark'"
+                :title="messages.themeDark"
+                :aria-label="messages.themeDark"
+                @click="selectTheme('dark')"
+              >
+                <Moon :size="15" aria-hidden="true" />
+              </button>
+            </div>
+            <div class="view-toggle-pill" role="group" :aria-label="messages.languageToggleAria">
+              <button
+                type="button"
+                class="view-toggle-option"
+                :class="{ active: language === 'zh' }"
+                :aria-pressed="language === 'zh'"
+                @click="selectLanguage('zh')"
+              >
+                <span>{{ messages.languageZh }}</span>
+              </button>
+              <button
+                type="button"
+                class="view-toggle-option"
+                :class="{ active: language === 'en' }"
+                :aria-pressed="language === 'en'"
+                @click="selectLanguage('en')"
+              >
+                <span>{{ messages.languageEn }}</span>
+              </button>
+            </div>
+          </div>
           <div class="menu-section-label">{{ messages.thumbnail }}</div>
           <div class="thumbnail-options">
             <button
@@ -281,11 +331,6 @@ onBeforeUnmount(() => {
               <span>{{ option.label }}</span>
             </button>
           </div>
-          <div class="menu-separator"></div>
-          <button type="button" role="menuitem" @click="runMenuAction(() => emit('toggleLanguage'))">
-            <Languages :size="16" />
-            <span>{{ messages.languageButton }}</span>
-          </button>
           </div>
         </Teleport>
       </div>

@@ -576,6 +576,11 @@
   white-space: nowrap;
 }
 
+/* 悬停只改边框色和文字色；主按钮有自己的过渡，用 :not 排除避免顶掉它 */
+.outfit-header-actions > button:not(.primary-button) {
+  transition: border-color var(--motion-base) ease, color var(--motion-base) ease;
+}
+
 .outfit-header-actions > button:hover:not(:disabled) {
   border-color: var(--pink-deep);
   color: var(--heading);
