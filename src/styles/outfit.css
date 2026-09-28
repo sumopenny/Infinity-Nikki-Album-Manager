@@ -1272,6 +1272,8 @@
 }
 
 .outfit-detail-panel {
+  display: flex;
+  flex-direction: column;
   width: min(960px, 100%);
   max-height: min(720px, calc(100vh - 36px));
   overflow: hidden;
@@ -1298,6 +1300,7 @@
 .outfit-detail-content {
   display: grid;
   grid-template-columns: minmax(250px, 0.85fr) minmax(0, 1.15fr);
+  flex: 1 1 auto;
   min-height: 360px;
 }
 
@@ -1415,6 +1418,7 @@
   top: 0;
   z-index: 1;
   background: color-mix(in srgb, var(--frame-bg) 75%, transparent);
+  backdrop-filter : blur(6px);
   color: var(--muted);
   font-size: 11px;
   text-align: center;
@@ -1456,12 +1460,27 @@
 
   .outfit-detail-content {
     grid-template-columns: 1fr;
-    overflow-y: auto;
   }
 
   .outfit-detail-summary {
     border-right: 0;
     border-bottom: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 680px), (max-height: 760px) {
+  .outfit-detail-content {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .outfit-detail-dyes {
+    overflow: visible;
+  }
+
+  .outfit-detail-table-wrap {
+    max-height: none;
+    overflow-y: visible;
   }
 }
 

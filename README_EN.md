@@ -81,6 +81,7 @@
 - Store outfit images, outfit codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export.
 - Outfit-code results append the item type to each name, such as “Item-Hair”, “Item-Hair Accessories”, or “Item-Eyelashes”.
 - Clicking an item image opens a detail dialog with the current item, outfit, evolution or Glow-Up state, and dye condition. Long dye lists scroll independently; the dye area is hidden when the decoded item has no dyes, and makeup outfit relations are restored through the makeup catalog.
+- Successful outfit-code results are persisted in the current browser's IndexedDB by normalized code, so they can be reused after a page refresh with no expiration; Clear cache and Clear data remove these parse results.
 - Parse CameraParams from photo thumbnails or the full-size viewer. The upper-right Tools menu opens a shared Parameter / outfit-code parser window for direct camera-parameter and outfit-code input. Photo parsing shows capture time, weather, focal length, aperture, vignette, image adjustments, normal poses, lights, filters, Momo poses, and camera parameters that can be imported into the game. The Parameter / outfit-code parser window in the Tools menu can also be used on mobile devices.
 - The photo-parameter window can parse one local original game image selected on a computer or phone. The file is read temporarily in the browser only: it is not uploaded or added to the album. Saved UIDs are tried automatically, with manual UID retry when needed.
 
@@ -198,7 +199,7 @@ Browsers block web pages from accessing system folders. Please select `NikkiPhot
 
 - Photos are read locally in your browser.
 - Photo-tail extraction, account-key derivation, AES decryption, and CameraParams parsing run locally inside WASM; photos and parsed results are not uploaded.
-- Album folder authorization and Favorites are stored locally in the current browser; Clear cache in More only clears the `X6Game` authorization and the Outfit Guide “don't show again” state while keeping the current album authorization. Clear data asks for confirmation twice, then clears all website local records and authorizations so the website returns to first-open state.
+- Album folder authorization, Favorites, and outfit-code parse results are stored locally in the current browser; Clear cache in More clears the `X6Game` authorization, outfit-code parse cache, and the Outfit Guide “don't show again” state while keeping the current album authorization. Clear data asks for confirmation twice, then clears all website local records and authorizations so the website returns to first-open state.
 - Browser security policies may require folder authorization again.
 - Delete and Special Cleanup modify real files on your computer; Clear cache and Clear data do not delete real photos, `clothe`, `trash`, or other files on your computer.
 

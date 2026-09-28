@@ -1,5 +1,11 @@
 // 搭配码解析:规范化搭配码、调用上游解析 API,并把原始数据清洗为部件 ID 列表与染色数据。
 // 解析 API 由暖暖相册(nikki.ranaxro.com)友情提供,已开放跨域访问。
+import {
+  clearSavedOutfitParseResults,
+  getSavedOutfitParseResult,
+  saveOutfitParseResult
+} from '../file-system/directoryStorage'
+
 const LOOKBOOK_API_BASE_URL = 'https://api-nikki.ranaxro.com/conv-clothdiydata'
 const LOOKBOOK_CODE_PATTERN = /^[A-Za-z0-9]{11}#$/
 const LOOKBOOK_REQUEST_TIMEOUT_MS = 10000
@@ -7,6 +13,9 @@ const SKIN_TONE_CLOTH_TYPE = 86
 const IGNORED_LOOKBOOK_ITEM_IDS = new Set([
   1021860042, 1022860042, 1023860042, 1020860231,
 ])
+
+const parsedResultCache = new Map<string, LookbookDecodeResult>()
+const pendingParseRequests = new Map<string, Promise<LookbookDecodeResult>>()
 
 export type LookbookParseError = 'invalid' | 'unavailable'
 
@@ -200,10 +209,29 @@ const normalizeClothes = (value: unknown): LookbookDecodeResult | null => {
   }
 }
 
+const isCachedParseResult = (value: unknown, code: string): value is LookbookDecodeResult => {
+  if (!value || typeof value !== 'object') return false
+  const result = value as Partial<LookbookDecodeResult>
+  if (result.code !== code || !Array.isArray(result.wearingClothes) || !Array.isArray(result.dyeItems)) return false
+  return result.wearingClothes.every((cloth) => (
+    cloth && typeof cloth === 'object' &&
+    Number.isSafeInteger(cloth.itemId) && cloth.itemId > 0 &&
+    (cloth.clothType === null || Number.isInteger(cloth.clothType)) &&
+    (cloth.outfitId === null || (Number.isSafeInteger(cloth.outfitId) && cloth.outfitId > 0))
+  )) && result.dyeItems.every((item) => (
+    item && typeof item === 'object' &&
+    Number.isSafeInteger(item.itemId) && item.itemId > 0 &&
+    Array.isArray(item.dyes) && item.dyes.every((dye) => (
+      dye && typeof dye === 'object' &&
+      Number.isInteger(dye.targetGroupId) && Number.isInteger(dye.featureTag) &&
+      Number.isInteger(dye.paletteId) &&
+      (dye.slot === null || Number.isInteger(dye.slot)) && typeof dye.color === 'string'
+    )) && typeof item.hasSpecialEffect === 'boolean'
+  ))
+}
+
 /** 请求上游解析 API 并清洗数据;失败时抛 OutfitCodeParseError 标记错误类型。 */
-export async function parseOutfitCode(rawCode: string): Promise<LookbookDecodeResult> {
-  const code = normalizeLookbookCode(rawCode)
-  if (!code) throw new OutfitCodeParseError('invalid', `Invalid lookbook code: ${rawCode}`)
+async function requestLookbookParse(code: string): Promise<LookbookDecodeResult> {
 
   let response: Response
   try {
@@ -242,4 +270,49 @@ export async function parseOutfitCode(rawCode: string): Promise<LookbookDecodeRe
     throw new OutfitCodeParseError('unavailable', 'Lookbook upstream response is missing clothes')
   }
   return { ...result, code }
+}
+
+/** 解析搭配码；成功结果持久化到 IndexedDB，存储不可用时回退到在线请求。 */
+export async function parseOutfitCode(rawCode: string): Promise<LookbookDecodeResult> {
+  const code = normalizeLookbookCode(rawCode)
+  if (!code) throw new OutfitCodeParseError('invalid', `Invalid lookbook code: ${rawCode}`)
+
+  const memoryCached = parsedResultCache.get(code)
+  if (memoryCached) return memoryCached
+
+  const pending = pendingParseRequests.get(code)
+  if (pending) return pending
+
+  const request = (async () => {
+    try {
+      const stored = await getSavedOutfitParseResult(code)
+      if (isCachedParseResult(stored, code)) {
+        parsedResultCache.set(code, stored)
+        return stored
+      }
+    } catch {
+      // IndexedDB 不可用时继续请求上游解析服务。
+    }
+
+    const result = await requestLookbookParse(code)
+    parsedResultCache.set(code, result)
+    try { await saveOutfitParseResult(code, result) } catch {
+      // 持久化失败不影响本次已成功的解析结果。
+    }
+    return result
+  })()
+  pendingParseRequests.set(code, request)
+  try {
+    return await request
+  } finally {
+    pendingParseRequests.delete(code)
+  }
+}
+
+export async function clearOutfitCodeParseCache(): Promise<void> {
+  parsedResultCache.clear()
+  pendingParseRequests.clear()
+  try { await clearSavedOutfitParseResults() } catch {
+    // 浏览器不支持 IndexedDB 时无需阻断清理流程。
+  }
 }

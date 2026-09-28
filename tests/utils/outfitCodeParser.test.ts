@@ -1,5 +1,7 @@
+import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  clearOutfitCodeParseCache,
   OutfitCodeParseError,
   normalizeLookbookCode,
   parseOutfitCode
@@ -12,7 +14,8 @@ const jsonResponse = (body: unknown, init: ResponseInit = {}) =>
     ...init
   })
 
-afterEach(() => {
+afterEach(async () => {
+  await clearOutfitCodeParseCache()
   vi.unstubAllGlobals()
 })
 
@@ -111,6 +114,30 @@ describe('parseOutfitCode', () => {
   it('抛出的错误类型为 OutfitCodeParseError', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('oops', { status: 500 })))
     await expect(parseOutfitCode('a1B2c3D4e5F')).rejects.toBeInstanceOf(OutfitCodeParseError)
+  })
+
+  it('缓存成功结果并复用规范化后的搭配码', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
+      clothes: [{ cloth: { id: 1020100001, outfit: 1001, cloth_type: 1 } }]
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const first = await parseOutfitCode('a1B2c3D4e5F')
+    const second = await parseOutfitCode('a1B2c3D4e5F#')
+
+    expect(second).toEqual(first)
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it('不缓存失败结果，重试时重新请求服务', async () => {
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(jsonResponse({ clothes: [] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(parseOutfitCode('a1B2c3D4e5F')).rejects.toMatchObject({ kind: 'unavailable' })
+    await expect(parseOutfitCode('a1B2c3D4e5F')).resolves.toMatchObject({ code: 'a1B2c3D4e5F#' })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 })
 

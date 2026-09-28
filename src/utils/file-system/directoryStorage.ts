@@ -5,6 +5,7 @@ const STORE_NAME = 'album-handles'
 const SAVED_DIRECTORY_KEY = 'current-album-directory'
 const SAVED_X6GAME_DIRECTORY_KEY = 'current-x6game-directory'
 const SAVED_CAMERA_PARAM_UIDS_KEY = 'current-camera-param-uids'
+const OUTFIT_PARSE_CACHE_KEY_PREFIX = 'outfit-code-parse:'
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -70,4 +71,30 @@ export async function addSavedCameraParamUid(uid: string): Promise<void> {
 
 export async function clearSavedCameraParamUids(): Promise<void> {
   await transaction('readwrite', (store) => store.delete(SAVED_CAMERA_PARAM_UIDS_KEY))
+}
+
+export async function getSavedOutfitParseResult(code: string): Promise<unknown> {
+  return transaction('readonly', (store) => store.get(`${OUTFIT_PARSE_CACHE_KEY_PREFIX}${code}`))
+}
+
+export async function saveOutfitParseResult(code: string, result: unknown): Promise<void> {
+  await transaction('readwrite', (store) => store.put(result, `${OUTFIT_PARSE_CACHE_KEY_PREFIX}${code}`))
+}
+
+export async function clearSavedOutfitParseResults(): Promise<void> {
+  const db = await openDb()
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    const store = tx.objectStore(STORE_NAME)
+    const request = store.getAllKeys()
+    request.onsuccess = () => {
+      for (const key of request.result) {
+        if (typeof key === 'string' && key.startsWith(OUTFIT_PARSE_CACHE_KEY_PREFIX)) store.delete(key)
+      }
+    }
+    request.onerror = () => reject(request.error)
+    tx.oncomplete = () => { db.close(); resolve() }
+    tx.onerror = () => { db.close(); reject(tx.error) }
+    tx.onabort = () => { db.close(); reject(tx.error) }
+  })
 }

@@ -1,13 +1,16 @@
 import { onBeforeUnmount, watch, type Ref } from 'vue'
 
-// 统一管理模态窗口的背景滚动锁定，支持多个窗口同时存在。
+// 锁定页面背景滚动并隐藏根滚动条，支持多个模态窗口共享锁。
 let lockCount = 0
 let previousBodyOverflow = ''
+let previousRootOverflowY = ''
 
 export function acquireBodyScrollLock(): () => void {
   if (lockCount === 0) {
     previousBodyOverflow = document.body.style.overflow
+    previousRootOverflowY = document.documentElement.style.overflowY
     document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflowY = 'hidden'
   }
   lockCount += 1
   let released = false
@@ -17,7 +20,9 @@ export function acquireBodyScrollLock(): () => void {
     lockCount = Math.max(0, lockCount - 1)
     if (lockCount === 0) {
       document.body.style.overflow = previousBodyOverflow
+      document.documentElement.style.overflowY = previousRootOverflowY
       previousBodyOverflow = ''
+      previousRootOverflowY = ''
     }
   }
 }

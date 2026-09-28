@@ -70,6 +70,7 @@ import { useAlbumViewModel } from './composables/useAlbumViewModel'
 import { useSelectionState } from './composables/useSelectionState'
 import { usePhotoParams } from './composables/usePhotoParams'
 import { usePhotoTransfer } from './composables/usePhotoTransfer'
+import { clearOutfitCodeParseCache } from './utils/outfit/outfitCodeParser'
 
 const THUMBNAIL_STORAGE_KEY = 'infinity-nikki-thumbnail-mode'
 const OUTFIT_THUMBNAIL_STORAGE_KEY = 'infinity-nikki-outfit-thumbnail-mode'
@@ -627,6 +628,7 @@ async function clearCache() {
   try {
     await clearSavedX6GameDirectoryHandle()
     await clearSavedCameraParamUids()
+    await clearOutfitCodeParseCache()
     removeLocalStorage(OUTFIT_GUIDE_DISMISSED_KEY)
     removeLocalStorage(X6GAME_AUTO_PROMPT_DISMISSED_KEY)
     sharedOutfitSource.value = null
@@ -659,6 +661,7 @@ async function clearData() {
     await clearSavedAlbumDirectoryHandle()
     await clearSavedX6GameDirectoryHandle()
     await clearSavedCameraParamUids()
+    await clearOutfitCodeParseCache()
     clearWebsiteLocalStorage()
     resetLoadedAlbumState()
     cleanupX6GameHandle.value = null
