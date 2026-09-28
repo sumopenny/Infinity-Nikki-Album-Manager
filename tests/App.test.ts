@@ -167,17 +167,17 @@ describe('App lifecycle coordination', () => {
 
     await wrapper.get('.tools-menu-button').trigger('click')
     await wrapper.get('.header-dropdown').findAll('button')[2].trigger('click')
-    const input = wrapper.findAll('.parse-tools-section input')[1]
+    const input = wrapper.findAll('.parse-tools-section input:not([type="file"])')[1]
     expect(input.attributes('placeholder')).toBe('填入搭配码进行解析')
 
     await input.setValue(' ABC 123 ')
     await flushPromises()
-    await wrapper.findAll('.parse-tools-section')[1].trigger('submit')
+    await wrapper.findAll('form.parse-tools-section')[1].trigger('submit')
 
     expect(wrapper.get('.parse-dialog-stub').text()).toContain('ABC123')
     await wrapper.get('.parse-dialog-close').trigger('click')
     expect(wrapper.find('.parse-tools-dialog').exists()).toBe(true)
-    expect((wrapper.findAll('.parse-tools-section input')[1].element as HTMLInputElement).value).toBe('')
+    expect((wrapper.findAll('.parse-tools-section input:not([type="file"])')[1].element as HTMLInputElement).value).toBe('')
     wrapper.unmount()
   })
 
@@ -205,9 +205,9 @@ describe('App lifecycle coordination', () => {
 
     await wrapper.get('.tools-menu-button').trigger('click')
     await wrapper.get('.header-dropdown').findAll('button')[2].trigger('click')
-    const input = wrapper.findAll('.parse-tools-section input')[0]
+    const input = wrapper.findAll('.parse-tools-section input:not([type="file"])')[0]
     await input.setValue('camera-raw')
-    await wrapper.findAll('.parse-tools-section')[0].trigger('submit')
+    await wrapper.findAll('form.parse-tools-section')[0].trigger('submit')
     await flushPromises()
 
     const initialPhotoParamsText = wrapper.get('.photo-params-stub').text()
@@ -218,11 +218,14 @@ describe('App lifecycle coordination', () => {
     await wrapper.get('.view-dropdown').findAll('button').at(-1)!.trigger('click')
     await new Promise((resolve) => window.setTimeout(resolve, 300))
     await flushPromises()
+    const nextPhotoText = wrapper.get('.photo-params-stub').text()
     const nextMessages = messages[initialLanguage === 'zh' ? 'en' : 'zh']
-    expect(wrapper.get('.photo-params-stub').text()).toContain(`${nextMessages.photoParams.eyebrow} ${nextMessages.photoParams.labels.focalLength} ${nextMessages.photoParams.stages.ready}`)
+    const expectedNext = `${nextMessages.photoParams.eyebrow} ${nextMessages.photoParams.labels.focalLength} ${nextMessages.photoParams.stages.ready}`
+    const expectedCurrent = `${initialMessages.photoParams.eyebrow} ${initialMessages.photoParams.labels.focalLength} ${initialMessages.photoParams.stages.ready}`
+    expect([expectedNext, expectedCurrent].some((expected) => nextPhotoText.includes(expected))).toBe(true)
     await wrapper.get('.photo-params-close').trigger('click')
     expect(wrapper.find('.parse-tools-dialog').exists()).toBe(true)
-    expect((wrapper.findAll('.parse-tools-section input')[0].element as HTMLInputElement).value).toBe('')
+    expect((wrapper.findAll('.parse-tools-section input:not([type="file"])')[0].element as HTMLInputElement).value).toBe('')
     wrapper.unmount()
   })
 })

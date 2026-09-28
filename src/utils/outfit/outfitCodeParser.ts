@@ -30,13 +30,21 @@ export interface LookbookDyeSwatch {
 
 export interface LookbookDyeItem {
   itemId: number
+  clothType: number | null
   outfitId: number | null
   dyes: LookbookDyeSwatch[]
+  hasSpecialEffect: boolean
+}
+
+export interface LookbookCloth {
+  itemId: number
+  clothType: number | null
+  outfitId: number | null
 }
 
 export interface LookbookDecodeResult {
   code: string
-  wearingClothes: number[]
+  wearingClothes: LookbookCloth[]
   dyeItems: LookbookDyeItem[]
 }
 
@@ -165,17 +173,29 @@ const normalizeClothes = (value: unknown): LookbookDecodeResult | null => {
       if (!Number.isSafeInteger(id) || id <= 0) return null
 
       const outfitId = Number((cloth as { outfit?: unknown }).outfit)
+      const rawClothType = (cloth as { cloth_type?: unknown }).cloth_type
+      const clothType =
+        rawClothType === null || rawClothType === undefined
+          ? null
+          : Number.isInteger(Number(rawClothType))
+            ? Number(rawClothType)
+            : null
       return {
         itemId: id,
+        clothType,
         outfitId: Number.isSafeInteger(outfitId) && outfitId > 0 ? outfitId : null,
         dyes: normalizeDyes((entry as { diy?: unknown }).diy),
+        hasSpecialEffect: (() => {
+          const specialEffect = (entry as { diy?: { special_effect?: unknown } }).diy?.special_effect
+          return Array.isArray(specialEffect) && specialEffect.length > 0
+        })(),
       }
     })
     .filter((cloth): cloth is LookbookDyeItem => cloth !== null)
 
   return {
     code: '',
-    wearingClothes: clothes.map((cloth) => cloth.itemId),
+    wearingClothes: clothes.map(({ itemId, clothType, outfitId }) => ({ itemId, clothType, outfitId })),
     dyeItems: clothes.filter((cloth) => cloth.dyes.length > 0),
   }
 }

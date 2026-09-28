@@ -64,7 +64,10 @@ describe('parseOutfitCode', () => {
     expect(fetchMock).toHaveBeenCalledOnce()
     expect(String(fetchMock.mock.calls[0][0])).toContain(encodeURIComponent('a1B2c3D4e5F#'))
     expect(result.code).toBe('a1B2c3D4e5F#')
-    expect(result.wearingClothes).toEqual([1020100001, 1020100003])
+    expect(result.wearingClothes).toEqual([
+      { itemId: 1020100001, clothType: 1, outfitId: 1001 },
+      { itemId: 1020100003, clothType: 3, outfitId: null }
+    ])
     expect(result.dyeItems).toHaveLength(1)
     const [dyeItem] = result.dyeItems
     expect(dyeItem.itemId).toBe(1020100003)
@@ -108,5 +111,22 @@ describe('parseOutfitCode', () => {
   it('抛出的错误类型为 OutfitCodeParseError', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('oops', { status: 500 })))
     await expect(parseOutfitCode('a1B2c3D4e5F')).rejects.toBeInstanceOf(OutfitCodeParseError)
+  })
+})
+
+describe('lookbook cloth types', () => {
+  it('preserves a missing or malformed cloth type as null', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({
+      clothes: [
+        { cloth: { id: 1020100001 } },
+        { cloth: { id: 1020100002, cloth_type: 'invalid' } }
+      ]
+    })))
+
+    const result = await parseOutfitCode('a1B2c3D4e5F')
+    expect(result.wearingClothes).toEqual([
+      { itemId: 1020100001, clothType: null, outfitId: null },
+      { itemId: 1020100002, clothType: null, outfitId: null }
+    ])
   })
 })

@@ -79,6 +79,8 @@
 ### Outfit codes and parameter parsing
 
 - Store outfit images, outfit codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export.
+- Outfit-code results append the item type to each name, such as “Item-Hair”, “Item-Hair Accessories”, or “Item-Eyelashes”.
+- Clicking an item image opens a detail dialog with the current item, outfit, evolution or Glow-Up state, and dye condition. Long dye lists scroll independently; the dye area is hidden when the decoded item has no dyes, and makeup outfit relations are restored through the makeup catalog.
 - Parse CameraParams from photo thumbnails or the full-size viewer. The upper-right Tools menu opens a shared Parameter / outfit-code parser window for direct camera-parameter and outfit-code input. Photo parsing shows capture time, weather, focal length, aperture, vignette, image adjustments, normal poses, lights, filters, Momo poses, and camera parameters that can be imported into the game. The Parameter / outfit-code parser window in the Tools menu can also be used on mobile devices.
 - The photo-parameter window can parse one local original game image selected on a computer or phone. The file is read temporarily in the browser only: it is not uploaded or added to the album. Saved UIDs are tried automatically, with manual UID retry when needed.
 
@@ -107,6 +109,8 @@ Entering Outfit codes opens a standalone guide. Please read it carefully.
 - New tags appear at the top of the tag list; drag the left handle to adjust the order.
 - Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press `Ctrl+V`). JPG and PNG files are converted locally to WebP, the outfit code can be empty, each plan can use one tag, and double-clicking the image opens the preview.
 - The decode button is always visible in the upper-right corner of each outfit card and remains disabled until a code is entered. The delete button sits to its left and appears when the card is hovered or the button receives keyboard focus.
+- Click a decoded item image to open its details dialog with the related outfit, outfit image, evolution/glow-up status, and dye conditions. Items with decoded dye data also show the area, palette, color slot, and color. Outfit details load from the public Nikki Tracker API; outfit names, item relations, and dye mappings use the bundled catalog snapshot.
+- When a makeup part has no related outfit, the outfit field shows "None" and the left image falls back to the current makeup-part image. Decoded item results remain available if detail loading fails.
 - Open the shared Parameter / outfit-code parser from the upper-right Tools menu and enter a code without creating a plan first; results open in the same decoder dialog.
 - The outfit preview toolbar shows the current tag and outfit code, with Copy and Edit buttons.
 - The app creates a `clothe` folder inside the current album as needed to manage outfit codes. <span style="color: red;">For bulk import, move saved outfit images directly into this folder; opening, refreshing, or refocusing the website page automatically converts them into pending plans.</span>
@@ -257,3 +261,7 @@ This site is a labor of love and took real effort to build. If you find it usefu
   <img src="img/wx.jpg" alt="WeChat Pay" width="30%">
   <img src="img/zfb.jpg" alt="Alipay" width="30%">
 </div>
+
+## Acknowledgements and License
+
+Some features were inspired by [Nikki Albums](https://github.com/RanAxro/nikki_albums) and [Gongeo.us Nikki Tracker](https://github.com/dastrokes/gongeo.us-nikki-tracker). The bundled Gongeo.us catalog snapshot is distributed under its MIT license; see the root [LICENSE](LICENSE) file for this project's license.

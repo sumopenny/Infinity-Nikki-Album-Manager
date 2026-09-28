@@ -47,6 +47,21 @@ export interface OutfitMessages {
   parseUnavailable: string
   parseRetry: string
   parseClose: string
+  parseOpenDetail: (name: string) => string
+  detailTitle: string
+  detailClose: string
+  detailLoading: string
+  detailLoadFailed: string
+  detailOutfit: string
+  detailCurrentItem: string
+  detailOutfitUnavailable: string
+  detailEvolution: string
+  detailDyeCondition: string
+  detailDyes: string
+  detailArea: string
+  detailPalette: string
+  detailSlot: string
+  detailColor: string
   parseItemCount: (count: number) => string
   parseServicePrefix: string
   parseServiceNikkiAlbums: string
@@ -149,6 +164,21 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     parseUnavailable: '解析服务暂时不可用，请稍后重试。',
     parseRetry: '重试',
     parseClose: '关闭解析窗口',
+    parseOpenDetail: (name) => `查看${name}的部件详情`,
+    detailTitle: '部件详情',
+    detailClose: '关闭部件详情',
+    detailLoading: '正在加载部件图鉴详情…',
+    detailLoadFailed: '图鉴详情加载失败，已保留搭配码中的部件信息。',
+    detailOutfit: '套装',
+    detailCurrentItem: '当前部件',
+    detailOutfitUnavailable: '无',
+    detailEvolution: '进化/焕新',
+    detailDyeCondition: '染色条件',
+    detailDyes: '染色信息',
+    detailArea: '区域',
+    detailPalette: '染色盘',
+    detailSlot: '色号',
+    detailColor: '颜色',
     parseItemCount: (count) => `${count} 个部件`,
     parseServicePrefix: '解析服务由',
     parseServiceNikkiAlbums: '暖暖相册',
@@ -260,6 +290,21 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     parseUnavailable: 'The decoding service is temporarily unavailable. Please try again later.',
     parseRetry: 'Retry',
     parseClose: 'Close item list',
+    parseOpenDetail: (name) => `View details for ${name}`,
+    detailTitle: 'Item details',
+    detailClose: 'Close item details',
+    detailLoading: 'Loading catalog details…',
+    detailLoadFailed: 'Catalog details could not be loaded. The decoded item information is still available.',
+    detailOutfit: 'Outfit',
+    detailCurrentItem: 'Current item',
+    detailOutfitUnavailable: 'None',
+    detailEvolution: 'Evolution / Glow-up',
+    detailDyeCondition: 'Dye condition',
+    detailDyes: 'Dye details',
+    detailArea: 'Area',
+    detailPalette: 'Palette',
+    detailSlot: 'Color slot',
+    detailColor: 'Color',
     parseItemCount: (count) => `${count} item${count === 1 ? '' : 's'}`,
     parseServicePrefix: 'Decoding service provided by ',
     parseServiceNikkiAlbums: 'Nikki Albums',

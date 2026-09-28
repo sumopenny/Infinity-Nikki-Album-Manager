@@ -14,6 +14,8 @@ import {
   parseOutfitCode,
   type LookbookDecodeResult
 } from '../utils/outfit/outfitCodeParser'
+import { getClothTypeLabel } from '../utils/outfit/clothType'
+import { loadOutfitDetail, type OutfitDetail } from '../utils/outfit/outfitDetails'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
 const props = defineProps<{
@@ -30,6 +32,10 @@ interface ParseItemView {
   name: string
   imageUrl: string | null
   resolved: boolean
+  outfitId: number | null
+  clothType: number | null
+  dyes: LookbookDecodeResult['dyeItems'][number]['dyes']
+  hasSpecialEffect: boolean
   dyeColors: string[]
 }
 
@@ -38,6 +44,11 @@ const errorKind = ref<'invalid' | 'unavailable'>('unavailable')
 const decoded = ref<LookbookDecodeResult | null>(null)
 const catalog = shallowRef<Map<number, ItemCatalogEntry> | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
+const detailPanelRef = ref<HTMLElement | null>(null)
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const selectedDetail = ref<OutfitDetail | null>(null)
+let detailTrigger: HTMLButtonElement | null = null
 let requestId = 0
 let previousActiveElement: HTMLElement | null = null
 
@@ -49,19 +60,49 @@ const items = computed<ParseItemView[]>(() => {
   const result = decoded.value
   if (!result) return []
   const catalogIndex = catalog.value
-  const dyeByItemId = new Map(result.dyeItems.map((entry) => [entry.itemId, entry.dyes]))
+  const dyeByItemId = new Map(result.dyeItems.map((entry) => [entry.itemId, entry]))
 
-  return result.wearingClothes.map((id) => {
-    const entry = catalogIndex?.get(id)
+  return result.wearingClothes.map(({ itemId, clothType, outfitId }) => {
+    const entry = catalogIndex?.get(itemId)
+    const baseName = entry ? getCatalogEntryName(entry, props.language) : String(itemId)
+    const typeLabel = getClothTypeLabel(clothType, props.language)
+    const dyeEntry = dyeByItemId.get(itemId)
+    const dyes = dyeEntry?.dyes ?? []
     return {
-      id,
-      name: entry ? getCatalogEntryName(entry, props.language) : String(id),
+      id: itemId,
+      name: typeLabel ? `${baseName}-${typeLabel}` : baseName,
       imageUrl: entry ? getCatalogImageUrl(entry) : null,
       resolved: Boolean(entry),
-      dyeColors: (dyeByItemId.get(id) ?? []).map((dye) => dye.color)
+      outfitId,
+      clothType,
+      dyes,
+      hasSpecialEffect: dyeEntry?.hasSpecialEffect ?? false,
+      dyeColors: [...new Set(dyes.map((dye) => dye.color))]
     }
   })
 })
+
+async function openItemDetail(item: ParseItemView, event: Event) {
+  if (!item.resolved || !item.imageUrl) return
+  detailTrigger = event.currentTarget instanceof HTMLButtonElement ? event.currentTarget : null
+  detailVisible.value = true
+  detailLoading.value = true
+  selectedDetail.value = null
+  void nextTick(() => detailPanelRef.value?.querySelector('button')?.focus())
+  selectedDetail.value = await loadOutfitDetail(item.id, item.outfitId, props.language, item.name, item.dyes, item.clothType, item.hasSpecialEffect)
+  detailLoading.value = false
+  void nextTick(() => detailPanelRef.value?.querySelector('button')?.focus())
+}
+
+function closeItemDetail() {
+  const trigger = detailTrigger
+  detailVisible.value = false
+  detailLoading.value = false
+  selectedDetail.value = null
+  trigger?.focus()
+  void nextTick(() => trigger?.focus())
+  detailTrigger = null
+}
 
 /** 解析当前搭配码；重复解析会作废旧请求结果，避免慢响应覆盖新状态。 */
 async function startParse() {
@@ -96,11 +137,17 @@ function handleKeydown(event: KeyboardEvent) {
   if (!props.visible) return
   if (event.key === 'Escape') {
     event.preventDefault()
+    if (detailVisible.value) {
+      closeItemDetail()
+      return
+    }
     emit('close')
     return
   }
-  if (event.key !== 'Tab' || !panelRef.value) return
-  const focusable = [...panelRef.value.querySelectorAll<HTMLElement>('button, [href], [tabindex]:not([tabindex="-1"])')]
+  if (event.key !== 'Tab') return
+  const activePanel = detailVisible.value ? detailPanelRef.value : panelRef.value
+  if (!activePanel) return
+  const focusable = [...activePanel.querySelectorAll<HTMLElement>('button, [href], [tabindex]:not([tabindex="-1"])')]
     .filter((element) => !element.hasAttribute('disabled'))
   if (!focusable.length) return
   const first = focusable[0]
@@ -122,6 +169,7 @@ watch(() => props.visible, (visible) => {
     void nextTick(() => panelRef.value?.querySelector('button')?.focus())
   } else {
     requestId += 1
+    closeItemDetail()
     previousActiveElement?.focus()
     previousActiveElement = null
   }
@@ -166,14 +214,21 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
             <div v-else-if="items.length" class="outfit-parse-grid">
               <article v-for="item in items" :key="item.id" class="outfit-parse-item" :title="item.name">
-                <img
+                <button
                   v-if="item.imageUrl"
-                  class="outfit-parse-item-icon"
-                  :src="item.imageUrl"
-                  :alt="item.name"
-                  loading="lazy"
-                  referrerpolicy="no-referrer"
-                />
+                  class="outfit-parse-item-button"
+                  type="button"
+                  :aria-label="messages.parseOpenDetail(item.name)"
+                  @click="openItemDetail(item, $event)"
+                >
+                  <img
+                    class="outfit-parse-item-icon"
+                    :src="item.imageUrl"
+                    :alt="item.name"
+                    loading="lazy"
+                    referrerpolicy="no-referrer"
+                  />
+                </button>
                 <span v-else class="outfit-parse-item-icon is-missing" aria-hidden="true">?</span>
                 <p class="outfit-parse-item-name">{{ item.name }}</p>
                 <div v-if="item.dyeColors.length" class="outfit-parse-dyes">
@@ -197,6 +252,70 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
               {{ messages.parseServicePrefix }}<a href="https://github.com/RanAxro/nikki_albums" target="_blank" rel="noopener noreferrer">{{ messages.parseServiceNikkiAlbums }}</a>{{ messages.parseServiceAnd }}<a href="https://github.com/dastrokes/gongeo.us-nikki-tracker" target="_blank" rel="noopener noreferrer">{{ messages.parseServiceNikkiTracker }}</a>{{ messages.parseServiceSuffix }}
             </span>
           </footer>
+        </section>
+      </div>
+    </Transition>
+    <Transition name="confirm-dialog">
+      <div
+        v-if="visible && detailVisible"
+        class="outfit-detail-overlay"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="messages.detailTitle"
+        @click.self="closeItemDetail"
+      >
+        <section
+          ref="detailPanelRef"
+          class="outfit-editor-panel outfit-detail-panel"
+          :class="{ 'is-single-column': !selectedDetail?.dyes.length }"
+        >
+          <header>
+            <h2>{{ messages.detailTitle }}</h2>
+            <button type="button" :title="messages.detailClose" :aria-label="messages.detailClose" @click="closeItemDetail">
+              <X :size="19" aria-hidden="true" />
+            </button>
+          </header>
+          <div v-if="detailLoading" class="outfit-detail-loading" role="status" aria-live="polite">
+            <span class="outfit-parse-spinner" aria-hidden="true"></span>
+            <p>{{ messages.detailLoading }}</p>
+          </div>
+          <div
+            v-else-if="selectedDetail"
+            class="outfit-detail-content"
+            :class="{ 'is-single-column': !selectedDetail.dyes.length }"
+          >
+            <section class="outfit-detail-summary">
+              <img
+                v-if="selectedDetail.detailImageUrl"
+                class="outfit-detail-image"
+                :src="selectedDetail.detailImageUrl"
+                :alt="selectedDetail.outfitName || selectedDetail.itemName"
+                referrerpolicy="no-referrer"
+              />
+              <div v-else class="outfit-detail-image is-missing">?</div>
+              <dl class="outfit-detail-info">
+                <div><dt>{{ messages.detailOutfit }}</dt><dd>{{ selectedDetail.outfitName || messages.detailOutfitUnavailable }}</dd></div>
+                <div><dt>{{ messages.detailCurrentItem }}</dt><dd>{{ selectedDetail.itemName }}</dd></div>
+                <div><dt>{{ messages.detailEvolution }}</dt><dd>{{ selectedDetail.evolution }}</dd></div>
+                <div><dt>{{ messages.detailDyeCondition }}</dt><dd>{{ selectedDetail.dyeCondition }}</dd></div>
+              </dl>
+              <p v-if="selectedDetail.loadError" class="outfit-detail-error" role="alert">{{ messages.detailLoadFailed }}</p>
+            </section>
+            <section v-if="selectedDetail.dyes.length" class="outfit-detail-dyes">
+              <h3>{{ messages.detailDyes }}</h3>
+              <div class="outfit-detail-table-wrap">
+                <table>
+                  <thead><tr><th>{{ messages.detailArea }}</th><th>{{ messages.detailPalette }}</th><th>{{ messages.detailSlot }}</th><th>{{ messages.detailColor }}</th></tr></thead>
+                  <tbody>
+                    <tr v-for="(dye, index) in selectedDetail.dyes" :key="`${dye.area}-${index}`">
+                      <td>{{ dye.area }}</td><td>{{ dye.paletteId }} {{ dye.paletteName }}</td><td>{{ dye.slot ?? '—' }}</td>
+                      <td><span class="outfit-detail-color"><i :style="{ backgroundColor: dye.color }"></i><code>{{ dye.color }}</code></span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
         </section>
       </div>
     </Transition>

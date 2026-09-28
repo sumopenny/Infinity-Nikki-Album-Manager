@@ -25,24 +25,38 @@ function getRemoteApiOrigin(mode: string): string | undefined {
 
 export default defineConfig(({ mode }) => {
   const remoteApiOrigin = getRemoteApiOrigin(mode)
+  const apiProxy = remoteApiOrigin
+    ? {
+        // 图鉴 API 通过本地开发服务器转发，避免浏览器直接触发跨域限制。
+        '/api/gongeo': {
+          target: 'https://data.gongeo.us',
+          changeOrigin: true,
+          secure: true,
+          rewrite: (path: string) => path.replace(/^\/api\/gongeo/, '/v1')
+        },
+        // 远程 D1 点赞接口仍转发到 Pages 服务。
+        '/api': {
+          target: remoteApiOrigin,
+          changeOrigin: true,
+          secure: remoteApiOrigin.startsWith('https://')
+        }
+      }
+    : {
+        // 图鉴 API 通过本地开发服务器转发，避免浏览器直接触发跨域限制。
+        '/api/gongeo': {
+          target: 'https://data.gongeo.us',
+          changeOrigin: true,
+          secure: true,
+          rewrite: (path: string) => path.replace(/^\/api\/gongeo/, '/v1')
+        }
+      }
 
   return {
     plugins: [vue()],
     server: {
       host: '0.0.0.0',
       port: 5173,
-      ...(remoteApiOrigin
-        ? {
-            // 只代理 API，静态资源仍由本地 Vite 提供；浏览器不会接触 D1 凭据。
-            proxy: {
-              '/api': {
-                target: remoteApiOrigin,
-                changeOrigin: true,
-                secure: remoteApiOrigin.startsWith('https://')
-              }
-            }
-          }
-        : {})
+      proxy: apiProxy
     },
     preview: {
       host: '0.0.0.0',

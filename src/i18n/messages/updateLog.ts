@@ -2,10 +2,11 @@
 import type { LocaleMessages } from '../types'
 
 export const updateLogZh: LocaleMessages['updateLog'] = {
-  title: '更新记录', helpAbout: '使用帮助', currentTitle: '当前版本', currentVersion: 'v1.6.2', currentDate: '2026.9.24 更新',
-  currentItems: ['新增本地照片参数解析：可在工具栏解析窗口中选择电脑、手机上的游戏原图进行拍摄参数解析。该功能手机也可用，手机解析时需手动输入拍摄照片用的账号的 UID 。', '品牌名称升级为“暖立方 / NikkiCube”，暖立方 Nikki³ | 为每一张心动留个位置——官方主题网站即将上线✨', '更新搭配码解析图鉴到2.10版本。'],
+  title: '更新记录', helpAbout: '使用帮助', currentTitle: '当前版本', currentVersion: 'v1.6.3', currentDate: '2026.9.28 更新',
+  currentItems: ['搭配码解析新增部件类型标注：在部件名称后显示发型、头饰、睫毛等类型，方便快速辨认。', '新增可点击的部件详情：点击解析结果中的部件图片，可查看当前部件、所属套装及套装图、进化/焕新状态和染色条件；有染色数据时还会展示区域、染色盘、色号与颜色。', '暖立方官网页面已上线，并带暖暖去观摩了一下🤩'],
   historyTitle: '历史版本记录',
   history: [
+    { version: 'v1.6.2', items: ['新增本地照片参数解析：可在工具栏解析窗口中选择电脑、手机上的游戏原图进行拍摄参数解析。该功能手机也可用，手机解析时需手动输入拍摄照片用的账号的 UID 。', '品牌名称升级为“暖立方 / NikkiCube”，暖立方 Nikki³ | 为每一张心动留个位置——官方主题网站即将上线✨', '更新搭配码解析图鉴到2.10版本。'] },
     { version: 'v1.6.1', items: ['新增选中照片后可删除对应低画质图片的功能：按名称匹配并永久删除当前账号 ScreenShot 和 NikkiPhotos_LowQuality 中的图片，保留当前相册原图。', '改版“更新记录”窗口，重新整理更新版本的展示。', '优化了一些问题并和暖暖出去看了场电影💅。'] },
     { version: 'v1.6', items: ['新增照片参数解析功能，支持从照片缩略图右上角、大图预览工具栏或“工具”菜单解析，解析结果展示相机、环境、画面、动作、灯光、滤镜等参数，支持复制相机参数一键导入游戏。', '新增“工具”菜单，集中专项清理、抽卡吉时、参数/搭配码解析统一解析窗口。', '抽卡吉时更新为 2.10 内容。', '手机访问网页虽然不能管理相册，但可从工具菜单里使用相机参数、搭配码解析功能。'] },
     { version: 'v1.5', items: ['新增搭配码解析功能：搭配码页面新增直接输入解析入口，搭配卡片右上角同步新增解析按钮。', '新增主页点赞功能。'] },
@@ -30,10 +31,11 @@ export const updateLogZh: LocaleMessages['updateLog'] = {
 }
 
 export const updateLogEn: LocaleMessages['updateLog'] = {
-  title: 'Release history', helpAbout: 'Help', currentTitle: 'Current version', currentVersion: 'v1.6.2', currentDate: 'Updated 2026.9.24',
-  currentItems: ['Added local photo parameter decoding: select game original photos on your computer or phone in the toolbar decoding window to analyze shooting parameters. The feature is also available on mobile; when decoding on mobile, you must manually enter the UID of the account used to take the photo.', 'Upgraded the brand name to "NikkiCube / 暖立方". NikkiCube Nikki³ | A place for every heart-flutter — the official theme website is coming soon ✨', 'Updated the outfit-code decoding gallery to version 2.10.'],
+  title: 'Release history', helpAbout: 'Help', currentTitle: 'Current version', currentVersion: 'v1.6.3', currentDate: 'Updated 2026.9.28',
+  currentItems: ['Outfit-code decoding now labels clothing-part types: the part type (hairstyle, hair accessory, eyelashes, etc.) is shown after the part name for quick identification.', 'Added clickable part details: click a part image in the decoding results to view the current part, its outfit set and set image, evolution/refinement status, and dyeing conditions; when dyeing data is available, the region, dye palette, color number, and color are also displayed.', 'The NikkiCube official website is now live, and I took Nikki along to take a look 🤩'],
   historyTitle: 'Previous releases',
   history: [
+    { version: 'v1.6.2', items: ['Added local photo parameter decoding: select game original photos on your computer or phone in the toolbar decoding window to analyze shooting parameters. The feature is also available on mobile; when decoding on mobile, you must manually enter the UID of the account used to take the photo.', 'Upgraded the brand name to "NikkiCube / 暖立方". NikkiCube Nikki³ | A place for every heart-flutter — the official theme website is coming soon ✨', 'Updated the outfit-code decoding gallery to version 2.10.'] },
     { version: 'v1.6.1', items: ['Added deletion of the matching low-quality images for selected photos: images are matched by name and permanently deleted from the current account\'s ScreenShot and NikkiPhotos_LowQuality folders, while the original photos in the album are kept.', 'Redesigned the Release history window and reorganized how releases are presented.', 'Fixed various issues and went to see a movie with Nikki 💅.'] },
     { version: 'v1.6', items: ['Added photo parameter decoding from photo thumbnails, the large-preview toolbar, or the Tools menu. Results include camera, environment, scene, pose, lighting, and filter parameters, and camera parameters can be copied for one-click import into the game.', 'Added a Tools menu that centralizes targeted cleanup, lucky pull times, and parameter/outfit-code decoding.', 'Updated lucky pull times to version 2.10 content.', 'Mobile web access cannot manage albums, but camera-parameter and outfit-code decoding are available from the Tools menu.'] },
     { version: 'v1.5', items: ['Added outfit-code decoding: the Outfit Code page now provides a direct input and decode entry, and outfit cards now have a decode button in the upper-right corner.', 'Added homepage likes.'] },
