@@ -48,6 +48,9 @@ const detailPanelRef = ref<HTMLElement | null>(null)
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const selectedDetail = ref<OutfitDetail | null>(null)
+const loadedItemImages = ref(new Set<number>())
+const failedItemImages = ref(new Set<number>())
+const detailImageState = ref<'idle' | 'loaded' | 'failed'>('idle')
 let detailTrigger: HTMLButtonElement | null = null
 let requestId = 0
 let previousActiveElement: HTMLElement | null = null
@@ -87,11 +90,29 @@ async function openItemDetail(item: ParseItemView, event: Event) {
   detailTrigger = event.currentTarget instanceof HTMLButtonElement ? event.currentTarget : null
   detailVisible.value = true
   detailLoading.value = true
+  detailImageState.value = 'idle'
   selectedDetail.value = null
   void nextTick(() => detailPanelRef.value?.querySelector('button')?.focus())
   selectedDetail.value = await loadOutfitDetail(item.id, item.outfitId, props.language, item.name, item.dyes, item.clothType, item.hasSpecialEffect)
   detailLoading.value = false
   void nextTick(() => detailPanelRef.value?.querySelector('button')?.focus())
+}
+
+function markItemImageLoaded(itemId: number) {
+  loadedItemImages.value.add(itemId)
+  failedItemImages.value.delete(itemId)
+}
+
+function markItemImageFailed(itemId: number) {
+  failedItemImages.value.add(itemId)
+}
+
+function markDetailImageLoaded() {
+  detailImageState.value = 'loaded'
+}
+
+function markDetailImageFailed() {
+  detailImageState.value = 'failed'
 }
 
 function closeItemDetail() {
@@ -223,11 +244,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
                 >
                   <img
                     class="outfit-parse-item-icon"
+                    :class="{ 'is-loading': !loadedItemImages.has(item.id), 'is-failed': failedItemImages.has(item.id) }"
                     :src="item.imageUrl"
                     :alt="item.name"
                     loading="lazy"
                     referrerpolicy="no-referrer"
+                    @load="markItemImageLoaded(item.id)"
+                    @error="markItemImageFailed(item.id)"
                   />
+                  <span v-if="!loadedItemImages.has(item.id) && !failedItemImages.has(item.id)" class="outfit-image-spinner" aria-hidden="true"></span>
+                  <span v-else-if="failedItemImages.has(item.id)" class="outfit-image-failure" aria-hidden="true">?</span>
                 </button>
                 <span v-else class="outfit-parse-item-icon is-missing" aria-hidden="true">?</span>
                 <p class="outfit-parse-item-name">{{ item.name }}</p>
@@ -285,14 +311,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
             :class="{ 'is-single-column': !selectedDetail.dyes.length }"
           >
             <section class="outfit-detail-summary">
-              <img
-                v-if="selectedDetail.detailImageUrl"
-                class="outfit-detail-image"
-                :src="selectedDetail.detailImageUrl"
-                :alt="selectedDetail.outfitName || selectedDetail.itemName"
-                referrerpolicy="no-referrer"
-              />
-              <div v-else class="outfit-detail-image is-missing">?</div>
+              <div class="outfit-detail-image-frame">
+                <img
+                  v-if="selectedDetail.detailImageUrl && detailImageState !== 'failed'"
+                  class="outfit-detail-image"
+                  :class="{ 'is-loading': detailImageState === 'idle' }"
+                  :src="selectedDetail.detailImageUrl"
+                  :alt="selectedDetail.outfitName || selectedDetail.itemName"
+                  referrerpolicy="no-referrer"
+                  @load="markDetailImageLoaded"
+                  @error="markDetailImageFailed"
+                />
+                <span v-if="selectedDetail.detailImageUrl && detailImageState === 'idle'" class="outfit-image-spinner outfit-detail-image-spinner" aria-hidden="true"></span>
+                <div v-else-if="!selectedDetail.detailImageUrl || detailImageState === 'failed'" class="outfit-detail-image is-missing">?</div>
+              </div>
               <dl class="outfit-detail-info">
                 <div><dt>{{ messages.detailOutfit }}</dt><dd>{{ selectedDetail.outfitName || messages.detailOutfitUnavailable }}</dd></div>
                 <div><dt>{{ messages.detailCurrentItem }}</dt><dd>{{ selectedDetail.itemName }}</dd></div>

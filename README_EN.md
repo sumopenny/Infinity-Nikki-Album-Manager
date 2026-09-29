@@ -199,7 +199,7 @@ Browsers block web pages from accessing system folders. Please select `NikkiPhot
 
 - Photos are read locally in your browser.
 - Photo-tail extraction, account-key derivation, AES decryption, and CameraParams parsing run locally inside WASM; photos and parsed results are not uploaded.
-- Album folder authorization, Favorites, and outfit-code parse results are stored locally in the current browser; Clear cache in More clears the `X6Game` authorization, outfit-code parse cache, and the Outfit Guide “don't show again” state while keeping the current album authorization. Clear data asks for confirmation twice, then clears all website local records and authorizations so the website returns to first-open state.
+- Album folder authorization, Favorites, and outfit-code parse results are stored locally in the current browser; Clear cache in More only clears the outfit-code parse cache and does not affect other authorizations or settings. Clear data asks for confirmation twice, then clears all website local records and authorizations so the website returns to first-open state.
 - Browser security policies may require folder authorization again.
 - Delete and Special Cleanup modify real files on your computer; Clear cache and Clear data do not delete real photos, `clothe`, `trash`, or other files on your computer.
 

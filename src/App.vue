@@ -611,11 +611,9 @@ function dismissX6GameAutoPrompt() {
   statusState.value = { type: 'custom', message: locale.value.app.x6GameAuthorizationCancelledStatus, tone: 'info' }
 }
 
-/** 清除缓存但保留当前相册授权。参数：无。 */
+/** 只清除搭配码解析缓存。参数：无。 */
 async function clearCache() {
   if (isAnyFileOperationBusy.value) return
-  const directoryHandle = albumDirectoryHandle.value
-  if (!directoryHandle) return
   const confirmed = await openConfirmDialog({
     title: locale.value.app.clearCacheDialogTitle,
     message: locale.value.app.clearCacheConfirmMessage,
@@ -626,19 +624,8 @@ async function clearCache() {
   if (!confirmed) return
 
   try {
-    await clearSavedX6GameDirectoryHandle()
-    await clearSavedCameraParamUids()
     await clearOutfitCodeParseCache()
-    removeLocalStorage(OUTFIT_GUIDE_DISMISSED_KEY)
-    removeLocalStorage(X6GAME_AUTO_PROMPT_DISMISSED_KEY)
-    sharedOutfitSource.value = null
-    hasX6GameAuthorization.value = false
-    cleanupX6GameHandle.value = null
-    isOutfitGuideDismissed.value = false
-    isX6GameAutoPromptDismissed.value = false
-    didCancelX6GameAutoPrompt.value = false
-    const result = await readAlbumDirectory(directoryHandle, { requestPermission: false, messages: locale.value.fileSystem })
-    await replaceAlbum(result, { type: 'custom', message: locale.value.app.clearCacheStatus, tone: 'success' })
+    statusState.value = { type: 'custom', message: locale.value.app.clearCacheStatus, tone: 'success' }
   } catch (error) {
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
   }

@@ -1131,3 +1131,8 @@
    - 状态：已解决
    - 技术/方法：按暖暖共鸣录的妆容详情流程，使用本地 `makeupItems` 关系识别妆容部件并请求 `/v1/makeups/{id}`；先从部件反查完整妆容，再通过 `makeupOutfits` 查找关联套装。Cloudflare Pages 多段 catch-all 使用 `[[path]].ts` 路由语法；错误命名 `[...path].ts` 会导致 Functions 构建失败并让 API 请求回退到 SPA，已修正为受限的 `/api/gongeo/{items|makeups|outfits}/{数字 ID}` 代理并转发 `lang=zh|en`。双语 README 同步部署说明。
    - 验证：原报错的五个部件 ID 调用 `/v1/makeups/{id}` 均返回 200；妆容关系及 Pages 代理回归测试通过。Wrangler Pages 本地构建 Functions 成功，实际请求妆容代理返回 `200 application/json`，非法路径返回 400 JSON；全量测试和生产构建通过。
+
+3. 问题：搭配码解析中的部件图标和套装详情图在网络加载期间没有稳定的占位和加载反馈。
+   - 状态：已解决
+   - 技术/方法：为解析列表图标和详情图增加独立的加载、完成和失败状态；列表图标保留方形区域，详情图保留 273×400 的竖向区域，加载期间显示旋转指示，成功后显示图片，失败后显示占位符。
+   - 验证：组件专项测试、`vue-tsc --noEmit`、生产构建和 `git diff --check` 通过。

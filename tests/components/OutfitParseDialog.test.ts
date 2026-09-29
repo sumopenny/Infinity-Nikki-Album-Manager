@@ -56,9 +56,17 @@ describe('OutfitParseDialog', () => {
     await flushPromises()
 
     const itemButton = wrapper.get('.outfit-parse-item-button')
+    const itemImage = wrapper.get('.outfit-parse-item-icon')
+    expect(itemImage.classes()).toContain('is-loading')
+    await itemImage.trigger('load')
+    expect(itemImage.classes()).not.toContain('is-loading')
     await itemButton.trigger('click')
     await flushPromises()
     expect(wrapper.find('.outfit-detail-panel').exists()).toBe(true)
+    const detailImage = wrapper.get('.outfit-detail-image')
+    expect(detailImage.classes()).toContain('is-loading')
+    await detailImage.trigger('load')
+    expect(detailImage.classes()).not.toContain('is-loading')
     expect(wrapper.text()).toContain('绽响黎明前')
     expect(wrapper.findAll('.outfit-detail-table-wrap tbody tr')).toHaveLength(1)
 
