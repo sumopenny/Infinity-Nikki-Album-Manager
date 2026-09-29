@@ -474,6 +474,7 @@
     height: 96px;
     border: 1px solid var(--line);
     border-radius: 16px;
+    background: var(--surface-soft);
     object-fit: cover;
 }
 

@@ -1126,3 +1126,8 @@
    - 状态：已解决
    - 技术/方法：在 AssemblyScript WASM 中实现自定义 Base62 分享码到 18 位对象路径编号的转换，并继续归一化暖暖相册 JSON-like 数据。项目改为由浏览器请求同源 `/api/outfit-code/{id}`；本地 Vite 和 Cloudflare Pages Function 分别代理到固定对象存储地址，避免浏览器 CORS。远程 D1 开发模式也将 `/api/outfit-code` 优先代理到对象存储，其他 `/api` 仍转发线上 Pages。DLL 捕获显示响应体与 `cloth_diy_decode_network` 返回字节一致，没有观察到额外应用层解密。
    - 验证：11 个捕获样本的 Base62 编号、时间戳/UID 拼接公式和 HTTP 路径逐项一致；原生 DLL 对 12 种首字符标记返回相同元数据。WASM 验证 132 种标记组合和 5 类非法输入；全量测试 207/207、生产构建、Pages 本地路由与 Vite 本地及远程模式代理均通过。修复远程模式将搭配码请求误发到旧 Pages SPA、返回首页 HTML 的问题。
+
+2. 问题：搭配码中的妆容部件详情请求 `/api/gongeo/items/{id}` 返回 404，且生产环境没有 Gongeo 图鉴代理路由。
+   - 状态：已解决
+   - 技术/方法：按暖暖共鸣录的妆容详情流程，使用本地 `makeupItems` 关系识别妆容部件并请求 `/v1/makeups/{id}`；先从部件反查完整妆容，再通过 `makeupOutfits` 查找关联套装。新增受限的 Cloudflare Pages catch-all 函数代理 `/api/gongeo/{items|makeups|outfits}/{数字 ID}`，转发 `lang=zh|en` 并拒绝其他路径，双语 README 同步部署说明。
+   - 验证：原报错的五个部件 ID 调用 `/v1/makeups/{id}` 均返回 200；妆容 API 路径、独立妆容回退、妆容到套装关系及 Pages 代理回归测试通过。全量测试 211/211、生产构建和 `git diff --check` 通过。

@@ -8,6 +8,9 @@ const REQUEST_TIMEOUT_MS = 8000
 const getMakeupItemImageUrl = (itemId: number): string =>
   `${CDN_BASE_URL}/images/items/${itemId}.png`
 
+const isMakeupClothType = (clothType: number | null): boolean =>
+  clothType !== null && clothType >= 80 && clothType <= 85
+
 const PALETTE_NAMES: Record<number, [string, string]> = {
   1: ['围兜暖毛球', 'Bibcoon Furball Hug'],
   2: ['星夜时光树', 'Starlit Chronos Tree'],
@@ -209,6 +212,11 @@ const findRelatedMakeupOutfitId = (catalog: CatalogSnapshot, itemIds: number[]):
   return null
 }
 
+const isMakeupCatalogItem = (catalog: CatalogSnapshot, itemId: number): boolean =>
+  catalog.makeupItems.some(([makeupId, componentIds]) => (
+    asId(makeupId) === itemId || idsIn(componentIds).includes(itemId)
+  ))
+
 const isOutfitRelatedToItem = (catalog: CatalogSnapshot, outfitId: number, itemIds: number[]) => {
   const outfitVariants = compactIds(findOutfitRow(catalog, outfitId))
   const outfitBaseId = outfitVariants[0]
@@ -302,17 +310,11 @@ const createDetail = async (
   clothType: number | null,
   hasSpecialEffect: boolean
 ): Promise<OutfitDetail> => {
-  const isMakeup = clothType !== null && clothType >= 80 && clothType <= 85
+  const catalog = await loadCatalogSnapshot(language)
+  const isMakeup = isMakeupClothType(clothType) || isMakeupCatalogItem(catalog, itemId)
   // 搭配码的 outfit 字段不一定是图鉴套装 ID；无效时按部件家族回查套装关系。
-  const [catalog, itemResult] = await Promise.all([
-    loadCatalogSnapshot(language),
-    isMakeup
-      ? Promise.resolve({ ok: false as const, entity: null })
-      : requestEntity(`/items/${itemId}`, language).then(
-          (entity) => ({ ok: true as const, entity }),
-          () => ({ ok: false as const, entity: null })
-        )
-  ])
+  const entityRequest = requestEntity(`${isMakeup ? '/makeups' : '/items'}/${itemId}`, language)
+    .then((entity) => ({ ok: true as const, entity }), () => ({ ok: false as const, entity: null }))
   const familyIds = getItemFamilyIds(catalog, itemId)
   const catalogOutfitId = outfitId && findOutfitRow(catalog, outfitId) && isOutfitRelatedToItem(catalog, outfitId, familyIds)
     ? outfitId
@@ -322,8 +324,8 @@ const createDetail = async (
   const outfitRequest = catalogOutfitId
     ? requestEntity(`/outfits/${catalogOutfitId}`, language)
     : Promise.resolve(null)
-  const [outfitResult] = await Promise.allSettled([outfitRequest])
-  const itemLoaded = itemResult.ok
+  const [entityResult, outfitResult] = await Promise.allSettled([entityRequest, outfitRequest])
+  const entityLoaded = entityResult.status === 'fulfilled' && entityResult.value.ok
   const outfitEntity = outfitResult.status === 'fulfilled' ? outfitResult.value : null
   const outfitRow = catalogOutfitId ? findOutfitRow(catalog, catalogOutfitId) : undefined
   const relation = catalogOutfitId
@@ -382,7 +384,7 @@ const createDetail = async (
       const areaOrder = Number(left.area.replace(/\D/g, '')) - Number(right.area.replace(/\D/g, ''))
       return areaOrder || left.paletteId - right.paletteId || (left.slot ?? 0) - (right.slot ?? 0)
     }),
-    loadError: !isMakeup && !itemLoaded && !outfitEntity
+    loadError: !isMakeup && !entityLoaded && !outfitEntity
   }
 }
 
@@ -403,14 +405,14 @@ export function loadOutfitDetail(
     outfitId: null,
     itemName: fallbackItemName,
     outfitName: '',
-    detailImageUrl: clothType !== null && clothType >= 80 && clothType <= 85
+    detailImageUrl: isMakeupClothType(clothType)
       ? getMakeupItemImageUrl(itemId)
       : null,
     quality: null,
     outfitItemIds: [],
     outfitImageUrl: null,
     evolution: EVOLUTION_LABELS[language][getVariantIndex(itemId)],
-    dyeCondition: clothType !== null && clothType >= 80 && clothType <= 85
+    dyeCondition: isMakeupClothType(clothType)
       ? language === 'en' ? 'None' : '无'
       : language === 'en' ? 'Catalog details unavailable' : '图鉴详情加载失败',
     dyes: [],

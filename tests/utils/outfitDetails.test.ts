@@ -63,14 +63,58 @@ describe('loadOutfitDetail', () => {
     expect(detail.outfitImageUrl).toBeNull()
   })
 
-  it('uses the current makeup part image when no outfit relation exists', async () => {
-    const fetchMock = vi.fn()
+  it('loads makeup detail through the makeup API and keeps the part image without an outfit relation', async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      return url.includes('/makeups/')
+        ? jsonResponse({ id: 1021850019 })
+        : jsonResponse({ id: 10015002 })
+    })
     vi.stubGlobal('fetch', fetchMock)
-    const detail = await loadOutfitDetail(1021810010, null, 'zh', '妆容-睫毛', [], 85)
+    const detail = await loadOutfitDetail(1021850019, null, 'zh', '妆容-唇妆', [], null)
 
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/gongeo/makeups/1021850019?lang=zh')
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/api/gongeo/items/'))).toBe(false)
     expect(detail.outfitName).toBe('')
-    expect(detail.detailImageUrl).toContain('/images/items/1021810010.png')
+    expect(detail.detailImageUrl).toContain('/images/items/1021850019.png')
     expect(detail.loadError).toBe(false)
+  })
+
+  it('resolves a makeup outfit through makeup item and makeup outfit relations', async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      return url.includes('/outfits/')
+        ? jsonResponse({ id: 10001 })
+        : jsonResponse({ id: 1021810001 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const detail = await loadOutfitDetail(1020810001, null, 'zh', '妆容-全妆', [], null)
+
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      expect.stringContaining('/api/gongeo/makeups/1020810001?lang=zh'),
+      expect.stringContaining('/api/gongeo/outfits/10001?lang=zh')
+    ])
+    expect(detail.outfitId).toBe(10001)
+    expect(detail.outfitImageUrl).toContain('/images/outfits/10001.png')
+    expect(detail.dyeCondition).toBe('无')
+    expect(detail.loadError).toBe(false)
+  })
+
+  it('routes the reported makeup component IDs through the makeup API without cloth types', async () => {
+    const itemIds = [1021850019, 1021810010, 1025820301, 1020830355, 1020840239]
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      const id = Number(url.match(/\/(?:makeups|outfits)\/(\d+)/)?.[1])
+      return jsonResponse({ id })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await Promise.all(itemIds.map((itemId) => (
+      loadOutfitDetail(itemId, null, 'zh', String(itemId), [], null)
+    )))
+
+    const requests = fetchMock.mock.calls.map(([url]) => String(url))
+    expect(itemIds.every((itemId) => requests.includes(`/api/gongeo/makeups/${itemId}?lang=zh`))).toBe(true)
+    expect(requests.some((url) => url.includes('/api/gongeo/items/'))).toBe(false)
   })
 })

@@ -232,7 +232,7 @@ Both commands should print version numbers, which means installation succeeded. 
 
 If the launcher is unavailable, double-click `start\Start-Remote-D1-Website.bat`, or use the development commands below to start manually. The root `网站启动器.exe` also uses this remote D1 launcher.
 
-To run the local site against the online D1 data, double-click `start\Start-Remote-D1-Website.bat`. The local server proxies `/api/outfit-code` directly to object storage; other `/api` requests go to the deployed Pages API, so the browser never receives D1 credentials. Like actions from this local site write to the online database; use this launcher carefully. The script defaults to `https://infinity-nikki-album-manager.pages.dev`, and accepts another Pages URL as its first argument.
+To run the local site against the online D1 data, double-click `start\Start-Remote-D1-Website.bat`. The local server proxies `/api/outfit-code` and Gongeo catalog details directly to their upstream services; other `/api` requests go to the deployed Pages API, so the browser never receives D1 credentials. Production deployments expose the same-origin Gongeo proxy at `functions/api/gongeo/[...path].ts`, restricted to numeric `items`, `makeups`, and `outfits` detail paths. Like actions from this local site write to the online database; use this launcher carefully. The script defaults to `https://infinity-nikki-album-manager.pages.dev`, and accepts another Pages URL as its first argument.
 
 ### Development Commands
 
