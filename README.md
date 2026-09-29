@@ -228,7 +228,7 @@ npm -v
 
 启动器不可用时，可双击 `start\Start-Remote-D1-Website.bat`，或使用下方开发命令手动启动。根目录的 `网站启动器.exe` 也会连接这个远程 D1 启动脚本。
 
-如果希望本地页面直接读取线上 D1 数据，请双击 `start\Start-Remote-D1-Website.bat`。除搭配码数据外，其他 `/api` 请求会在本地转发到线上 Pages，不会让浏览器直接接触 D1；搭配码数据和 Gongeo 图鉴详情由本地 Vite 直接代理到上游服务。生产部署通过 `functions/api/gongeo/[...path].ts` 提供同源图鉴代理，仅开放 `items`、`makeups` 和 `outfits` 数字详情路径。点击点赞会真实写入线上数据库，请谨慎使用。脚本默认使用 `https://infinity-nikki-album-manager.pages.dev`，也可把其他 Pages 地址作为脚本参数传入。
+如果希望本地页面直接读取线上 D1 数据，请双击 `start\Start-Remote-D1-Website.bat`。除搭配码数据外，其他 `/api` 请求会在本地转发到线上 Pages，不会让浏览器直接接触 D1；搭配码数据和 Gongeo 图鉴详情由本地 Vite 直接代理到上游服务。生产部署通过 `functions/api/gongeo/[[path]].ts` 提供同源图鉴代理，仅开放 `items`、`makeups` 和 `outfits` 数字详情路径。点击点赞会真实写入线上数据库，请谨慎使用。脚本默认使用 `https://infinity-nikki-album-manager.pages.dev`，也可把其他 Pages 地址作为脚本参数传入。
 
 ### 开发命令
 

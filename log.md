@@ -1129,5 +1129,5 @@
 
 2. 问题：搭配码中的妆容部件详情请求 `/api/gongeo/items/{id}` 返回 404，且生产环境没有 Gongeo 图鉴代理路由。
    - 状态：已解决
-   - 技术/方法：按暖暖共鸣录的妆容详情流程，使用本地 `makeupItems` 关系识别妆容部件并请求 `/v1/makeups/{id}`；先从部件反查完整妆容，再通过 `makeupOutfits` 查找关联套装。新增受限的 Cloudflare Pages catch-all 函数代理 `/api/gongeo/{items|makeups|outfits}/{数字 ID}`，转发 `lang=zh|en` 并拒绝其他路径，双语 README 同步部署说明。
-   - 验证：原报错的五个部件 ID 调用 `/v1/makeups/{id}` 均返回 200；妆容 API 路径、独立妆容回退、妆容到套装关系及 Pages 代理回归测试通过。全量测试 211/211、生产构建和 `git diff --check` 通过。
+   - 技术/方法：按暖暖共鸣录的妆容详情流程，使用本地 `makeupItems` 关系识别妆容部件并请求 `/v1/makeups/{id}`；先从部件反查完整妆容，再通过 `makeupOutfits` 查找关联套装。Cloudflare Pages 多段 catch-all 使用 `[[path]].ts` 路由语法；错误命名 `[...path].ts` 会导致 Functions 构建失败并让 API 请求回退到 SPA，已修正为受限的 `/api/gongeo/{items|makeups|outfits}/{数字 ID}` 代理并转发 `lang=zh|en`。双语 README 同步部署说明。
+   - 验证：原报错的五个部件 ID 调用 `/v1/makeups/{id}` 均返回 200；妆容关系及 Pages 代理回归测试通过。Wrangler Pages 本地构建 Functions 成功，实际请求妆容代理返回 `200 application/json`，非法路径返回 400 JSON；全量测试和生产构建通过。

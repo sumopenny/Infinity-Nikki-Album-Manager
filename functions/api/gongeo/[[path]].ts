@@ -1,6 +1,6 @@
 interface GongeoFunctionContext {
   request: Request
-  params: { path?: string }
+  params: { path?: string[] }
 }
 
 const UPSTREAM_BASE_URL = 'https://data.gongeo.us/v1/'
@@ -11,7 +11,7 @@ const JSON_HEADERS = {
 
 /** 仅代理图鉴详情接口，避免 Pages Function 变成开放代理。 */
 export async function onRequestGet(context: GongeoFunctionContext): Promise<Response> {
-  const path = context.params.path ?? ''
+  const path = (context.params.path ?? []).join('/')
   if (!/^(?:items|makeups|outfits)\/\d+$/.test(path)) {
     return Response.json({ error: 'invalid_catalog_path' }, { status: 400, headers: JSON_HEADERS })
   }

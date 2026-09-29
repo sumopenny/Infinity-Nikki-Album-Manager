@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { onRequestGet } from '../../functions/api/gongeo/[...path]'
+import { onRequestGet } from '../../functions/api/gongeo/[[path]]'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -13,7 +13,7 @@ describe('Gongeo Pages proxy', () => {
 
     const response = await onRequestGet({
       request: new Request('https://example.test/api/gongeo/makeups/1021850019?lang=zh'),
-      params: { path: 'makeups/1021850019' }
+      params: { path: ['makeups', '1021850019'] }
     })
 
     expect(response.status).toBe(200)
@@ -27,7 +27,7 @@ describe('Gongeo Pages proxy', () => {
 
     const response = await onRequestGet({
       request: new Request('https://example.test/api/gongeo/proxy?url=https://evil.test'),
-      params: { path: 'proxy' }
+      params: { path: ['proxy'] }
     })
 
     expect(response.status).toBe(400)
