@@ -1,11 +1,22 @@
 import 'fake-indexeddb/auto'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   clearOutfitCodeParseCache,
   OutfitCodeParseError,
   normalizeLookbookCode,
   parseOutfitCode
 } from '../../src/utils/outfit/outfitCodeParser'
+import type { LookbookDecodeResult } from '../../src/utils/outfit/outfitCodeParser'
+import {
+  decodeLookbookPayload,
+  decodeLookbookShareCodePathId
+} from '../../src/utils/outfit/lookbookWasmClient'
+
+const wasmBytes = readFileSync(resolve(process.cwd(), 'src/assets/lookbook-parser.wasm'))
+const validCode = '1I43NTCbOn0'
+const normalizedCode = validCode + '#'
 
 const jsonResponse = (body: unknown, init: ResponseInit = {}) =>
   new Response(JSON.stringify(body), {
@@ -13,6 +24,12 @@ const jsonResponse = (body: unknown, init: ResponseInit = {}) =>
     headers: { 'Content-Type': 'application/json' },
     ...init
   })
+
+beforeAll(async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(wasmBytes)))
+  await decodeLookbookPayload('a1B2c3D4e5F#', '{"clothes":[]}')
+  vi.unstubAllGlobals()
+})
 
 afterEach(async () => {
   await clearOutfitCodeParseCache()
@@ -62,11 +79,11 @@ describe('parseOutfitCode', () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(payload))
     vi.stubGlobal('fetch', fetchMock)
 
-    const result = await parseOutfitCode('a1B2c3D4e5F')
+    const result = await parseOutfitCode(validCode)
 
     expect(fetchMock).toHaveBeenCalledOnce()
-    expect(String(fetchMock.mock.calls[0][0])).toContain(encodeURIComponent('a1B2c3D4e5F#'))
-    expect(result.code).toBe('a1B2c3D4e5F#')
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/outfit-code/488547348102388135')
+    expect(result.code).toBe(normalizedCode)
     expect(result.wearingClothes).toEqual([
       { itemId: 1020100001, clothType: 1, outfitId: 1001 },
       { itemId: 1020100003, clothType: 3, outfitId: null }
@@ -87,33 +104,69 @@ describe('parseOutfitCode', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('字符不属于原生 Base62 字母表时不请求接口', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(parseOutfitCode('a1B2c3D4e5F')).rejects.toMatchObject({ kind: 'invalid' })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('WASM 将真实分享码解码为对象路径编号', async () => {
+    await expect(decodeLookbookShareCodePathId(normalizedCode)).resolves.toBe('488547348102388135')
+  })
+
+  it.each(['1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C'])(
+    'WASM 忽略原生分享码标记 %s', async (marker) => {
+      await expect(decodeLookbookShareCodePathId(marker + validCode.slice(1) + '#'))
+        .resolves.toBe('488547348102388135')
+    }
+  )
+
+  it.each(['a' + validCode.slice(1) + '#', '1I43NTCbOn!#', validCode])(
+    'WASM 拒绝不支持的分享码格式 %s', async (code) => {
+      await expect(decodeLookbookShareCodePathId(code)).resolves.toBeNull()
+    }
+  )
+
   it.each([
     ['404', new Response('not found', { status: 404 })],
-    ['400', new Response('bad request', { status: 400 })],
-    ['502 上游未找到', new Response('Upstream API error: 404', { status: 502 })]
+    ['400', new Response('bad request', { status: 400 })]
   ])('上游 %s 响应视为搭配码无效', async (_label, response) => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response))
-    await expect(parseOutfitCode('a1B2c3D4e5F')).rejects.toMatchObject({ kind: 'invalid' })
+    await expect(parseOutfitCode(validCode)).rejects.toMatchObject({ kind: 'invalid' })
+  })
+
+  it('上游 502 标记 unavailable', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('upstream unavailable', { status: 502 })))
+    await expect(parseOutfitCode(validCode)).rejects.toMatchObject({ kind: 'unavailable' })
   })
 
   it('上游其他错误标记 unavailable', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('oops', { status: 500 })))
-    await expect(parseOutfitCode('a1B2c3D4e5F')).rejects.toMatchObject({ kind: 'unavailable' })
+    await expect(parseOutfitCode(validCode)).rejects.toMatchObject({ kind: 'unavailable' })
   })
 
   it('网络异常标记 unavailable', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
-    await expect(parseOutfitCode('a1B2c3D4e5F')).rejects.toMatchObject({ kind: 'unavailable' })
+    await expect(parseOutfitCode(validCode)).rejects.toMatchObject({ kind: 'unavailable' })
   })
 
   it('响应缺少 clothes 字段标记 unavailable', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({})))
-    await expect(parseOutfitCode('a1B2c3D4e5F')).rejects.toMatchObject({ kind: 'unavailable' })
+    await expect(parseOutfitCode(validCode)).rejects.toMatchObject({ kind: 'unavailable' })
+  })
+
+  it('HTTP 成功但响应 JSON 损坏时标记 unavailable', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"clothes":[{"cloth":{"id":1+}}]}')))
+    await expect(parseOutfitCode(validCode)).rejects.toMatchObject({
+      kind: 'unavailable',
+      message: 'Lookbook upstream returned malformed JSON'
+    })
   })
 
   it('抛出的错误类型为 OutfitCodeParseError', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('oops', { status: 500 })))
-    await expect(parseOutfitCode('a1B2c3D4e5F')).rejects.toBeInstanceOf(OutfitCodeParseError)
+    await expect(parseOutfitCode(validCode)).rejects.toBeInstanceOf(OutfitCodeParseError)
   })
 
   it('缓存成功结果并复用规范化后的搭配码', async () => {
@@ -122,8 +175,8 @@ describe('parseOutfitCode', () => {
     }))
     vi.stubGlobal('fetch', fetchMock)
 
-    const first = await parseOutfitCode('a1B2c3D4e5F')
-    const second = await parseOutfitCode('a1B2c3D4e5F#')
+    const first = await parseOutfitCode(validCode)
+    const second = await parseOutfitCode(normalizedCode)
 
     expect(second).toEqual(first)
     expect(fetchMock).toHaveBeenCalledOnce()
@@ -135,9 +188,31 @@ describe('parseOutfitCode', () => {
       .mockResolvedValueOnce(jsonResponse({ clothes: [] }))
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(parseOutfitCode('a1B2c3D4e5F')).rejects.toMatchObject({ kind: 'unavailable' })
-    await expect(parseOutfitCode('a1B2c3D4e5F')).resolves.toMatchObject({ code: 'a1B2c3D4e5F#' })
+    await expect(parseOutfitCode(validCode)).rejects.toMatchObject({ kind: 'unavailable' })
+    await expect(parseOutfitCode(validCode)).resolves.toMatchObject({ code: normalizedCode })
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('lookbook WASM native output', () => {
+  it('reads native JSON-like maps and normalizes general and hair dye records', async () => {
+    const payload = '{"Content":{"Content":{"patternData":[:123:0],"wearingClothes":[1020100001,1020860231],"wearingDIYInfos":[' +
+      '{"TargetGroupID":1,"CoreData":{"B":0.69318097829819,"ColorGridID":96,"R":0.37126499414444,"A":1,"G":0.60334801673889},"FeatureTag":1,"TargetClothID":1020100001},' +
+      '{"TargetGroupID":2,"CoreData":{"TargetColor0":{"R":0.8,"B":0.7,"A":1,"G":0.6},"ColorGridID0":120},"FeatureTag":6,"TargetClothID":1020100001}' +
+      ']}}}'
+
+    const result = await decodeLookbookPayload<LookbookDecodeResult>('a1B2c3D4e5F#', payload)
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.wearingClothes).toEqual([
+      { itemId: 1020100001, clothType: null, outfitId: null }
+    ])
+    expect(result.value.dyeItems[0].dyes).toMatchObject([
+      { targetGroupId: 1, featureTag: 1, paletteId: 12, slot: 8 },
+      { targetGroupId: 2, featureTag: 6, paletteId: 15, slot: 8 }
+    ])
+    expect(result.value.dyeItems[0].dyes.every((dye) => /^#[0-9a-f]{6}$/.test(dye.color))).toBe(true)
   })
 })
 
@@ -150,7 +225,7 @@ describe('lookbook cloth types', () => {
       ]
     })))
 
-    const result = await parseOutfitCode('a1B2c3D4e5F')
+    const result = await parseOutfitCode(validCode)
     expect(result.wearingClothes).toEqual([
       { itemId: 1020100001, clothType: null, outfitId: null },
       { itemId: 1020100002, clothType: null, outfitId: null }

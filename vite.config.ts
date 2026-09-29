@@ -25,8 +25,16 @@ function getRemoteApiOrigin(mode: string): string | undefined {
 
 export default defineConfig(({ mode }) => {
   const remoteApiOrigin = getRemoteApiOrigin(mode)
+  const outfitCodeProxy = {
+    target: 'https://x6cn-clothdiydata.nuanpaper.com',
+    changeOrigin: true,
+    secure: true,
+    rewrite: (path: string) => path.replace(/^\/api\/outfit-code/, '/default') + '.json'
+  }
   const apiProxy = remoteApiOrigin
     ? {
+        // 搭配码数据始终由本地 Vite 直连对象存储，不依赖已部署的 Pages Function。
+        '/api/outfit-code': outfitCodeProxy,
         // 图鉴 API 通过本地开发服务器转发，避免浏览器直接触发跨域限制。
         '/api/gongeo': {
           target: 'https://data.gongeo.us',
@@ -42,6 +50,8 @@ export default defineConfig(({ mode }) => {
         }
       }
     : {
+        // 分享码路径由浏览器 WASM 解出，本地开发服务器代取原始对象以避开浏览器 CORS。
+        '/api/outfit-code': outfitCodeProxy,
         // 图鉴 API 通过本地开发服务器转发，避免浏览器直接触发跨域限制。
         '/api/gongeo': {
           target: 'https://data.gongeo.us',

@@ -228,7 +228,7 @@ npm -v
 
 启动器不可用时，可双击 `start\Start-Remote-D1-Website.bat`，或使用下方开发命令手动启动。根目录的 `网站启动器.exe` 也会连接这个远程 D1 启动脚本。
 
-如果希望本地页面直接读取线上 D1 数据，请双击 `start\Start-Remote-D1-Website.bat`。它只在本地代理 `/api` 请求到线上 Pages，不会让浏览器直接接触 D1；本地点击点赞会真实写入线上数据库，请谨慎使用。脚本默认使用 `https://infinity-nikki-album-manager.pages.dev`，也可把其他 Pages 地址作为脚本参数传入。
+如果希望本地页面直接读取线上 D1 数据，请双击 `start\Start-Remote-D1-Website.bat`。除搭配码数据外，其他 `/api` 请求会在本地转发到线上 Pages，不会让浏览器直接接触 D1；搭配码数据由本地 Vite 直接代理到对象存储，不依赖线上 Pages Function。点击点赞会真实写入线上数据库，请谨慎使用。脚本默认使用 `https://infinity-nikki-album-manager.pages.dev`，也可把其他 Pages 地址作为脚本参数传入。
 
 ### 开发命令
 
@@ -236,7 +236,7 @@ npm -v
 npm install       # 安装依赖
 npm run dev       # 启动前更新动作和中英文图鉴，再启动开发服务器
 set REMOTE_API_ORIGIN=https://infinity-nikki-album-manager.pages.dev
-npm run dev:remote # 同样先更新动作和图鉴，再把 /api 代理到线上 D1 API
+npm run dev:remote # 更新动作和图鉴；搭配码走对象存储代理，其余 /api 走线上 Pages
 npm test          # 运行自动化测试
 npm run build     # 类型检查并构建
 npm run build:cloudflare # 刷新普通动作和中英文图鉴后构建

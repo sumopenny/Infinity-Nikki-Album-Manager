@@ -1,18 +1,17 @@
-// 搭配码解析:规范化搭配码、调用上游解析 API,并把原始数据清洗为部件 ID 列表与染色数据。
-// 解析 API 由暖暖相册(nikki.ranaxro.com)友情提供,已开放跨域访问。
+// 搭配码解析：在本地 WASM 还原对象路径编号，再通过同源代理读取原始搭配数据。
 import {
   clearSavedOutfitParseResults,
   getSavedOutfitParseResult,
   saveOutfitParseResult
 } from '../file-system/directoryStorage'
+import {
+  decodeLookbookPayload,
+  decodeLookbookShareCodePathId
+} from './lookbookWasmClient'
 
-const LOOKBOOK_API_BASE_URL = 'https://api-nikki.ranaxro.com/conv-clothdiydata'
+const LOOKBOOK_DATA_PROXY_BASE_URL = '/api/outfit-code'
 const LOOKBOOK_CODE_PATTERN = /^[A-Za-z0-9]{11}#$/
 const LOOKBOOK_REQUEST_TIMEOUT_MS = 10000
-const SKIN_TONE_CLOTH_TYPE = 86
-const IGNORED_LOOKBOOK_ITEM_IDS = new Set([
-  1021860042, 1022860042, 1023860042, 1020860231,
-])
 
 const parsedResultCache = new Map<string, LookbookDecodeResult>()
 const pendingParseRequests = new Map<string, Promise<LookbookDecodeResult>>()
@@ -57,22 +56,6 @@ export interface LookbookDecodeResult {
   dyeItems: LookbookDyeItem[]
 }
 
-type LookbookPayload = {
-  clothes?: Array<{
-    cloth?: {
-      id?: unknown
-      outfit?: unknown
-      cloth_type?: unknown
-    }
-    diy?: unknown
-  }>
-}
-
-type DyeColorPayload = {
-  rgba?: unknown
-  color_grid?: unknown
-}
-
 /** 规范化搭配码:支持直接粘贴分享链接,11 位编码自动补 # 结尾;不合法返回空串。 */
 export function normalizeLookbookCode(value: unknown): string {
   const raw = Array.isArray(value) ? value[0] : value
@@ -89,124 +72,6 @@ export function normalizeLookbookCode(value: unknown): string {
 
   if (/^[A-Za-z0-9]{11}$/.test(code)) code = `${code}#`
   return LOOKBOOK_CODE_PATTERN.test(code) ? code : ''
-}
-
-const isIgnoredLookbookCloth = (cloth: { id?: unknown; cloth_type?: unknown }) => {
-  const clothType = Number(cloth.cloth_type)
-  const id = Number(cloth.id)
-  return (
-    clothType === SKIN_TONE_CLOTH_TYPE ||
-    (Number.isSafeInteger(id) && IGNORED_LOOKBOOK_ITEM_IDS.has(id))
-  )
-}
-
-/** 游戏返回的 rgba 处于线性色彩空间,需先转为 sRGB 再输出 hex。 */
-const linearChannelToSrgb = (value: number) => {
-  const channel = Math.max(0, Math.min(1, value))
-  return channel <= 0.0031308 ? 12.92 * channel : 1.055 * channel ** (1 / 2.4) - 0.055
-}
-
-const rgbaToHex = (value: unknown) => {
-  if (
-    !Array.isArray(value) ||
-    value.length < 3 ||
-    value.slice(0, 3).some((channel) => !Number.isFinite(Number(channel)))
-  ) {
-    return null
-  }
-  return `#${value
-    .slice(0, 3)
-    .map((channel) =>
-      Math.round(linearChannelToSrgb(Number(channel)) * 255)
-        .toString(16)
-        .padStart(2, '0')
-    )
-    .join('')}`
-}
-
-const normalizeDyeSwatch = (
-  value: unknown,
-  targetGroupId: number,
-  featureTag: number
-): LookbookDyeSwatch | null => {
-  if (!value || typeof value !== 'object') return null
-  const color = value as DyeColorPayload
-  const colorGrid = Number(color.color_grid)
-  const hex = rgbaToHex(color.rgba)
-  if (!Number.isInteger(colorGrid) || !hex) return null
-
-  return {
-    targetGroupId,
-    featureTag,
-    paletteId: colorGrid < 0 ? -1 : Math.ceil(colorGrid / 8),
-    slot: colorGrid < 0 ? null : colorGrid % 8 || 8,
-    color: hex,
-  }
-}
-
-const normalizeDyes = (value: unknown): LookbookDyeSwatch[] => {
-  if (!value || typeof value !== 'object') return []
-  const outfitDye = (value as { outfit_dye?: unknown }).outfit_dye
-  if (!Array.isArray(outfitDye)) return []
-
-  return outfitDye
-    .map((entry) => {
-      if (!entry || typeof entry !== 'object') return null
-      const general = (entry as { General?: unknown }).General
-      const hair = (entry as { Hair?: unknown }).Hair
-      const dye = general ?? hair
-      if (!dye || typeof dye !== 'object') return null
-
-      const targetGroupId = Number((dye as { target_group_id?: unknown }).target_group_id)
-      const featureTag = Number((dye as { feature_tag?: unknown }).feature_tag)
-      if (!Number.isInteger(targetGroupId) || !Number.isInteger(featureTag)) return null
-
-      const color = general
-        ? (dye as { color?: unknown }).color
-        : (dye as { color_0?: unknown }).color_0
-      return normalizeDyeSwatch(color, targetGroupId, featureTag)
-    })
-    .filter((dye): dye is LookbookDyeSwatch => dye !== null)
-}
-
-const normalizeClothes = (value: unknown): LookbookDecodeResult | null => {
-  if (!Array.isArray(value)) return null
-  const clothes = value
-    .map((entry) => {
-      if (!entry || typeof entry !== 'object') return null
-      const cloth = (entry as { cloth?: unknown }).cloth
-      if (!cloth || typeof cloth !== 'object') return null
-      if (isIgnoredLookbookCloth(cloth)) return null
-
-      const id = Number((cloth as { id?: unknown }).id)
-      if (!Number.isSafeInteger(id) || id <= 0) return null
-
-      const outfitId = Number((cloth as { outfit?: unknown }).outfit)
-      const rawClothType = (cloth as { cloth_type?: unknown }).cloth_type
-      const clothType =
-        rawClothType === null || rawClothType === undefined
-          ? null
-          : Number.isInteger(Number(rawClothType))
-            ? Number(rawClothType)
-            : null
-      return {
-        itemId: id,
-        clothType,
-        outfitId: Number.isSafeInteger(outfitId) && outfitId > 0 ? outfitId : null,
-        dyes: normalizeDyes((entry as { diy?: unknown }).diy),
-        hasSpecialEffect: (() => {
-          const specialEffect = (entry as { diy?: { special_effect?: unknown } }).diy?.special_effect
-          return Array.isArray(specialEffect) && specialEffect.length > 0
-        })(),
-      }
-    })
-    .filter((cloth): cloth is LookbookDyeItem => cloth !== null)
-
-  return {
-    code: '',
-    wearingClothes: clothes.map(({ itemId, clothType, outfitId }) => ({ itemId, clothType, outfitId })),
-    dyeItems: clothes.filter((cloth) => cloth.dyes.length > 0),
-  }
 }
 
 const isCachedParseResult = (value: unknown, code: string): value is LookbookDecodeResult => {
@@ -230,14 +95,26 @@ const isCachedParseResult = (value: unknown, code: string): value is LookbookDec
   ))
 }
 
-/** 请求上游解析 API 并清洗数据;失败时抛 OutfitCodeParseError 标记错误类型。 */
+/** 请求对象存储代理，并调用浏览器 WASM 归一化搭配数据。 */
 async function requestLookbookParse(code: string): Promise<LookbookDecodeResult> {
+  let pathId: string | null
+  try {
+    pathId = await decodeLookbookShareCodePathId(code)
+  } catch (error) {
+    throw new OutfitCodeParseError(
+      'unavailable',
+      'Lookbook WASM share-code decoding failed: ' + (error instanceof Error ? error.message : String(error))
+    )
+  }
+  if (!pathId) {
+    throw new OutfitCodeParseError('invalid', 'Invalid lookbook code: ' + code)
+  }
 
   let response: Response
   try {
-    response = await fetch(`${LOOKBOOK_API_BASE_URL}?${encodeURIComponent(code)}`, {
+    response = await fetch(LOOKBOOK_DATA_PROXY_BASE_URL + '/' + pathId, {
       signal: AbortSignal.timeout(LOOKBOOK_REQUEST_TIMEOUT_MS),
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json, application/octet-stream' },
     })
   } catch (error) {
     throw new OutfitCodeParseError(
@@ -247,29 +124,38 @@ async function requestLookbookParse(code: string): Promise<LookbookDecodeResult>
   }
 
   if (!response.ok) {
-    const bodyText = await response.text().catch(() => '')
-    const codeRejected =
-      response.status === 404 ||
-      response.status === 400 ||
-      (response.status === 502 && bodyText.trim() === 'Upstream API error: 404')
+    const codeRejected = response.status === 404 || response.status === 400
     throw new OutfitCodeParseError(
       codeRejected ? 'invalid' : 'unavailable',
-      `Lookbook upstream failed with ${response.status}`
+      `Lookbook object request failed with ${response.status}`
     )
   }
 
-  let payload: LookbookPayload
+  let payload: string
   try {
-    payload = (await response.json()) as LookbookPayload
+    payload = await response.text()
   } catch {
-    throw new OutfitCodeParseError('unavailable', 'Lookbook upstream returned malformed JSON')
+    throw new OutfitCodeParseError('unavailable', 'Lookbook upstream response could not be read')
   }
 
-  const result = normalizeClothes(payload.clothes)
-  if (!result) {
-    throw new OutfitCodeParseError('unavailable', 'Lookbook upstream response is missing clothes')
+  let decoded
+  try {
+    decoded = await decodeLookbookPayload<LookbookDecodeResult>(code, payload)
+  } catch (error) {
+    throw new OutfitCodeParseError(
+      'unavailable',
+      `Lookbook WASM normalization failed: ${error instanceof Error ? error.message : String(error)}`
+    )
   }
-  return { ...result, code }
+  if (!decoded.ok) {
+    const message = decoded.errorCode === 'json_invalid'
+      ? 'Lookbook upstream returned malformed JSON'
+      : decoded.errorCode === 'clothes_missing'
+        ? 'Lookbook upstream response is missing clothes'
+        : `Lookbook upstream response could not be normalized (${decoded.errorCode})`
+    throw new OutfitCodeParseError('unavailable', message)
+  }
+  return decoded.value
 }
 
 /** 解析搭配码；成功结果持久化到 IndexedDB，存储不可用时回退到在线请求。 */
