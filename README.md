@@ -234,12 +234,12 @@ npm -v
 
 ```bash
 npm install       # 安装依赖
-npm run dev       # 启动前更新动作和中英文图鉴，再启动开发服务器
+npm run dev       # 启动前更新动作、中英文部件目录和共鸣录映射目录，再启动开发服务器
 set REMOTE_API_ORIGIN=https://infinity-nikki-album-manager.pages.dev
-npm run dev:remote # 更新动作和图鉴；搭配码走对象存储代理，其余 /api 走线上 Pages
+npm run dev:remote # 更新动作、部件目录和共鸣录映射目录；搭配码走对象存储代理，其余 /api 走线上 Pages
 npm test          # 运行自动化测试
 npm run build     # 类型检查并构建
-npm run build:cloudflare # 刷新普通动作和中英文图鉴后构建
+npm run build:cloudflare # 刷新普通动作、部件目录和共鸣录映射目录后构建
 npm run preview   # 预览构建结果
 ```
 

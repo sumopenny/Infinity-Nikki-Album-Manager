@@ -140,5 +140,25 @@ describe('TopBar', () => {
     expect(wrapper.emitted('openHelpAbout')).toHaveLength(1)
     wrapper.unmount()
   })
+
+  it('keeps clear cache available without album authorization', async () => {
+    const wrapper = mount(TopBar, {
+      props: {
+        ...baseProps,
+        hasAlbumDirectory: false,
+        hasX6GameAuthorization: false
+      },
+      global: { stubs: { FortuneTimeDialog: true, Teleport: true } }
+    })
+
+    await wrapper.get('.more-menu-button').trigger('click')
+    const clearCacheItem = wrapper.get('.header-dropdown').findAll('button').find((item) => item.text().includes(messages.zh.topBar.clearCache))
+
+    expect(clearCacheItem).toBeDefined()
+    expect(clearCacheItem!.attributes('disabled')).toBeUndefined()
+    await clearCacheItem!.trigger('click')
+    expect(wrapper.emitted('clearCache')).toHaveLength(1)
+    wrapper.unmount()
+  })
 })
 

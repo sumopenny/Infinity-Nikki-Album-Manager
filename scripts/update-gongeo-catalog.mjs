@@ -59,7 +59,9 @@ export async function updateGongeoCatalog({ baseUrl = DEFAULT_BASE_URL, outputDi
   for (const name of FILES) {
     const path = files[name]?.path
     if (typeof path !== 'string' || !path.startsWith('/catalog/')) throw new Error(`Gongeo catalog 缺少 ${name} 文件路径`)
-    const value = parseJson(await fetchText(`${root}${path}`, timeoutMs), path)
+    // 索引使用站点发布路径；仓库源码中的文件位于 public/catalog。
+    const sourcePath = `/public${path}`
+    const value = parseJson(await fetchText(`${root}${sourcePath}`, timeoutMs), path)
     validate(name, value)
     entries.set(`${name}.json`, value)
   }

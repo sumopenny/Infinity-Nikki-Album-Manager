@@ -238,12 +238,12 @@ To run the local site against the online D1 data, double-click `start\Start-Remo
 
 ```bash
 npm install       # Install dependencies
-npm run dev       # Refresh poses and bilingual catalogs, then start the dev server
+npm run dev       # Refresh poses, bilingual item catalogs, and Gongeo mapping catalogs before starting the dev server
 set REMOTE_API_ORIGIN=https://infinity-nikki-album-manager.pages.dev
-npm run dev:remote # Refresh poses and catalogs; proxy outfit data to storage and other /api calls to Pages
+npm run dev:remote # Refresh poses, item catalogs, and Gongeo mappings; proxy outfit data to storage and other /api calls to Pages
 npm test          # Run automated tests
 npm run build     # Type-check and build
-npm run build:cloudflare # Refresh normal poses and item catalogs, then build
+npm run build:cloudflare # Refresh normal poses, item catalogs, and Gongeo mappings, then build
 npm run preview   # Preview the build result
 ```
 

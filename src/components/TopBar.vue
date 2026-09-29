@@ -366,7 +366,7 @@ onBeforeUnmount(() => {
         </button>
         <Teleport to="body">
           <div v-if="openMenu === 'more'" ref="dropdownRef" class="header-dropdown header-dropdown-right" :style="{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }" role="menu">
-          <button type="button" role="menuitem" :disabled="!hasAlbumDirectory || isBusy" @click="runMenuAction(() => emit('clearCache'))">
+          <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('clearCache'))">
             <RotateCcw :size="16" />
             <span>{{ messages.clearCache }}</span>
           </button>

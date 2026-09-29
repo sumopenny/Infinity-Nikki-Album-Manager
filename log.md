@@ -1087,9 +1087,9 @@
 ## 2026-09-28
 
 5. 问题：Gongeo 目录快照缺少自动同步流程，JSON 文件不便审查。
-   - 状态：部分解决
-   - 技术/方法：新增 `scripts/update-gongeo-catalog.mjs`，通过上游 `public/catalog/index.json` 获取带哈希的目录文件和中英文套装名称，校验 JSON 后原子写入；无内容变化时不改写，非严格模式下载失败时保留本地快照。新增 `resources:update:gongeo` 并接入本地启动和 Cloudflare 构建流程；现有 8 个目录 JSON 已统一为两空格多行格式。
-   - 验证：`npm run build` 和 `tests/utils/outfitDetails.test.ts` 通过。当前环境 DNS 无法解析 `raw.githubusercontent.com`，因此严格远程同步未完成；普通同步已验证会保留现有目录。
+   - 状态：已解决
+   - 技术/方法：新增 `scripts/update-gongeo-catalog.mjs`，通过上游 `public/catalog/index.json` 获取带哈希的目录文件和中英文套装名称，校验 JSON 后原子写入；无内容变化时不改写，非严格模式下载失败时保留本地快照。新增 `resources:update:gongeo` 并接入本地启动和 Cloudflare 构建流程；现有 8 个目录 JSON 已统一为两空格多行格式。修正索引站点路径 `/catalog/...` 到仓库路径 `/public/catalog/...` 的映射，locale 路径保持不变。
+   - 验证：新增同步 URL 映射和资源 404 回归测试，2 项通过；`npm run build` 通过。PowerShell 确认仓库根目录 URL 返回 404、`/public/catalog/` URL 返回 200；本机 Node 严格远程同步因 DNS 无法解析 `raw.githubusercontent.com` 未完成。
 
 2.问题：搭配码解析结果缺少可展开的部件图鉴详情，无法查看套装、进化/焕新和染色目录。
    - 状态：已解决
@@ -1136,3 +1136,8 @@
    - 状态：已解决
    - 技术/方法：为解析列表图标和详情图增加独立的加载、完成和失败状态；列表图标保留方形区域，详情图保留 273×400 的竖向区域，加载期间显示旋转指示，成功后显示图片，失败后显示占位符。
    - 验证：组件专项测试、`vue-tsc --noEmit`、生产构建和 `git diff --check` 通过。
+
+4. 问题：清除缓存只针对搭配码解析缓存，但入口仍要求先授权相册，帮助说明还保留旧的目录状态描述。
+   - 状态：已解决
+   - 技术/方法：移除清除缓存菜单项对相册授权的依赖，清除缓存现在只清除搭配码解析缓存；同步更新中英文帮助说明，清除数据的完整清理范围保持不变。
+   - 验证：新增未授权相册时清除缓存入口可用的 TopBar 回归测试。
