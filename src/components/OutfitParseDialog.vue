@@ -340,7 +340,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
                   <thead><tr><th>{{ messages.detailArea }}</th><th>{{ messages.detailPalette }}</th><th>{{ messages.detailSlot }}</th><th>{{ messages.detailColor }}</th></tr></thead>
                   <tbody>
                     <tr v-for="(dye, index) in selectedDetail.dyes" :key="`${dye.area}-${index}`">
-                      <td>{{ dye.area }}</td><td>{{ dye.paletteId }} {{ dye.paletteName }}</td><td>{{ dye.slot ?? '—' }}</td>
+                      <td>{{ dye.area }}</td><td>{{ dye.paletteId < 0 ? dye.paletteName : `${dye.paletteId} ${dye.paletteName}` }}</td><td>{{ dye.slot ?? '—' }}</td>
                       <td><span class="outfit-detail-color"><i :style="{ backgroundColor: dye.color }"></i><code>{{ dye.color }}</code></span></td>
                     </tr>
                   </tbody>

@@ -1082,15 +1082,25 @@
 
 /* 搭配码解析窗口：复用编辑窗口的遮罩与面板骨架，仅定制内容区 */
 .outfit-parse-panel {
+  display: flex;
+  flex-direction: column;
   width: min(820px, 100%);
+  overflow: hidden;
 }
 
 .outfit-parse-content {
   display: flex;
-  min-height: 260px;
+  min-height: 0;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 14px;
+  overflow-y: auto;
   padding: 16px 18px;
+}
+
+.outfit-parse-panel > header,
+.outfit-parse-panel > footer {
+  flex: 0 0 auto;
 }
 
 .outfit-parse-code {
@@ -1241,12 +1251,12 @@
 }
 
 .outfit-parse-item-button:hover .outfit-parse-item-icon {
-  border-color: var(--pink);
+  border-color: var(--pink-deep);
   transform: translateY(-1px);
 }
 
 .outfit-parse-item-button:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--pink) 45%, transparent);
+  outline: 3px solid color-mix(in srgb, var(--pink-deep) 45%, transparent);
   outline-offset: 3px;
 }
 

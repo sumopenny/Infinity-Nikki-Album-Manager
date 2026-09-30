@@ -152,6 +152,13 @@ const findDyeArea = (catalog: CatalogSnapshot, itemId: number): DyeAreaInfo | nu
   }
 }
 
+// 共鸣录按“当前部件 -> 部件家族根 ID”选择染色目录，不能从整个家族随意取第一条。
+const getDyeCatalogItemId = (catalog: CatalogSnapshot, itemId: number): number => {
+  if (findDyeRow(catalog, itemId)) return itemId
+  const rootId = asId(findItemRow(catalog, itemId)?.[6])
+  return rootId && findDyeRow(catalog, rootId) ? rootId : itemId
+}
+
 const getVariantIndex = (itemId: number): number => {
   const prefix = String(itemId).slice(0, 4)
   if (['1021', '1020', '1029'].includes(prefix)) return 0
@@ -160,6 +167,12 @@ const getVariantIndex = (itemId: number): number => {
   if (prefix === '1024') return 3
   if (prefix === '1025') return 4
   return 0
+}
+
+/** 将原套/变体套装 ID 对齐到当前部件的变体。共鸣录的套装行按该顺序存储变体。 */
+const resolveOutfitVariantId = (catalog: CatalogSnapshot, outfitId: number, itemId: number): number => {
+  const variants = compactIds(findOutfitRow(catalog, outfitId))
+  return variants[getVariantIndex(itemId)] ?? outfitId
 }
 
 const getLocalizedName = (
@@ -183,7 +196,13 @@ const getLocalizedName = (
   return typeof baseName === 'string' && baseName.trim() ? baseName : ''
 }
 
-const findRelatedOutfitId = (catalog: CatalogSnapshot, itemIds: number[]): number | null => {
+const findRelatedOutfitId = (catalog: CatalogSnapshot, itemId: number, itemIds: number[]): number | null => {
+  // 先用当前变体部件精确匹配，避免家族展开后被原套关系行抢先命中。
+  for (const row of catalog.outfitItems) {
+    const outfitId = asId(row[0])
+    const outfitItems = idsIn(row[1])
+    if (outfitId && outfitItems.includes(itemId) && findOutfitRow(catalog, outfitId)) return outfitId
+  }
   for (const row of catalog.outfitItems) {
     const outfitId = asId(row[0])
     const outfitItems = idsIn(row[1])
@@ -236,6 +255,9 @@ const getDyeAreaNumber = (
   areaInfo: DyeAreaInfo | null,
   fallbackPrimaryCount: number
 ) => {
+  // Only feature tags 1 and 3 are the outfit's primary/secondary dye areas.
+  // Other tags use their target group directly, as in the upstream lookbook.
+  if (dye.featureTag !== 1 && dye.featureTag !== 3) return dye.targetGroupId
   let area = dye.featureTag === 3
     ? (areaInfo?.primaryCount ?? fallbackPrimaryCount) + dye.targetGroupId
     : dye.targetGroupId
@@ -260,6 +282,7 @@ const getPaletteSerial = (dyeGroups: unknown[], paletteId: number): number | nul
 }
 
 const getPaletteName = (paletteId: number, language: Language): string => {
+  if (paletteId < 0) return language === 'en' ? 'Slider' : '拉条'
   const names = PALETTE_NAMES[paletteId]
   return names
     ? names[language === 'en' ? 1 : 0]
@@ -320,25 +343,31 @@ const createDetail = async (
     ? outfitId
     : isMakeup
       ? findRelatedMakeupOutfitId(catalog, [itemId, ...familyIds])
-      : findRelatedOutfitId(catalog, familyIds)
-  const outfitRequest = catalogOutfitId
-    ? requestEntity(`/outfits/${catalogOutfitId}`, language)
+      : findRelatedOutfitId(catalog, itemId, familyIds)
+  const resolvedCatalogOutfitId = catalogOutfitId
+    ? resolveOutfitVariantId(catalog, catalogOutfitId, itemId)
+    : null
+  const outfitRequest = resolvedCatalogOutfitId
+    ? requestEntity(`/outfits/${resolvedCatalogOutfitId}`, language)
     : Promise.resolve(null)
   const [entityResult, outfitResult] = await Promise.allSettled([entityRequest, outfitRequest])
   const entityLoaded = entityResult.status === 'fulfilled' && entityResult.value.ok
   const outfitEntity = outfitResult.status === 'fulfilled' ? outfitResult.value : null
-  const outfitRow = catalogOutfitId ? findOutfitRow(catalog, catalogOutfitId) : undefined
-  const relation = catalogOutfitId
-    ? catalog.outfitItems.find((row) => Number(row[0]) === catalogOutfitId)
+  const outfitRow = resolvedCatalogOutfitId ? findOutfitRow(catalog, resolvedCatalogOutfitId) : undefined
+  const relation = resolvedCatalogOutfitId
+    ? catalog.outfitItems.find((row) => Number(row[0]) === resolvedCatalogOutfitId)
     : undefined
-  const dyeRow = familyIds.map((id) => findDyeRow(catalog, id)).find((row) => row !== undefined)
+  const dyeCatalogItemId = getDyeCatalogItemId(catalog, itemId)
+  const dyeRow = findDyeRow(catalog, dyeCatalogItemId)
   const dyeGroups = dyeRow?.slice(1) ?? []
-  const areaInfo = familyIds.map((id) => findDyeArea(catalog, id)).find((area) => area !== null) ?? null
+  // 上游区域目录先查当前部件，再回退到部件根 ID；它与 raw 染色盘目录不是同一套索引。
+  const rootItemId = asId(findItemRow(catalog, itemId)?.[6])
+  const areaInfo = findDyeArea(catalog, itemId) ?? (rootItemId ? findDyeArea(catalog, rootItemId) : null)
   const fallbackPrimaryCount = Math.max(
     0,
     ...dyes.filter((dye) => dye.featureTag === 1).map((dye) => dye.targetGroupId)
   )
-  const paletteRows = new Map<string, OutfitDyeDetail>()
+  const paletteRows: OutfitDyeDetail[] = []
 
   for (const dye of dyes) {
     const areaNumber = getDyeAreaNumber(dye, areaInfo, fallbackPrimaryCount)
@@ -350,11 +379,10 @@ const createDetail = async (
       slot: dye.slot,
       color: dye.color
     }
-    const key = `${detail.area}:${detail.paletteId}:${detail.slot}:${detail.color}`
-    paletteRows.set(key, detail)
+    paletteRows.push(detail)
   }
 
-  const resolvedOutfitId = catalogOutfitId
+  const resolvedOutfitId = resolvedCatalogOutfitId
   const outfitName = resolvedOutfitId
     ? getLocalizedName(outfitEntity, resolvedOutfitId, language, catalog)
     : ''
@@ -380,9 +408,9 @@ const createDetail = async (
     dyeCondition: isMakeup
       ? language === 'en' ? 'None' : '无'
       : getDyeCondition(dyes, dyeGroups, language, hasSpecialEffect),
-    dyes: [...paletteRows.values()].sort((left, right) => {
+    dyes: paletteRows.sort((left, right) => {
       const areaOrder = Number(left.area.replace(/\D/g, '')) - Number(right.area.replace(/\D/g, ''))
-      return areaOrder || left.paletteId - right.paletteId || (left.slot ?? 0) - (right.slot ?? 0)
+      return areaOrder
     }),
     loadError: !isMakeup && !entityLoaded && !outfitEntity
   }

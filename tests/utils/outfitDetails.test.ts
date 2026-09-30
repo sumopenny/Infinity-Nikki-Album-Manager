@@ -31,9 +31,79 @@ describe('loadOutfitDetail', () => {
     expect(detail.outfitItemIds).toContain(1020100001)
     expect(detail.evolution).toBe('原套')
     expect(detail.dyeCondition).toBe('1进可染')
-    expect(detail.dyes).toHaveLength(2)
+    expect(detail.dyes).toHaveLength(3)
     expect(detail.dyes[0]).toMatchObject({ area: '区域 01', paletteName: '名流鸦盛宴', slot: 3 })
-    expect(detail.dyes[1].area).toBe('区域 02')
+    expect(detail.dyes[2].area).toBe('区域 02')
+  })
+
+  it('keeps the parsed item on the matching evolution outfit when the payload outfit is the base ID', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ id: 1022100347 }))
+      .mockResolvedValueOnce(jsonResponse({ id: 1034701 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const detail = await loadOutfitDetail(1022100347, 10347, 'zh', '如果爱上一朵花-发型', [])
+
+    expect(String(fetchMock.mock.calls[1][0])).toContain('/api/gongeo/outfits/1034701?lang=zh')
+    expect(detail.outfitId).toBe(1034701)
+    expect(detail.outfitName).toBe('如果爱上一朵花·青涩')
+    expect(detail.evolution).toBe('焕新')
+    expect(detail.outfitItemIds).toContain(1022100347)
+  })
+
+  it('labels negative dye palettes as sliders', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ id: 1020100001 })))
+
+    const detail = await loadOutfitDetail(
+      1020100001,
+      null,
+      'zh',
+      '时光讯号-发型',
+      [{ targetGroupId: 1, featureTag: 3, paletteId: -1, slot: null, color: '#bcbcbc' }]
+    )
+
+    expect(detail.dyes[0]).toMatchObject({ paletteId: -1, paletteName: '拉条' })
+  })
+
+  it('keeps non-primary dye feature tags on their upstream target group area', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ id: 1020100250 })))
+
+    const detail = await loadOutfitDetail(
+      1020100250,
+      null,
+      'zh',
+      '测试部件',
+      [{ targetGroupId: 3, featureTag: 6, paletteId: 18, slot: 3, color: '#9e463e' }]
+    )
+
+    expect(detail.dyes[0].area).toBe('区域 03')
+  })
+
+  it('uses the exact flower-part area catalog so primary and secondary regions do not overlap', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ id: 1025900347 })))
+
+    const dyes = [
+      ...Array.from({ length: 12 }, (_, index) => ({
+        targetGroupId: index + 1,
+        featureTag: 1,
+        paletteId: 18,
+        slot: null,
+        color: `#${String(index + 1).padStart(2, '0')}0000`
+      })),
+      ...Array.from({ length: 8 }, (_, index) => ({
+        targetGroupId: index + 1,
+        featureTag: 3,
+        paletteId: 17,
+        slot: null,
+        color: `#00${String(index + 1).padStart(2, '0')}00`
+      }))
+    ]
+
+    const detail = await loadOutfitDetail(1025900347, null, 'zh', '如果有朵花', dyes)
+    const areas = detail.dyes.map((dye) => dye.area)
+
+    expect(new Set(areas).size).toBe(areas.length)
+    expect(areas).toEqual(Array.from({ length: 20 }, (_, index) => `区域 ${String(index + 1).padStart(2, '0')}`))
   })
 
   it('caches the same detail request', async () => {
