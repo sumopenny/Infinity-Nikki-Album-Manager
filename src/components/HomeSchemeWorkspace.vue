@@ -696,11 +696,15 @@ onBeforeUnmount(() => {
                 </button>
                 <input ref="fileInput" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" @change="selectImage" />
                 <button v-if="previewUrl && localImageUrl" class="home-scheme-remove-image" type="button" :disabled="isBusy" @click="removeLocalImageFile"><X :size="14" aria-hidden="true" />{{ messages.removeImage }}</button>
-                <dl class="home-scheme-metadata">
-                  <dt>{{ messages.type }}</dt><dd>{{ schemeType === 'home' ? messages.homeType : schemeType === 'combo' ? messages.comboType : messages.pendingType }}</dd>
-                  <dt>{{ messages.version }}</dt><dd>{{ version || '—' }}</dd>
-                  <dt>{{ messages.furnitureCount }}</dt><dd>{{ furnitureCount ?? '—' }}</dd>
-                </dl>
+                <table class="home-scheme-metadata" aria-label="方案信息">
+                  <tbody>
+                    <tr>
+                      <td><span>{{ messages.type }}</span><strong>{{ schemeType === 'home' ? messages.homeType : schemeType === 'combo' ? messages.comboType : messages.pendingType }}</strong></td>
+                      <td><span>{{ messages.version }}</span><strong>{{ version || '—' }}</strong></td>
+                      <td><span>{{ messages.furnitureCount }}</span><strong>{{ furnitureCount ?? '—' }}</strong></td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
 
               <div class="outfit-fields home-scheme-fields">
@@ -758,9 +762,11 @@ onBeforeUnmount(() => {
 .home-scheme-card-tag{padding:3px 1px 0;color:var(--muted);font-size:11px}
 .home-scheme-editor{width:min(820px,100%)}
 .home-scheme-image-dropzone{aspect-ratio:16/9}
-.home-scheme-metadata{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;margin:14px 0 0;color:var(--muted);font-size:13px}
-.home-scheme-metadata dt{font-weight:800;color:var(--heading)}
-.home-scheme-metadata dd{margin:0;color:var(--text)}
+
+.home-scheme-metadata{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:7px 0;margin:14px -7px 0;color:var(--muted);font-size:12px}
+.home-scheme-metadata td{width:33.333%;padding:10px 11px;border:1px solid color-mix(in srgb,var(--pink-deep) 22%,var(--line));border-radius:11px;background:color-mix(in srgb,var(--pink-deep) 6%,var(--surface-strong));vertical-align:top}
+.home-scheme-metadata span{display:block;margin-bottom:5px;color:var(--muted);font-size:11px;font-weight:800;line-height:1.2}
+.home-scheme-metadata strong{display:block;overflow:hidden;color:var(--heading);font-size:15px;line-height:1.25;text-overflow:ellipsis;white-space:nowrap}
 .home-scheme-fields>.home-scheme-readonly{min-height:36px;margin-bottom:20px;color:var(--text);font-size:13px}
 .home-scheme-fields>small{display:block;margin:-15px 0 14px;color:var(--muted);font-size:11px}
 .home-scheme-fields>.home-scheme-parse-error{color:var(--notice-error)}
@@ -770,5 +776,5 @@ onBeforeUnmount(() => {
 .home-scheme-remove-image{display:inline-flex;align-items:center;gap:6px;min-height:34px;margin-top:8px;padding:6px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface-strong);color:var(--muted);font-size:12px;font-weight:700;transition:color var(--motion-fast) ease,border-color var(--motion-fast) ease,background var(--motion-fast) ease,transform var(--motion-fast) ease}
 .home-scheme-remove-image:hover:not(:disabled){border-color:var(--pink-deep);background:color-mix(in srgb,var(--pink-deep) 8%,var(--surface-strong));color:var(--pink-deep);transform:translateY(-1px)}
 @media(max-width:850px){.home-scheme-workspace{min-height:0}.home-scheme-sidebar{margin-top:14px}.home-scheme-header-actions input[type=search]{flex:1 1 140px}.home-scheme-editor-body{grid-template-columns:1fr}.home-scheme-image-dropzone{max-width:560px}}
-@media(max-width:520px){.home-scheme-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.home-scheme-card-details h3{font-size:12px}.home-scheme-header-actions>button{justify-content:center;white-space:normal}}
+@media(max-width:520px){.home-scheme-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.home-scheme-card-details h3{font-size:12px}.home-scheme-header-actions>button{justify-content:center;white-space:normal}.home-scheme-metadata{border-spacing:5px 0;margin-right:-5px;margin-left:-5px}.home-scheme-metadata td{padding:9px 8px}.home-scheme-metadata strong{font-size:13px}}
 </style>
