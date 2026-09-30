@@ -16,7 +16,6 @@ import {
   Moon,
   MoreHorizontal,
   Wrench,
-  RefreshCw,
   RotateCcw,
   ScanSearch,
   Sun,
@@ -38,7 +37,6 @@ type OpenMenu = 'album' | 'view' | 'tools' | 'more' | null
 const props = defineProps<{
   directoryName: string
   isLoading: boolean
-  isRefreshing: boolean
   isDeleting: boolean
   hasAlbumDirectory: boolean
   hasX6GameAuthorization: boolean
@@ -53,7 +51,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   chooseDirectory: []
   clearDirectory: []
-  refreshAlbum: []
   authorizeX6Game: []
   openCleanup: []
   openFortuneTime: []
@@ -210,18 +207,6 @@ onBeforeUnmount(() => {
         <input :value="searchQuery ?? ''" type="search" :placeholder="messages.searchPlaceholder" :aria-label="messages.searchPlaceholder" @input="emit('updateSearch', ($event.target as HTMLInputElement).value)" />
         <button v-if="searchQuery" type="button" :title="messages.clearSearch" :aria-label="messages.clearSearch" @click="emit('updateSearch', '')"><X :size="15" /></button>
       </div>
-
-      <button
-        class="header-icon-button refresh-album-button"
-        type="button"
-        :title="messages.refreshAlbum"
-        :aria-label="messages.refreshAlbum"
-        :disabled="!hasAlbumDirectory || isBusy || isRefreshing"
-        @click="emit('refreshAlbum')"
-      >
-        <RefreshCw :size="17" :class="{ spinning: isRefreshing }" aria-hidden="true" />
-        <span>{{ messages.refreshAlbum }}</span>
-      </button>
 
       <div class="header-menu-wrap">
         <button

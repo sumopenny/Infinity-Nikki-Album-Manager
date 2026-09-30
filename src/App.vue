@@ -249,7 +249,6 @@ const {
   isStatusLoading: isStatusNoticeLoading,
   activeOperation,
   isLoading,
-  isRefreshing,
   isDeleting,
   isTrashBusy,
   isSavingOutfit,
@@ -525,7 +524,6 @@ async function restoreSavedDirectory() {
     const savedHandle = await getSavedAlbumDirectoryHandle()
     if (!savedHandle) return
     directoryState.value = { type: 'remembered', name: savedHandle.name }
-    statusState.value = { type: 'restoring' }
     const result = await readAlbumDirectory(savedHandle, { requestPermission: false, messages: locale.value.fileSystem })
     await replaceAlbum(result, { type: 'initial' })
   } catch (error) {
@@ -1750,7 +1748,6 @@ onBeforeUnmount(() => {
     <TopBar
       :directory-name="directoryName"
       :is-loading="isLoading"
-      :is-refreshing="isRefreshing"
       :is-deleting="isDeleting || isTrashBusy"
       :has-album-directory="Boolean(albumDirectoryHandle)"
       :has-x6-game-authorization="hasX6GameAuthorization"
@@ -1762,7 +1759,6 @@ onBeforeUnmount(() => {
       :search-query="searchQuery"
       @choose-directory="chooseDirectory"
       @clear-directory="clearDirectory"
-      @refresh-album="refreshAlbum(true)"
       @authorize-x6-game="authorizeX6GameDirectory"
       @open-cleanup="openCleanupDialog"
       @open-fortune-time="isFortuneTimeVisible = true"
