@@ -193,6 +193,7 @@ async function runParse(requestCode: string) {
     const result = await parseHomeScheme(requestCode, controller.signal)
     if (generation !== parseGeneration || normalizeHomeSchemeCode(code.value) !== requestCode) return
     applyParsed(result)
+    emit('status', props.messages.parseSucceeded, 'success')
   } catch (error) {
     if (controller.signal.aborted || generation !== parseGeneration) return
     parsedCode.value = ''
@@ -373,8 +374,8 @@ async function removeScheme(item: HomeSchemeItem) {
 }
 
 async function copyCode(item: HomeSchemeItem) {
-  try { await navigator.clipboard.writeText(item.code); emit('status', item.code, 'success') }
-  catch { emit('status', item.code, 'warning') }
+  try { await navigator.clipboard.writeText(item.code); emit('status', props.messages.copySucceeded, 'success') }
+  catch { emit('status', props.messages.copyFailed(item.code), 'warning') }
 }
 
 function toggleScheme(id: string) {
