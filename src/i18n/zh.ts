@@ -16,6 +16,7 @@ import { dateZh } from './messages/date'
 import { fileSystemZh } from './messages/fileSystem'
 import { outfitMessages } from './messages/outfit'
 import { photoParamsZh } from './messages/photoParams'
+import { homeSchemeMessages } from './messages/homeScheme'
 
 export const zh: LocaleMessages = {
   app: appZh,
@@ -33,5 +34,6 @@ export const zh: LocaleMessages = {
   date: dateZh,
   fileSystem: fileSystemZh,
   outfit: outfitMessages.zh,
-  photoParams: photoParamsZh
+  photoParams: photoParamsZh,
+  homeScheme: homeSchemeMessages.zh
 }

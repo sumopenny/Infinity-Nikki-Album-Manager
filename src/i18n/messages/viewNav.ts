@@ -5,16 +5,20 @@ export const viewNavZh: LocaleMessages['viewNav'] = {
       aria: '相册视图',
       title: '相册',
       allPhotos: '全部照片',
+      homeSchemes: '家园方案',
       favorites: '收藏夹',
       recentlyDeleted: '最近删除',
-      count: (count) => `${count} 张`
+      count: (count) => `${count} 张`,
+      homeSchemesCount: (count) => `${count} 个方案`
     }
 export const viewNavEn: LocaleMessages['viewNav'] = {
       aria: 'Album views',
       title: 'Album',
       allPhotos: 'All photos',
+      homeSchemes: 'Home schemes',
       favorites: 'Favorites',
       recentlyDeleted: 'Recently deleted',
-      count: (count) => `${count} photos`
+      count: (count) => `${count} photos`,
+      homeSchemesCount: (count) => `${count}`
     }
 

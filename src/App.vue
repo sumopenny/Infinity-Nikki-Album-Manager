@@ -18,6 +18,7 @@ import OutfitParseDialog from './components/OutfitParseDialog.vue'
 import ParseToolsDialog from './components/ParseToolsDialog.vue'
 import FortuneTimeDialog from './components/FortuneTimeDialog.vue'
 import OutfitSidebar, { type OutfitFilter } from './components/OutfitSidebar.vue'
+import HomeSchemeWorkspace from './components/HomeSchemeWorkspace.vue'
 import PhotoGrid from './components/PhotoGrid.vue'
 import RecentlyDeletedGrid from './components/RecentlyDeletedGrid.vue'
 import SelectionBar from './components/SelectionBar.vue'
@@ -71,9 +72,12 @@ import { useSelectionState } from './composables/useSelectionState'
 import { usePhotoParams } from './composables/usePhotoParams'
 import { usePhotoTransfer } from './composables/usePhotoTransfer'
 import { clearOutfitCodeParseCache } from './utils/outfit/outfitCodeParser'
+import { clearSavedHomeSchemeParseResults } from './utils/file-system/directoryStorage'
+import { countHomeSchemes } from './utils/homeBuild/homeSchemeFileSystem'
 
 const THUMBNAIL_STORAGE_KEY = 'infinity-nikki-thumbnail-mode'
 const OUTFIT_THUMBNAIL_STORAGE_KEY = 'infinity-nikki-outfit-thumbnail-mode'
+const HOME_THUMBNAIL_STORAGE_KEY = 'infinity-nikki-home-thumbnail-mode'
 const OUTFIT_GUIDE_DISMISSED_KEY = 'infinity-nikki-outfit-guide-dismissed'
 const X6GAME_AUTO_PROMPT_DISMISSED_KEY = 'infinity-nikki-x6game-auto-prompt-dismissed'
 const THEME_STORAGE_KEY = 'infinity-nikki-theme-mode'
@@ -81,7 +85,7 @@ const LANGUAGE_STORAGE_KEY = 'infinity-nikki-language'
 const FAVORITES_STORAGE_KEY = 'infinity-nikki-favorite-photo-ids'
 const ABOUT_STATE_STORAGE_KEY = 'infinity-nikki-about-state'
 const CLEANUP_ACCOUNT_CHOICE_KEY = 'infinity-nikki-cleanup-account-choice'
-const WEBSITE_LOCAL_STORAGE_KEYS = [THUMBNAIL_STORAGE_KEY, OUTFIT_THUMBNAIL_STORAGE_KEY, OUTFIT_GUIDE_DISMISSED_KEY, X6GAME_AUTO_PROMPT_DISMISSED_KEY, THEME_STORAGE_KEY, LANGUAGE_STORAGE_KEY, FAVORITES_STORAGE_KEY, ABOUT_STATE_STORAGE_KEY, CLEANUP_ACCOUNT_CHOICE_KEY]
+const WEBSITE_LOCAL_STORAGE_KEYS = [THUMBNAIL_STORAGE_KEY, OUTFIT_THUMBNAIL_STORAGE_KEY, HOME_THUMBNAIL_STORAGE_KEY, OUTFIT_GUIDE_DISMISSED_KEY, X6GAME_AUTO_PROMPT_DISMISSED_KEY, THEME_STORAGE_KEY, LANGUAGE_STORAGE_KEY, FAVORITES_STORAGE_KEY, ABOUT_STATE_STORAGE_KEY, CLEANUP_ACCOUNT_CHOICE_KEY]
 const currentAboutVersion = messages.zh.updateLog.currentVersion.replace(/^v/, '')
 
 function isLanguage(value: string | null): value is Language {
@@ -138,6 +142,7 @@ function readStoredFavoriteIds(): Set<string> {
 let suppressLocalPersistence = false
 const storedThumbnailMode = readLocalStorage(THUMBNAIL_STORAGE_KEY)
 const storedOutfitThumbnailMode = readLocalStorage(OUTFIT_THUMBNAIL_STORAGE_KEY)
+const storedHomeThumbnailMode = readLocalStorage(HOME_THUMBNAIL_STORAGE_KEY)
 const storedThemeMode = readLocalStorage(THEME_STORAGE_KEY)
 const storedLanguage = readLocalStorage(LANGUAGE_STORAGE_KEY)
 
@@ -150,6 +155,7 @@ type DirectoryState =
 
 const photos = ref<PhotoItem[]>([])
 const outfits = ref<OutfitItem[]>([])
+const homeSchemesCount = ref(0)
 const outfitTags = ref<string[]>([])
 const activeOutfitFilter = ref<OutfitFilter>('all')
 const editingOutfit = ref<OutfitItem | null>(null)
@@ -204,6 +210,7 @@ const { confirmDialog, openConfirmDialog, closeConfirmDialog } = useConfirmDialo
 const albumDirectoryHandle = ref<FileSystemDirectoryHandle | null>(null)
 const thumbnailMode = ref<ThumbnailMode>(isThumbnailMode(storedThumbnailMode) ? storedThumbnailMode : 'default')
 const outfitThumbnailMode = ref<ThumbnailMode>(isThumbnailMode(storedOutfitThumbnailMode) ? storedOutfitThumbnailMode : 'portrait-standard')
+const homeThumbnailMode = ref<ThumbnailMode>(isThumbnailMode(storedHomeThumbnailMode) ? storedHomeThumbnailMode : 'wide')
 const themeMode = ref<ThemeMode>(isThemeMode(storedThemeMode) ? storedThemeMode : 'light')
 const appShellRef = ref<HTMLElement | null>(null)
 let topBarResizeObserver: ResizeObserver | null = null
@@ -287,6 +294,7 @@ const {
   currentPreview,
   thumbnailMode,
   outfitThumbnailMode,
+  homeThumbnailMode,
   directoryState,
   language,
   locale
@@ -449,9 +457,10 @@ function mergeRecentlyDeleted(nextPhotos: RecentlyDeletedPhoto[]) {
  */
 async function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusState) {
   invalidatePendingRefreshes()
-  const [outfitResult, nextRecentlyDeleted] = await Promise.all([
+  const [outfitResult, nextRecentlyDeleted, nextHomeSchemesCount] = await Promise.all([
     readOutfitLibrary(result.directoryHandle),
-    listRecentlyDeleted(result.directoryHandle)
+    listRecentlyDeleted(result.directoryHandle),
+    countHomeSchemes(result.directoryHandle)
   ])
   await saveAlbumDirectoryHandle(result.directoryHandle)
 
@@ -469,6 +478,7 @@ async function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusStat
   photos.value = result.photos
   outfits.value = outfitResult.outfits
   outfitTags.value = outfitResult.tags
+  homeSchemesCount.value = nextHomeSchemesCount
   recentlyDeleted.value = nextRecentlyDeleted
   // 收藏记录跨相册保留，切换相册时不再按当前照片裁剪，避免切回后丢失
   activeView.value = 'all'
@@ -517,7 +527,7 @@ async function restoreSavedDirectory() {
     directoryState.value = { type: 'remembered', name: savedHandle.name }
     statusState.value = { type: 'restoring' }
     const result = await readAlbumDirectory(savedHandle, { requestPermission: false, messages: locale.value.fileSystem })
-    await replaceAlbum(result, { type: 'success', count: result.photos.length, prefix: 'restored', suffix: 'continued' })
+    await replaceAlbum(result, { type: 'initial' })
   } catch (error) {
     statusState.value = createErrorStatus(error, { type: 'restoreFailed' })
   } finally {
@@ -547,7 +557,7 @@ async function chooseDirectory() {
     if (savedHandle && !photos.value.length) {
       try {
         const restored = await readAlbumDirectory(savedHandle, { requestPermission: true, messages: locale.value.fileSystem })
-        await replaceAlbum(restored, { type: 'success', count: restored.photos.length, prefix: 'restored', suffix: 'continued' })
+        await replaceAlbum(restored, { type: 'initial' })
         return
       } catch {
         statusState.value = { type: 'restorePathFailed' }
@@ -571,6 +581,7 @@ function resetLoadedAlbumState(options: { clearSharedOutfit?: boolean } = {}) {
   photos.value = []
   outfits.value = []
   outfitTags.value = []
+  homeSchemesCount.value = 0
   recentlyDeleted.value = []
   selectedIds.value = new Set()
   selectedOutfitIds.value = new Set()
@@ -624,7 +635,7 @@ async function clearCache() {
   if (!confirmed) return
 
   try {
-    await clearOutfitCodeParseCache()
+    await Promise.all([clearOutfitCodeParseCache(), clearSavedHomeSchemeParseResults()])
     statusState.value = { type: 'custom', message: locale.value.app.clearCacheStatus, tone: 'success' }
   } catch (error) {
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
@@ -734,6 +745,11 @@ async function refreshAlbum(manual: boolean) {
 
 /** 切换缩略图尺寸。参数：mode 为目标模式。 */
 function changeThumbnailMode(mode: ThumbnailMode) {
+  if (activeView.value === 'home') {
+    homeThumbnailMode.value = mode
+    if (!suppressLocalPersistence) writeLocalStorage(HOME_THUMBNAIL_STORAGE_KEY, mode)
+    return
+  }
   if (activeView.value === 'outfits') {
     outfitThumbnailMode.value = mode
     if (!suppressLocalPersistence) writeLocalStorage(OUTFIT_THUMBNAIL_STORAGE_KEY, mode)
@@ -844,13 +860,17 @@ async function refreshOutfitLibrary(importExternal: boolean, promptSharedAccess 
   return result
 }
 
-/** 显示搭配码更新结果。参数：result 为扫描结果；无新增和失败时提示已是最新状态。 */
+/** 显示搭配码更新结果。重复的共享搭配码保持静默，其它结果按状态提示。 */
 function showOutfitRefreshResult(result: OutfitLibraryResult) {
   const addedCount = result.importedExternalCount + result.importedSharedCount
+  if (result.sharedFailureStage === 'duplicate') {
+    statusState.value = { type: 'initial' }
+    return
+  }
   if (result.sharedFailureStage) {
     showOutfitStatus(
       outfitLocale.value.sharedImportResult[result.sharedFailureStage],
-      result.sharedFailureStage === 'duplicate' ? 'success' : 'warning'
+      'warning'
     )
     return
   }
@@ -899,7 +919,7 @@ function changeAlbumView(view: AlbumView) {
   }
   activeOutfitFilter.value = 'all'
   if (view === 'trash') void refreshAlbum(false)
-  if (view === 'outfits') void updateOutfitLibrary(true)
+  if (view === 'outfits') void updateOutfitLibrary(true, false)
   isOutfitGuideVisible.value = isEnteringOutfits && !isOutfitGuideDismissed.value
 }
 
@@ -946,6 +966,20 @@ function openHelpFromUpdateLog() {
 
 function showOutfitStatus(message: string, tone: StatusTone = 'success', loading = false) {
   statusState.value = { type: 'custom', message, tone, loading }
+}
+
+function handleHomeSchemeStatus(message: string, tone: StatusTone) {
+  showOutfitStatus(message, tone)
+}
+
+function confirmHomeSchemeAction(message: string, title = locale.value.homeScheme.title, confirmLabel = locale.value.app.dialogConfirm): Promise<boolean> {
+  return openConfirmDialog({
+    title,
+    message,
+    tone: 'warning',
+    confirmLabel,
+    cancelLabel: locale.value.app.dialogCancel
+  })
 }
 
 function changeOutfitFilter(filter: OutfitFilter) {
@@ -1370,6 +1404,7 @@ function createRefreshResultStatus(album: RefreshAlbumResult, outfit: OutfitLibr
     return { type: 'custom', message: locale.value.trash.refreshStatus(album.addedCount, album.removedCount), tone: 'success' }
   }
   if (!manual) return null
+  if (outfit.sharedFailureStage === 'duplicate') return { type: 'initial' }
   return { type: 'custom', message: activeView.value === 'outfits' ? outfitLocale.value.upToDate : locale.value.trash.upToDate, tone: 'success' }
 }
 
@@ -1743,11 +1778,12 @@ onBeforeUnmount(() => {
     />
 
     <main class="album-layout" :class="{ 'without-album': !albumDirectoryHandle }">
-      <div v-if="albumDirectoryHandle" class="sidebar-column">
+      <div v-if="albumDirectoryHandle" id="album-sidebar-column" class="sidebar-column">
         <AlbumViewSwitcher
           :active-view="activeView"
           :all-count="photos.length"
           :outfits-count="outfits.length"
+          :home-schemes-count="homeSchemesCount"
           :favorite-count="favoriteCount"
           :trash-count="recentlyDeleted.length"
           :outfit-label="outfitLocale.viewName"
@@ -1770,7 +1806,7 @@ onBeforeUnmount(() => {
           @reorder-tags="reorderOutfitTags"
         />
         <DateSidebar
-          v-else-if="activeView !== 'trash'"
+          v-else-if="activeView !== 'trash' && activeView !== 'home'"
           :year-groups="yearGroups"
           :language="language"
           :messages="locale.sidebar"
@@ -1790,7 +1826,7 @@ onBeforeUnmount(() => {
           <p class="hidden-folder-tip">{{ locale.grid.hiddenFolderTip }}</p>
         </div>
 
-        <header v-else class="gallery-header" :class="{ 'is-outfit-header': activeView === 'outfits' }">
+        <header v-else-if="activeView !== 'home'" class="gallery-header" :class="{ 'is-outfit-header': activeView === 'outfits' }">
           <div>
             <p class="eyebrow">{{ activeView === 'trash' ? 'TRASH' : activeView === 'outfits' ? outfitLocale.eyebrow : 'ALBUM' }}</p>
             <div v-if="activeView === 'outfits'" class="outfit-title-row">
@@ -1828,8 +1864,22 @@ onBeforeUnmount(() => {
           <p v-else-if="activeView !== 'outfits'">{{ locale.viewNav.count(visibleCount) }}</p>
         </header>
 
+        <HomeSchemeWorkspace
+          v-if="albumDirectoryHandle && activeView === 'home'"
+          :album-directory="albumDirectoryHandle"
+          :messages="locale.homeScheme"
+          :disabled="isAnyFileOperationBusy"
+          :confirm-action="confirmHomeSchemeAction"
+          :search-query="searchQuery"
+          :selection-messages="locale.selectionBar"
+          :lightbox-messages="locale.lightbox"
+          :date-messages="locale.date"
+          :thumbnail-mode="displayedThumbnailMode"
+          @status="handleHomeSchemeStatus"
+          @count-change="homeSchemesCount = $event"
+        />
         <RecentlyDeletedGrid
-          v-if="albumDirectoryHandle && activeView === 'trash'"
+          v-else-if="albumDirectoryHandle && activeView === 'trash'"
           :photos="recentlyDeleted"
           :selected-ids="trashSelectedIds"
           :thumbnail-mode="thumbnailMode"
@@ -1871,6 +1921,7 @@ onBeforeUnmount(() => {
     </main>
 
     <SelectionBar
+      v-if="activeView !== 'home'"
       :mode="activeView === 'trash' ? 'trash' : activeView === 'outfits' ? 'outfit' : activeView === 'favorites' ? 'favorites' : 'album'"
       :selected-count="activeView === 'trash' ? trashSelectedCount : activeView === 'outfits' ? selectedOutfitCount : selectedCount"
       :all-selected="activeView === 'trash' ? allTrashSelected : activeView === 'outfits' ? allOutfitsSelected : allSelected"

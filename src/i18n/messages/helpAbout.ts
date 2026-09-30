@@ -22,7 +22,7 @@ export const helpAboutZh: LocaleMessages['helpAbout'] = {
     { title: '相机参数解析', items: ['可在参数工具中直接输入 CameraParams 参数串。', '完整照片解析会扫描 X6Game/Saved/GamePlayPhotos 下的账号目录作为候选 UID。', '候选 UID 全部失败时输入正确 UID；成功 UID 会保存到浏览器，后续自动尝试。'] },
     { title: '专项清理', items: ['授权 X6Game 后选择清理项目和账号范围。', '清理前会显示文件数量和占用空间，确认后才会执行。'] }
   ],
-  notesTitle: '注意事项', notes: ['“清除缓存”只清除搭配码解析缓存；“清除数据”还会移除偏好设置、目录授权和手动 UID。', '永久删除照片或搭配方案不可恢复，请在操作前确认。', '完整照片参数解析需要原始照片尾部数据和正确 UID；当前相册不需要位于 X6Game 目录内。', '导出文件会写入当前相册或你选择的目标目录，关闭网页不会删除本地照片。', '建议使用支持 File System Access API 的现代浏览器。'],
+  notesTitle: '注意事项', notes: ['“清除缓存”只清除搭配码和家园方案码解析缓存；“清除数据”还会移除偏好设置、目录授权和手动 UID。', '永久删除照片或搭配方案不可恢复，请在操作前确认。', '完整照片参数解析需要原始照片尾部数据和正确 UID；当前相册不需要位于 X6Game 目录内。', '导出文件会写入当前相册或你选择的目标目录，关闭网页不会删除本地照片。', '建议使用支持 File System Access API 的现代浏览器。'],
   mouseTitle: '鼠标操作', mouseItems: ['单击照片可选择，双击打开大图预览。', '悬停照片可查看拍摄时间与文件大小。', '大图放大后可拖动查看，并可使用滚轮缩放。'],
   keyboardTitle: '快捷键', keyboardItems: ['方向键切换上一张或下一张。', 'Esc 关闭菜单、弹窗或大图预览。', 'Delete 删除当前预览照片。'], confirm: '我知道了', closeAria: '关闭使用帮助与介绍窗口'
 }
@@ -48,7 +48,7 @@ export const helpAboutEn: LocaleMessages['helpAbout'] = {
     { title: 'Decode photo parameters', items: ['Enter a CameraParams string directly in the parameter tool.', 'Complete-photo decoding scans account folders under X6Game/Saved/GamePlayPhotos as candidate UIDs.', 'If all candidates fail, enter the correct UID; a successful UID is saved in the browser for future attempts.'] },
     { title: 'Targeted cleanup', items: ['Authorize X6Game, then choose the cleanup item and account scope.', 'File counts and sizes are shown before confirmation.'] }
   ],
-  notesTitle: 'Important notes', notes: ['Clear cache only removes the outfit-code parse cache; clear data also removes preferences, directory authorization, and manual UIDs.', 'Permanent deletion of photos or outfit plans cannot be undone.', 'Complete photo decoding needs the original photo tail and a correct UID; the current album does not need to be inside X6Game.', 'Exports are written to the current album or a directory you choose. Closing the page does not delete local photos.', 'Use a modern browser with File System Access API support.'],
+  notesTitle: 'Important notes', notes: ['Clear cache only removes outfit-code and home-scheme-code parse caches; clear data also removes preferences, directory authorization, and manual UIDs.', 'Permanent deletion of photos or outfit plans cannot be undone.', 'Complete photo decoding needs the original photo tail and a correct UID; the current album does not need to be inside X6Game.', 'Exports are written to the current album or a directory you choose. Closing the page does not delete local photos.', 'Use a modern browser with File System Access API support.'],
   mouseTitle: 'Mouse', mouseItems: ['Click a photo to select it; double-click to open the preview.', 'Hover a photo to see its capture time and file size.', 'Drag a zoomed preview and use the mouse wheel to zoom.'],
   keyboardTitle: 'Keyboard', keyboardItems: ['Use the arrow keys to move between photos.', 'Press Esc to close a menu, dialog, or preview.', 'Press Delete to delete the current preview photo.'], confirm: 'Got it', closeAria: 'Close help and introduction'
 }

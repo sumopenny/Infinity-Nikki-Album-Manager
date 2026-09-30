@@ -12,7 +12,7 @@ export function useSelectionState(options: {
   selectedIds: Ref<Set<string>>
   selectedOutfitIds: Ref<Set<string>>
   trashSelectedIds: Ref<Set<string>>
-  activeView: Ref<'all' | 'favorites' | 'trash' | 'outfits'>
+  activeView: Ref<'all' | 'favorites' | 'trash' | 'outfits' | 'home'>
 }) {
   const { visiblePhotos, visibleOutfits, dateGroups, favoriteIds, selectedIds, selectedOutfitIds, trashSelectedIds, recentlyDeleted, activeView } = options
   const scopedSelectedPhotos = computed(() => visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id)))

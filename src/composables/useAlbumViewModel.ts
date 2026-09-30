@@ -11,17 +11,18 @@ export function useAlbumViewModel(options: {
   outfits: Ref<OutfitItem[]>
   recentlyDeleted: Ref<RecentlyDeletedPhoto[]>
   favoriteIds: Ref<Set<string>>
-  activeView: Ref<'all' | 'favorites' | 'trash' | 'outfits'>
+  activeView: Ref<'all' | 'favorites' | 'trash' | 'outfits' | 'home'>
   activeOutfitFilter: Ref<OutfitFilter>
   searchQuery: Ref<string>
   currentPreview: Ref<PhotoItem | null>
   thumbnailMode: Ref<'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'>
   outfitThumbnailMode: Ref<'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'>
+  homeThumbnailMode: Ref<'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'>
   directoryState: Ref<{ type: 'none' } | { type: 'remembered'; name: string } | { type: 'selected'; name: string }>
   language: Ref<'zh' | 'en'>
   locale: ComputedRef<LocaleMessages>
 }) {
-  const { photos, outfits, recentlyDeleted, favoriteIds, activeView, activeOutfitFilter, searchQuery, currentPreview, thumbnailMode, outfitThumbnailMode, directoryState, language, locale } = options
+  const { photos, outfits, recentlyDeleted, favoriteIds, activeView, activeOutfitFilter, searchQuery, currentPreview, thumbnailMode, outfitThumbnailMode, homeThumbnailMode, directoryState, language, locale } = options
   const outfitLocale = computed(() => locale.value.outfit)
   const normalizedSearch = computed(() => searchQuery.value.trim().toLocaleLowerCase())
 
@@ -65,7 +66,12 @@ export function useAlbumViewModel(options: {
   const trashTotalSize = computed(() => recentlyDeleted.value.reduce((total, photo) => total + (photo.size ?? 0), 0))
   const trashTotalSizeText = computed(() => formatFileSize(trashTotalSize.value))
   const thumbnailModeOptions = computed(() => getThumbnailModeOptions(language.value))
-  const displayedThumbnailMode = computed(() => activeView.value === 'outfits' ? outfitThumbnailMode.value : thumbnailMode.value)
+  // Home scheme covers use their own fixed 16:9 layout and do not participate
+  // in photo/outfit thumbnail preferences.
+  const displayedThumbnailMode = computed(() => {
+    if (activeView.value === 'home') return homeThumbnailMode.value
+    return activeView.value === 'outfits' ? outfitThumbnailMode.value : thumbnailMode.value
+  })
   const directoryName = computed(() => {
     if (directoryState.value.type === 'remembered') return locale.value.app.rememberedDirectory(directoryState.value.name)
     if (directoryState.value.type === 'selected') return directoryState.value.name
@@ -73,6 +79,7 @@ export function useAlbumViewModel(options: {
   })
   const viewTitle = computed(() => {
     if (activeView.value === 'outfits') return outfitLocale.value.viewName
+    if (activeView.value === 'home') return locale.value.homeScheme.viewName
     if (activeView.value === 'favorites') return locale.value.viewNav.favorites
     if (activeView.value === 'trash') return locale.value.viewNav.recentlyDeleted
     return locale.value.viewNav.allPhotos

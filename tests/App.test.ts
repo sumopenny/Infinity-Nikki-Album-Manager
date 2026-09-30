@@ -12,6 +12,7 @@ import { listRecentlyDeleted } from '../src/utils/file-system/trashFileSystem'
 import { readOutfitLibrary, type OutfitItem } from '../src/utils/outfit/outfitFileSystem'
 import { importOutfitBackup } from '../src/utils/outfit/outfitBackup'
 import { decodeCameraParams } from '../src/utils/photo-params/wasmClient'
+import { countHomeSchemes } from '../src/utils/homeBuild/homeSchemeFileSystem'
 
 vi.mock('../src/utils/file-system/albumFileSystem', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/utils/file-system/albumFileSystem')>()
@@ -43,6 +44,11 @@ vi.mock('../src/utils/photo-params/wasmClient', async (importOriginal) => {
   return { ...actual, decodeCameraParams: vi.fn() }
 })
 
+vi.mock('../src/utils/homeBuild/homeSchemeFileSystem', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/utils/homeBuild/homeSchemeFileSystem')>()
+  return { ...actual, countHomeSchemes: vi.fn() }
+})
+
 const getSavedAlbumDirectoryHandleMock = vi.mocked(getSavedAlbumDirectoryHandle)
 const listRecentlyDeletedMock = vi.mocked(listRecentlyDeleted)
 const readAlbumDirectoryMock = vi.mocked(readAlbumDirectory)
@@ -50,6 +56,7 @@ const saveAlbumDirectoryHandleMock = vi.mocked(saveAlbumDirectoryHandle)
 const readOutfitLibraryMock = vi.mocked(readOutfitLibrary)
 const importOutfitBackupMock = vi.mocked(importOutfitBackup)
 const decodeCameraParamsMock = vi.mocked(decodeCameraParams)
+const countHomeSchemesMock = vi.mocked(countHomeSchemes)
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -70,6 +77,7 @@ describe('App lifecycle coordination', () => {
       importedSharedCount: 0,
       failedCount: 0
     })
+    countHomeSchemesMock.mockResolvedValue(0)
   })
 
   afterEach(() => {

@@ -31,10 +31,18 @@ export default defineConfig(({ mode }) => {
     secure: true,
     rewrite: (path: string) => path.replace(/^\/api\/outfit-code/, '/default') + '.json'
   }
+  const homeBuildProxy = {
+    target: 'https://x6cn-home-build-data.nuanpaper.com',
+    changeOrigin: true,
+    secure: true,
+    rewrite: (path: string) => path.replace(/^\/api\/home-build/, '/default')
+  }
   const apiProxy = remoteApiOrigin
     ? {
         // 搭配码数据始终由本地 Vite 直连对象存储，不依赖已部署的 Pages Function。
         '/api/outfit-code': outfitCodeProxy,
+        // 家园方案数据与搭配码一样直接代理固定 CDN，避免本地远程模式依赖尚未部署的 Pages Function。
+        '/api/home-build': homeBuildProxy,
         // 图鉴 API 通过本地开发服务器转发，避免浏览器直接触发跨域限制。
         '/api/gongeo': {
           target: 'https://data.gongeo.us',
@@ -52,6 +60,7 @@ export default defineConfig(({ mode }) => {
     : {
         // 分享码路径由浏览器 WASM 解出，本地开发服务器代取原始对象以避开浏览器 CORS。
         '/api/outfit-code': outfitCodeProxy,
+        '/api/home-build': homeBuildProxy,
         // 图鉴 API 通过本地开发服务器转发，避免浏览器直接触发跨域限制。
         '/api/gongeo': {
           target: 'https://data.gongeo.us',

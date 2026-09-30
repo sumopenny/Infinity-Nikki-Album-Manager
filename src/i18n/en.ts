@@ -16,6 +16,7 @@ import { dateEn } from './messages/date'
 import { fileSystemEn } from './messages/fileSystem'
 import { outfitMessages } from './messages/outfit'
 import { photoParamsEn } from './messages/photoParams'
+import { homeSchemeMessages } from './messages/homeScheme'
 
 export const en: LocaleMessages = {
   app: appEn,
@@ -33,5 +34,6 @@ export const en: LocaleMessages = {
   date: dateEn,
   fileSystem: fileSystemEn,
   outfit: outfitMessages.en,
-  photoParams: photoParamsEn
+  photoParams: photoParamsEn,
+  homeScheme: homeSchemeMessages.en
 }

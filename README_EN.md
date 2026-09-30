@@ -80,10 +80,12 @@
 
 - Store outfit images, outfit codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export.
 - Outfit-code results append the item type to each name, such as “Item-Hair”, “Item-Hair Accessories”, or “Item-Eyelashes”.
-- Clicking an item image opens a detail dialog with the current item, outfit, evolution or Glow-Up state, and dye condition. Long dye lists scroll independently; the dye area is hidden when the decoded item has no dyes, and makeup outfit relations are restored through the makeup catalog.
+- Clicking an item image opens a detail dialog with the current item, outfit, evolution or Glow-Up state, and dye condition. On wide screens, the left summary stays fixed while long dye lists scroll independently on the right. On narrow screens, the detail content scrolls vertically as a whole and the dye list expands with it. The dye area is hidden when the decoded item has no dyes, and makeup outfit relations are restored through the makeup catalog.
 - Successful outfit-code results are persisted in the current browser's IndexedDB by normalized code, so they can be reused after a page refresh with no expiration; Clear cache and Clear data remove these parse results.
 - Parse CameraParams from photo thumbnails or the full-size viewer. The upper-right Tools menu opens a shared Parameter / outfit-code parser window for direct camera-parameter and outfit-code input. Photo parsing shows capture time, weather, focal length, aperture, vignette, image adjustments, normal poses, lights, filters, Momo poses, and camera parameters that can be imported into the game. The Parameter / outfit-code parser window in the Tools menu can also be used on mobile devices.
 - The photo-parameter window can parse one local original game image selected on a computer or phone. The file is read temporarily in the browser only: it is not uploaded or added to the album. Saved UIDs are tried automatically, with manual UID retry when needed.
+- The Home Schemes view below Outfit Codes manages home and combo codes. Schemes, user tags, and optional covers are stored in the current album's `home/` directory, with search, tag filters, editing, deletion, and ZIP backup.
+- Scheme codes first use a local parser-versioned cache. On a miss, a same-origin API proxy requests the fixed Home Build CDN used by Infinity Nikki Album, and the bundled WASM parses the response. Only verified server ID `49` is enabled. `Rid` and extension fields are not yet decoded, so the UI only shows fields that can be extracted reliably. Clearing parse cache does not remove schemes or tags in `home/`.
 
 ### File cleanup
 
@@ -199,7 +201,7 @@ Browsers block web pages from accessing system folders. Please select `NikkiPhot
 
 - Photos are read locally in your browser.
 - Photo-tail extraction, account-key derivation, AES decryption, and CameraParams parsing run locally inside WASM; photos and parsed results are not uploaded.
-- Album folder authorization, Favorites, and outfit-code parse results are stored locally in the current browser; Clear cache in More only clears the outfit-code parse cache and does not affect other authorizations or settings. Clear data asks for confirmation twice, then clears all website local records and authorizations so the website returns to first-open state.
+- Album folder authorization, Favorites, and outfit-code and home-scheme-code parse results are stored locally in the current browser; Clear cache in More only clears these two parse caches and does not affect other authorizations or settings or delete saved schemes and tags in `home/`. Clear data asks for confirmation twice, then clears all website local records and authorizations so the website returns to first-open state.
 - Browser security policies may require folder authorization again.
 - Delete and Special Cleanup modify real files on your computer; Clear cache and Clear data do not delete real photos, `clothe`, `trash`, or other files on your computer.
 
@@ -232,7 +234,7 @@ Both commands should print version numbers, which means installation succeeded. 
 
 If the launcher is unavailable, double-click `start\Start-Remote-D1-Website.bat`, or use the development commands below to start manually. The root `网站启动器.exe` also uses this remote D1 launcher.
 
-To run the local site against the online D1 data, double-click `start\Start-Remote-D1-Website.bat`. The local server proxies `/api/outfit-code` and Gongeo catalog details directly to their upstream services; other `/api` requests go to the deployed Pages API, so the browser never receives D1 credentials. Production deployments expose the same-origin Gongeo proxy at `functions/api/gongeo/[[path]].ts`, restricted to numeric `items`, `makeups`, and `outfits` detail paths. Like actions from this local site write to the online database; use this launcher carefully. The script defaults to `https://infinity-nikki-album-manager.pages.dev`, and accepts another Pages URL as its first argument.
+To run the local site against the online D1 data, double-click `start\Start-Remote-D1-Website.bat`. The local server proxies outfit-code data, home-scheme data, and Gongeo catalog details directly to their upstream services; D1 requests such as likes go to the deployed Pages API, so the browser never receives D1 credentials. Production deployments expose same-origin data proxies at `functions/api/gongeo/[[path]].ts` and `functions/api/home-build/[key].ts`. Like actions from this local site write to the online database; use this launcher carefully. The script defaults to `https://infinity-nikki-album-manager.pages.dev`, and accepts another Pages URL as its first argument.
 
 ### Development Commands
 
@@ -240,7 +242,7 @@ To run the local site against the online D1 data, double-click `start\Start-Remo
 npm install       # Install dependencies
 npm run dev       # Refresh poses, bilingual item catalogs, and Gongeo mapping catalogs before starting the dev server
 set REMOTE_API_ORIGIN=https://infinity-nikki-album-manager.pages.dev
-npm run dev:remote # Refresh poses, item catalogs, and Gongeo mappings; proxy outfit data to storage and other /api calls to Pages
+npm run dev:remote # Refresh poses, item catalogs, and Gongeo mappings; proxy outfit and home-scheme data to storage and other /api calls to Pages
 npm test          # Run automated tests
 npm run build     # Type-check and build
 npm run build:cloudflare # Refresh normal poses, item catalogs, and Gongeo mappings, then build

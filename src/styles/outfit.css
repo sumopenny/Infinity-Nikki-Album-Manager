@@ -298,6 +298,30 @@
   color: var(--pink-deep);
 }
 
+.tag-toggle-icon {
+  transform: rotate(0deg);
+  transition: transform 220ms var(--ease-spring);
+}
+
+.tag-toggle-icon.is-open {
+  transform: rotate(45deg);
+}
+
+.tag-toggle-icon-enter-active,
+.tag-toggle-icon-leave-active {
+  transition: opacity 160ms ease, transform 220ms var(--ease-spring);
+}
+
+.tag-toggle-icon-enter-from {
+  opacity: 0;
+  transform: rotate(-45deg) scale(0.7);
+}
+
+.tag-toggle-icon-leave-to {
+  opacity: 0;
+  transform: rotate(45deg) scale(0.7);
+}
+
 /* 编辑窗口头部关闭按钮单独覆盖：与“关于网站”一致的悬浮圆形样式 */
 .outfit-editor-panel > header button {
   width: 34px;
@@ -882,7 +906,8 @@
   transform: scale(0.93);
 }
 
-.outfit-tag-choices .outfit-editor-add-tag {
+.outfit-tag-choices .outfit-editor-add-tag,
+.outfit-tag-choices .outfit-add-tag-toggle {
   display: grid;
   width: 34px;
   min-width: 34px;
@@ -1337,6 +1362,7 @@
   grid-template-columns: minmax(250px, 0.85fr) minmax(0, 1.15fr);
   flex: 1 1 auto;
   min-height: 360px;
+  overflow: hidden;
 }
 
 .outfit-detail-content.is-single-column {
@@ -1352,6 +1378,7 @@
 .outfit-detail-dyes {
   min-height: 0;
   overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 .outfit-detail-summary {
@@ -1463,6 +1490,7 @@
   scrollbar-gutter: stable;
   overflow-x: auto;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .outfit-detail-table-wrap table {
@@ -1527,6 +1555,7 @@
 
   .outfit-detail-content {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
   }
 
   .outfit-detail-summary {
@@ -1538,7 +1567,24 @@
 @media (max-width: 680px), (max-height: 760px) {
   .outfit-detail-content {
     min-height: 0;
+    overflow: hidden;
+  }
+
+  .outfit-detail-dyes {
+    overflow: hidden;
+  }
+
+  .outfit-detail-table-wrap {
+    max-height: min(580px, 70vh);
     overflow-y: auto;
+  }
+}
+
+@media (max-width: 680px) {
+  .outfit-detail-content {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .outfit-detail-dyes {
@@ -1547,7 +1593,6 @@
 
   .outfit-detail-table-wrap {
     max-height: none;
-    overflow-y: visible;
   }
 }
 

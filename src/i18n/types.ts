@@ -2,6 +2,7 @@
 import type { RelatedCleanupFailureReason, SpecialCleanupItem } from '../utils/file-system/cleanupFileSystem'
 import type { OutfitMessages } from './messages/outfit'
 import type { PhotoParamsMessages } from './messages/photoParams'
+import type { HomeSchemeMessages } from './messages/homeScheme'
 export type Language = 'zh' | 'en'
 export type StatusPrefix = 'read' | 'restored'
 export type StatusSuffix = 'continued' | 'remembered'
@@ -9,6 +10,7 @@ export type StatusSuffix = 'continued' | 'remembered'
 export interface LocaleMessages {
   outfit: OutfitMessages
   photoParams: PhotoParamsMessages
+  homeScheme: HomeSchemeMessages
   app: {
     noDirectory: string
     initialStatus: string
@@ -248,9 +250,11 @@ export interface LocaleMessages {
     aria: string
     title: string
     allPhotos: string
+    homeSchemes: string
     favorites: string
     recentlyDeleted: string
     count: (count: number) => string
+    homeSchemesCount: (count: number) => string
   }
   sidebar: {
     aria: string

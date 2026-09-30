@@ -290,8 +290,7 @@ onBeforeUnmount(() => {
                     :disabled="busy || tags.length >= MAX_OUTFIT_TAGS"
                     @click="isAddingTag ? closeTagInput() : openTagInput()"
                   >
-                    <X v-if="isAddingTag" :size="15" aria-hidden="true" />
-                    <Plus v-else :size="15" aria-hidden="true" />
+                    <Plus class="tag-toggle-icon" :class="{ 'is-open': isAddingTag }" :size="15" aria-hidden="true" />
                   </button>
                 </div>
                 <p v-if="!tags.length">{{ messages.noTag }}</p>

@@ -11,6 +11,7 @@ describe('album view controls', () => {
         activeView: 'all',
         allCount: 12,
         outfitsCount: 4,
+        homeSchemesCount: 5,
         favoriteCount: 3,
         trashCount: 2,
         outfitLabel: '搭配码',
@@ -20,12 +21,9 @@ describe('album view controls', () => {
     })
 
     expect(wrapper.findAll('button').map((button) => button.text())).toEqual([
-      '全部照片12 张',
-      '搭配码4 张',
-      '收藏夹3 张',
-      '最近删除2 张'
+      '全部照片12 张', '搭配码4 张', '家园方案5 个方案', '收藏夹3 张', '最近删除2 张'
     ])
-    await wrapper.findAll('button')[3].trigger('click')
+    await wrapper.findAll('button')[4].trigger('click')
     expect(wrapper.emitted('changeView')).toEqual([['trash']])
   })
 

@@ -5,6 +5,8 @@ import type { LocaleMessages } from '../i18n'
 import type { OutfitMessages } from '../i18n'
 import type { PhotoItem } from '../utils/photoGrouping'
 import type { OutfitItem } from '../utils/outfit/outfitFileSystem'
+import type { HomeSchemeItem } from '../utils/homeBuild/homeSchemeTypes'
+import type { HomeSchemeMessages } from '../i18n/messages/homeScheme'
 import { loadPhotoWithRetryAndSize } from '../utils/photoLoader'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
@@ -19,9 +21,11 @@ const props = defineProps<{
   isDeleting: boolean
   isFavorite: boolean
   keyboardEnabled: boolean
-  mode: 'album' | 'trash' | 'outfit'
+  mode: 'album' | 'trash' | 'outfit' | 'home'
   outfit?: OutfitItem | null
   outfitMessages?: OutfitMessages
+  homeScheme?: HomeSchemeItem | null
+  homeMessages?: HomeSchemeMessages
   messages: LocaleMessages['lightbox']
   dateMessages: LocaleMessages['date']
 }>()
@@ -37,6 +41,8 @@ const emit = defineEmits<{
   permanentlyDeleteCurrent: []
   copyOutfit: []
   editOutfit: []
+  copyHomeScheme: []
+  editHomeScheme: []
   editPhotoNote: []
   parsePhoto: []
 }>()
@@ -188,7 +194,7 @@ function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') emit('close')
   if (event.key === 'ArrowLeft' && props.hasPrevious) emit('previous')
   if (event.key === 'ArrowRight' && props.hasNext) emit('next')
-  if (event.key === 'Delete' && props.mode !== 'outfit' && !props.isDeleting && !isPreviewLoading.value) {
+  if (event.key === 'Delete' && props.mode !== 'outfit' && props.mode !== 'home' && !props.isDeleting && !isPreviewLoading.value) {
     event.preventDefault()
     props.mode === 'trash' ? emit('permanentlyDeleteCurrent') : emit('deleteCurrent')
   }
@@ -202,6 +208,7 @@ function handleRestoreClick() {
 /** 删除当前预览照片，切图加载期间忽略点击。参数：无。 */
 function handleDeleteClick() {
   if (props.isDeleting || isPreviewLoading.value) return
+  if (props.mode === 'home') return
   props.mode === 'trash' ? emit('permanentlyDeleteCurrent') : emit('deleteCurrent')
 }
 
@@ -228,7 +235,7 @@ onUnmounted(() => {
         <div class="lightbox-header">
           <div class="lightbox-caption">
             <strong>{{ dateMessages.displayDate(displayedPhoto.dateKey) }} {{ displayedPhoto.timeText }}</strong>
-            <span>{{ displayedPhoto.fileSizeText }}</span>
+            <span v-if="mode !== 'home'">{{ displayedPhoto.fileSizeText }}</span>
             <span v-if="mode === 'album' && displayedPhoto.note">{{ displayedPhoto.note }}</span>
           </div>
           <button class="lightbox-close" type="button" :title="messages.closeAria" :aria-label="messages.closeAria" @click="emit('close')">
@@ -265,7 +272,12 @@ onUnmounted(() => {
             <span><strong>{{ outfitMessages.codeLabel }}：</strong>{{ outfit.code || outfitMessages.pending }}</span>
             <span v-if="outfit.note"><strong>{{ outfitMessages.noteLabel }}：</strong>{{ outfit.note }}</span>
           </div>
-          <div v-if="mode === 'outfit'" class="lightbox-toolbar-divider" aria-hidden="true"></div>
+          <div v-else-if="mode === 'home' && homeScheme && homeMessages" class="lightbox-outfit-meta">
+            <span><strong>{{ homeMessages.tagsTitle }}：</strong>{{ homeScheme.tags[0] || homeMessages.uncategorized }}</span>
+            <span><strong>{{ homeMessages.code }}：</strong>{{ homeScheme.code }}</span>
+            <span v-if="homeScheme.note"><strong>{{ homeMessages.note }}：</strong>{{ homeScheme.note }}</span>
+          </div>
+          <div v-if="mode === 'outfit' || mode === 'home'" class="lightbox-toolbar-divider" aria-hidden="true"></div>
           <div class="lightbox-zoom-controls">
             <button type="button" :title="messages.zoomOut" :aria-label="messages.zoomOut" :disabled="zoom <= MIN_ZOOM" @click="setZoom(zoom - ZOOM_STEP)">
               <ZoomOut :size="17" />
@@ -283,6 +295,10 @@ onUnmounted(() => {
               <Edit3 :size="18" />
             </button>
           </template>
+          <template v-else-if="mode === 'home' && homeScheme && homeMessages">
+            <button type="button" :title="homeMessages.copy" :aria-label="homeMessages.copy" @click="emit('copyHomeScheme')"><Copy :size="18" /></button>
+            <button type="button" :title="homeMessages.edit" :aria-label="homeMessages.edit" @click="emit('editHomeScheme')"><Edit3 :size="18" /></button>
+          </template>
           <button v-if="mode === 'album'" type="button" :title="messages.parsePhoto" :aria-label="messages.parsePhoto" @click="emit('parsePhoto')"><ScanSearch :size="18" /></button>
           <button v-if="mode === 'album'" type="button" :title="messages.editNote" :aria-label="messages.editNote" @click="emit('editPhotoNote')"><Pencil :size="18" /></button>
           <button
@@ -298,7 +314,7 @@ onUnmounted(() => {
           <button v-else-if="mode === 'trash'" type="button" :class="{ 'is-preview-loading': isPreviewLoading }" :disabled="isDeleting" :aria-disabled="isPreviewLoading || undefined" :title="messages.restoreCurrent" @click="handleRestoreClick">
             <RotateCcw :size="18" />
           </button>
-          <button v-if="mode !== 'outfit'" class="lightbox-delete" type="button" :class="{ 'is-preview-loading': isPreviewLoading }" :disabled="isDeleting" :aria-disabled="isPreviewLoading || undefined" :title="mode === 'trash' ? messages.permanentlyDeleteCurrent : messages.deleteCurrent" @click="handleDeleteClick">
+          <button v-if="mode === 'album' || mode === 'trash'" class="lightbox-delete" type="button" :class="{ 'is-preview-loading': isPreviewLoading }" :disabled="isDeleting" :aria-disabled="isPreviewLoading || undefined" :title="mode === 'trash' ? messages.permanentlyDeleteCurrent : messages.deleteCurrent" @click="handleDeleteClick">
             <Trash2 :size="18" />
           </button>
         </div>

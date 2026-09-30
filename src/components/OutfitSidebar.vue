@@ -169,8 +169,7 @@ onBeforeUnmount(() => {
         :disabled="disabled || tags.length >= MAX_OUTFIT_TAGS"
         @click="isAdding ? closeTagInput() : openTagInput()"
       >
-        <X v-if="isAdding" :size="15" aria-hidden="true" />
-        <Plus v-else :size="15" aria-hidden="true" />
+        <Plus class="tag-toggle-icon" :class="{ 'is-open': isAdding }" :size="15" aria-hidden="true" />
       </button>
       <Teleport to="body">
         <Transition name="outfit-tag-editor">

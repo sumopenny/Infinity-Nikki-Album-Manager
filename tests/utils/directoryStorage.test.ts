@@ -1,8 +1,8 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
-import { clearSavedAlbumDirectoryHandle, clearSavedOutfitParseResults, clearSavedX6GameDirectoryHandle, getSavedAlbumDirectoryHandle, getSavedOutfitParseResult, getSavedX6GameDirectoryHandle, saveAlbumDirectoryHandle, saveOutfitParseResult, saveX6GameDirectoryHandle } from '../../src/utils/file-system/directoryStorage'
+import { clearSavedAlbumDirectoryHandle, clearSavedHomeSchemeParseResults, clearSavedOutfitParseResults, clearSavedX6GameDirectoryHandle, getSavedAlbumDirectoryHandle, getSavedHomeSchemeParseResult, getSavedOutfitParseResult, getSavedX6GameDirectoryHandle, saveAlbumDirectoryHandle, saveHomeSchemeParseResult, saveOutfitParseResult, saveX6GameDirectoryHandle } from '../../src/utils/file-system/directoryStorage'
 
-afterEach(async () => { await clearSavedAlbumDirectoryHandle().catch(() => undefined); await clearSavedX6GameDirectoryHandle().catch(() => undefined); await clearSavedOutfitParseResults().catch(() => undefined) })
+afterEach(async () => { await clearSavedAlbumDirectoryHandle().catch(() => undefined); await clearSavedX6GameDirectoryHandle().catch(() => undefined); await clearSavedOutfitParseResults().catch(() => undefined); await clearSavedHomeSchemeParseResults().catch(() => undefined) })
 const handle = (name: string) => ({ name }) as unknown as FileSystemDirectoryHandle
 
 describe('directoryStorage', () => {
@@ -26,5 +26,20 @@ describe('directoryStorage', () => {
 
     await clearSavedOutfitParseResults()
     expect(await getSavedOutfitParseResult(result.code)).toBeUndefined()
+  })
+
+  it('clears home-scheme parse results without removing other browser data', async () => {
+    const homeResult = { code: 'home123', parserVersion: 'wire-v1' }
+    const outfitResult = { code: 'outfit123' }
+    await saveAlbumDirectoryHandle(handle('album'))
+    await saveHomeSchemeParseResult(homeResult.code, homeResult)
+    await saveOutfitParseResult(outfitResult.code, outfitResult)
+    expect(await getSavedHomeSchemeParseResult(homeResult.code)).toEqual(homeResult)
+
+    await clearSavedHomeSchemeParseResults()
+
+    expect(await getSavedHomeSchemeParseResult(homeResult.code)).toBeUndefined()
+    expect(await getSavedOutfitParseResult(outfitResult.code)).toEqual(outfitResult)
+    expect((await getSavedAlbumDirectoryHandle())?.name).toBe('album')
   })
 })
