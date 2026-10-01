@@ -62,6 +62,7 @@ describe('OutfitParseDialog', () => {
     expect(itemImage.classes()).not.toContain('is-loading')
     await itemButton.trigger('click')
     await flushPromises()
+    expect(wrapper.text()).toContain('时光讯号(发型)')
     expect(wrapper.find('.outfit-detail-panel').exists()).toBe(true)
     const detailImage = wrapper.get('.outfit-detail-image')
     expect(detailImage.classes()).toContain('is-loading')
@@ -100,7 +101,8 @@ describe('OutfitParseDialog', () => {
     await wrapper.get('.outfit-parse-item-button').trigger('click')
     await flushPromises()
 
-    expect(loadOutfitDetailMock).toHaveBeenCalledWith(1025740294, null, 'zh', '童话终章', dyes, null, true)
+    expect(loadOutfitDetailMock).toHaveBeenCalledWith(1025740294, null, 'zh', '童话终章(颈饰)', dyes, 74, true)
+    expect(wrapper.text()).toContain('童话终章(颈饰)')
     expect(wrapper.text()).toContain('满进可染')
     wrapper.unmount()
   })

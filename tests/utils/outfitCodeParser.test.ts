@@ -97,6 +97,33 @@ describe('parseOutfitCode', () => {
     ])
   })
 
+  it('为原生搭配码结果补齐部件类型', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      '{"Content":{"Content":{"wearingClothes":[1020500290]}}}',
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )))
+
+    const result = await parseOutfitCode(validCode)
+
+    expect(result.wearingClothes).toEqual([
+      { itemId: 1020500290, clothType: 50, outfitId: null }
+    ])
+  })
+
+  it('保留原生类型映射中的特殊戒指部件', async () => {
+    const result = await decodeLookbookPayload<LookbookDecodeResult>(
+      '13Zb1zKZgf1#',
+      '{"Content":{"Content":{"wearingClothes":[1020790033]}}}'
+    )
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        wearingClothes: [{ itemId: 1020790033, clothType: 96, outfitId: null }]
+      }
+    })
+  })
+
   it('格式非法时不请求接口并标记 invalid', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
@@ -206,7 +233,7 @@ describe('lookbook WASM native output', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.value.wearingClothes).toEqual([
-      { itemId: 1020100001, clothType: null, outfitId: null }
+      { itemId: 1020100001, clothType: 10, outfitId: null }
     ])
     expect(result.value.dyeItems[0].dyes).toMatchObject([
       { targetGroupId: 1, featureTag: 1, paletteId: 12, slot: 8 },
@@ -225,6 +252,11 @@ describe('lookbook WASM native output', () => {
 
     expect(result.ok).toBe(true)
     if (!result.ok) return
+    expect(result.value.wearingClothes).toContainEqual({
+      itemId: 1025740294,
+      clothType: 74,
+      outfitId: null
+    })
     expect(result.value.dyeItems).toContainEqual(expect.objectContaining({
       itemId: 1025740294,
       hasSpecialEffect: true
@@ -258,8 +290,8 @@ describe('lookbook cloth types', () => {
 
     const result = await parseOutfitCode(validCode)
     expect(result.wearingClothes).toEqual([
-      { itemId: 1020100001, clothType: null, outfitId: null },
-      { itemId: 1020100002, clothType: null, outfitId: null }
+      { itemId: 1020100001, clothType: 10, outfitId: null },
+      { itemId: 1020100002, clothType: 10, outfitId: null }
     ])
   })
 })

@@ -14,7 +14,7 @@ import {
   parseOutfitCode,
   type LookbookDecodeResult
 } from '../utils/outfit/outfitCodeParser'
-import { getClothTypeLabel } from '../utils/outfit/clothType'
+import { getClothTypeLabel, inferClothTypeFromItemId } from '../utils/outfit/clothType'
 import { loadOutfitDetail, type OutfitDetail } from '../utils/outfit/outfitDetails'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
@@ -68,16 +68,17 @@ const items = computed<ParseItemView[]>(() => {
   return result.wearingClothes.map(({ itemId, clothType, outfitId }) => {
     const entry = catalogIndex?.get(itemId)
     const baseName = entry ? getCatalogEntryName(entry, props.language) : String(itemId)
-    const typeLabel = getClothTypeLabel(clothType, props.language)
+    const resolvedClothType = clothType ?? inferClothTypeFromItemId(itemId)
+    const typeLabel = getClothTypeLabel(resolvedClothType, props.language)
     const dyeEntry = dyeByItemId.get(itemId)
     const dyes = dyeEntry?.dyes ?? []
     return {
       id: itemId,
-      name: typeLabel ? `${baseName}-${typeLabel}` : baseName,
+      name: typeLabel ? `${baseName}(${typeLabel})` : baseName,
       imageUrl: entry ? getCatalogImageUrl(entry) : null,
       resolved: Boolean(entry),
       outfitId,
-      clothType,
+      clothType: resolvedClothType,
       dyes,
       hasSpecialEffect: dyeEntry?.hasSpecialEffect ?? false,
       dyeColors: [...new Set(dyes.map((dye) => dye.color))]

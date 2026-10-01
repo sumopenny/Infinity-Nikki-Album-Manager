@@ -8,6 +8,7 @@ import {
   decodeLookbookPayload,
   decodeLookbookShareCodePathId
 } from './lookbookWasmClient'
+import { inferClothTypeFromItemId } from './clothType'
 
 const LOOKBOOK_DATA_PROXY_BASE_URL = '/api/outfit-code'
 const LOOKBOOK_CODE_PATTERN = /^[A-Za-z0-9]{11}#$/
@@ -54,6 +55,19 @@ export interface LookbookDecodeResult {
   code: string
   wearingClothes: LookbookCloth[]
   dyeItems: LookbookDyeItem[]
+}
+
+/** 补齐原生搭配码没有携带的部件类型；接口明确返回的类型保持不变。 */
+function inferMissingClothTypes(result: LookbookDecodeResult): LookbookDecodeResult {
+  const infer = <T extends { itemId: number; clothType: number | null }>(cloth: T): T => ({
+    ...cloth,
+    clothType: cloth.clothType ?? inferClothTypeFromItemId(cloth.itemId)
+  } as T)
+  return {
+    ...result,
+    wearingClothes: result.wearingClothes.map(infer),
+    dyeItems: result.dyeItems.map((item) => infer(item))
+  }
 }
 
 /** 规范化搭配码:支持直接粘贴分享链接,11 位编码自动补 # 结尾;不合法返回空串。 */
@@ -173,14 +187,15 @@ export async function parseOutfitCode(rawCode: string): Promise<LookbookDecodeRe
     try {
       const stored = await getSavedOutfitParseResult(code)
       if (isCachedParseResult(stored, code)) {
-        parsedResultCache.set(code, stored)
-        return stored
+        const result = inferMissingClothTypes(stored)
+        parsedResultCache.set(code, result)
+        return result
       }
     } catch {
       // IndexedDB 不可用时继续请求上游解析服务。
     }
 
-    const result = await requestLookbookParse(code)
+    const result = inferMissingClothTypes(await requestLookbookParse(code))
     parsedResultCache.set(code, result)
     try { await saveOutfitParseResult(code, result) } catch {
       // 持久化失败不影响本次已成功的解析结果。

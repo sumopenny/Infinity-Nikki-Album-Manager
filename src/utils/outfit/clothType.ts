@@ -33,6 +33,49 @@ const CLOTH_TYPE_LABELS: Record<number, Record<Language, string>> = {
   97: { zh: '臂饰', en: 'Arm Decorations' },
 }
 
+// 原生搭配码只保存部件 ID。ID 的六位分类前缀末两位与 ClothType 一致，
+// 但 98 是项圈的另一组资源前缀，需要归并到 76。
+const ITEM_ID_CATEGORY_TYPES: Record<number, number> = {
+  10: 10,
+  20: 20,
+  30: 30,
+  41: 41,
+  50: 50,
+  60: 60,
+  71: 71,
+  72: 72,
+  73: 73,
+  74: 74,
+  75: 75,
+  76: 76,
+  77: 77,
+  78: 78,
+  79: 79,
+  80: 80,
+  81: 81,
+  82: 82,
+  83: 83,
+  84: 84,
+  85: 85,
+  86: 86,
+  90: 90,
+  92: 92,
+  93: 93,
+  94: 94,
+  95: 95,
+  96: 96,
+  97: 97,
+  98: 76,
+}
+
+/** 从原生部件 ID 推导 ClothType；无法识别时返回 null。 */
+export function inferClothTypeFromItemId(itemId: number): number | null {
+  if (!Number.isSafeInteger(itemId) || itemId < 1020000000 || itemId >= 1030000000) return null
+  if (itemId === 1020790033) return 96
+  const categoryPrefix = Math.floor(itemId / 10000)
+  return ITEM_ID_CATEGORY_TYPES[categoryPrefix % 100] ?? null
+}
+
 export function getClothTypeLabel(clothType: number | null, language: Language): string | null {
   return clothType === null ? null : CLOTH_TYPE_LABELS[clothType]?.[language] ?? null
 }
