@@ -253,18 +253,6 @@ Stack: Vue 3, TypeScript, Vite, File System Access API, IndexedDB.
 
 ---
 
-
----
-
-## Support the Author
-
-This site is a labor of love and took real effort to build. If you find it useful, you can support me here~
-
-<div align="center">
-  <img src="img/wx.jpg" alt="WeChat Pay" width="30%">
-  <img src="img/zfb.jpg" alt="Alipay" width="30%">
-</div>
-
 ## Acknowledgements and License
 
 Some features were inspired by [Nikki Albums](https://github.com/RanAxro/nikki_albums) and [Gongeo.us Nikki Tracker](https://github.com/dastrokes/gongeo.us-nikki-tracker). The bundled Gongeo.us catalog snapshot is distributed under its MIT license; see the root [LICENSE](LICENSE) file for this project's license.

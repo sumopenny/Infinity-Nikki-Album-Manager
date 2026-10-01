@@ -53,6 +53,9 @@ export interface HomeSchemeMessages {
   deleteConfirm: string
   deleteSucceeded: string
   importSucceeded: (added: number, duplicates: number, failed: number) => string
+  exportTitle: string
+  exportConfirm: (directoryName: string) => string
+  exportAction: string
   exportSucceeded: (count: number, fileName: string) => string
   invalidCode: string
   duplicateCode: string
@@ -69,7 +72,7 @@ export const homeSchemeMessages = {
     code: '方案码', codePlaceholder: '输入家园码或组合码', name: '名称', namePlaceholder: '方案名称', type: '类型', pendingType: '等待解析', version: '版本', furnitureCount: '家具数量', note: '备注', notePlaceholder: '最多 15 个字符',
     image: '方案图片', imageHint: '点击选择、拖拽或粘贴 JPG、PNG、WebP 图片', chooseImage: '更换图片', removeImage: '移除本地照片', save: '保存', confirm: '确定', saving: '正在保存', cancel: '取消', edit: '编辑方案', delete: '删除', copy: '复制方案码', copySucceeded: '复制成功。', copyFailed: (code) => `复制失败，请手动复制：${code}`,
     parsePending: '正在获取并解析方案…', parseFailed: '方案码解析失败', parseSucceeded: '方案码解析成功', parseUnsupportedServer: '暂不支持此服务器的方案码', saveSucceeded: '方案已保存', deleteConfirm: '确定删除这个家园方案吗？', deleteSucceeded: '方案已删除',
-    importSucceeded: (added, duplicates, failed) => '导入完成：新增 ' + added + ' 个，重复跳过 ' + duplicates + ' 个，失败 ' + failed + ' 个。',
+    importSucceeded: (added, duplicates, failed) => '导入完成：新增 ' + added + ' 个，重复跳过 ' + duplicates + ' 个，失败 ' + failed + ' 个。', exportTitle: '导出家园方案数据', exportConfirm: (directoryName) => `导出的 ZIP 将自动保存在当前相册文件夹“${directoryName}”中。是否继续？`, exportAction: '开始导出',
     exportSucceeded: (count, fileName) => '已导出 ' + count + ' 个方案到 ' + fileName + '。', invalidCode: '方案码长度需为 2 到 30 个字符。', duplicateCode: '这个方案码已存在。', nameRequired: '请填写方案名称。', invalidBackup: '备份文件无效或不受支持。', operationFailed: '操作失败，请检查文件权限后重试。'
   },
   en: {
@@ -79,7 +82,7 @@ export const homeSchemeMessages = {
     code: 'Scheme code', codePlaceholder: 'Enter a home or combo code', name: 'Name', namePlaceholder: 'Scheme name', type: 'Type', pendingType: 'Waiting for parsing', version: 'Version', furnitureCount: 'Furniture', note: 'Note', notePlaceholder: 'Up to 15 characters',
     image: 'Scheme image', imageHint: 'Click, drop, or paste JPG, PNG, WebP images', chooseImage: 'Replace image', removeImage: 'Remove local photo', save: 'Save', confirm: 'Save', saving: 'Saving', cancel: 'Cancel', edit: 'Edit scheme', delete: 'Delete', copy: 'Copy scheme code', copySucceeded: 'Copied successfully.', copyFailed: (code) => `Copy failed. Copy manually: ${code}`,
     parsePending: 'Fetching and parsing scheme…', parseFailed: 'Unable to parse this code', parseSucceeded: 'Scheme code parsed successfully', parseUnsupportedServer: 'This server is not supported yet', saveSucceeded: 'Scheme saved', deleteConfirm: 'Delete this home scheme?', deleteSucceeded: 'Scheme deleted',
-    importSucceeded: (added, duplicates, failed) => 'Import complete: ' + added + ' added, ' + duplicates + ' duplicates skipped, ' + failed + ' failed.',
+    importSucceeded: (added, duplicates, failed) => 'Import complete: ' + added + ' added, ' + duplicates + ' duplicates skipped, ' + failed + ' failed.', exportTitle: 'Export home scheme data', exportConfirm: (directoryName) => `The exported ZIP will be saved automatically in the current album folder “${directoryName}”. Continue?`, exportAction: 'Export',
     exportSucceeded: (count, fileName) => 'Exported ' + count + ' schemes to ' + fileName + '.', invalidCode: 'Scheme codes must contain 2 to 30 characters.', duplicateCode: 'This scheme code already exists.', nameRequired: 'Enter a scheme name.', invalidBackup: 'The backup file is invalid or unsupported.', operationFailed: 'The operation failed. Check file access and try again.'
   }
 } satisfies Record<'zh' | 'en', HomeSchemeMessages>

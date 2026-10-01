@@ -4,10 +4,11 @@ import wasmUrl from '../../assets/home-build-parser.wasm?url'
 interface HomeBuildWasmExports extends WebAssembly.Exports {
   __newString(value: string): number
   __getString(pointer: number): string
+  __newArray(id: number, values: ArrayLike<number>): number
+  Uint8Array_ID: WebAssembly.Global
   decodeHomeBuildShareCode(codePointer: number): number
   parseHomeBuildDecodedJson(codePointer: number, payloadPointer: number): number
   parseHomeBuildResponse(payloadPointer: number): number
-  parseHomeBuildResponseString(payloadPointer: number): number
 }
 
 export type HomeBuildWasmResult<T> =
@@ -99,14 +100,7 @@ export async function parseHomeBuildResponse(
   payload: Uint8Array
 ): Promise<HomeBuildWasmResult<HomeBuildWireData>> {
   const wasm = await getExports()
-  let binary = ''
-  const chunkSize = 0x4000
-  for (let offset = 0; offset < payload.length; offset += chunkSize) {
-    const end = Math.min(offset + chunkSize, payload.length)
-    let chunk = ''
-    for (let i = offset; i < end; i++) chunk += String.fromCharCode(payload[i])
-    binary += chunk
-  }
-  const result = wasm.__getString(wasm.parseHomeBuildResponseString(wasm.__newString(binary)))
+  const bytesPointer = wasm.__newArray(Number(wasm.Uint8Array_ID.value), payload)
+  const result = wasm.__getString(wasm.parseHomeBuildResponse(bytesPointer))
   return parseResult<HomeBuildWireData>(result)
 }

@@ -846,8 +846,11 @@
 }
 
 .photo-transfer-dialog {
+  --dialog-accent: var(--pink-deep);
   width: min(520px, calc(100vw - 28px));
   min-height: 258px;
+  padding-bottom: 28px;
+  overflow: hidden;
 }
 
 .photo-transfer-header {
@@ -855,22 +858,45 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  padding: 28px 30px 22px;
 }
 
 .photo-transfer-header h2 {
   margin-bottom: 0;
+  color: var(--heading);
+  font-size: clamp(22px, 3vw, 28px);
+  line-height: 1.1;
+}
+
+.photo-transfer-header .confirm-dialog-kicker {
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+}
+
+.photo-transfer-header .confirm-dialog-close {
+  width: 48px;
+  height: 48px;
+  margin: -2px 0 0;
+  background: color-mix(in srgb, var(--heading) 7%, transparent);
+}
+
+.photo-transfer-header .confirm-dialog-close svg {
+  width: 25px;
+  height: 25px;
 }
 
 .photo-transfer-progress {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 22px;
+  gap: 16px;
+  margin: 28px 30px 0;
 }
 
 .photo-transfer-progress-track {
   flex: 1;
-  height: 10px;
+  height: 12px;
   overflow: hidden;
   border-radius: 999px;
   background: color-mix(in srgb, var(--pink-deep) 14%, var(--surface-soft));
@@ -885,16 +911,17 @@
 }
 
 .photo-transfer-progress strong {
-  min-width: 58px;
+  min-width: 64px;
   color: var(--heading);
-  font-size: 13px;
+  font-size: 16px;
+  font-weight: 800;
   text-align: right;
 }
 
 .photo-transfer-summary,
 .photo-transfer-failures,
 .photo-transfer-cancelled {
-  margin: 12px 0 0;
+  margin: 14px 30px 0;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.6;
@@ -912,7 +939,26 @@
 .photo-transfer-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 20px;
+  margin: 28px 30px 0;
+}
+
+.photo-transfer-actions .confirm-dialog-button {
+  min-width: 124px;
+  min-height: 52px;
+  padding: 12px 24px;
+  border-radius: 18px;
+  font-size: 17px;
+}
+
+@media (max-width: 560px) {
+  .photo-transfer-dialog { width: min(100%, calc(100vw - 24px)); }
+  .photo-transfer-header { padding: 22px 20px 18px; }
+  .photo-transfer-progress { margin: 22px 20px 0; }
+  .photo-transfer-summary,
+  .photo-transfer-failures,
+  .photo-transfer-cancelled { margin-left: 20px; margin-right: 20px; }
+  .photo-transfer-actions { margin: 22px 20px 0; }
+  .photo-transfer-actions .confirm-dialog-button { width: 100%; }
 }
 
 /* 关闭按钮与“关于网站”一致的悬浮圆形样式 */

@@ -6,6 +6,8 @@ const SAVED_DIRECTORY_KEY = 'current-album-directory'
 const SAVED_X6GAME_DIRECTORY_KEY = 'current-x6game-directory'
 const SAVED_CAMERA_PARAM_UIDS_KEY = 'current-camera-param-uids'
 const OUTFIT_PARSE_CACHE_KEY_PREFIX = 'outfit-code-parse:'
+// 特效染色标记的解析结果格式发生变化，避免继续命中旧版 IndexedDB 数据。
+const OUTFIT_PARSE_CACHE_VERSION = 'v2:'
 const HOME_SCHEME_PARSE_CACHE_KEY_PREFIX = 'home-scheme-parse:'
 
 function openDb(): Promise<IDBDatabase> {
@@ -75,11 +77,11 @@ export async function clearSavedCameraParamUids(): Promise<void> {
 }
 
 export async function getSavedOutfitParseResult(code: string): Promise<unknown> {
-  return transaction('readonly', (store) => store.get(`${OUTFIT_PARSE_CACHE_KEY_PREFIX}${code}`))
+  return transaction('readonly', (store) => store.get(`${OUTFIT_PARSE_CACHE_KEY_PREFIX}${OUTFIT_PARSE_CACHE_VERSION}${code}`))
 }
 
 export async function saveOutfitParseResult(code: string, result: unknown): Promise<void> {
-  await transaction('readwrite', (store) => store.put(result, `${OUTFIT_PARSE_CACHE_KEY_PREFIX}${code}`))
+  await transaction('readwrite', (store) => store.put(result, `${OUTFIT_PARSE_CACHE_KEY_PREFIX}${OUTFIT_PARSE_CACHE_VERSION}${code}`))
 }
 
 export async function clearSavedOutfitParseResults(): Promise<void> {

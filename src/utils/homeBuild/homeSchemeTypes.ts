@@ -31,6 +31,9 @@ export interface HomeSchemeItem {
 
 export interface SaveHomeSchemeInput {
   item?: HomeSchemeItem
+  id?: string
+  createdAt?: string
+  updatedAt?: string
   code: string
   name: string
   schemeType: HomeSchemeType

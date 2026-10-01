@@ -39,9 +39,9 @@ const EVOLUTION_LABELS: Record<Language, string[]> = {
 }
 
 const DYE_UNLOCK_LABELS: Record<Language, string[]> = {
-  // 与暖暖相册 DyeCondition 保持同一顺序：directly、complete、growUp、evolution1、evolution2。
-  zh: ['原套可染', '满进可染', '焕新可染', '1进可染', '2进可染', '满进可染'],
-  en: ['Dyeable on original', 'Dyeable on Evo. 3', 'Dyeable on Glow-Up', 'Dyeable on Evo. 1', 'Dyeable on Evo. 2', 'Dyeable on Evo. 3']
+  // 与暖暖相册 DyeCondition 保持同一顺序：directly、complete、growUp、evolution1、evolution2、evolution3。
+  zh: ['直接可染', '集齐整套可染', '焕新可染', '一进可染', '二进可染', '满进可染'],
+  en: ['Direct dyeable', 'Complete Set', 'Grow Up', 'Evolution 1', 'Evolution 2', 'Full Evolution']
 }
 
 export interface OutfitDyeDetail {
@@ -311,7 +311,7 @@ const getDyeCondition = (
     if (condition >= 0) conditions.add(condition)
   }
   const highestCondition = Math.max(...conditions, -1)
-  return DYE_UNLOCK_LABELS[language][highestCondition] || (language === 'en' ? 'Unavailable in the catalog' : '图鉴未提供条件')
+  return DYE_UNLOCK_LABELS[language][highestCondition] || (language === 'en' ? 'Unknown' : '未知')
 }
 
 const requestEntity = async (path: string, language: Language): Promise<ApiEntity> => {

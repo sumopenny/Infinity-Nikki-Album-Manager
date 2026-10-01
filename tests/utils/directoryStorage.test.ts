@@ -28,6 +28,39 @@ describe('directoryStorage', () => {
     expect(await getSavedOutfitParseResult(result.code)).toBeUndefined()
   })
 
+  it('ignores legacy outfit parse results after the parser cache version changes', async () => {
+    const code = 'legacy1A2B3C#'
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('infinity-nikki-album-manager', 1)
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('album-handles', 'readwrite')
+      tx.objectStore('album-handles').put({ code, dyeItems: [] }, `outfit-code-parse:${code}`)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+    db.close()
+
+    expect(await getSavedOutfitParseResult(code)).toBeUndefined()
+    await clearSavedOutfitParseResults()
+
+    const checkDb = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('infinity-nikki-album-manager', 1)
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    const remainingKeys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+      const tx = checkDb.transaction('album-handles', 'readonly')
+      const request = tx.objectStore('album-handles').getAllKeys()
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    checkDb.close()
+    expect(remainingKeys).not.toContain(`outfit-code-parse:${code}`)
+  })
+
   it('clears home-scheme parse results without removing other browser data', async () => {
     const homeResult = { code: 'home123', parserVersion: 'wire-v1' }
     const outfitResult = { code: 'outfit123' }

@@ -257,18 +257,6 @@ npm run preview   # 预览构建结果
 
 ---
 
-
----
-
-## 打赏支持
-
-作者为爱发电，网站制作不易，觉得好用的话可以来支持我~
-
-<div align="center">
-  <img src="img/wx.jpg" alt="微信收款码" width="30%">
-  <img src="img/zfb.jpg" alt="支付宝收款码" width="30%">
-</div>
-
 ## 致谢与许可证
 
 部分功能借鉴了 [暖暖相册](https://github.com/RanAxro/nikki_albums) 和 [共鸣录](https://github.com/dastrokes/gongeo.us-nikki-tracker)。项目中随附的共鸣录目录快照遵循其 MIT 许可证；本项目许可证请参阅根目录的 [LICENSE](LICENSE) 文件。

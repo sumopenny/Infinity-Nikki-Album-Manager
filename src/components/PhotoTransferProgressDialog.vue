@@ -47,7 +47,6 @@ const percent = computed(() => {
           <strong>{{ completed }} / {{ total }}</strong>
         </div>
         <p v-if="preparing" class="photo-transfer-summary">{{ title }}...</p>
-        <p v-else class="photo-transfer-summary">{{ completedLabel }}: {{ completed }} / {{ total }}</p>
         <p v-if="failedNames.length" class="photo-transfer-failures">{{ failedLabel }}: {{ failedNames.slice(0, 4).join(', ') }}<template v-if="failedNames.length > 4"> (+{{ failedNames.length - 4 }})</template></p>
         <p v-if="isCancelled" class="photo-transfer-cancelled">{{ cancelledLabel }}</p>
         <footer class="photo-transfer-actions">

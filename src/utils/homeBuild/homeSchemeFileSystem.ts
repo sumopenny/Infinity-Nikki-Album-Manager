@@ -201,7 +201,8 @@ export async function saveHomeScheme(
   if (!directory) throw new Error('Unable to create home directory')
   const tags = await readTagsFromHome(directory)
   const selectedTags = input.tags.map(normalizeHomeSchemeTag).filter((tag) => tags.includes(tag) && isValidHomeSchemeTag(tag)).slice(0, 1)
-  const id = input.item?.id ?? createId()
+  let id = input.item?.id ?? (safeId(input.id) ? input.id : createId())
+  if (!input.item && input.id && await fileExists(directory, `${id}.json`)) id = createId()
   const imageName = `${id}.webp`
   const metadataName = `${id}.json`
   const oldImageName = input.item?.image ?? null
@@ -222,8 +223,8 @@ export async function saveHomeScheme(
     metadata: normalizeMetadata(input.metadata),
     tags: selectedTags,
     note: input.note.trim().slice(0, MAX_HOME_SCHEME_NOTE_LENGTH),
-    createdAt: input.item?.createdAt ?? new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    createdAt: input.createdAt ?? input.item?.createdAt ?? new Date().toISOString(),
+    updatedAt: input.updatedAt ?? new Date().toISOString()
   }
 
   try {

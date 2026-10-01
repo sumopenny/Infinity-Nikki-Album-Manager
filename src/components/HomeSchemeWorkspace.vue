@@ -560,6 +560,12 @@ async function importBackup(event: Event) {
 
 async function exportBackup() {
   if (isBusy.value) return
+  const confirmed = await props.confirmAction(
+    props.messages.exportConfirm(props.albumDirectory.name),
+    props.messages.exportTitle,
+    props.messages.exportAction
+  )
+  if (!confirmed || isBusy.value) return
   busy.value = true
   try {
     const result = await exportHomeSchemeBackup(props.albumDirectory)

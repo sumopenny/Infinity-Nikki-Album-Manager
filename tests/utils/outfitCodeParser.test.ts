@@ -214,6 +214,37 @@ describe('lookbook WASM native output', () => {
     ])
     expect(result.value.dyeItems[0].dyes.every((dye) => /^#[0-9a-f]{6}$/.test(dye.color))).toBe(true)
   })
+
+  it('preserves special-effect records as full-evolution dye conditions', async () => {
+    const payload = '{"Content":{"Content":{"patternData":[:1025740294:0],"wearingClothes":[1025740294],"wearingDIYInfos":[' +
+      '{"TargetGroupID":1,"CoreData":{"R":0.1,"G":0.2,"B":0.3,"A":1,"ColorGridID":88},"FeatureTag":1,"TargetClothID":1025740294},' +
+      '{"TargetGroupID":1,"CoreData":{"ColorGridID":128,"CoverDIYColor":true},"FeatureTag":7,"TargetClothID":1025740294}' +
+      ']}}}'
+
+    const result = await decodeLookbookPayload<LookbookDecodeResult>('13Zb1zKZgf1#', payload)
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.dyeItems).toContainEqual(expect.objectContaining({
+      itemId: 1025740294,
+      hasSpecialEffect: true
+    }))
+  })
+
+  it('keeps a special-effect-only item in WASM dye output', async () => {
+    const payload = '{"Content":{"Content":{"wearingClothes":[1025740294],"wearingDIYInfos":[' +
+      '{"TargetGroupID":1,"CoreData":{"CoverDIYColor":true},"FeatureTag":7,"TargetClothID":1025740294}' +
+      ']}}}'
+
+    const result = await decodeLookbookPayload<LookbookDecodeResult>('13Zb1zKZgf1#', payload)
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        dyeItems: [{ itemId: 1025740294, dyes: [], hasSpecialEffect: true }]
+      }
+    })
+  })
 })
 
 describe('lookbook cloth types', () => {

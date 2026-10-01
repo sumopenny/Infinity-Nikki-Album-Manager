@@ -30,7 +30,7 @@ describe('loadOutfitDetail', () => {
     expect(detail.outfitImageUrl).toContain('/images/outfits/10001.png')
     expect(detail.outfitItemIds).toContain(1020100001)
     expect(detail.evolution).toBe('原套')
-    expect(detail.dyeCondition).toBe('1进可染')
+    expect(detail.dyeCondition).toBe('一进可染')
     expect(detail.dyes).toHaveLength(3)
     expect(detail.dyes[0]).toMatchObject({ area: '区域 01', paletteName: '名流鸦盛宴', slot: 3 })
     expect(detail.dyes[2].area).toBe('区域 02')
@@ -63,6 +63,25 @@ describe('loadOutfitDetail', () => {
     )
 
     expect(detail.dyes[0]).toMatchObject({ paletteId: -1, paletteName: '拉条' })
+  })
+
+  it('uses the full-evolution condition when a special effect is present', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ id: 1025740294 })))
+
+    const detail = await loadOutfitDetail(
+      1025740294,
+      null,
+      'zh',
+      '童话终章',
+      [
+        { targetGroupId: 1, featureTag: 1, paletteId: 11, slot: 1, color: '#2c646a' },
+        { targetGroupId: 2, featureTag: 1, paletteId: 16, slot: 8, color: '#f7b3dc' }
+      ],
+      null,
+      true
+    )
+
+    expect(detail.dyeCondition).toBe('满进可染')
   })
 
   it('keeps non-primary dye feature tags on their upstream target group area', async () => {

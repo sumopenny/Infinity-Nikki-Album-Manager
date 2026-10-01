@@ -77,6 +77,34 @@ describe('OutfitParseDialog', () => {
     wrapper.unmount()
   })
 
+  it('passes the decoded special-effect flag through to item details', async () => {
+    const dyes = [
+      { targetGroupId: 1, featureTag: 1, paletteId: 11, slot: 1, color: '#2c646a' },
+      { targetGroupId: 2, featureTag: 1, paletteId: 16, slot: 8, color: '#f7b3dc' }
+    ]
+    parseOutfitCodeMock.mockResolvedValue({
+      code: '13Zb1zKZgf1#',
+      wearingClothes: [{ itemId: 1025740294, clothType: null, outfitId: null }],
+      dyeItems: [{ itemId: 1025740294, clothType: null, outfitId: null, dyes, hasSpecialEffect: true }]
+    })
+    loadItemCatalogMock.mockResolvedValue(new Map([[1025740294, { id: 1025740294, zh: '童话终章', en: 'Fairytale Finale', makeup: false }]]))
+    loadOutfitDetailMock.mockResolvedValue({ ...detail, itemId: 1025740294, itemName: '童话终章', dyeCondition: '满进可染' })
+
+    const wrapper = mount(OutfitParseDialog, {
+      props: { visible: false, code: '13Zb1zKZgf1#', language: 'zh', messages: getOutfitMessages('zh') },
+      attachTo: document.body,
+      global: { stubs: { Teleport: true, Transition: { template: '<div><slot /></div>' } } }
+    })
+    await wrapper.setProps({ visible: true })
+    await flushPromises()
+    await wrapper.get('.outfit-parse-item-button').trigger('click')
+    await flushPromises()
+
+    expect(loadOutfitDetailMock).toHaveBeenCalledWith(1025740294, null, 'zh', '童话终章', dyes, null, true)
+    expect(wrapper.text()).toContain('满进可染')
+    wrapper.unmount()
+  })
+
   it('closes the detail layer with Escape and hides an empty dye table', async () => {
     parseOutfitCodeMock.mockResolvedValue({
       code: 'a1B2c3D4e5F#',
