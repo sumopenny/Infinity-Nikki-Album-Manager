@@ -66,11 +66,13 @@ describe('outfit-code Pages Function', () => {
 
   it('returns 504 when the fixed upstream request times out', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('Timed out', 'TimeoutError')))
-    vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => AbortSignal.abort(new DOMException('Timed out', 'TimeoutError')))
+    const timeoutMock = vi.spyOn(AbortSignal, 'timeout')
+      .mockImplementation(() => AbortSignal.abort(new DOMException('Timed out', 'TimeoutError')))
 
     const response = await onRequestGet(makeContext('488547348102388135'))
 
     expect(response.status).toBe(504)
+    expect(timeoutMock).toHaveBeenCalledWith(8_000)
     expect(response.headers.get('x-outfit-proxy-upstream-ms')).toMatch(/^\d+$/)
     await expect(response.json()).resolves.toEqual({ error: 'upstream_timeout' })
   })

@@ -4,7 +4,8 @@ interface OutfitCodeFunctionContext {
 }
 
 const UPSTREAM_BASE_URL = 'https://x6cn-clothdiydata.nuanpaper.com/default/'
-const UPSTREAM_TIMEOUT_MS = 12_000
+// Keep this below the browser's 10-second timeout so Pages can return a logged 504 first.
+const UPSTREAM_TIMEOUT_MS = 8_000
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
   'cache-control': 'no-store'
