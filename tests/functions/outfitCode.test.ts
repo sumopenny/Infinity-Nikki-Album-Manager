@@ -8,6 +8,7 @@ const makeContext = (id: string) => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 describe('outfit-code Pages Function', () => {
@@ -28,6 +29,7 @@ describe('outfit-code Pages Function', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('application/octet-stream')
     expect(response.headers.get('cache-control')).toBe('private, no-store')
+    expect(response.headers.get('x-outfit-proxy-upstream-ms')).toMatch(/^\d+$/)
     await expect(response.text()).resolves.toBe('{"clothes":[]}')
   })
 
@@ -60,5 +62,16 @@ describe('outfit-code Pages Function', () => {
 
     expect(response.status).toBe(502)
     await expect(response.json()).resolves.toEqual({ error: 'upstream_unavailable' })
+  })
+
+  it('returns 504 when the fixed upstream request times out', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('Timed out', 'TimeoutError')))
+    vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => AbortSignal.abort(new DOMException('Timed out', 'TimeoutError')))
+
+    const response = await onRequestGet(makeContext('488547348102388135'))
+
+    expect(response.status).toBe(504)
+    expect(response.headers.get('x-outfit-proxy-upstream-ms')).toMatch(/^\d+$/)
+    await expect(response.json()).resolves.toEqual({ error: 'upstream_timeout' })
   })
 })
