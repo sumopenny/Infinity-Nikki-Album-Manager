@@ -66,6 +66,7 @@ import {
 import { exportOutfitBackup, importOutfitBackup } from './utils/outfit/outfitBackup'
 import { isValidOutfitTag, MAX_OUTFIT_TAG_LENGTH, MAX_OUTFIT_TAGS, normalizeOutfitTag } from './utils/outfit/outfitTypes'
 import { useOperationNotice, type StatusState, type StatusTone } from './composables/useOperationNotice'
+import { copyTextToClipboard } from './utils/clipboard'
 import { useConfirmDialog } from './composables/useConfirmDialog'
 import { useAlbumViewModel } from './composables/useAlbumViewModel'
 import { useSelectionState } from './composables/useSelectionState'
@@ -1052,12 +1053,9 @@ function closePhotoParams() {
 async function copyRawCameraParams() {
   const raw = photoParamsResult.value?.rawCameraParams
   if (!raw) return
-  try {
-    await navigator.clipboard.writeText(raw)
-    showStatus({ message: photoParamsMessages.value.copied, tone: 'success' })
-  } catch {
-      showStatus({ message: photoParamsMessages.value.copyFailed, tone: 'error' })
-  }
+  if (await copyTextToClipboard(raw)) {
+    showStatus({ message: locale.value.app.copySucceeded, tone: 'success' })
+  } else showStatus({ message: locale.value.app.copyFailed(raw), tone: 'error' })
 }
 
 function closeNoteDialog() {
@@ -1189,12 +1187,15 @@ async function removeOutfitTag(tag: string) {
 
 async function copyOutfitCode(outfit: OutfitItem) {
   if (!outfit.code) return
-  try {
-    await navigator.clipboard.writeText(outfit.code)
-    showOutfitStatus(outfitLocale.value.operations.copySucceeded)
-  } catch {
-    showOutfitStatus(outfitLocale.value.operations.copyFailed(outfit.code), 'warning')
-  }
+  await copyOutfitCodeValue(outfit.code)
+}
+
+/** 统一复制搭配码并通过顶部操作通知反馈结果。 */
+async function copyOutfitCodeValue(code: string) {
+  if (!code) return
+  if (await copyTextToClipboard(code)) {
+    showOutfitStatus(locale.value.app.copySucceeded)
+  } else showOutfitStatus(locale.value.app.copyFailed(code), 'warning')
 }
 
 /** 删除单个搭配方案，先弹确认框再执行删除。参数：outfit 为待删除的搭配方案。 */
@@ -1864,6 +1865,7 @@ onBeforeUnmount(() => {
           v-if="albumDirectoryHandle && activeView === 'home'"
           :album-directory="albumDirectoryHandle"
           :messages="locale.homeScheme"
+          :copy-messages="locale.app"
           :disabled="isAnyFileOperationBusy"
           :confirm-action="confirmHomeSchemeAction"
           :search-query="searchQuery"
@@ -2022,6 +2024,7 @@ onBeforeUnmount(() => {
       :language="language"
       :messages="outfitLocale"
       @close="closeOutfitParse"
+      @copy="copyOutfitCodeValue"
     />
 
     <NoteDialog

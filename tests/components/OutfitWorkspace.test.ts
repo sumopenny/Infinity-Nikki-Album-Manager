@@ -32,13 +32,6 @@ function outfit(id: string, code: string, tags: string[] = []): OutfitItem {
 describe('outfit workspace components', () => {
   it('keeps operation feedback complete in both locales', () => {
     expect(getOutfitMessages('zh').operations.deletedSelected(2, 1)).toContain('1 个删除失败')
-    expect([
-      getOutfitMessages('zh').parseServicePrefix,
-      getOutfitMessages('zh').parseServiceNikkiAlbums,
-      getOutfitMessages('zh').parseServiceAnd,
-      getOutfitMessages('zh').parseServiceNikkiTracker,
-      getOutfitMessages('zh').parseServiceSuffix
-    ].join('')).toBe('解析服务由暖暖相册和暖暖共鸣录提供')
     expect(getOutfitMessages('en').operations.importCompleted(2, 1, 0, '')).toContain('2 added')
   })
 

@@ -63,17 +63,13 @@ export interface OutfitMessages {
   detailSlot: string
   detailColor: string
   parseItemCount: (count: number) => string
-  parseServicePrefix: string
-  parseServiceNikkiAlbums: string
-  parseServiceAnd: string
-  parseServiceNikkiTracker: string
-  parseServiceSuffix: string
   emptyTitle: string
   emptyDescription: string
   imageRequired: string
   unsupportedImage: string
   imageLoadFailed: string
   operations: {
+    copyCode: string
     albumOpenedWithFailures: (failed: number) => string
     saveSucceeded: (wasEditing: boolean) => string
     invalidTag: (maxLength: number) => string
@@ -161,7 +157,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     parseLoading: '正在解析搭配码…',
     parseEmpty: '未解析到搭配部件。',
     parseInvalidCode: '搭配码无效或不存在。',
-    parseUnavailable: '解析服务暂时不可用，请稍后重试。',
+    parseUnavailable: '搭配码解析服务暂不稳定，请稍后刷新网站重试。',
     parseRetry: '重试',
     parseClose: '关闭解析窗口',
     parseOpenDetail: (name) => `查看${name}的部件详情`,
@@ -180,17 +176,13 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     detailSlot: '色号',
     detailColor: '颜色',
     parseItemCount: (count) => `${count} 个部件`,
-    parseServicePrefix: '解析服务由',
-    parseServiceNikkiAlbums: '暖暖相册',
-    parseServiceAnd: '和',
-    parseServiceNikkiTracker: '暖暖共鸣录',
-    parseServiceSuffix: '提供',
     emptyTitle: '还没有搭配方案',
     emptyDescription: '添加方案，或把图片放入相册的 clothe 文件夹。',
     imageRequired: '请先选择一张搭配图片。',
     unsupportedImage: '请选择 JPG、JPEG、PNG 或 WebP 图片。',
     imageLoadFailed: '搭配图片读取失败',
     operations: {
+      copyCode: '复制搭配码',
       albumOpenedWithFailures: (failed) => `相册已打开，${failed} 个搭配方案读取或导入失败。`,
       saveSucceeded: (wasEditing) => wasEditing ? '保存成功。' : '添加成功。',
       invalidTag: (maxLength) => `标签不能为空，且最多为${maxLength}个字符。`,
@@ -287,7 +279,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     parseLoading: 'Decoding outfit code…',
     parseEmpty: 'No outfit items were found.',
     parseInvalidCode: 'This outfit code is invalid or does not exist.',
-    parseUnavailable: 'The decoding service is temporarily unavailable. Please try again later.',
+    parseUnavailable: 'The outfit code parsing service is currently unstable. Please refresh the website and try again later.',
     parseRetry: 'Retry',
     parseClose: 'Close item list',
     parseOpenDetail: (name) => `View details for ${name}`,
@@ -306,17 +298,13 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     detailSlot: 'Color slot',
     detailColor: 'Color',
     parseItemCount: (count) => `${count} item${count === 1 ? '' : 's'}`,
-    parseServicePrefix: 'Decoding service provided by ',
-    parseServiceNikkiAlbums: 'Nikki Albums',
-    parseServiceAnd: ' and ',
-    parseServiceNikkiTracker: 'Nikki Tracker',
-    parseServiceSuffix: '',
     emptyTitle: 'No outfit plans yet',
     emptyDescription: 'Add a plan, or place images in the album clothe folder.',
     imageRequired: 'Choose an outfit image first.',
     unsupportedImage: 'Choose a JPG, JPEG, PNG, or WebP image.',
     imageLoadFailed: 'Unable to read outfit image',
     operations: {
+      copyCode: 'Copy outfit code',
       albumOpenedWithFailures: (failed) => `Album opened; ${failed} outfit item(s) could not be read or imported.`,
       saveSucceeded: (wasEditing) => wasEditing ? 'Outfit saved.' : 'Outfit added.',
       invalidTag: (maxLength) => `A tag must contain 1 to ${maxLength} characters.`,

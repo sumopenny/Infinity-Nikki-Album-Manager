@@ -25,7 +25,7 @@ const props = defineProps<{
   messages: OutfitMessages
 }>()
 
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; copy: [code: string] }>()
 
 interface ParseItemView {
   id: number
@@ -207,15 +207,28 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       <div v-if="visible" class="outfit-editor" role="dialog" aria-modal="true" :aria-label="messages.parseTitle" @click.self="$emit('close')">
         <section ref="panelRef" class="outfit-editor-panel outfit-parse-panel">
           <header>
-            <h2>{{ messages.parseTitle }}</h2>
+            <div class="outfit-parse-heading">
+              <h2>{{ messages.parseTitle }}</h2>
+              <p
+                v-if="requestCode"
+                class="outfit-parse-code"
+                :title="messages.operations.copyCode"
+                :aria-label="messages.operations.copyCode"
+                role="button"
+                tabindex="0"
+                @click="emit('copy', requestCode)"
+                @keydown.enter.prevent="emit('copy', requestCode)"
+                @keydown.space.prevent="emit('copy', requestCode)"
+              >
+                {{ requestCode }}
+              </p>
+            </div>
             <button type="button" :title="messages.parseClose" :aria-label="messages.parseClose" @click="$emit('close')">
               <X :size="19" aria-hidden="true" />
             </button>
           </header>
 
           <div class="outfit-parse-content">
-            <p v-if="requestCode" class="outfit-parse-code" :title="requestCode">{{ requestCode }}</p>
-
             <template v-if="status === 'loading'">
               <div class="outfit-parse-status" role="status" aria-live="polite">
                 <span class="outfit-parse-spinner" aria-hidden="true"></span>
@@ -275,9 +288,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
           <footer v-if="status === 'success' && items.length" class="outfit-parse-footer">
             <span>{{ messages.parseItemCount(items.length) }}</span>
-            <span class="outfit-parse-credit">
-              {{ messages.parseServicePrefix }}<a href="https://github.com/RanAxro/nikki_albums" target="_blank" rel="noopener noreferrer">{{ messages.parseServiceNikkiAlbums }}</a>{{ messages.parseServiceAnd }}<a href="https://github.com/dastrokes/gongeo.us-nikki-tracker" target="_blank" rel="noopener noreferrer">{{ messages.parseServiceNikkiTracker }}</a>{{ messages.parseServiceSuffix }}
-            </span>
           </footer>
         </section>
       </div>

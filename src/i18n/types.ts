@@ -21,6 +21,8 @@ export interface LocaleMessages {
     readFailedStatus: string
     clearedStatus: string
     operationNoticeTitle: string
+    copySucceeded: string
+    copyFailed: (value: string) => string
     operationNoticeCloseAria: string
     preferencesUpdating: string
     clearCacheDialogTitle: string

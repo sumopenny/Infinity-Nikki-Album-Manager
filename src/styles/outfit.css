@@ -1103,8 +1103,19 @@
   flex: 0 0 auto;
 }
 
+.outfit-parse-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.outfit-parse-heading h2 {
+  margin: 0;
+}
+
 .outfit-parse-code {
-  align-self: flex-start;
+  align-self: center;
   margin: 0;
   padding: 4px 10px;
   border: 1px solid var(--line);
@@ -1114,6 +1125,7 @@
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
+  cursor: pointer;
 }
 
 .outfit-parse-status {
@@ -1314,20 +1326,6 @@
   padding: 0 18px 16px;
   color: var(--muted);
   font-size: 11px;
-}
-
-.outfit-parse-credit {
-  margin-left: auto;
-  text-align: right;
-}
-
-.outfit-parse-footer a {
-  color: var(--pink-deep);
-  text-decoration: none;
-}
-
-.outfit-parse-footer a:hover {
-  text-decoration: underline;
 }
 
 .outfit-detail-overlay {

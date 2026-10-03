@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { Check, Copy, Download, Edit3, FileUp, GripVertical, ImagePlus, Plus, Trash2, Upload, X } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
 import type { HomeSchemeMessages } from '../i18n/messages/homeScheme'
+import { copyTextToClipboard } from '../utils/clipboard'
 import { importHomeSchemeBackup, exportHomeSchemeBackup } from '../utils/homeBuild/homeSchemeBackup'
 import {
   deleteHomeScheme,
@@ -33,6 +34,7 @@ import type { ThumbnailMode } from '../types/thumbnail'
 const props = defineProps<{
   albumDirectory: FileSystemDirectoryHandle
   messages: HomeSchemeMessages
+  copyMessages?: { copySucceeded: string; copyFailed: (value: string) => string }
   disabled: boolean
   confirmAction: (message: string, title?: string, confirmLabel?: string) => Promise<boolean>
   searchQuery: string
@@ -374,8 +376,8 @@ async function removeScheme(item: HomeSchemeItem) {
 }
 
 async function copyCode(item: HomeSchemeItem) {
-  try { await navigator.clipboard.writeText(item.code); emit('status', props.messages.copySucceeded, 'success') }
-  catch { emit('status', props.messages.copyFailed(item.code), 'warning') }
+  if (await copyTextToClipboard(item.code)) emit('status', props.copyMessages?.copySucceeded ?? props.messages.copySucceeded, 'success')
+  else emit('status', props.copyMessages?.copyFailed(item.code) ?? props.messages.copyFailed(item.code), 'warning')
 }
 
 function toggleScheme(id: string) {
