@@ -85,7 +85,8 @@ export const photoParamsZh: PhotoParamsMessages = {
       camera_base64_invalid: 'CameraParams 不是有效的 Base64 数据',
       camera_decrypt_failed: 'CameraParams 解密失败',
       camera_params_invalid_length: 'CameraParams 数组长度不是支持的 31、32 或 40 项',
-      camera_params_encode_failed: 'CameraParams 原始数组不存在或格式无效'
+      camera_params_encode_failed: 'CameraParams 原始数组不存在或格式无效',
+      photo_parse_failed: '照片参数解析失败'
     },
     unknownMeaning: '未知解析错误',
     format: (code, meaning) => `错误码：${code}；含义：${meaning}`
@@ -127,7 +128,8 @@ export const photoParamsEn: PhotoParamsMessages = {
       camera_base64_invalid: 'CameraParams is not valid Base64 data',
       camera_decrypt_failed: 'CameraParams decryption failed',
       camera_params_invalid_length: 'The CameraParams array length is not a supported 31, 32, or 40 items',
-      camera_params_encode_failed: 'The raw CameraParams array is missing or invalid'
+      camera_params_encode_failed: 'The raw CameraParams array is missing or invalid',
+      photo_parse_failed: 'The photo parameters could not be parsed'
     },
     unknownMeaning: 'Unknown parsing error',
     format: (code, meaning) => `Error code: ${code}; Meaning: ${meaning}`

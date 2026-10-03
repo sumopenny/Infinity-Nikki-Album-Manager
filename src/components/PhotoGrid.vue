@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { onBeforeUnmount } from 'vue'
+import { computed, onBeforeUnmount } from 'vue'
 import { Check, Edit3, Heart, ScanSearch } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
 import type { ThumbnailMode } from '../types/thumbnail'
-import type { DateGroup, PhotoItem } from '../utils/photoGrouping'
+import type { ActionGroup, DateGroup, PhotoItem } from '../utils/photoGrouping'
 import { createPhotoLoadQueue } from '../utils/photoLoader'
 import LazyPhotoImage from './LazyPhotoImage.vue'
 
 const props = defineProps<{
   dateGroups: DateGroup[]
+  actionGroups?: ActionGroup[]
+  groupingMode?: 'date' | 'action'
   selectedIds: Set<string>
   favoriteIds: Set<string>
   thumbnailMode: ThumbnailMode
@@ -20,6 +22,7 @@ const emit = defineEmits<{
   togglePhoto: [photoId: string]
   toggleFavorite: [photoId: string]
   toggleDate: [dateKey: string]
+  toggleGroup: [photoIds: string[]]
   openPreview: [photo: PhotoItem]
   editNote: [photo: PhotoItem]
   parsePhoto: [photo: PhotoItem]
@@ -27,9 +30,17 @@ const emit = defineEmits<{
 
 const photoLoadQueue = createPhotoLoadQueue(3)
 
-/** 判断某个日期组是否已完整选中。参数：group 为日期分组。 */
-function isDateSelected(group: DateGroup): boolean {
-  return group.photos.length > 0 && group.photos.every((photo) => props.selectedIds.has(photo.id))
+const renderGroups = computed(() => (props.groupingMode ?? 'date') === 'action'
+  ? (props.actionGroups ?? []).map((group) => ({ key: group.actionKey, title: group.actionName, photos: group.photos, actionImageUrl: group.actionImageUrl, isAction: true }))
+  : props.dateGroups.map((group) => ({ key: group.dateKey, title: group.displayDate, photos: group.photos, actionImageUrl: undefined, isAction: false })))
+
+function isGroupSelected(photos: PhotoItem[]): boolean {
+  return photos.length > 0 && photos.every((photo) => props.selectedIds.has(photo.id))
+}
+
+function toggleGroup(group: { key: string; photos: PhotoItem[]; isAction: boolean }) {
+  if (group.isAction) emit('toggleGroup', group.photos.map((photo) => photo.id))
+  else emit('toggleDate', group.key)
 }
 
 /** 返回卡片悬浮信息；半尺寸模式和未知元数据只显示时间。参数：photo 为照片。 */
@@ -50,23 +61,23 @@ onBeforeUnmount(() => photoLoadQueue.cancel())
 
 <template>
   <div class="photo-grid-wrap" :class="`mode-${thumbnailMode}`">
-    <div v-if="!dateGroups.length" class="empty-album inline-empty">
+    <div v-if="!renderGroups.length" class="empty-album inline-empty">
       <Heart :size="30" aria-hidden="true" />
       <h2>{{ isFavoritesView ? messages.emptyFavoritesTitle : messages.emptyTitle }}</h2>
       <p>{{ isFavoritesView ? messages.emptyFavoritesDescription : messages.emptyDescription }}</p>
     </div>
 
-    <section v-for="group in dateGroups" :id="`date-${group.dateKey}`" :key="group.dateKey" class="date-block">
+    <section v-for="group in renderGroups" :id="`${group.isAction ? 'action' : 'date'}-${group.key}`" :key="group.key" class="date-block" :class="{ 'is-action-group': group.isAction }">
       <div class="date-block-header">
-        <h2>{{ group.displayDate }} · {{ messages.photoCount(group.photos.length) }}</h2>
+        <h2><img v-if="group.actionImageUrl" class="action-group-image" :src="group.actionImageUrl" :alt="group.title" />{{ group.title }} · {{ messages.photoCount(group.photos.length) }}</h2>
         <button
           class="date-select-button"
           type="button"
-          :class="{ active: isDateSelected(group) }"
-          :aria-pressed="isDateSelected(group)"
+          :class="{ active: isGroupSelected(group.photos) }"
+          :aria-pressed="isGroupSelected(group.photos)"
           :title="messages.selectDay"
           :aria-label="messages.selectDay"
-          @click="$emit('toggleDate', group.dateKey)"
+          @click="toggleGroup(group)"
         >
           <Check :size="16" aria-hidden="true" />
         </button>

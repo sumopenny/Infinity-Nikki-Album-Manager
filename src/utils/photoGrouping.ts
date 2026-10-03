@@ -58,6 +58,30 @@ export interface PhotoItem extends ParsedPhotoDate {
   note?: string
 }
 
+export type PhotoActionStatus = 'pending' | 'action' | 'none' | 'unparsed'
+
+export interface PhotoActionInfo {
+  status: PhotoActionStatus
+  actionId?: string
+  actionName?: string
+  actionImageUrl?: string
+  errorCode?: string
+  fingerprint?: string
+  parsedAt?: number
+}
+
+export type ActionSort = 'id' | 'name' | 'count' | 'latest'
+
+export interface ActionGroup {
+  actionKey: string
+  actionId?: string
+  actionName: string
+  actionImageUrl?: string
+  photos: PhotoItem[]
+  latestTimestamp: number
+  isSpecial?: 'none' | 'unparsed'
+}
+
 export interface RecentlyDeletedPhoto extends PhotoItem {
   trashName: string
   originalName: string
@@ -146,4 +170,47 @@ export function groupDatesByYear(groups: DateGroup[]): YearGroup[] {
       }
     })
     .sort((a, b) => b.year.localeCompare(a.year))
+}
+
+/** 按照片动作分组；明确无动作和解析失败保持为两个独立分组。 */
+export function groupPhotosByAction(
+  photos: PhotoItem[],
+  actionInfo: ReadonlyMap<string, PhotoActionInfo>,
+  sort: ActionSort,
+  labels: { none: string; unparsed: string }
+): ActionGroup[] {
+  const groups = new Map<string, ActionGroup>()
+  for (const photo of photos) {
+    const info = actionInfo.get(photo.id)
+    const status = info?.status ?? 'unparsed'
+    const isNone = status === 'none'
+    const isUnparsed = status !== 'action' && !isNone
+    const key = status === 'action' && info?.actionId ? `action:${info.actionId}` : isNone ? 'special:none' : 'special:unparsed'
+    const group = groups.get(key) ?? {
+      actionKey: key,
+      actionId: status === 'action' ? info?.actionId : undefined,
+      actionName: status === 'action' ? (info?.actionName ?? info?.actionId ?? labels.unparsed) : isNone ? labels.none : labels.unparsed,
+      actionImageUrl: status === 'action' ? info?.actionImageUrl : undefined,
+      photos: [],
+      latestTimestamp: 0,
+      isSpecial: isNone ? 'none' : isUnparsed ? 'unparsed' : undefined
+    }
+    group.photos.push(photo)
+    group.latestTimestamp = Math.max(group.latestTimestamp, photo.timestamp)
+    groups.set(key, group)
+  }
+
+  const specialRank = (group: ActionGroup) => group.isSpecial === 'unparsed' ? 2 : group.isSpecial === 'none' ? 1 : 0
+  const compare = (left: ActionGroup, right: ActionGroup) => {
+    const specialDifference = specialRank(left) - specialRank(right)
+    if (specialDifference) return specialDifference
+    if (sort === 'name') return left.actionName.localeCompare(right.actionName) || left.actionKey.localeCompare(right.actionKey)
+    if (sort === 'count') return right.photos.length - left.photos.length || right.latestTimestamp - left.latestTimestamp || left.actionKey.localeCompare(right.actionKey)
+    if (sort === 'latest') return right.latestTimestamp - left.latestTimestamp || left.actionKey.localeCompare(right.actionKey)
+    return String(right.actionId ?? '').localeCompare(String(left.actionId ?? ''), undefined, { numeric: true }) || left.actionName.localeCompare(right.actionName)
+  }
+
+  return [...groups.values()]
+    .map((group) => ({ ...group, photos: group.photos.sort((a, b) => b.timestamp - a.timestamp) }))
+    .sort(compare)
 }

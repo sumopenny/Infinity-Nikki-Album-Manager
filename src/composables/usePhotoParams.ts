@@ -35,6 +35,10 @@ export function usePhotoParams(options: {
     return errorMessages.format(code, errorMessages.descriptions[code] ?? errorMessages.unknownMeaning)
   }
 
+  function requiresUid(errorCode: string | undefined): boolean {
+    return errorCode === 'photo_structure_invalid'
+  }
+
   function presentCameraParams(camera: Record<string, unknown>, rawCameraParams: string, photoData?: Record<string, unknown>) {
     const formatNumber = (value: unknown, digits: number) => {
       const parsed = Number(value)
@@ -114,8 +118,9 @@ export function usePhotoParams(options: {
     }
     if (run !== runId) return null
     if (!decoded?.value) {
-      uidRequired.value = true
-      const errorDetails = errors.length ? errors.map(describeError).join('；') : describeError('photo_structure_invalid')
+      // 只有“未找到有效 UID 账号”才需要用户输入 UID；其它照片结构或参数错误直接展示错误信息。
+      uidRequired.value = errors.length > 0 && errors.every((code) => requiresUid(code))
+      const errorDetails = errors.length ? errors.map(describeError).join('；') : describeError('photo_parse_failed')
       throw new Error(errorDetails)
     }
     return decoded.value
@@ -194,7 +199,8 @@ export function usePhotoParams(options: {
     const run = ++runId
     result.value = null
     error.value = null
-    uidRequired.value = true
+    // UID 输入只在解析器明确报告 UID 无效时显示；其它异常不能留下旧的输入表单状态。
+    uidRequired.value = false
     setStage('readingPhoto', 30)
     try {
       const bytes = uploadFile.value
@@ -206,8 +212,8 @@ export function usePhotoParams(options: {
       const decoded = await decodePhoto<DecodedPhoto>(bytes, normalized)
       if (run !== runId) return
       if (!decoded.ok || !decoded.value) {
-        uidRequired.value = decoded.errorCode === 'photo_structure_invalid'
-        throw new Error(describeError(decoded.errorCode ?? 'photo_structure_invalid'))
+        uidRequired.value = requiresUid(decoded.errorCode)
+        throw new Error(describeError(decoded.errorCode ?? 'photo_parse_failed'))
       }
       await addSavedCameraParamUid(normalized)
       presentCameraParams(decoded.value.camera, decoded.value.rawCameraParams, decoded.value.photo)

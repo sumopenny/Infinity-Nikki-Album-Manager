@@ -1,21 +1,31 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { ChevronRight } from 'lucide-vue-next'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { ChevronDown, ChevronRight } from 'lucide-vue-next'
 import type { Language, LocaleMessages } from '../i18n'
-import type { YearGroup } from '../utils/photoGrouping'
+import type { ActionGroup, ActionSort, YearGroup } from '../utils/photoGrouping'
 
 const props = defineProps<{
   yearGroups: YearGroup[]
+  actionGroups: ActionGroup[]
+  mode: 'date' | 'action'
+  actionSort: ActionSort
+  parseProgress?: { running: boolean; completed: number; total: number }
   language: Language
   messages: LocaleMessages['sidebar']
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   jumpToDate: [dateKey: string]
+  jumpToAction: [actionKey: string]
+  changeMode: [mode: 'date' | 'action']
+  changeActionSort: [sort: ActionSort]
 }>()
 
 const expandedYears = ref(new Set<string>())
 const expandedMonths = ref(new Set<string>())
+const sortMenuOpen = ref(false)
+const sortMenuWrapRef = ref<HTMLDivElement | null>(null)
+const sortButtonRef = ref<HTMLButtonElement | null>(null)
 let initialized = false
 
 /** 在首次出现日期数据时只展开最新年份和最新月份，并保留当前会话的后续操作。参数：groups 为日期树。 */
@@ -46,15 +56,52 @@ function formatMonth(month: string): string {
   return new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date(2026, Number(month) - 1, 1))
 }
 
+const sortLabels = {
+  id: () => props.messages.sortId,
+  name: () => props.messages.sortName,
+  count: () => props.messages.sortCount,
+  latest: () => props.messages.sortLatest
+} satisfies Record<ActionSort, () => string>
+
+function toggleSortMenu() {
+  sortMenuOpen.value = !sortMenuOpen.value
+}
+
+function selectSort(sort: ActionSort) {
+  sortMenuOpen.value = false
+  sortButtonRef.value?.focus()
+  if (sort !== props.actionSort) emit('changeActionSort', sort)
+}
+
+function handleSortKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || !sortMenuOpen.value) return
+  event.stopPropagation()
+  sortMenuOpen.value = false
+  sortButtonRef.value?.focus()
+}
+
+function handleDocumentClick(event: MouseEvent) {
+  if (sortMenuOpen.value && !sortMenuWrapRef.value?.contains(event.target as Node)) sortMenuOpen.value = false
+}
+
 watch(() => props.yearGroups, initializeExpandedGroups, { immediate: true })
+onMounted(() => document.addEventListener('click', handleDocumentClick))
+onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick))
 </script>
 
 <template>
   <aside class="date-sidebar" :aria-label="messages.aria">
-    <div class="sidebar-section-title">{{ messages.title }}</div>
-    <div v-if="!yearGroups.length" class="empty-sidebar">{{ messages.empty }}</div>
+    <div class="sidebar-heading-row">
+      <div class="sidebar-mode-switch" role="group" :aria-label="messages.title">
+        <button type="button" :class="{ active: mode === 'date' }" :aria-pressed="mode === 'date'" @click="$emit('changeMode', 'date')">{{ messages.title }}</button>
+        <button type="button" :class="{ active: mode === 'action' }" :aria-pressed="mode === 'action'" @click="$emit('changeMode', 'action')">{{ messages.actionsTitle }}</button>
+      </div>
+    </div>
 
-    <section v-for="yearGroup in yearGroups" :key="yearGroup.year" class="timeline-year">
+    <template v-if="mode === 'date'">
+      <div v-if="!yearGroups.length" class="empty-sidebar">{{ messages.empty }}</div>
+
+      <section v-for="yearGroup in yearGroups" :key="yearGroup.year" class="timeline-year">
       <button class="timeline-toggle year-toggle" type="button" :aria-expanded="expandedYears.has(yearGroup.year)" @click="toggleYear(yearGroup.year)">
         <ChevronRight :size="15" :class="{ expanded: expandedYears.has(yearGroup.year) }" />
         <strong>{{ yearGroup.year }}</strong>
@@ -75,6 +122,47 @@ watch(() => props.yearGroups, initializeExpandedGroups, { immediate: true })
           </div>
         </section>
       </div>
-    </section>
+      </section>
+    </template>
+
+    <template v-else>
+      <div class="action-sidebar-toolbar">
+        <span v-if="parseProgress?.running" class="action-parse-progress">{{ messages.parseProgress(parseProgress.completed, parseProgress.total) }}</span>
+        <div ref="sortMenuWrapRef" class="action-sort-select-wrap" @keydown="handleSortKeydown">
+          <button
+            ref="sortButtonRef"
+            type="button"
+            class="cleanup-account-select action-sort-select"
+            :class="{ open: sortMenuOpen }"
+            aria-haspopup="listbox"
+            :aria-expanded="sortMenuOpen"
+            @click="toggleSortMenu"
+          >
+            <span>{{ sortLabels[actionSort]() }}</span>
+            <ChevronDown :size="14" aria-hidden="true" />
+          </button>
+          <div v-if="sortMenuOpen" class="cleanup-account-menu action-sort-menu" role="listbox" :aria-label="messages.sort">
+            <button
+              v-for="sort in (['id', 'name', 'count', 'latest'] as ActionSort[])"
+              :key="sort"
+              type="button"
+              role="option"
+              :aria-selected="actionSort === sort"
+              :class="{ active: actionSort === sort }"
+              @click="selectSort(sort)"
+            >
+              <span>{{ sortLabels[sort]() }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div v-if="!actionGroups.length" class="empty-sidebar">{{ messages.empty }}</div>
+      <button v-for="group in actionGroups" :key="group.actionKey" class="action-link" type="button" @click="$emit('jumpToAction', group.actionKey)">
+        <img v-if="group.actionImageUrl" :src="group.actionImageUrl" :alt="group.actionName" />
+        <span v-else class="action-link-placeholder" aria-hidden="true">?</span>
+        <span class="action-link-name">{{ group.actionName }}</span>
+        <small>{{ group.photos.length }}</small>
+      </button>
+    </template>
   </aside>
 </template>

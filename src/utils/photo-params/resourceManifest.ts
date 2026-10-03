@@ -17,11 +17,14 @@ interface ImageTemplate {
 }
 
 interface ResourceCatalog {
+  source?: { pose?: string }
   resources: Record<'light' | 'filter' | 'pose' | 'momo_pose', ResourceEntry[]>
   templates: Record<'light' | 'filter' | 'pose' | 'momo_pose', ImageTemplate | null>
 }
 
 const catalog = catalogJson as ResourceCatalog
+
+export const PHOTO_ACTION_CATALOG_VERSION = String(catalog.source?.pose ?? 'unknown')
 
 // 资源目录缺少某个版本时仍保留已有名称，避免更新资源表导致旧照片显示原始 ID。
 const legacyZhLights: Record<string, string> = {

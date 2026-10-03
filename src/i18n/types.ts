@@ -262,6 +262,15 @@ export interface LocaleMessages {
     aria: string
     title: string
     empty: string
+    actionsTitle: string
+    noAction: string
+    unparsed: string
+    parseProgress: (completed: number, total: number) => string
+    sort: string
+    sortId: string
+    sortName: string
+    sortCount: string
+    sortLatest: string
   }
   grid: {
     emptyTitle: string
@@ -285,6 +294,9 @@ export interface LocaleMessages {
     noteClose: string
     photoCount: (count: number) => string
     parsePhoto: string
+    autoParseActions: string
+    autoParseActionsHint: string
+    actionCount: (count: number) => string
   }
   lightbox: {
     previousAria: string

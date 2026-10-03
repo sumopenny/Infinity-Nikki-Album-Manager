@@ -21,7 +21,9 @@ export const gridZh: LocaleMessages['grid'] = {
       noteSave: '保存备注',
       noteCancel: '取消',
       noteClose: '关闭备注编辑',
-      parsePhoto: '解析照片参数',
+      parsePhoto: '解析照片参数', autoParseActions: '自动解析动作',
+      autoParseActionsHint: '若要使用按拍照动作分类的功能，需打开此开关，但照片多时网页会卡顿。',
+      actionCount: (count) => `${count} 张照片`,
       photoCount: (count) => `${count} 张照片`
     }
 export const gridEn: LocaleMessages['grid'] = {
@@ -44,7 +46,9 @@ export const gridEn: LocaleMessages['grid'] = {
       noteSave: 'Save note',
       noteCancel: 'Cancel',
       noteClose: 'Close note editor',
-      parsePhoto: 'Parse photo parameters',
+      parsePhoto: 'Parse photo parameters', autoParseActions: 'Auto-parse actions',
+      autoParseActionsHint: 'To classify photos by capture action, turn on this switch. The page may become slow when there are many photos.',
+      actionCount: (count) => `${count} photos`,
       photoCount: (count) => `${count} photos`
     }
 

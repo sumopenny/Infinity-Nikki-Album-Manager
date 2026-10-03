@@ -28,7 +28,7 @@ import PhotoParamsDialog from './components/PhotoParamsDialog.vue'
 import { DEFAULT_LANGUAGE, messages, type Language } from './i18n'
 import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
 import { isThemeMode, type ThemeMode } from './types/theme'
-import { type PhotoItem, type RecentlyDeletedPhoto } from './utils/photoGrouping'
+import { type ActionSort, type PhotoItem, type RecentlyDeletedPhoto } from './utils/photoGrouping'
 import {
   clearSavedAlbumDirectoryHandle,
   formatFileSize,
@@ -43,7 +43,7 @@ import {
 } from './utils/file-system/albumFileSystem'
 import { clearRecentlyDeleted, listRecentlyDeleted, movePhotosToRecentlyDeleted, permanentlyDeleteRecentlyDeleted, restoreRecentlyDeletedPhotos } from './utils/file-system/trashFileSystem'
 import { getX6GameDirectoryForAlbum, isProtectedAlbumDirectory, listGamePlayPhotoAccounts, pickStandaloneX6GameDirectory, resolveX6GameAccountDirectory } from './utils/file-system/directoryAccess'
-import { clearSavedCameraParamUids, clearSavedX6GameDirectoryHandle, getSavedX6GameDirectoryHandle } from './utils/file-system/directoryStorage'
+import { clearSavedCameraParamUids, clearSavedPhotoActionCache, clearSavedX6GameDirectoryHandle, getSavedCameraParamUids, getSavedX6GameDirectoryHandle } from './utils/file-system/directoryStorage'
 import { executeMatchingPhotoCleanup, executeSpecialCleanup, prepareMatchingPhotoCleanup, prepareSpecialCleanup, type SpecialCleanupItem } from './utils/file-system/cleanupFileSystem'
 import { savePhotoNote } from './utils/file-system/photoMetadata'
 import { releasePhotoUrl, releasePhotoUrls } from './utils/file-system/photoUrl'
@@ -71,6 +71,7 @@ import { useConfirmDialog } from './composables/useConfirmDialog'
 import { useAlbumViewModel } from './composables/useAlbumViewModel'
 import { useSelectionState } from './composables/useSelectionState'
 import { usePhotoParams } from './composables/usePhotoParams'
+import { usePhotoActionParsing } from './composables/usePhotoActionParsing'
 import { usePhotoTransfer } from './composables/usePhotoTransfer'
 import { clearOutfitCodeParseCache } from './utils/outfit/outfitCodeParser'
 import { clearSavedHomeSchemeParseResults } from './utils/file-system/directoryStorage'
@@ -84,9 +85,10 @@ const X6GAME_AUTO_PROMPT_DISMISSED_KEY = 'infinity-nikki-x6game-auto-prompt-dism
 const THEME_STORAGE_KEY = 'infinity-nikki-theme-mode'
 const LANGUAGE_STORAGE_KEY = 'infinity-nikki-language'
 const FAVORITES_STORAGE_KEY = 'infinity-nikki-favorite-photo-ids'
+const AUTO_PARSE_ACTIONS_STORAGE_KEY = 'infinity-nikki-auto-parse-actions'
 const ABOUT_STATE_STORAGE_KEY = 'infinity-nikki-about-state'
 const CLEANUP_ACCOUNT_CHOICE_KEY = 'infinity-nikki-cleanup-account-choice'
-const WEBSITE_LOCAL_STORAGE_KEYS = [THUMBNAIL_STORAGE_KEY, OUTFIT_THUMBNAIL_STORAGE_KEY, HOME_THUMBNAIL_STORAGE_KEY, OUTFIT_GUIDE_DISMISSED_KEY, X6GAME_AUTO_PROMPT_DISMISSED_KEY, THEME_STORAGE_KEY, LANGUAGE_STORAGE_KEY, FAVORITES_STORAGE_KEY, ABOUT_STATE_STORAGE_KEY, CLEANUP_ACCOUNT_CHOICE_KEY]
+const WEBSITE_LOCAL_STORAGE_KEYS = [THUMBNAIL_STORAGE_KEY, OUTFIT_THUMBNAIL_STORAGE_KEY, HOME_THUMBNAIL_STORAGE_KEY, OUTFIT_GUIDE_DISMISSED_KEY, X6GAME_AUTO_PROMPT_DISMISSED_KEY, THEME_STORAGE_KEY, LANGUAGE_STORAGE_KEY, FAVORITES_STORAGE_KEY, AUTO_PARSE_ACTIONS_STORAGE_KEY, ABOUT_STATE_STORAGE_KEY, CLEANUP_ACCOUNT_CHOICE_KEY]
 const currentAboutVersion = messages.zh.updateLog.currentVersion.replace(/^v/, '')
 
 function isLanguage(value: string | null): value is Language {
@@ -146,6 +148,7 @@ const storedOutfitThumbnailMode = readLocalStorage(OUTFIT_THUMBNAIL_STORAGE_KEY)
 const storedHomeThumbnailMode = readLocalStorage(HOME_THUMBNAIL_STORAGE_KEY)
 const storedThemeMode = readLocalStorage(THEME_STORAGE_KEY)
 const storedLanguage = readLocalStorage(LANGUAGE_STORAGE_KEY)
+const storedAutoParseActions = readLocalStorage(AUTO_PARSE_ACTIONS_STORAGE_KEY)
 
 const storedAboutState = readStoredAboutState()
 
@@ -193,6 +196,9 @@ const searchQuery = ref('')
 const noteDialogPhoto = ref<PhotoItem | null>(null)
 const isNoteDialogVisible = ref(false)
 const activeView = ref<AlbumView>('all')
+const sidebarMode = ref<'date' | 'action'>('date')
+const actionSort = ref<ActionSort>('id')
+const autoParseActionsEnabled = ref(storedAutoParseActions === 'true')
 const currentPreview = ref<PhotoItem | null>(null)
 const sharedOutfitSource = ref<SharedOutfitSource | null>(null)
 const hasX6GameAuthorization = ref(false)
@@ -235,6 +241,8 @@ function invalidatePendingRefreshes() {
 const locale = computed(() => messages[language.value])
 const photoParamsMessages = computed(() => locale.value.photoParams)
 const photoParams = usePhotoParams({ language, messages: photoParamsMessages })
+const photoActionParsing = usePhotoActionParsing({ language })
+const { actionInfo, progress: actionParseProgress } = photoActionParsing
 const {
   photo: photoParamsPhoto,
   isVisible: isPhotoParamsVisible,
@@ -282,7 +290,8 @@ const {
   thumbnailModeOptions,
   displayedThumbnailMode,
   directoryName,
-  viewTitle
+  viewTitle,
+  actionGroups
 } = useAlbumViewModel({
   photos,
   outfits,
@@ -297,7 +306,9 @@ const {
   homeThumbnailMode,
   directoryState,
   language,
-  locale
+  locale,
+  actionInfo,
+  actionSort
 })
 const currentPreviewIndex = computed(() => currentPreview.value ? previewPhotos.value.findIndex((photo) => photo.id === currentPreview.value?.id) : -1)
 const hasPreviousPreview = computed(() => currentPreviewIndex.value > 0)
@@ -427,6 +438,27 @@ watch(themeMode, (value) => {
       })
     })
   }
+}, { immediate: true })
+watch(autoParseActionsEnabled, (value) => {
+  if (!suppressLocalPersistence) writeLocalStorage(AUTO_PARSE_ACTIONS_STORAGE_KEY, String(value))
+})
+
+async function resolveActionCandidateUids(): Promise<string[]> {
+  const source = sharedOutfitSource.value ?? await ensureSharedOutfitSource(true, false)
+  if (!source) return []
+  const [directoryUids, savedUids] = await Promise.all([
+    listGamePlayPhotoAccounts(source.x6GameDirectory),
+    getSavedCameraParamUids()
+  ])
+  return [...new Set([...directoryUids, ...savedUids])]
+}
+
+watch([autoParseActionsEnabled, photos, albumDirectoryHandle], ([enabled, currentPhotos, directory]) => {
+  if (!enabled || !directory || !currentPhotos.length) {
+    photoActionParsing.cancel()
+    return
+  }
+  void photoActionParsing.start(currentPhotos, directory.name, resolveActionCandidateUids)
 }, { immediate: true })
 
 /**
@@ -574,6 +606,8 @@ async function chooseDirectory() {
 /** 清除页面内已加载的相册和选择状态。参数：无。 */
 function resetLoadedAlbumState(options: { clearSharedOutfit?: boolean } = {}) {
   invalidatePendingRefreshes()
+  photoActionParsing.cancel()
+  actionInfo.value = new Map()
   releasePhotoUrls(photos.value)
   releasePhotoUrls(outfits.value)
   releasePhotoUrls(recentlyDeleted.value)
@@ -621,7 +655,7 @@ function dismissX6GameAutoPrompt() {
   statusState.value = { type: 'custom', message: locale.value.app.x6GameAuthorizationCancelledStatus, tone: 'info' }
 }
 
-/** 只清除搭配码解析缓存。参数：无。 */
+/** 清除浏览器中的解析缓存。参数：无。 */
 async function clearCache() {
   if (isAnyFileOperationBusy.value) return
   const confirmed = await openConfirmDialog({
@@ -634,7 +668,7 @@ async function clearCache() {
   if (!confirmed) return
 
   try {
-    await Promise.all([clearOutfitCodeParseCache(), clearSavedHomeSchemeParseResults()])
+    await Promise.all([clearOutfitCodeParseCache(), clearSavedHomeSchemeParseResults(), clearSavedPhotoActionCache()])
     statusState.value = { type: 'custom', message: locale.value.app.clearCacheStatus, tone: 'success' }
   } catch (error) {
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
@@ -658,6 +692,7 @@ async function clearData() {
     await clearSavedAlbumDirectoryHandle()
     await clearSavedX6GameDirectoryHandle()
     await clearSavedCameraParamUids()
+    await clearSavedPhotoActionCache()
     await clearOutfitCodeParseCache()
     clearWebsiteLocalStorage()
     resetLoadedAlbumState()
@@ -1685,6 +1720,17 @@ function scrollToDate(dateKey: string) {
   document.getElementById(`date-${dateKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+function scrollToAction(actionKey: string) {
+  document.getElementById(`action-${actionKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function togglePhotoGroup(photoIds: string[]) {
+  const next = new Set(selectedIds.value)
+  const selected = photoIds.length > 0 && photoIds.every((id) => next.has(id))
+  for (const id of photoIds) selected ? next.delete(id) : next.add(id)
+  selectedIds.value = next
+}
+
 /** 更新左侧栏顶部偏移。参数：无。 */
 function updateSidebarStickyOffset() {
   const topBarElement = document.querySelector<HTMLElement>('.app-header')
@@ -1805,9 +1851,16 @@ onBeforeUnmount(() => {
         <DateSidebar
           v-else-if="activeView !== 'trash' && activeView !== 'home'"
           :year-groups="yearGroups"
+          :action-groups="actionGroups"
+          :mode="sidebarMode"
+          :action-sort="actionSort"
+          :parse-progress="actionParseProgress"
           :language="language"
           :messages="locale.sidebar"
           @jump-to-date="scrollToDate"
+          @jump-to-action="scrollToAction"
+          @change-mode="sidebarMode = $event"
+          @change-action-sort="actionSort = $event"
         />
       </div>
 
@@ -1850,6 +1903,12 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <div v-else-if="activeView !== 'trash'" class="outfit-header-actions photo-header-actions">
+            <label class="auto-parse-actions-toggle" :data-tooltip="locale.grid.autoParseActionsHint">
+              <input v-model="autoParseActionsEnabled" type="checkbox" :aria-label="locale.grid.autoParseActions" />
+              <span class="auto-parse-actions-checkbox" :class="{ checked: autoParseActionsEnabled }" aria-hidden="true"></span>
+              <span>{{ locale.grid.autoParseActions }}</span>
+              <span class="auto-parse-actions-help" aria-hidden="true">?</span>
+            </label>
             <button type="button" :disabled="isAnyFileOperationBusy" @click="openPhotoImportPicker">
               <Download :size="16" aria-hidden="true" />{{ isImportingPhotos ? locale.topBar.importingPhotos : locale.topBar.importPhotos }}
             </button>
@@ -1903,6 +1962,8 @@ onBeforeUnmount(() => {
         <PhotoGrid
           v-else-if="albumDirectoryHandle"
           :date-groups="formattedDateGroups"
+          :action-groups="actionGroups"
+          :grouping-mode="sidebarMode"
           :selected-ids="selectedIds"
           :favorite-ids="favoriteIds"
           :thumbnail-mode="thumbnailMode"
@@ -1911,6 +1972,7 @@ onBeforeUnmount(() => {
           @toggle-photo="togglePhoto"
           @toggle-favorite="toggleFavorite"
           @toggle-date="toggleDate"
+          @toggle-group="togglePhotoGroup"
           @open-preview="openPreview"
           @edit-note="editPhotoNote"
           @parse-photo="openPhotoParams"

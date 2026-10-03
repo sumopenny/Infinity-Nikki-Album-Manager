@@ -9,6 +9,19 @@ const OUTFIT_PARSE_CACHE_KEY_PREFIX = 'outfit-code-parse:'
 // 特效染色标记的解析结果格式发生变化，避免继续命中旧版 IndexedDB 数据。
 const OUTFIT_PARSE_CACHE_VERSION = 'v2:'
 const HOME_SCHEME_PARSE_CACHE_KEY_PREFIX = 'home-scheme-parse:'
+const PHOTO_ACTION_CACHE_KEY_PREFIX = 'photo-action-parse:v1:'
+
+export interface PhotoActionCacheEntry {
+  fingerprint: string
+  parserVersion: string
+  catalogVersion: string
+  status: 'action' | 'none' | 'unparsed'
+  actionId?: string
+  actionName?: string
+  actionImageUrl?: string
+  errorCode?: string
+  parsedAt: number
+}
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -78,6 +91,39 @@ export async function clearSavedCameraParamUids(): Promise<void> {
 
 export async function getSavedOutfitParseResult(code: string): Promise<unknown> {
   return transaction('readonly', (store) => store.get(`${OUTFIT_PARSE_CACHE_KEY_PREFIX}${OUTFIT_PARSE_CACHE_VERSION}${code}`))
+}
+
+function photoActionCacheKey(albumKey: string, photoKey: string): string {
+  return `${PHOTO_ACTION_CACHE_KEY_PREFIX}${encodeURIComponent(albumKey)}:${encodeURIComponent(photoKey)}`
+}
+
+export async function getSavedPhotoActionCache(albumKey: string, photoKey: string): Promise<PhotoActionCacheEntry | null> {
+  try {
+    const value = await transaction('readonly', (store) => store.get(photoActionCacheKey(albumKey, photoKey)))
+    return value && typeof value === 'object' ? value as PhotoActionCacheEntry : null
+  } catch { return null }
+}
+
+export async function savePhotoActionCache(albumKey: string, photoKey: string, entry: PhotoActionCacheEntry): Promise<void> {
+  await transaction('readwrite', (store) => store.put(entry, photoActionCacheKey(albumKey, photoKey)))
+}
+
+export async function clearSavedPhotoActionCache(): Promise<void> {
+  const db = await openDb()
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    const store = tx.objectStore(STORE_NAME)
+    const request = store.getAllKeys()
+    request.onsuccess = () => {
+      for (const key of request.result) {
+        if (typeof key === 'string' && key.startsWith(PHOTO_ACTION_CACHE_KEY_PREFIX)) store.delete(key)
+      }
+    }
+    request.onerror = () => reject(request.error)
+    tx.oncomplete = () => { db.close(); resolve() }
+    tx.onerror = () => { db.close(); reject(tx.error) }
+    tx.onabort = () => { db.close(); reject(tx.error) }
+  })
 }
 
 export async function saveOutfitParseResult(code: string, result: unknown): Promise<void> {

@@ -2,10 +2,11 @@
 import type { LocaleMessages } from '../types'
 
 export const updateLogZh: LocaleMessages['updateLog'] = {
-  title: '更新记录', helpAbout: '使用帮助', currentTitle: '当前版本', currentVersion: 'v1.7', currentDate: '2026.9.30 更新',
-  currentItems: ['新增家园方案管理模块：支持添加家园码和组合码，输入方案码后自动解析方案名称、类型、版本、家具数量等信息。', '新增家园方案 ZIP 备份导入导出，导出文件放在当前所选相册文件夹中。', '“清除缓存”改为清理搭配码和家园方案解析缓存。', '优化使用体验，并改进标签按钮动画、加载提示等。'],
+  title: '更新记录', helpAbout: '使用帮助', currentTitle: '当前版本', currentVersion: 'v1.7.1', currentDate: '2026.10.3 更新',
+  currentItems: ['相册侧边栏新增“拍摄动作”分类：开启“自动解析动作”后，自动识别每张照片的拍照动作，按动作分组，支持按动作编号（新动作优先）、名称、照片数量、最近拍摄时间排序；未使用动作和未解析的照片单独成组。开关默认关闭，照片较多时网页可能卡顿，可按需开启。', '动作解析结果在浏览器本地缓存，重新打开相册无需重复解析；“清除缓存”“清除数据”会同步清理照片动作解析缓存。'],
   historyTitle: '历史版本记录',
   history: [
+    { version: 'v1.7', items: ['新增家园方案管理模块：支持添加家园码和组合码，输入方案码后自动解析方案名称、类型、版本、家具数量等信息。', '新增家园方案 ZIP 备份导入导出，导出文件放在当前所选相册文件夹中。', '“清除缓存”改为清理搭配码和家园方案解析缓存。', '优化使用体验，并改进标签按钮动画、加载提示等。'] },
     { version: 'v1.6.3', items: ['搭配码解析新增部件类型标注：在部件名称后显示发型、头饰、睫毛等类型，方便快速辨认。', '新增可点击的部件详情：点击解析结果中的部件图片，可查看当前部件、所属套装及套装图、进化/焕新状态和染色条件；有染色数据时还会展示区域、染色盘、色号与颜色。', '暖立方官网页面已上线，并带暖暖去观摩了一下🤩'] },
     { version: 'v1.6.2', items: ['新增本地照片参数解析：可在工具栏解析窗口中选择电脑、手机上的游戏原图进行拍摄参数解析。该功能手机也可用，手机解析时需手动输入拍摄照片用的账号的 UID 。', '品牌名称升级为“暖立方 / NikkiCube”，暖立方 Nikki³ | 为每一张心动留个位置——官方主题网站即将上线✨', '更新搭配码解析图鉴到2.10版本。'] },
     { version: 'v1.6.1', items: ['新增选中照片后可删除对应低画质图片的功能：按名称匹配并永久删除当前账号 ScreenShot 和 NikkiPhotos_LowQuality 中的图片，保留当前相册原图。', '改版“更新记录”窗口，重新整理更新版本的展示。', '优化了一些问题并和暖暖出去看了场电影💅。'] },
@@ -32,10 +33,11 @@ export const updateLogZh: LocaleMessages['updateLog'] = {
 }
 
 export const updateLogEn: LocaleMessages['updateLog'] = {
-  title: 'Release history', helpAbout: 'Help', currentTitle: 'Current version', currentVersion: 'v1.7', currentDate: 'Updated 2026.9.30',
-  currentItems: ['Added a Home schemes management module: add home codes and combo codes, and entering a scheme code automatically parses the scheme name, type, version, furniture count, and other information.', 'Added ZIP backup import and export for home schemes; exported files are placed in the currently selected album folder.', '"Clear cache" now clears the outfit-code and home-scheme parsing caches.', 'Polished the experience, including tag-button animations and loading hints.'],
+  title: 'Release history', helpAbout: 'Help', currentTitle: 'Current version', currentVersion: 'v1.7.1', currentDate: 'Updated 2026.10.3',
+  currentItems: ['Added a "Capture Actions" view to the album sidebar: after turning on "Auto-parse actions", each photo\'s pose is detected automatically and photos are grouped by action, with sorting by action ID (newest first), name, photo count, or latest capture time; photos with no action and unparsed photos form separate groups. The switch is off by default—turn it on as needed, since parsing many photos may slow down the page.', 'Action results are cached locally in the browser, so reopening an album does not reparse every photo; "Clear cache" and "Clear all data" also clear the photo-action parse cache.'],
   historyTitle: 'Previous releases',
   history: [
+    { version: 'v1.7', items: ['Added a Home schemes management module: add home codes and combo codes, and entering a scheme code automatically parses the scheme name, type, version, furniture count, and other information.', 'Added ZIP backup import and export for home schemes; exported files are placed in the currently selected album folder.', '"Clear cache" now clears the outfit-code and home-scheme parsing caches.', 'Polished the experience, including tag-button animations and loading hints.'] },
     { version: 'v1.6.3', items: ['Outfit-code decoding now labels clothing-part types: the part type (hairstyle, hair accessory, eyelashes, etc.) is shown after the part name for quick identification.', 'Added clickable part details: click a part image in the decoding results to view the current part, its outfit set and set image, evolution/refinement status, and dyeing conditions; when dyeing data is available, the region, dye palette, color number, and color are also displayed.', 'The NikkiCube official website is now live, and I took Nikki along to take a look 🤩'] },
     { version: 'v1.6.2', items: ['Added local photo parameter decoding: select game original photos on your computer or phone in the toolbar decoding window to analyze shooting parameters. The feature is also available on mobile; when decoding on mobile, you must manually enter the UID of the account used to take the photo.', 'Upgraded the brand name to "NikkiCube / 暖立方". NikkiCube Nikki³ | A place for every heart-flutter — the official theme website is coming soon ✨', 'Updated the outfit-code decoding gallery to version 2.10.'] },
     { version: 'v1.6.1', items: ['Added deletion of the matching low-quality images for selected photos: images are matched by name and permanently deleted from the current account\'s ScreenShot and NikkiPhotos_LowQuality folders, while the original photos in the album are kept.', 'Redesigned the Release history window and reorganized how releases are presented.', 'Fixed various issues and went to see a movie with Nikki 💅.'] },

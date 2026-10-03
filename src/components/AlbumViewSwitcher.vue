@@ -22,7 +22,6 @@ defineEmits<{
 
 <template>
   <nav class="album-view-nav" :aria-label="messages.aria">
-    <div class="sidebar-section-title">{{ messages.title }}</div>
     <button
       v-for="item in [
         { view: 'all' as const, label: messages.allPhotos, count: allCount },
