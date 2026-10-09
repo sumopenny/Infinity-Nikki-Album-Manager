@@ -17,6 +17,7 @@ import { fileSystemZh } from './messages/fileSystem'
 import { outfitMessages } from './messages/outfit'
 import { photoParamsZh } from './messages/photoParams'
 import { homeSchemeMessages } from './messages/homeScheme'
+import { resonanceZh } from './messages/resonance'
 
 export const zh: LocaleMessages = {
   app: appZh,
@@ -35,5 +36,6 @@ export const zh: LocaleMessages = {
   fileSystem: fileSystemZh,
   outfit: outfitMessages.zh,
   photoParams: photoParamsZh,
-  homeScheme: homeSchemeMessages.zh
+  homeScheme: homeSchemeMessages.zh,
+  resonance: resonanceZh
 }

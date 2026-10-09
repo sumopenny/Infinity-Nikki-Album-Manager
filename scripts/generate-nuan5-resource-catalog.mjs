@@ -2,6 +2,7 @@ import { createDecipheriv, hkdfSync } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { DEFAULT_GALLERY_API, GALLERY_IMAGE_TEMPLATE, readGalleryCatalog } from './update-nikkigallery-poses.mjs'
 
 const DEFAULT_MANIFEST_PATH = resolve(process.cwd(), '../nikki_albums/app_api/hot_update.json')
@@ -46,7 +47,8 @@ async function readJsonSource(source) {
   return JSON.parse((await readSource(source)).toString('utf8'))
 }
 
-function decryptNuan5File(encrypted) {
+/** 解密上游共用的带盐值、随机数和认证标签的资源文件。 */
+export function decryptNuan5File(encrypted) {
   if (encrypted.length < 16 + 12 + 16) throw new Error('暖暖资源文件长度无效')
   const salt = encrypted.subarray(0, 16)
   const nonce = encrypted.subarray(16, 28)
@@ -131,7 +133,8 @@ function decodeNetworkImageItem(buffer) {
   return baseUrl && replace ? { baseUrl, replace } : null
 }
 
-function decodeNuan5Database(buffer) {
+/** 从 protobuf 数据库提取灯光、滤镜、大喵动作及图片模板。 */
+export function decodeNuan5Database(buffer) {
   const fields = readProtoFields(buffer)
   const decodeLight = (value) => {
     const nested = readProtoFields(value)
@@ -246,7 +249,8 @@ class MessagePackReader {
   }
 }
 
-function decodeMessagePack(buffer) {
+/** 解析解密后的 MessagePack 语言包。 */
+export function decodeMessagePack(buffer) {
   return new MessagePackReader(buffer).value()
 }
 
@@ -255,7 +259,8 @@ function getNestedValue(root, key) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
 }
 
-function categoryTranslations(decoded, category) {
+/** 提取指定资源类别的有效名称映射。 */
+export function categoryTranslations(decoded, category) {
   const root = getNestedValue(decoded, 'infinity_nikki')
   const value = getNestedValue(root, category)
   return Object.fromEntries(Object.entries(value).filter(([, name]) => typeof name === 'string'))
@@ -273,7 +278,8 @@ function unique(values) {
   return [...new Set(values.filter((value) => value != null && String(value) !== '').map(String))]
 }
 
-function buildMappedEntries(map, zh, en) {
+/** 保留内部 ID 和参数 ID 别名，组装双语资源条目。 */
+export function buildMappedEntries(map, zh, en) {
   return Object.entries(map).map(([key, value]) => {
     const aliases = unique([key, value.paramId, value.stringId])
     return {
@@ -302,7 +308,8 @@ function buildPoseEntries(zh, en) {
   return ids.map((key) => ({ key, aliases: [key], zh: zh[key] ?? '', en: en[key] ?? '' }))
 }
 
-function resolveHotUpdateFiles(manifest, id, language) {
+/** 根据资源类别和语言定位热更新文件及版本。 */
+export function resolveHotUpdateFiles(manifest, id, language) {
   const item = manifest.find((entry) => entry.id === id)
   if (!item) throw new Error(`hot_update.json 中缺少 ${id}`)
   const file = item.files.find((entry) => entry.path === (id === 'nuan5_database' ? 'v1.db' : `${language}.bin`))
@@ -359,7 +366,9 @@ async function main() {
   console.log(JSON.stringify({ source: catalog.source, counts }, null, 2))
 }
 
-main().catch((error) => {
+// 导入解析函数时不执行全量生成，供灯光和滤镜增量同步复用。
+const entryUrl = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : ''
+if (import.meta.url === entryUrl) main().catch((error) => {
   console.error(error instanceof Error ? error.message : error)
   process.exitCode = 1
 })

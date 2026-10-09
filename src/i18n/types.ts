@@ -3,6 +3,7 @@ import type { RelatedCleanupFailureReason, SpecialCleanupItem } from '../utils/f
 import type { OutfitMessages } from './messages/outfit'
 import type { PhotoParamsMessages } from './messages/photoParams'
 import type { HomeSchemeMessages } from './messages/homeScheme'
+import type { ResonanceMessages } from './messages/resonance'
 export type Language = 'zh' | 'en'
 export type StatusPrefix = 'read' | 'restored'
 export type StatusSuffix = 'continued' | 'remembered'
@@ -11,6 +12,7 @@ export interface LocaleMessages {
   outfit: OutfitMessages
   photoParams: PhotoParamsMessages
   homeScheme: HomeSchemeMessages
+  resonance: ResonanceMessages
   app: {
     noDirectory: string
     initialStatus: string
@@ -253,6 +255,7 @@ export interface LocaleMessages {
     title: string
     allPhotos: string
     homeSchemes: string
+    resonance: string
     favorites: string
     recentlyDeleted: string
     count: (count: number) => string

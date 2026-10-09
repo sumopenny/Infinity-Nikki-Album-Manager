@@ -1,0 +1,1410 @@
+[
+  {
+    "bannerId": 1,
+    "bannerType": 1,
+    "name": "遥远之海",
+    "outfit4StarId": [
+      "10084",
+      "10056",
+      "10092",
+      "10058"
+    ],
+    "outfit5StarId": [
+      "10093",
+      "10033",
+      "10145",
+      "10165"
+    ],
+    "runs": []
+  },
+  {
+    "bannerId": 2,
+    "bannerType": 2,
+    "name": "绘于蝶影的幻梦",
+    "outfit4StarId": [
+      "10164"
+    ],
+    "outfit5StarId": [
+      "10126"
+    ],
+    "runs": [
+      {
+        "version": "1.0.1",
+        "start": "2024-12-05",
+        "end": "2024-12-18"
+      },
+      {
+        "version": "1.6.2",
+        "start": "2025-06-23",
+        "end": "2025-07-07"
+      }
+    ]
+  },
+  {
+    "bannerId": 3,
+    "bannerType": 2,
+    "name": "留于花间的浮想",
+    "outfit4StarId": [
+      "10163"
+    ],
+    "outfit5StarId": [
+      "10161"
+    ],
+    "runs": [
+      {
+        "version": "1.0.1",
+        "start": "2024-12-05",
+        "end": "2024-12-18"
+      },
+      {
+        "version": "1.7.2",
+        "start": "2025-07-17",
+        "end": "2025-07-29"
+      }
+    ]
+  },
+  {
+    "bannerId": 4,
+    "bannerType": 3,
+    "name": "呱呱轻语",
+    "outfit4StarId": [
+      "10153"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.0.2",
+        "start": "2024-12-18",
+        "end": "2024-12-29"
+      },
+      {
+        "version": "1.5.2",
+        "start": "2025-05-20",
+        "end": "2025-06-12"
+      }
+    ]
+  },
+  {
+    "bannerId": 5,
+    "bannerType": 3,
+    "name": "泡泡心诉",
+    "outfit4StarId": [
+      "10107"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.0.2",
+        "start": "2024-12-18",
+        "end": "2024-12-29"
+      },
+      {
+        "version": "2.1.0",
+        "start": "2026-01-06",
+        "end": "2026-01-19"
+      }
+    ]
+  },
+  {
+    "bannerId": 6,
+    "bannerType": 2,
+    "name": "飞向流星的愿望",
+    "outfit4StarId": [
+      "10166"
+    ],
+    "outfit5StarId": [
+      "10129"
+    ],
+    "runs": [
+      {
+        "version": "1.1.1",
+        "start": "2024-12-29",
+        "end": "2025-01-23"
+      },
+      {
+        "version": "2.1.2",
+        "start": "2026-01-19",
+        "end": "2026-01-29"
+      }
+    ]
+  },
+  {
+    "bannerId": 7,
+    "bannerType": 3,
+    "name": "粉红缎带之舞",
+    "outfit4StarId": [
+      "10179"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.1.2",
+        "start": "2025-01-12",
+        "end": "2025-01-23"
+      },
+      {
+        "version": "2.6.1",
+        "start": "2026-05-28",
+        "end": "2026-06-10"
+      }
+    ]
+  },
+  {
+    "bannerId": 8,
+    "bannerType": 3,
+    "name": "追逐流星的鱼",
+    "outfit4StarId": [
+      "10181"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.1.2",
+        "start": "2025-01-12",
+        "end": "2025-01-23"
+      },
+      {
+        "version": "2.4.1",
+        "start": "2026-03-26",
+        "end": "2026-04-09"
+      }
+    ]
+  },
+  {
+    "bannerId": 9,
+    "bannerType": 2,
+    "name": "献给夜空的花束",
+    "outfit4StarId": [
+      "10096"
+    ],
+    "outfit5StarId": [
+      "10117"
+    ],
+    "runs": [
+      {
+        "version": "1.2.1",
+        "start": "2025-01-23",
+        "end": "2025-02-25"
+      },
+      {
+        "version": "2.9.2",
+        "start": "2026-09-09",
+        "end": "2026-09-23"
+      }
+    ]
+  },
+  {
+    "bannerId": 10,
+    "bannerType": 2,
+    "name": "礼花升空的序曲",
+    "outfit4StarId": [
+      "10097"
+    ],
+    "outfit5StarId": [
+      "10001"
+    ],
+    "runs": [
+      {
+        "version": "1.2.1",
+        "start": "2025-01-23",
+        "end": "2025-02-25"
+      },
+      {
+        "version": "2.4.2",
+        "start": "2026-04-09",
+        "end": "2026-04-23"
+      }
+    ]
+  },
+  {
+    "bannerId": 11,
+    "bannerType": 3,
+    "name": "群芳的剪影",
+    "outfit4StarId": [
+      "10227"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.2.2",
+        "start": "2025-02-13",
+        "end": "2025-02-25"
+      },
+      {
+        "version": "2.1.0",
+        "start": "2026-01-06",
+        "end": "2026-01-19"
+      }
+    ]
+  },
+  {
+    "bannerId": 12,
+    "bannerType": 3,
+    "name": "风中的轻歌",
+    "outfit4StarId": [
+      "10228"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.2.2",
+        "start": "2025-02-13",
+        "end": "2025-02-25"
+      },
+      {
+        "version": "2.3.1",
+        "start": "2026-03-02",
+        "end": "2026-03-15"
+      }
+    ]
+  },
+  {
+    "bannerId": 13,
+    "bannerType": 2,
+    "name": "彷徨于此的终曲",
+    "outfit4StarId": [
+      "10197"
+    ],
+    "outfit5StarId": [
+      "10183"
+    ],
+    "runs": [
+      {
+        "version": "1.3.1",
+        "start": "2025-02-25",
+        "end": "2025-03-25"
+      },
+      {
+        "version": "2.6.2",
+        "start": "2026-06-10",
+        "end": "2026-06-23"
+      }
+    ]
+  },
+  {
+    "bannerId": 14,
+    "bannerType": 3,
+    "name": "悠然茶歇之时",
+    "outfit4StarId": [
+      "10123"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.3.2",
+        "start": "2025-03-11",
+        "end": "2025-03-25"
+      },
+      {
+        "version": "2.4.1",
+        "start": "2026-03-26",
+        "end": "2026-04-09"
+      }
+    ]
+  },
+  {
+    "bannerId": 15,
+    "bannerType": 3,
+    "name": "迎风疾驰之行",
+    "outfit4StarId": [
+      "10132"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.3.2",
+        "start": "2025-03-11",
+        "end": "2025-03-25"
+      },
+      {
+        "version": "2.3.1",
+        "start": "2026-03-02",
+        "end": "2026-03-15"
+      }
+    ]
+  },
+  {
+    "bannerId": 16,
+    "bannerType": 2,
+    "name": "坠入狂欢夜",
+    "outfit4StarId": [
+      "10226"
+    ],
+    "outfit5StarId": [
+      "10223"
+    ],
+    "runs": [
+      {
+        "version": "1.4.1",
+        "start": "2025-03-25",
+        "end": "2025-04-28"
+      },
+      {
+        "version": "2.3.2",
+        "start": "2026-03-15",
+        "end": "2026-03-26"
+      }
+    ]
+  },
+  {
+    "bannerId": 17,
+    "bannerType": 3,
+    "name": "牧铃声中的曼舞",
+    "outfit4StarId": [
+      "10114"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.4.2",
+        "start": "2025-04-08",
+        "end": "2025-04-28"
+      },
+      {
+        "version": "2.9.1",
+        "start": "2026-08-27",
+        "end": "2026-09-09"
+      }
+    ]
+  },
+  {
+    "bannerId": 18,
+    "bannerType": 3,
+    "name": "羽翎笔下的奇思",
+    "outfit4StarId": [
+      "10105"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.4.2",
+        "start": "2025-04-08",
+        "end": "2025-04-28"
+      },
+      {
+        "version": "2.7.1",
+        "start": "2026-06-23",
+        "end": "2026-07-05"
+      }
+    ]
+  },
+  {
+    "bannerId": 19,
+    "bannerType": 2,
+    "name": "若留于永雪之境",
+    "outfit4StarId": [
+      "10208"
+    ],
+    "outfit5StarId": [
+      "10162"
+    ],
+    "runs": [
+      {
+        "version": "1.5.1",
+        "start": "2025-04-28",
+        "end": "2025-06-12"
+      }
+    ]
+  },
+  {
+    "bannerId": 20,
+    "bannerType": 2,
+    "name": "我心不落",
+    "outfit4StarId": [
+      "10113"
+    ],
+    "outfit5StarId": [
+      "10178"
+    ],
+    "runs": [
+      {
+        "version": "1.5.1",
+        "start": "2025-04-28",
+        "end": "2025-06-12"
+      }
+    ]
+  },
+  {
+    "bannerId": 21,
+    "bannerType": 3,
+    "name": "且听流水之音",
+    "outfit4StarId": [
+      "10143"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.5.2",
+        "start": "2025-05-20",
+        "end": "2025-06-12"
+      },
+      {
+        "version": "2.7.1",
+        "start": "2026-06-23",
+        "end": "2026-07-05"
+      }
+    ]
+  },
+  {
+    "bannerId": 22,
+    "bannerType": 3,
+    "name": "点染丰饶之梦",
+    "outfit4StarId": [
+      "10167"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.5.2",
+        "start": "2025-05-20",
+        "end": "2025-06-12"
+      },
+      {
+        "version": "2.6.1",
+        "start": "2026-05-28",
+        "end": "2026-06-10"
+      }
+    ]
+  },
+  {
+    "bannerId": 23,
+    "bannerType": 2,
+    "name": "聆听仙子的秘语",
+    "outfit4StarId": [
+      "10216"
+    ],
+    "outfit5StarId": [
+      "10154"
+    ],
+    "runs": [
+      {
+        "version": "1.6.1",
+        "start": "2025-06-12",
+        "end": "2025-07-07"
+      },
+      {
+        "version": "2.7.2",
+        "start": "2026-07-05",
+        "end": "2026-07-16"
+      }
+    ]
+  },
+  {
+    "bannerId": 24,
+    "bannerType": 3,
+    "name": "白日造梦家",
+    "outfit4StarId": [
+      "10198"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.6.2",
+        "start": "2025-06-23",
+        "end": "2025-07-07"
+      }
+    ]
+  },
+  {
+    "bannerId": 25,
+    "bannerType": 3,
+    "name": "向着云顶，冲鸭",
+    "outfit4StarId": [
+      "10238"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.6.2",
+        "start": "2025-06-23",
+        "end": "2025-07-07"
+      },
+      {
+        "version": "2.9.1",
+        "start": "2026-08-27",
+        "end": "2026-09-09"
+      }
+    ]
+  },
+  {
+    "bannerId": 26,
+    "bannerType": 2,
+    "name": "于泪中，你与我重逢",
+    "outfit4StarId": [
+      "10232"
+    ],
+    "outfit5StarId": [
+      "10231"
+    ],
+    "runs": [
+      {
+        "version": "1.7.1",
+        "start": "2025-07-07",
+        "end": "2025-07-29"
+      }
+    ]
+  },
+  {
+    "bannerId": 27,
+    "bannerType": 3,
+    "name": "自由的第二章",
+    "outfit4StarId": [
+      "10192"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.7.2",
+        "start": "2025-07-17",
+        "end": "2025-07-29"
+      }
+    ]
+  },
+  {
+    "bannerId": 28,
+    "bannerType": 3,
+    "name": "于雾中呼唤",
+    "outfit4StarId": [
+      "10175"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.7.2",
+        "start": "2025-07-17",
+        "end": "2025-07-29"
+      }
+    ]
+  },
+  {
+    "bannerId": 29,
+    "bannerType": 2,
+    "name": "千重云墨千重缘",
+    "outfit4StarId": [
+      "10176"
+    ],
+    "outfit5StarId": [
+      "10330"
+    ],
+    "runs": [
+      {
+        "version": "1.8.1",
+        "start": "2025-07-29",
+        "end": "2025-09-01"
+      }
+    ]
+  },
+  {
+    "bannerId": 30,
+    "bannerType": 2,
+    "name": "缘起绘笔万念生",
+    "outfit4StarId": [
+      "10173"
+    ],
+    "outfit5StarId": [
+      "10331"
+    ],
+    "runs": [
+      {
+        "version": "1.8.1",
+        "start": "2025-07-29",
+        "end": "2025-09-01"
+      },
+      {
+        "version": "2.10.2",
+        "start": "2026-10-11",
+        "end": "2026-10-29"
+      }
+    ]
+  },
+  {
+    "bannerId": 31,
+    "bannerType": 3,
+    "name": "烟雨侠客行",
+    "outfit4StarId": [
+      "10204"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.8.2",
+        "start": "2025-08-19",
+        "end": "2025-09-01"
+      }
+    ]
+  },
+  {
+    "bannerId": 32,
+    "bannerType": 3,
+    "name": "绮梦讹兽语",
+    "outfit4StarId": [
+      "10333"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.8.2",
+        "start": "2025-08-19",
+        "end": "2025-09-01"
+      }
+    ]
+  },
+  {
+    "bannerId": 33,
+    "bannerType": 2,
+    "name": "梦尽于无终幕处",
+    "outfit4StarId": [
+      "10085"
+    ],
+    "outfit5StarId": [
+      "10239"
+    ],
+    "runs": [
+      {
+        "version": "1.9.1",
+        "start": "2025-09-01",
+        "end": "2025-09-28"
+      }
+    ]
+  },
+  {
+    "bannerId": 34,
+    "bannerType": 3,
+    "name": "向星光奔赴",
+    "outfit4StarId": [
+      "10332"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.9.2",
+        "start": "2025-09-16",
+        "end": "2025-09-28"
+      }
+    ]
+  },
+  {
+    "bannerId": 35,
+    "bannerType": 3,
+    "name": "趁夜色叛逃",
+    "outfit4StarId": [
+      "10313"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.9.2",
+        "start": "2025-09-16",
+        "end": "2025-09-28"
+      }
+    ]
+  },
+  {
+    "bannerId": 36,
+    "bannerType": 2,
+    "name": "风中奏鸣之花",
+    "outfit4StarId": [
+      "10252"
+    ],
+    "outfit5StarId": [
+      "10250"
+    ],
+    "runs": [
+      {
+        "version": "1.10.1",
+        "start": "2025-09-28",
+        "end": "2025-10-27"
+      }
+    ]
+  },
+  {
+    "bannerId": 37,
+    "bannerType": 3,
+    "name": "远方与花期",
+    "outfit4StarId": [
+      "10258"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.10.2",
+        "start": "2025-10-14",
+        "end": "2025-10-27"
+      }
+    ]
+  },
+  {
+    "bannerId": 38,
+    "bannerType": 3,
+    "name": "遥遥晴雨天",
+    "outfit4StarId": [
+      "10251"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.10.2",
+        "start": "2025-10-14",
+        "end": "2025-10-27"
+      }
+    ]
+  },
+  {
+    "bannerId": 39,
+    "bannerType": 2,
+    "name": "我所行之途",
+    "outfit4StarId": [
+      "10279"
+    ],
+    "outfit5StarId": [
+      "10289"
+    ],
+    "runs": [
+      {
+        "version": "1.11.1",
+        "start": "2025-10-27",
+        "end": "2025-11-25"
+      }
+    ]
+  },
+  {
+    "bannerId": 40,
+    "bannerType": 3,
+    "name": "菇灯萤梦",
+    "outfit4StarId": [
+      "10049"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.11.2",
+        "start": "2025-11-12",
+        "end": "2025-11-25"
+      }
+    ]
+  },
+  {
+    "bannerId": 41,
+    "bannerType": 3,
+    "name": "何处寻青羽",
+    "outfit4StarId": [
+      "10234"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "1.11.2",
+        "start": "2025-11-12",
+        "end": "2025-11-25"
+      }
+    ]
+  },
+  {
+    "bannerId": 42,
+    "bannerType": 2,
+    "name": "何人消隐于祷声",
+    "outfit4StarId": [
+      "10358"
+    ],
+    "outfit5StarId": [
+      "10350"
+    ],
+    "runs": [
+      {
+        "version": "2.0.1",
+        "start": "2025-11-25",
+        "end": "2026-01-06"
+      }
+    ]
+  },
+  {
+    "bannerId": 43,
+    "bannerType": 2,
+    "name": "何梦破碎于无瑕",
+    "outfit4StarId": [
+      "10282"
+    ],
+    "outfit5StarId": [
+      "10349"
+    ],
+    "runs": [
+      {
+        "version": "2.0.1",
+        "start": "2025-11-25",
+        "end": "2026-01-06"
+      }
+    ]
+  },
+  {
+    "bannerId": 44,
+    "bannerType": 3,
+    "name": "甜花絮语的午后",
+    "outfit4StarId": [
+      "10324"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.0.2",
+        "start": "2025-12-18",
+        "end": "2026-01-06"
+      }
+    ]
+  },
+  {
+    "bannerId": 45,
+    "bannerType": 3,
+    "name": "鹿与远森之歌",
+    "outfit4StarId": [
+      "10360"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.0.2",
+        "start": "2025-12-18",
+        "end": "2026-01-06"
+      }
+    ]
+  },
+  {
+    "bannerId": 46,
+    "bannerType": 2,
+    "name": "如一叶长青的诗",
+    "outfit4StarId": [
+      "10302"
+    ],
+    "outfit5StarId": [
+      "10293"
+    ],
+    "runs": [
+      {
+        "version": "2.1.1",
+        "start": "2026-01-06",
+        "end": "2026-01-29"
+      }
+    ]
+  },
+  {
+    "bannerId": 47,
+    "bannerType": 3,
+    "name": "孤影栖薄枝",
+    "outfit4StarId": [
+      "10299"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.1.2",
+        "start": "2026-01-19",
+        "end": "2026-01-29"
+      }
+    ]
+  },
+  {
+    "bannerId": 48,
+    "bannerType": 3,
+    "name": "白影织林梦",
+    "outfit4StarId": [
+      "10287"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.1.2",
+        "start": "2026-01-19",
+        "end": "2026-01-29"
+      }
+    ]
+  },
+  {
+    "bannerId": 49,
+    "bannerType": 2,
+    "name": "千靥万相长夜赋",
+    "outfit4StarId": [
+      "10354"
+    ],
+    "outfit5StarId": [
+      "10352"
+    ],
+    "runs": [
+      {
+        "version": "2.2.1",
+        "start": "2026-01-29",
+        "end": "2026-03-02"
+      }
+    ]
+  },
+  {
+    "bannerId": 50,
+    "bannerType": 2,
+    "name": "万般尘相入玉心",
+    "outfit4StarId": [
+      "10361"
+    ],
+    "outfit5StarId": [
+      "10353"
+    ],
+    "runs": [
+      {
+        "version": "2.2.1",
+        "start": "2026-01-29",
+        "end": "2026-03-02"
+      }
+    ]
+  },
+  {
+    "bannerId": 51,
+    "bannerType": 3,
+    "name": "灯花欲语暖",
+    "outfit4StarId": [
+      "10245"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.2.2",
+        "start": "2026-02-13",
+        "end": "2026-03-02"
+      }
+    ]
+  },
+  {
+    "bannerId": 52,
+    "bannerType": 3,
+    "name": "唯塑此间意",
+    "outfit4StarId": [
+      "10249"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.2.2",
+        "start": "2026-02-13",
+        "end": "2026-03-02"
+      }
+    ]
+  },
+  {
+    "bannerId": 53,
+    "bannerType": 2,
+    "name": "如我斑斓",
+    "outfit4StarId": [
+      "10137"
+    ],
+    "outfit5StarId": [
+      "10355"
+    ],
+    "runs": [
+      {
+        "version": "2.3.1",
+        "start": "2026-03-02",
+        "end": "2026-03-26"
+      }
+    ]
+  },
+  {
+    "bannerId": 54,
+    "bannerType": 3,
+    "name": "梦游者的谜底",
+    "outfit4StarId": [
+      "10241"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.3.2",
+        "start": "2026-03-15",
+        "end": "2026-03-26"
+      }
+    ]
+  },
+  {
+    "bannerId": 55,
+    "bannerType": 3,
+    "name": "悲欢秘宴",
+    "outfit4StarId": [
+      "10362"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.3.2",
+        "start": "2026-03-15",
+        "end": "2026-03-26"
+      }
+    ]
+  },
+  {
+    "bannerId": 56,
+    "bannerType": 2,
+    "name": "以森林唤她之名",
+    "outfit4StarId": [
+      "10217"
+    ],
+    "outfit5StarId": [
+      "10268"
+    ],
+    "runs": [
+      {
+        "version": "2.4.1",
+        "start": "2026-03-26",
+        "end": "2026-04-23"
+      }
+    ]
+  },
+  {
+    "bannerId": 57,
+    "bannerType": 3,
+    "name": "万声终末的回响",
+    "outfit4StarId": [
+      "10381"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.4.2",
+        "start": "2026-04-09",
+        "end": "2026-04-23"
+      }
+    ]
+  },
+  {
+    "bannerId": 58,
+    "bannerType": 3,
+    "name": "契约终末之时",
+    "outfit4StarId": [
+      "10298"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.4.2",
+        "start": "2026-04-09",
+        "end": "2026-04-23"
+      }
+    ]
+  },
+  {
+    "bannerId": 59,
+    "bannerType": 2,
+    "name": "往复于栖骨之畔",
+    "outfit4StarId": [
+      "10206"
+    ],
+    "outfit5StarId": [
+      "10290"
+    ],
+    "runs": [
+      {
+        "version": "2.5.1",
+        "start": "2026-04-23",
+        "end": "2026-05-28"
+      }
+    ]
+  },
+  {
+    "bannerId": 60,
+    "bannerType": 2,
+    "name": "辗转于无归之劫",
+    "outfit4StarId": [
+      "10374"
+    ],
+    "outfit5StarId": [
+      "10364"
+    ],
+    "runs": [
+      {
+        "version": "2.5.1",
+        "start": "2026-04-23",
+        "end": "2026-05-28"
+      }
+    ]
+  },
+  {
+    "bannerId": 61,
+    "bannerType": 3,
+    "name": "瑰途终寂",
+    "outfit4StarId": [
+      "10378"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.5.2",
+        "start": "2026-05-10",
+        "end": "2026-05-28"
+      }
+    ]
+  },
+  {
+    "bannerId": 62,
+    "bannerType": 3,
+    "name": "似月长明",
+    "outfit4StarId": [
+      "10377"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.5.2",
+        "start": "2026-05-10",
+        "end": "2026-05-28"
+      }
+    ]
+  },
+  {
+    "bannerId": 63,
+    "bannerType": 2,
+    "name": "往日的未竟歌",
+    "outfit4StarId": [
+      "10387"
+    ],
+    "outfit5StarId": [
+      "10301"
+    ],
+    "runs": [
+      {
+        "version": "2.6.1",
+        "start": "2026-05-28",
+        "end": "2026-06-23"
+      }
+    ]
+  },
+  {
+    "bannerId": 64,
+    "bannerType": 3,
+    "name": "于烈焰燃烧时",
+    "outfit4StarId": [
+      "10288"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.6.2",
+        "start": "2026-06-10",
+        "end": "2026-06-23"
+      }
+    ]
+  },
+  {
+    "bannerId": 65,
+    "bannerType": 3,
+    "name": "于群星静默时",
+    "outfit4StarId": [
+      "10384"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.6.2",
+        "start": "2026-06-10",
+        "end": "2026-06-23"
+      }
+    ]
+  },
+  {
+    "bannerId": 66,
+    "bannerType": 2,
+    "name": "千万次相逢的理由",
+    "outfit4StarId": [
+      "10385"
+    ],
+    "outfit5StarId": [
+      "10382"
+    ],
+    "runs": [
+      {
+        "version": "2.7.1",
+        "start": "2026-06-23",
+        "end": "2026-07-16"
+      }
+    ]
+  },
+  {
+    "bannerId": 67,
+    "bannerType": 3,
+    "name": "明日向晴",
+    "outfit4StarId": [
+      "10295"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.7.2",
+        "start": "2026-07-05",
+        "end": "2026-07-16"
+      }
+    ]
+  },
+  {
+    "bannerId": 68,
+    "bannerType": 3,
+    "name": "往日鼓声",
+    "outfit4StarId": [
+      "10379"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.7.2",
+        "start": "2026-07-05",
+        "end": "2026-07-16"
+      }
+    ]
+  },
+  {
+    "bannerId": 69,
+    "bannerType": 2,
+    "name": "群梦拂落之曦",
+    "outfit4StarId": [
+      "10391"
+    ],
+    "outfit5StarId": [
+      "10300"
+    ],
+    "runs": [
+      {
+        "version": "2.8.1",
+        "start": "2026-07-16",
+        "end": "2026-08-27"
+      }
+    ]
+  },
+  {
+    "bannerId": 70,
+    "bannerType": 2,
+    "name": "未息歌咏之夜",
+    "outfit4StarId": [
+      "10392"
+    ],
+    "outfit5StarId": [
+      "10366"
+    ],
+    "runs": [
+      {
+        "version": "2.8.1",
+        "start": "2026-07-16",
+        "end": "2026-08-27"
+      }
+    ]
+  },
+  {
+    "bannerId": 71,
+    "bannerType": 3,
+    "name": "落子明心",
+    "outfit4StarId": [
+      "10243"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.8.2",
+        "start": "2026-08-06",
+        "end": "2026-08-27"
+      }
+    ]
+  },
+  {
+    "bannerId": 72,
+    "bannerType": 3,
+    "name": "万法幻浮生",
+    "outfit4StarId": [
+      "10417"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.8.2",
+        "start": "2026-08-06",
+        "end": "2026-08-27"
+      }
+    ]
+  },
+  {
+    "bannerId": 73,
+    "bannerType": 2,
+    "name": "初醒的花庭",
+    "outfit4StarId": [
+      "10397"
+    ],
+    "outfit5StarId": [
+      "10294"
+    ],
+    "runs": [
+      {
+        "version": "2.9.1",
+        "start": "2026-08-27",
+        "end": "2026-09-23"
+      }
+    ]
+  },
+  {
+    "bannerId": 74,
+    "bannerType": 3,
+    "name": "缄默的绘彩",
+    "outfit4StarId": [
+      "10394"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.9.2",
+        "start": "2026-09-09",
+        "end": "2026-09-23"
+      }
+    ]
+  },
+  {
+    "bannerId": 75,
+    "bannerType": 3,
+    "name": "旋落的帧影",
+    "outfit4StarId": [
+      "10398"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.9.2",
+        "start": "2026-09-09",
+        "end": "2026-09-23"
+      }
+    ]
+  },
+  {
+    "bannerId": 76,
+    "bannerType": 2,
+    "name": "执律的流金",
+    "outfit4StarId": [
+      "10430"
+    ],
+    "outfit5StarId": [
+      "10399"
+    ],
+    "runs": [
+      {
+        "version": "2.10.1",
+        "start": "2026-09-23",
+        "end": "2026-10-29"
+      }
+    ]
+  },
+  {
+    "bannerId": 77,
+    "bannerType": 2,
+    "name": "在属于孩子的故事里",
+    "outfit4StarId": [
+      "10343"
+    ],
+    "outfit5StarId": [
+      "10347"
+    ],
+    "runs": [
+      {
+        "version": "2.10.1",
+        "start": "2026-09-23",
+        "end": "2026-11-26"
+      }
+    ]
+  }
+]

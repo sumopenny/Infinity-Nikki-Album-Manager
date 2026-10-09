@@ -1108,6 +1108,382 @@
   .fortune-time-header h2 { font-size: 20px; }
 }
 
+/* 共鸣记录导入弹窗：外壳尺寸、间距和滚动结构全部继承抽卡吉时窗口。 */
+.resonance-import-dialog {
+  z-index: 160;
+  overflow: hidden;
+}
+
+.resonance-import-panel {
+  width: min(1120px, 100%);
+  height: min(820px, calc(100dvh - 48px));
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.resonance-import-header {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.resonance-import-header h2 {
+  font-size: clamp(20px, 2.2vw, 28px);
+}
+
+/* 单一滚动容器：正文内部不再嵌套滚动条 */
+.resonance-import-body {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 12px;
+  padding: 15px 32px 30px;
+  overflow-y: auto;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.resonance-import-body h3 {
+  margin: 0 0 9px;
+  color: var(--heading);
+  font-size: 16px;
+}
+
+.resonance-import-footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 26px;
+  border-top: 1px solid var(--line);
+}
+
+.resonance-import-footer .primary-button {
+  min-width: 92px;
+  min-height: 38px;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+/* 导入方式与 Cookie 方式共用一组分段按钮 */
+.resonance-choice-row {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.resonance-choice {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background var(--motion-base) ease, color var(--motion-base) ease, border-color var(--motion-base) ease, transform var(--motion-base) var(--ease-spring);
+}
+
+.resonance-choice:hover {
+  border-color: color-mix(in srgb, var(--pink-deep) 25%, var(--line-soft));
+  color: var(--heading);
+}
+
+.resonance-choice[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--pink-deep) 35%, var(--line-soft));
+  background: var(--surface-strong);
+  color: var(--pink-deep);
+  font-weight: 800;
+  box-shadow: 0 2px 7px color-mix(in srgb, var(--pink-deep) 12%, transparent);
+}
+
+.resonance-choice svg {
+  flex: 0 0 auto;
+}
+
+/* 说明区域复用 parse-tools-section 的边框、圆角与间距 */
+.resonance-info-card {
+  display: grid;
+  gap: 9px;
+}
+
+.resonance-info-card p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.resonance-info-card a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--pink-deep);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* 文件选择器使用弹窗按钮样式，文件名独立占位并允许长名称省略。 */
+.resonance-file-card {
+  gap: 16px;
+}
+
+.resonance-file-picker {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.resonance-file-button {
+  display: inline-flex;
+  min-height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 15px;
+  border: 1px solid color-mix(in srgb, var(--pink-deep) 35%, var(--line-soft));
+  border-radius: 10px;
+  background: var(--surface-strong);
+  color: var(--pink-deep);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color var(--motion-base) ease, background var(--motion-base) ease;
+}
+
+.resonance-file-button:hover {
+  border-color: var(--pink-deep);
+  background: color-mix(in srgb, var(--pink-deep) 7%, var(--surface-strong));
+}
+
+.resonance-file-button:focus-visible {
+  outline: 2px solid var(--pink-deep);
+  outline-offset: 3px;
+}
+
+.resonance-file-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resonance-file-name.has-file {
+  color: var(--text);
+}
+
+.resonance-hint {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.dialog-panel .resonance-source-attribution {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 9px;
+  margin: 12px 0 12px;
+  padding: 10px 14px;
+  border-radius: var(--ui-radius);
+  background: color-mix(in srgb, var(--soft-accent) 52%, var(--surface));
+  color: var(--text);
+  font-size: 13px;
+}
+
+.resonance-source-attribution strong {
+  color: var(--pink-deep);
+}
+
+.resonance-steps {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 22px;
+  font-size: 13px;
+}
+
+.resonance-steps ul {
+  display: grid;
+  gap: 3px;
+  margin: 5px 0 0;
+  padding-left: 20px;
+  list-style: disc;
+}
+
+/* 步骤内的行内小按钮与书签链接 */
+.resonance-inline-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  padding: 4px 12px;
+  border: 1px solid color-mix(in srgb, var(--pink-deep) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pink-deep) 10%, transparent);
+  color: var(--pink-deep);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--motion-base) ease, transform var(--motion-base) var(--ease-spring);
+}
+
+.resonance-inline-action:hover {
+  background: color-mix(in srgb, var(--pink-deep) 18%, transparent);
+  transform: translateY(-1px);
+}
+
+.resonance-security-note {
+  padding: 4px 0 4px 10px;
+  border-left: 3px solid var(--notice-warning);
+  color: var(--notice-warning);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.resonance-data-note {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* 粘贴框与凭据表单复用照片参数窗口的输入框外观 */
+.resonance-paste {
+  display: grid;
+  gap: 8px;
+  margin-top: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.resonance-paste label,
+.resonance-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.resonance-paste textarea {
+  width: 100%;
+  min-width: 0;
+  outline: none;
+  transition: border-color var(--motion-base) ease, box-shadow var(--motion-base) ease, background var(--motion-base) ease;
+}
+
+.resonance-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.photo-params-uid-form input,
+.resonance-form input {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.resonance-form input:focus,
+.resonance-form input:focus-visible,
+.resonance-paste textarea:focus {
+  border-color: var(--pink-deep);
+  background: var(--surface-strong);
+  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 14%, transparent);
+}
+
+.resonance-status-line {
+  margin: 0;
+  font-size: 13px;
+}
+
+.resonance-status-line.is-progress { color: var(--muted); }
+
+/* 导入预览复用吉时表格的横向滚动、边框和单元格样式 */
+.resonance-preview {
+  display: grid;
+  gap: 10px;
+}
+
+.resonance-preview-wrap {
+  max-height: 240px;
+}
+
+.resonance-file-actions {
+  margin-left: 0;
+  justify-content: flex-start;
+}
+
+.resonance-file-actions button {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resonance-cookie-guide h4 {
+  margin: 0;
+  color: var(--heading);
+  font-size: 15px;
+}
+
+@media (max-width: 640px) {
+  .resonance-import-panel {
+    width: 100%;
+    height: calc(100dvh - 24px);
+    max-height: calc(100dvh - 24px);
+    border-radius: 20px;
+  }
+  .resonance-import-body {
+    gap: 20px;
+    padding: 8px 16px 24px;
+  }
+  .resonance-import-header {
+    padding: 17px 18px 12px;
+  }
+  .resonance-import-header h2 { font-size: 20px; }
+  .resonance-import-footer { padding: 14px 16px; }
+  .resonance-choice-row {
+    width: 100%;
+  }
+  .resonance-choice {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding: 0 10px;
+  }
+  .resonance-form {
+    grid-template-columns: 1fr;
+  }
+  .resonance-file-picker {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .resonance-file-button {
+    width: 100%;
+  }
+}
+
 /* 专项清理弹窗：独立声明尺寸与布局，仅复用通用 dialog-panel 基础外观。 */
 .cleanup-dialog-panel {
   --dialog-width: min(960px, 100%);

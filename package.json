@@ -7,11 +7,12 @@
     "resources:update": "node scripts/generate-nuan5-resource-catalog.mjs",
     "resources:update:items": "node scripts/generate-item-catalog.cjs --remote",
     "resources:update:poses": "node scripts/update-nikkigallery-poses.mjs",
+    "resources:update:light-filters": "node scripts/update-nuan5-light-filters.mjs",
     "resources:update:gongeo": "node scripts/update-gongeo-catalog.mjs",
-    "resources:update:startup": "npm run resources:update:poses && npm run resources:update:items && npm run resources:update:gongeo",
+    "resources:update:startup": "npm run resources:update:poses && npm run resources:update:light-filters && npm run resources:update:items && npm run resources:update:gongeo",
     "predev": "npm run resources:update:startup",
     "build": "vue-tsc --noEmit && vite build",
-    "build:cloudflare": "npm run resources:update:poses && npm run resources:update:items && npm run resources:update:gongeo && npm run build",
+    "build:cloudflare": "npm run resources:update:startup && npm run build",
     "test": "vitest run",
     "preview": "vite preview --host 0.0.0.0",
     "predev:remote": "npm run resources:update:startup",
@@ -24,6 +25,7 @@
     "@assemblyscript/loader": "0.28.20",
     "fflate": "^0.8.3",
     "lucide-vue-next": "^0.577.0",
+    "snappyjs": "^0.7.0",
     "vue": "^3.5.13"
   },
   "devDependencies": {

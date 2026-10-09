@@ -102,6 +102,32 @@ describe('App lifecycle coordination', () => {
     wrapper.unmount()
   })
 
+  it('allows navigation without an album and opens resonance independently', async () => {
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+    const wrapper = mount(App, {
+      global: { stubs: { ResonanceRecords: { template: '<div class="resonance-workspace-stub" />' } } }
+    })
+    await flushPromises()
+
+    for (const index of [1, 2, 4, 5, 0]) {
+      const button = wrapper.findAll('.album-view-button')[index]
+      expect((button.element as HTMLButtonElement).disabled).toBe(false)
+      await button.trigger('click')
+      await flushPromises()
+      expect(button.attributes('aria-pressed')).toBe('true')
+      expect(wrapper.find('.empty-album-start').exists()).toBe(true)
+    }
+    expect(readOutfitLibraryMock).not.toHaveBeenCalled()
+    expect(wrapper.findComponent({ name: 'OutfitGuideDialog' }).props('visible')).toBe(false)
+
+    await wrapper.findAll('.album-view-button')[3].trigger('click')
+    await wrapper.get('.resonance-nav-menu [role="menuitem"]').trigger('click')
+    expect(wrapper.find('.resonance-workspace-stub').exists()).toBe(true)
+    expect(wrapper.find('.empty-album-start').exists()).toBe(false)
+    expect(wrapper.get('.album-layout').classes()).not.toContain('without-album')
+    wrapper.unmount()
+  })
+
   it('releases outfit object URLs when the application unmounts', async () => {
     const directoryHandle = { kind: 'directory', name: 'NikkiPhotos_HighQuality' } as FileSystemDirectoryHandle
     const outfit = { id: 'outfit-1', url: 'blob:outfit' } as OutfitItem

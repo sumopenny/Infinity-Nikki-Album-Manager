@@ -19,6 +19,8 @@ import ParseToolsDialog from './components/ParseToolsDialog.vue'
 import FortuneTimeDialog from './components/FortuneTimeDialog.vue'
 import OutfitSidebar, { type OutfitFilter } from './components/OutfitSidebar.vue'
 import HomeSchemeWorkspace from './components/HomeSchemeWorkspace.vue'
+import ResonanceRecords from './components/ResonanceRecords.vue'
+import ResonanceSidebar from './components/ResonanceSidebar.vue'
 import PhotoGrid from './components/PhotoGrid.vue'
 import RecentlyDeletedGrid from './components/RecentlyDeletedGrid.vue'
 import SelectionBar from './components/SelectionBar.vue'
@@ -76,6 +78,8 @@ import { usePhotoTransfer } from './composables/usePhotoTransfer'
 import { clearOutfitCodeParseCache } from './utils/outfit/outfitCodeParser'
 import { clearSavedHomeSchemeParseResults } from './utils/file-system/directoryStorage'
 import { countHomeSchemes } from './utils/homeBuild/homeSchemeFileSystem'
+import type { ResonanceRecord } from './utils/resonance/resonanceTypes'
+import type { ResonanceBannerOrder, ResonanceRarityFilter } from './utils/resonance/resonanceCatalog'
 
 const THUMBNAIL_STORAGE_KEY = 'infinity-nikki-thumbnail-mode'
 const OUTFIT_THUMBNAIL_STORAGE_KEY = 'infinity-nikki-outfit-thumbnail-mode'
@@ -160,6 +164,9 @@ type DirectoryState =
 const photos = ref<PhotoItem[]>([])
 const outfits = ref<OutfitItem[]>([])
 const homeSchemesCount = ref(0)
+const resonanceRecords = ref<ResonanceRecord[]>([])
+const resonanceBannerOrder = ref<ResonanceBannerOrder>('newest')
+const resonanceRarityFilter = ref<ResonanceRarityFilter>('all')
 const outfitTags = ref<string[]>([])
 const activeOutfitFilter = ref<OutfitFilter>('all')
 const editingOutfit = ref<OutfitItem | null>(null)
@@ -268,6 +275,7 @@ const {
   isAnyFileOperationBusy,
   isVisible: isStatusNoticeVisible,
   showStatus,
+  clearStatus: clearOperationStatus,
   closeNotice: closeStatusNotice,
   pauseNotice: pauseStatusNoticeTimer,
   resumeNotice: resumeStatusNoticeTimer,
@@ -953,8 +961,8 @@ function changeAlbumView(view: AlbumView) {
   }
   activeOutfitFilter.value = 'all'
   if (view === 'trash') void refreshAlbum(false)
-  if (view === 'outfits') void updateOutfitLibrary(true, false)
-  isOutfitGuideVisible.value = isEnteringOutfits && !isOutfitGuideDismissed.value
+  if (view === 'outfits' && albumDirectoryHandle.value) void updateOutfitLibrary(true, false)
+  isOutfitGuideVisible.value = isEnteringOutfits && Boolean(albumDirectoryHandle.value) && !isOutfitGuideDismissed.value
 }
 
 /** 关闭搭配码操作指南。参数：dontShowAgain 表示后续进入模块时是否不再显示；同时同步本地偏好。 */
@@ -1724,6 +1732,11 @@ function scrollToAction(actionKey: string) {
   document.getElementById(`action-${actionKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+/** 将侧栏中选中的套装定位到对应共鸣记录卡片。 */
+function scrollToResonanceRecord(recordId: string) {
+  document.getElementById(`resonance-record-${recordId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 function togglePhotoGroup(photoIds: string[]) {
   const next = new Set(selectedIds.value)
   const selected = photoIds.length > 0 && photoIds.every((id) => next.has(id))
@@ -1820,17 +1833,18 @@ onBeforeUnmount(() => {
       @update-search="searchQuery = $event"
     />
 
-    <main class="album-layout" :class="{ 'without-album': !albumDirectoryHandle }">
-      <div v-if="albumDirectoryHandle" id="album-sidebar-column" class="sidebar-column">
+    <main class="album-layout" :class="{ 'without-album': !albumDirectoryHandle && activeView !== 'resonance' }">
+      <div id="album-sidebar-column" class="sidebar-column">
         <AlbumViewSwitcher
           :active-view="activeView"
           :all-count="photos.length"
           :outfits-count="outfits.length"
           :home-schemes-count="homeSchemesCount"
+          :resonance-label="locale.viewNav.resonance"
           :favorite-count="favoriteCount"
           :trash-count="recentlyDeleted.length"
           :outfit-label="outfitLocale.viewName"
-          :disabled="!albumDirectoryHandle || isAnyFileOperationBusy"
+          :disabled="isAnyFileOperationBusy"
           :messages="locale.viewNav"
           @change-view="changeAlbumView"
         />
@@ -1841,12 +1855,22 @@ onBeforeUnmount(() => {
           :outfits="outfits"
           :tags="outfitTags"
           :active-filter="activeOutfitFilter"
-          :disabled="isAnyFileOperationBusy"
+          :disabled="!albumDirectoryHandle || isAnyFileOperationBusy"
           :messages="outfitLocale"
           @change-filter="changeOutfitFilter"
           @add-tag="addOutfitTag"
           @delete-tag="removeOutfitTag"
           @reorder-tags="reorderOutfitTags"
+        />
+        <ResonanceSidebar
+          v-else-if="activeView === 'resonance'"
+          :records="resonanceRecords"
+          :language="language"
+          :banner-order="resonanceBannerOrder"
+          :rarity-filter="resonanceRarityFilter"
+          @change-banner-order="resonanceBannerOrder = $event"
+          @change-rarity-filter="resonanceRarityFilter = $event"
+          @jump-to-record="scrollToResonanceRecord"
         />
         <DateSidebar
           v-else-if="activeView !== 'trash' && activeView !== 'home'"
@@ -1865,7 +1889,7 @@ onBeforeUnmount(() => {
       </div>
 
       <section class="album-content" :aria-label="locale.app.albumContentAria">
-        <div v-if="!albumDirectoryHandle" class="empty-album-start">
+        <div v-if="!albumDirectoryHandle && activeView !== 'resonance'" class="empty-album-start">
           <div class="empty-start-mark" aria-hidden="true"></div>
           <h2>{{ locale.grid.emptyTitle }}</h2>
           <p>{{ locale.grid.emptyDescription }}</p>
@@ -1876,7 +1900,7 @@ onBeforeUnmount(() => {
           <p class="hidden-folder-tip">{{ locale.grid.hiddenFolderTip }}</p>
         </div>
 
-        <header v-else-if="activeView !== 'home'" class="gallery-header" :class="{ 'is-outfit-header': activeView === 'outfits' }">
+        <header v-else-if="activeView !== 'home' && activeView !== 'resonance'" class="gallery-header" :class="{ 'is-outfit-header': activeView === 'outfits' }">
           <div>
             <p class="eyebrow">{{ activeView === 'trash' ? 'TRASH' : activeView === 'outfits' ? outfitLocale.eyebrow : 'ALBUM' }}</p>
             <div v-if="activeView === 'outfits'" class="outfit-title-row">
@@ -1935,6 +1959,15 @@ onBeforeUnmount(() => {
           @status="handleHomeSchemeStatus"
           @count-change="homeSchemesCount = $event"
         />
+        <ResonanceRecords
+          v-else-if="activeView === 'resonance'"
+          :language="language"
+          :banner-order="resonanceBannerOrder"
+          :rarity-filter="resonanceRarityFilter"
+          @records-change="resonanceRecords = $event"
+          @notice="showStatus"
+          @clear-notice="clearOperationStatus('resonance')"
+        />
         <RecentlyDeletedGrid
           v-else-if="albumDirectoryHandle && activeView === 'trash'"
           :photos="recentlyDeleted"
@@ -1981,7 +2014,7 @@ onBeforeUnmount(() => {
     </main>
 
     <SelectionBar
-      v-if="activeView !== 'home'"
+      v-if="activeView !== 'home' && activeView !== 'resonance'"
       :mode="activeView === 'trash' ? 'trash' : activeView === 'outfits' ? 'outfit' : activeView === 'favorites' ? 'favorites' : 'album'"
       :selected-count="activeView === 'trash' ? trashSelectedCount : activeView === 'outfits' ? selectedOutfitCount : selectedCount"
       :all-selected="activeView === 'trash' ? allTrashSelected : activeView === 'outfits' ? allOutfitsSelected : allSelected"

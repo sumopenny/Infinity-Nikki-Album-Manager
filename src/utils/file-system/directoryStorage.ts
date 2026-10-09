@@ -1,7 +1,9 @@
 // 目录句柄存储：使用 IndexedDB 保存和读取相册及 X6Game 目录授权句柄。
 const DB_NAME = 'infinity-nikki-album-manager'
-const DB_VERSION = 1
+// 浏览器中可能已存在更高版本的同名数据库，版本号只能递增，不能为了迁就测试而降级。
+const DB_VERSION = 4
 const STORE_NAME = 'album-handles'
+const RESONANCE_STORE_NAME = 'resonance-records'
 const SAVED_DIRECTORY_KEY = 'current-album-directory'
 const SAVED_X6GAME_DIRECTORY_KEY = 'current-x6game-directory'
 const SAVED_CAMERA_PARAM_UIDS_KEY = 'current-camera-param-uids'
@@ -28,6 +30,7 @@ function openDb(): Promise<IDBDatabase> {
     const request = indexedDB.open(DB_NAME, DB_VERSION)
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME)
+      if (!request.result.objectStoreNames.contains(RESONANCE_STORE_NAME)) request.result.createObjectStore(RESONANCE_STORE_NAME)
     }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)

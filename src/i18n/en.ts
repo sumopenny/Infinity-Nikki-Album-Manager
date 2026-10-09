@@ -17,6 +17,7 @@ import { fileSystemEn } from './messages/fileSystem'
 import { outfitMessages } from './messages/outfit'
 import { photoParamsEn } from './messages/photoParams'
 import { homeSchemeMessages } from './messages/homeScheme'
+import { resonanceEn } from './messages/resonance'
 
 export const en: LocaleMessages = {
   app: appEn,
@@ -35,5 +36,6 @@ export const en: LocaleMessages = {
   fileSystem: fileSystemEn,
   outfit: outfitMessages.en,
   photoParams: photoParamsEn,
-  homeScheme: homeSchemeMessages.en
+  homeScheme: homeSchemeMessages.en,
+  resonance: resonanceEn
 }

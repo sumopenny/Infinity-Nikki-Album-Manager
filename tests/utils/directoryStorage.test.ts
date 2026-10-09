@@ -30,8 +30,13 @@ describe('directoryStorage', () => {
 
   it('ignores legacy outfit parse results after the parser cache version changes', async () => {
     const code = 'legacy1A2B3C#'
+    await new Promise<void>((resolve) => {
+      const request = indexedDB.deleteDatabase('infinity-nikki-album-manager')
+      request.onsuccess = request.onerror = request.onblocked = () => resolve()
+    })
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('infinity-nikki-album-manager', 1)
+      const request = indexedDB.open('infinity-nikki-album-manager', 3)
+      request.onupgradeneeded = () => request.result.createObjectStore('album-handles')
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
@@ -47,7 +52,7 @@ describe('directoryStorage', () => {
     await clearSavedOutfitParseResults()
 
     const checkDb = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('infinity-nikki-album-manager', 1)
+      const request = indexedDB.open('infinity-nikki-album-manager', 4)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })

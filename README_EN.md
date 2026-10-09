@@ -68,6 +68,7 @@
 
 ### Browsing the album
 
+- On first launch or before choosing an album directory, sidebar navigation stays visible and clickable. Views that need an album directory show the selection prompt on the right; Resonance records can be used directly.
 - Group photos by year, month, and date with a collapsible timeline and quick date jumps.
 - Single-click to select a photo and show the bottom action bar.
 - Double-click to open the large preview with 50%–300% zoom, mouse-wheel zooming, and drag-to-pan after zooming in.
@@ -77,6 +78,19 @@
 - The album supports batch image import through the file picker. The gallery header exports all photos, while the selection bar exports only selected photos. After a successful export, you can choose to move successfully exported source photos to Recently Deleted. Cancelling keeps completed target files and all source photos.
 
 ### Outfit codes and parameter parsing
+
+### Resonance records
+
+- Resonance is a top-level view beside Home schemes, with desktop hover and mobile click navigation support. Its submenu matches the top-right menu's hover background, button radius, and opening animation.
+- The Resonance records sidebar lists each saved outfit with a thumbnail, name, and star rating; its hover style matches the photo action list. The menu below its title sorts banners newest or oldest first and can show all outfits, 5-star outfits only, or 4-star outfits only. The sidebar and cards share the same order and rarity filter, while preserving outfit order within each banner; filtering does not delete records or affect exports. Click an entry to scroll to its card; the list updates after imports or clearing records.
+- Add data offers Mainland China Whim-Log import or one local JSON file. For Whim-Log, sign in and sync at [Pear-Pal](https://myl.nuanpaper.com/home), then copy credentials using the bookmark or console method and paste them for UID verification; a prominent "Method source" callout above the method options credits Resonance Recorder. File import accepts this app's resonance backup and both the legacy pull-only and newer multi-source Resonance Recorder JSON formats; files are read in the browser.
+- Every import processes all recognized banners in Whim-Log in `pool_cnt` order. Records are written to browser IndexedDB only after preview and confirmation; the dialog's top-right close button exits the preview. Local records for missing or failed banners are kept.
+- Records are sorted by descending banner ID, with 5-star outfits before 4-star outfits in each banner's catalog order. Banner, outfit, and piece names follow the site language. Outfit images use `img/back.png` as their background. The first two acquisitions of each piece go to sets one and two respectively. Within each set, the most recently obtained pieces appear first, followed by missing pieces in catalog order. Older saved records without acquisition order keep their original order among obtained pieces; reimporting from Whim-Log or a pull-history file restores the exact order. Piece circles show the pulls needed for that acquisition, a gray `0` when missing, or `*` for a manual edit. The summary total adds pulls from both sets, and the average divides that total by the number of pieces with actual pull counts and shows one decimal place. Switching sets changes only piece counts. Resonance records are saved and read in the current bilingual format.
+- A disabled “Cloud sync (coming soon)” placeholder appears to the left of “Clear resonance records” and does not sync data yet. Click “Clear resonance records” and confirm to remove all resonance data stored in this browser. This cannot be undone.
+- Piece cards use square icons at `/images/items/icons/{id}.png`. Missing pieces use the `img/silverCardBg.png` background; obtained pieces use `img/pinkCardBg.png` for odd banner IDs and `img/purpleCardBg.png` for even banner IDs. Manually added pieces count as obtained. Older saved records also display the correct icon by piece ID without reimporting.
+- Import, clear, and cookie handling results appear in the global notice at the top of the page; fetch progress and busy button states stay with their operations.
+- File import previews before saving, replaces matching outfit records, and keeps other local records. Unrecognized or unparseable banners are counted and skipped; a file with no valid records is rejected. For newer Resonance Recorder files, each banner uses whichever source has more actual pulls, with game pulls winning ties. Manual edits count as owned pieces only when the game source is used; they do not increase real pull totals.
+- Export data downloads a versioned JSON backup that can be reimported with manual edit markers intact. Credentials are used for the current request only and are not stored or logged. The proxy is limited to Pear-Pal's Mainland China user-info and notebook endpoints and disables caching.
 
 - Store outfit images, outfit codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export.
 - Outfit-code results append the item type to each name, such as “Item-Hair”, “Item-Hair Accessories”, or “Item-Eyelashes”.
@@ -242,14 +256,21 @@ To run the local site against the online D1 data, double-click `start\Start-Remo
 
 ```bash
 npm install       # Install dependencies
-npm run dev       # Refresh poses, bilingual item catalogs, and Gongeo mapping catalogs before starting the dev server
+npm run dev       # Refresh poses, lights/filters, bilingual item catalogs, and Gongeo mappings before starting the dev server
 set REMOTE_API_ORIGIN=https://infinity-nikki-album-manager.pages.dev
-npm run dev:remote # Refresh poses, item catalogs, and Gongeo mappings; proxy outfit and home-scheme data to storage and other /api calls to Pages
+npm run dev:remote # Refresh poses, lights/filters, item catalogs, and Gongeo mappings; proxy outfit and home-scheme data to storage and other /api calls to Pages
 npm test          # Run automated tests
 npm run build     # Type-check and build
-npm run build:cloudflare # Refresh normal poses, item catalogs, and Gongeo mappings, then build
+npm run build:cloudflare # Refresh normal poses, lights/filters, item catalogs, and Gongeo mappings, then build
+npm run resources:update:light-filters # Check light/filter updates separately
 npm run preview   # Preview the build result
 ```
+
+During resonance catalog synchronization, banners come from the remote catalog when available; otherwise, remote source files take priority over the local tracker repository fallback. Identical files remain untouched. Failed synchronization prints a warning and keeps the project's existing catalog snapshot.
+
+The local EXE launcher, `dev`, `dev:remote`, and Cloudflare builds share the resource update chain. Lights/filters check database and bilingual language-pack versions in Nikki Albums' remote hot-update manifest. Changed versions trigger downloads and validation; only light/filter names, ID mappings, and image templates are replaced, preserving normal poses and Momo data. Matching versions skip resource downloads. Failures print a warning and keep the existing snapshot. Standard `npm run build` only type-checks and builds.
+
+The light/filter script accepts `--force` to refresh, `--strict` to fail on errors, and `--manifest <URL>` / `--timeout <milliseconds>`. Environment overrides are `NUAN5_HOT_UPDATE_MANIFEST` for the remote manifest URL and `NUAN5_HOT_UPDATE_TIMEOUT_MS` for the timeout (15000 milliseconds by default). When passing options through npm, put `--` before them.
 
 Stack: Vue 3, TypeScript, Vite, File System Access API, IndexedDB.
 

@@ -12,6 +12,7 @@ describe('album view controls', () => {
         allCount: 12,
         outfitsCount: 4,
         homeSchemesCount: 5,
+        resonanceLabel: '共鸣',
         favoriteCount: 3,
         trashCount: 2,
         outfitLabel: '搭配码',
@@ -21,10 +22,37 @@ describe('album view controls', () => {
     })
 
     expect(wrapper.findAll('button').map((button) => button.text())).toEqual([
-      '全部照片12 张', '搭配码4 张', '家园方案5 个方案', '收藏夹3 张', '最近删除2 张'
+      '全部照片12 张', '搭配码4 张', '家园方案5 个方案', '共鸣', '收藏夹3 张', '最近删除2 张'
     ])
-    await wrapper.findAll('button')[4].trigger('click')
+    await wrapper.findAll('button')[5].trigger('click')
     expect(wrapper.emitted('changeView')).toEqual([['trash']])
+  })
+
+  it('turns the resonance arrow right and opens the submenu on hover', async () => {
+    const wrapper = mount(AlbumViewSwitcher, {
+      props: {
+        activeView: 'all',
+        allCount: 0,
+        outfitsCount: 0,
+        homeSchemesCount: 0,
+        resonanceLabel: '共鸣',
+        favoriteCount: 0,
+        trashCount: 0,
+        outfitLabel: '搭配码',
+        disabled: false,
+        messages: messages.zh.viewNav
+      }
+    })
+
+    const resonanceItem = wrapper.findAll('.album-view-item')[3]
+    const arrow = resonanceItem.find('.resonance-nav-arrow')
+    expect(arrow.classes()).not.toContain('is-open')
+    await resonanceItem.trigger('mouseenter')
+    expect(arrow.classes()).toContain('is-open')
+    expect(resonanceItem.find('.album-view-button').attributes('aria-expanded')).toBe('true')
+    expect(resonanceItem.find('[role="menu"]').exists()).toBe(true)
+    await resonanceItem.find('[role="menuitem"]').trigger('click')
+    expect(wrapper.emitted('changeView')).toEqual([['resonance']])
   })
 
   it('keeps recently deleted cards free of names, sizes, and per-card actions', () => {

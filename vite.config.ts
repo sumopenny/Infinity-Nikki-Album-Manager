@@ -1,5 +1,49 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { onRequestPost as forwardPearpalRequest } from './functions/api/resonance/pearpal'
+
+/** 本地开发复用 Pages Function：只接受固定 POST 动作，并沿用凭据校验、超时与禁缓存响应。 */
+function localPearpalApi(): Plugin {
+  return {
+    name: 'local-pearpal-api',
+    configureServer(server) {
+      server.middlewares.use('/api/resonance/pearpal', async (req, res) => {
+        res.setHeader('cache-control', 'no-store, no-cache, must-revalidate')
+        if (req.method !== 'POST') {
+          res.statusCode = 405
+          res.end(JSON.stringify({ error: 'method_not_allowed' }))
+          return
+        }
+        try {
+          const chunks: Buffer[] = []
+          let size = 0
+          for await (const chunk of req) {
+            const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+            size += bytes.length
+            if (size > 8192) {
+              res.statusCode = 413
+              res.end(JSON.stringify({ error: 'request_too_large' }))
+              return
+            }
+            chunks.push(bytes)
+          }
+          const request = new Request(`http://localhost/api/resonance/pearpal${req.url ?? ''}`, {
+            method: 'POST',
+            headers: req.headers as HeadersInit,
+            body: Buffer.concat(chunks)
+          })
+          const response = await forwardPearpalRequest({ request })
+          res.statusCode = response.status
+          response.headers.forEach((value, key) => res.setHeader(key, value))
+          res.end(Buffer.from(await response.arrayBuffer()))
+        } catch {
+          res.statusCode = 502
+          res.end(JSON.stringify({ error: 'upstream_unavailable' }))
+        }
+      })
+    }
+  }
+}
 
 function getRemoteApiOrigin(mode: string): string | undefined {
   if (mode !== 'remote') return undefined
@@ -71,7 +115,7 @@ export default defineConfig(({ mode }) => {
       }
 
   return {
-    plugins: [vue()],
+    plugins: [vue(), localPearpalApi()],
     server: {
       host: '0.0.0.0',
       port: 5173,

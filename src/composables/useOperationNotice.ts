@@ -29,12 +29,13 @@ export type StatusState =
   | { type: 'readFailed' }
   | { type: 'cleared' }
   | { type: 'success'; count: number; prefix: StatusPrefix; suffix?: StatusSuffix }
-  | { type: 'custom'; message: string; tone?: StatusTone; loading?: boolean }
+  | { type: 'custom'; message: string; tone?: StatusTone; loading?: boolean; source?: string }
 
 export interface ConfirmableStatus {
   message: string
   tone?: StatusTone
   loading?: boolean
+  source?: string
 }
 
 /** 集中管理操作状态、错误映射和顶部通知生命周期，避免页面组件重复维护计时器与 busy 判断。 */
@@ -136,8 +137,19 @@ export function useOperationNotice(locale: ComputedRef<LocaleMessages>) {
     hideAfter(remaining)
   }
 
-  const showStatus = ({ message, tone = 'success', loading: isLoadingStatus = false }: ConfirmableStatus) => {
-    statusState.value = { type: 'custom', message, tone, loading: isLoadingStatus }
+  const showStatus = ({ message, tone = 'success', loading: isLoadingStatus = false, source }: ConfirmableStatus) => {
+    const current = statusState.value
+    if (
+      isVisible.value && current.type === 'custom' && current.message === message && current.tone === tone &&
+      Boolean(current.loading) === isLoadingStatus && current.source === source
+    ) return
+    statusState.value = { type: 'custom', message, tone, loading: isLoadingStatus, source }
+  }
+
+  /** 按来源清理提示，避免关闭共鸣弹窗时清掉其他页面正在显示的状态。 */
+  const clearStatus = (source?: string) => {
+    if (source && (statusState.value.type !== 'custom' || statusState.value.source !== source)) return
+    statusState.value = { type: 'initial' }
   }
 
   const isUserCancelledFilePicker = (error: unknown): boolean => {
@@ -189,6 +201,7 @@ export function useOperationNotice(locale: ComputedRef<LocaleMessages>) {
     isAnyFileOperationBusy,
     isVisible,
     showStatus,
+    clearStatus,
     showNotice,
     closeNotice,
     pauseNotice,

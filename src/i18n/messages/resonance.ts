@@ -1,0 +1,278 @@
+export interface ResonanceMessages {
+  title: string
+  bannerOrder: string
+  newestFirst: string
+  oldestFirst: string
+  displayOptions: string
+  rarityFilter: string
+  allRarities: string
+  onlyFiveStar: string
+  onlyFourStar: string
+  noMatchingRarity: string
+  emptyTitle: string
+  emptyDescription: string
+  cloudSyncComingSoon: string
+  clearRecords: string
+  clearTitle: string
+  clearMessage: string
+  clearConfirm: string
+  clearCancel: string
+  clearing: string
+  clearSuccess: string
+  clearError: string
+  addData: string
+  exportData: string
+  exportSuccess: string
+  exportError: string
+  importMethod: string
+  fromPearpal: string
+  fromFile: string
+  fileDescription: string
+  chooseFile: string
+  noFileSelected: string
+  fileRequired: string
+  fileInvalid: string
+  fileEmpty: string
+  addTitle: string
+  close: string
+  loginPearpal: string
+  loginPearpalDesc: string
+  pearpalSite: string
+  getCookie: string
+  getCookieDesc: string
+  cookieMethods: string
+  bookmarkMethod: string
+  consoleMethod: string
+  sourceAttributionLabel: string
+  sourceAttribution: string
+  cookieStepsTitle: string
+  bookmarkStep1: string
+  bookmarkStep2: string
+  bookmarkStep3: string
+  bookmarkStep4: string
+  bookmarkStep5: string
+  bookmarkTip: string
+  consoleStep2: string
+  consoleStep3: string
+  consoleStep4: string
+  consoleStep5: string
+  consoleStep6: string
+  copyCode: string
+  pasteHere: string
+  securityNote: string
+  pasteSuccess: string
+  pasteSuccessNoUid: string
+  pasteFailed: string
+  roleId: string
+  token: string
+  openId: string
+  credentialsRequired: string
+  uidMismatch: string
+  authFailed: string
+  processBanner: (current: number, total: number) => string
+  import: string
+  previewTitle: string
+  previewBanner: string
+  previewOutfit: string
+  previewRarity: string
+  previewSet1: string
+  confirmImport: string
+  importing: string
+  saving: string
+  importSuccess: (count: number) => string
+  partialImport: (count: number) => string
+  importError: string
+  saveError: string
+  noRecords: string
+  pulls: (count: number) => string
+  average: (count: string) => string
+  secondSet: string
+  firstSet: string
+  rarity: (value: number) => string
+}
+
+export const resonanceZh: ResonanceMessages = {
+  title: '共鸣记录',
+  bannerOrder: '卡池排序',
+  newestFirst: '最新优先',
+  oldestFirst: '最早优先',
+  displayOptions: '排序与筛选',
+  rarityFilter: '星级筛选',
+  allRarities: '全部展示',
+  onlyFiveStar: '只展示五星',
+  onlyFourStar: '只展示四星',
+  noMatchingRarity: '当前星级没有套装记录',
+  emptyTitle: '还没有共鸣记录',
+  emptyDescription: '从美鸭梨奇想手账同步抽卡记录，查看套装部件的获取顺序。',
+  cloudSyncComingSoon: '云端同步（待上线）',
+  clearRecords: '清空共鸣记录',
+  clearTitle: '清空共鸣记录',
+  clearMessage: '将删除当前浏览器保存的全部共鸣记录，且无法撤销。',
+  clearConfirm: '清空记录',
+  clearCancel: '取消',
+  clearing: '正在清空…',
+  clearSuccess: '共鸣记录已清空。',
+  clearError: '清空失败，记录未更改，请重试。',
+  addData: '添加数据',
+  exportData: '导出数据',
+  exportSuccess: '共鸣记录已导出。',
+  exportError: '导出失败，请重试。',
+  importMethod: '导入方式',
+  fromPearpal: '从美鸭梨导入',
+  fromFile: '从文件导入',
+  fileDescription: '选择本项目共鸣备份，或暖暖共鸣录新旧版 JSON 文件。文件仅在浏览器中读取。',
+  chooseFile: '选择 JSON 文件',
+  noFileSelected: '尚未选择文件',
+  fileRequired: '请先选择 JSON 文件。',
+  fileInvalid: '文件不是受支持的共鸣 JSON 格式。',
+  fileEmpty: '文件中没有可识别的共鸣记录。',
+  addTitle: '添加共鸣数据',
+  close: '关闭',
+  loginPearpal: '登录美鸭梨网站',
+  loginPearpalDesc: '在新标签页打开美鸭梨并登录叠纸账号。登录后返回此窗口获取凭据。',
+  pearpalSite: '打开美鸭梨',
+  getCookie: '获取登录凭据',
+  getCookieDesc: '选择一种方式，从已登录的美鸭梨页面复制凭据数据：',
+  cookieMethods: '凭据获取方式',
+  bookmarkMethod: '书签方法',
+  consoleMethod: '控制台方法',
+  sourceAttributionLabel: '方法来源',
+  sourceAttribution: '以下书签和控制台获取登录凭据的方法来自暖暖共鸣录。',
+  cookieStepsTitle: '获取凭据后粘贴到下方：',
+  bookmarkStep1: '将「美鸭梨 Cookie」书签拖到书签栏（仅需设置一次）：',
+  bookmarkStep2: '切换到已登录的美鸭梨页面。',
+  bookmarkStep3: '在美鸭梨页面点击「美鸭梨 Cookie」书签。',
+  bookmarkStep4: '复制弹窗中输出的凭据数据。',
+  bookmarkStep5: '返回本页，将凭据粘贴到下方输入框。',
+  bookmarkTip: '可以保留此书签，之后同步时继续使用。',
+  consoleStep2: '在已登录的美鸭梨页面打开开发者工具（按 F12 或右键选择“检查”）。',
+  consoleStep3: '切换到“控制台”标签。',
+  consoleStep4: '复制下方代码，粘贴到控制台并按回车：',
+  consoleStep5: '如浏览器提示，请按提示输入 allow pasting 或“允许粘贴”。',
+  consoleStep6: '复制控制台输出的凭据数据，返回本页粘贴。',
+  copyCode: '复制代码',
+  pasteHere: '粘贴书签或控制台输出',
+  securityNote: '凭据只用于本次验证和同步，不会保存到本地。请勿与他人分享。',
+  pasteSuccess: '数据粘贴成功！',
+  pasteSuccessNoUid: '请填写游戏内 UID',
+  pasteFailed: '解析输入数据失败，请确认格式正确。',
+  roleId: '游戏内 UID',
+  token: 'Momo Token',
+  openId: 'Momo ID',
+  credentialsRequired: '请填写完整的凭据信息。',
+  uidMismatch: '美鸭梨账号 UID 与输入的 UID 不一致。',
+  authFailed: '凭据验证失败，请确认已登录美鸭梨并重新获取凭据。',
+  processBanner: (current, total) => `正在处理第 ${current} 个卡池，共 ${total} 个`,
+  import: '获取预览',
+  previewTitle: '导入预览',
+  previewBanner: '卡池',
+  previewOutfit: '套装',
+  previewRarity: '稀有度',
+  previewSet1: '套装总抽数',
+  confirmImport: '确认导入',
+  importing: '正在获取共鸣数据，请稍候…',
+  saving: '正在保存…',
+  importSuccess: (count) => `已导入 ${count} 套记录`,
+  partialImport: (count) => `${count} 个卡池未能解析；这些卡池的本地记录会保留。`,
+  importError: '导入失败，请重试。',
+  saveError: '保存失败，请检查浏览器存储空间和 IndexedDB 状态后重试。',
+  noRecords: '奇想手账中没有找到可识别的卡池抽卡记录。',
+  pulls: (count) => `总抽数：${count}`,
+  average: (count) => `平均抽数：${count}`,
+  secondSet: '查看第二套抽数',
+  firstSet: '查看第一套抽数',
+  rarity: (value) => `${value}星`
+}
+
+export const resonanceEn: ResonanceMessages = {
+  title: 'Resonance Records',
+  bannerOrder: 'Banner order',
+  newestFirst: 'Newest first',
+  oldestFirst: 'Oldest first',
+  displayOptions: 'Sort and filter',
+  rarityFilter: 'Rarity filter',
+  allRarities: 'Show all',
+  onlyFiveStar: '5-star only',
+  onlyFourStar: '4-star only',
+  noMatchingRarity: 'No outfits match this rarity',
+  emptyTitle: 'No resonance records yet',
+  emptyDescription: 'Sync pull history from Pear-Pal Whim-Log to review outfit piece acquisition order.',
+  cloudSyncComingSoon: 'Cloud sync (coming soon)',
+  clearRecords: 'Clear resonance records',
+  clearTitle: 'Clear resonance records',
+  clearMessage: 'This deletes all resonance records saved in this browser and cannot be undone.',
+  clearConfirm: 'Clear records',
+  clearCancel: 'Cancel',
+  clearing: 'Clearing…',
+  clearSuccess: 'Resonance records cleared.',
+  clearError: 'Could not clear records. They were not changed; try again.',
+  addData: 'Add data',
+  exportData: 'Export data',
+  exportSuccess: 'Resonance records exported.',
+  exportError: 'Export failed. Please try again.',
+  importMethod: 'Import method',
+  fromPearpal: 'Import from Pear-Pal',
+  fromFile: 'Import from file',
+  fileDescription: 'Choose a resonance backup from this app or an old or new Resonance Recorder JSON file. The file is read only in your browser.',
+  chooseFile: 'Choose JSON file',
+  noFileSelected: 'No file selected',
+  fileRequired: 'Choose a JSON file first.',
+  fileInvalid: 'This is not a supported resonance JSON file.',
+  fileEmpty: 'No supported resonance records were found in the file.',
+  addTitle: 'Add resonance data',
+  close: 'Close',
+  loginPearpal: 'Sign in to Pear-Pal',
+  loginPearpalDesc: 'Open Pear-Pal in a new tab and sign in with your Infold account. Return here to get your credentials.',
+  pearpalSite: 'Open Pear-Pal',
+  getCookie: 'Get sign-in credentials',
+  getCookieDesc: 'Choose a method to copy credentials from your signed-in Pear-Pal page:',
+  cookieMethods: 'Credential method',
+  bookmarkMethod: 'Bookmark',
+  consoleMethod: 'Console',
+  sourceAttributionLabel: 'Method source',
+  sourceAttribution: 'The methods below for getting sign-in credentials come from Resonance Recorder.',
+  cookieStepsTitle: 'Paste the copied credentials below:',
+  bookmarkStep1: 'Drag the "Pear-Pal Cookie" bookmark to your bookmarks bar (once only):',
+  bookmarkStep2: 'Switch to a signed-in Pear-Pal page.',
+  bookmarkStep3: 'Click the "Pear-Pal Cookie" bookmark on Pear-Pal.',
+  bookmarkStep4: 'Copy the credentials shown in the popup.',
+  bookmarkStep5: 'Return here and paste the credentials below.',
+  bookmarkTip: 'Keep this bookmark to use again when syncing later.',
+  consoleStep2: 'Open developer tools on a signed-in Pear-Pal page (press F12 or right-click and choose Inspect).',
+  consoleStep3: 'Switch to the Console tab.',
+  consoleStep4: 'Copy the code below, paste it into the console, and press Enter:',
+  consoleStep5: 'If prompted, follow the browser message and type allow pasting.',
+  consoleStep6: 'Copy the credentials printed in the console and paste them here.',
+  copyCode: 'Copy code',
+  pasteHere: 'Paste bookmark or console output',
+  securityNote: 'Credentials are used only for this verification and sync. They are not saved locally. Never share them.',
+  pasteSuccess: 'Data pasted successfully!',
+  pasteSuccessNoUid: 'Enter your in-game UID',
+  pasteFailed: 'Could not parse the input. Check that it uses the expected format.',
+  roleId: 'In-game UID',
+  token: 'Momo Token',
+  openId: 'Momo ID',
+  credentialsRequired: 'Please fill in all required credential fields.',
+  uidMismatch: 'The UID from Pear-Pal does not match the entered UID.',
+  authFailed: 'Credential verification failed. Sign in to Pear-Pal and get fresh credentials.',
+  processBanner: (current, total) => `Processing banner ${current} of ${total}`,
+  import: 'Preview import',
+  previewTitle: 'Import preview',
+  previewBanner: 'Banner',
+  previewOutfit: 'Outfit',
+  previewRarity: 'Rarity',
+  previewSet1: 'Outfit total pulls',
+  confirmImport: 'Confirm import',
+  importing: 'Fetching resonance data, please wait…',
+  saving: 'Saving…',
+  importSuccess: (count) => `Imported ${count} outfit records`,
+  partialImport: (count) => `${count} banners could not be parsed; their local records will be kept.`,
+  importError: 'Import failed. Try again.',
+  saveError: 'Save failed. Check browser storage and IndexedDB, then try again.',
+  noRecords: 'No supported banner pull records were found in Whim-Log.',
+  pulls: (count) => `Total pulls: ${count}`,
+  average: (count) => `Average pulls: ${count}`,
+  secondSet: 'View second set pulls',
+  firstSet: 'View first set pulls',
+  rarity: (value) => `${value}-star`
+}
