@@ -1,126 +1,294 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-// @ts-expect-error Node 构建脚本保持原生 ESM，不参与前端 TypeScript 编译。
-import { updateGongeoCatalog } from '../../scripts/update-gongeo-catalog.mjs'
+// @ts-expect-error Native ESM build scripts are outside the frontend TypeScript compilation.
+import { compareGameVersions, formatGongeoResult, updateGongeoCatalog } from '../../scripts/update-gongeo-catalog.mjs'
 
 const baseUrl = 'https://raw.example.test/gongeo/master'
-const catalogFiles = {
-  items: [{ id: 1 }],
-  outfits: [{ id: 2 }],
-  outfitItems: [[1, [2]]],
-  makeupItems: [[3, 4]],
-  makeupOutfits: [[4, 5]],
-  palettes: { items: [{ id: 6 }], palettes: { primary: [6] } }
+const indexUrl = baseUrl + '/public/catalog/index.json'
+const directories: string[] = []
+const generatedAt = '2026-09-23T22:44:13.188Z'
+type Asset = { path: string; hash: string; bytes: number }
+type Fixture = {
+  index: { gameVersion: string; generatedAt: string; files: Record<string, Asset> }
+  responses: Map<string, string>
 }
-const catalogPaths = Object.fromEntries(
-  Object.keys(catalogFiles).map((name) => [name, `/catalog/${name}.testhash.json`])
-)
 
-let outputDir: string | undefined
-
-const bannerSource = `
-export const BANNER_DATA: BannerData = {
-${Array.from({ length: 70 }, (_, index) => `  ${index + 1}: {
-    bannerId: ${index + 1},
-    bannerType: 2,
-    outfit4StarId: ['100${index + 1}'],
-    outfit5StarId: ['101${index + 1}'],
-    runs: [
-      {
-        version: '2.10.1',
-        start: '2026-01-01',
-        end: '2026-01-20',
-      },
-    ],
-  },`).join('\n')}
+async function temporaryDir() {
+  const dir = await mkdtemp(join(tmpdir(), 'gongeo-catalog-test-'))
+  directories.push(dir)
+  return dir
 }
-`
+async function snapshot(dir: string, prefix = ''): Promise<Record<string, string>> {
+  const files: Record<string, string> = {}
+  for (const entry of await readdir(join(dir, prefix), { withFileTypes: true })) {
+    const path = join(prefix, entry.name)
+    if (entry.isDirectory()) Object.assign(files, await snapshot(dir, path))
+    else files[path] = await readFile(join(dir, path), 'utf8')
+  }
+  return files
+}
+function setAsset(fixture: Fixture, name: string, value: unknown) {
+  const text = JSON.stringify(value)
+  const hash = createHash('sha256').update(text).digest('hex').slice(0, 12)
+  const path = '/catalog/' + name + '.' + hash + '.json'
+  fixture.index.files[name] = { path, hash, bytes: Buffer.byteLength(text) }
+  fixture.responses.set(baseUrl + '/public' + path, text)
+  fixture.responses.set(indexUrl, JSON.stringify(fixture.index))
+}
+function fixtures(published = false): Fixture {
+  const fixture: Fixture = {
+    index: { gameVersion: '2.10.1', generatedAt, files: {} },
+    responses: new Map()
+  }
+  setAsset(fixture, 'items', Array.from({ length: 100 }, (_, i) => [i % 2 ? [1000 + i] : 1000 + i, 5, 0, 4, [1], 1, 1000 + i]))
+  setAsset(fixture, 'outfits', Array.from({ length: 100 }, (_, i) => [i % 2 ? [2000 + i] : 2000 + i, 5, 4, [1], 1]))
+  setAsset(fixture, 'outfitItems', Array.from({ length: 100 }, (_, i) => [2000 + i, [1000 + i]]))
+  setAsset(fixture, 'makeupItems', Array.from({ length: 100 }, (_, i) => [3000 + i, [1000 + i]]))
+  setAsset(fixture, 'makeupOutfits', Array.from({ length: 100 }, (_, i) => [2000 + i, [3000 + i]]))
+  setAsset(fixture, 'palettes', { items: Array.from({ length: 100 }, (_, i) => [i % 2 ? [1000 + i] : 1000 + i, [1], [2]]), palettes: { '1': [1, 2, 3] } })
+  const banners = Array.from({ length: 70 }, (_, i) => ({
+    bannerId: i + 1, bannerType: 2, name: '卡池' + (i + 1),
+    outfit4StarId: ['2000'], outfit5StarId: ['2001'],
+    runs: [{ version: '2.11.0', start: '2026-01-01', end: '2026-01-20' }]
+  }))
+  if (published) setAsset(fixture, 'banners', banners)
+  else {
+    const source = 'export const BANNER_DATA = {\n' + banners.map((banner) =>
+      '  ' + banner.bannerId + ': {\n' +
+      '    bannerId: ' + banner.bannerId + ',\n' +
+      '    bannerType: 2,\n' +
+      "    outfit4StarId: ['2000'],\n" +
+      "    outfit5StarId: ['2001'],\n" +
+      "    runs: [ { version: '2.11.0', start: '2026-01-01', end: '2026-01-20' } ],\n" +
+      '  },').join('\n') + '\n}'
+    fixture.responses.set(baseUrl + '/data/banners.ts', source)
+  }
+  for (const language of ['zh', 'en']) {
+    for (const name of ['item', 'outfit', 'banner']) {
+      const count = name === 'banner' ? 70 : 100
+      const first = name === 'item' ? 1000 : name === 'outfit' ? 2000 : 1
+      const locale = Object.fromEntries(Array.from({ length: count }, (_, i) =>
+        [name + '.' + (first + i) + '.name', name === 'banner' ? '卡池' + (i + 1) : language + '-' + (first + i)]))
+      fixture.responses.set(baseUrl + '/app/locales/' + language + '/' + name + '.json', JSON.stringify(locale))
+    }
+  }
+  return fixture
+}
+function mockRemote(fixture: Fixture) {
+  const mock = vi.fn(async (input: RequestInfo | URL) => {
+    const text = fixture.responses.get(String(input))
+    return new Response(text ?? 'not found', { status: text === undefined ? 404 : 200 })
+  })
+  vi.stubGlobal('fetch', mock)
+  return mock
+}
+async function initialize(published = false) {
+  const outputDir = await temporaryDir()
+  const fixture = fixtures(published)
+  mockRemote(fixture)
+  await updateGongeoCatalog({ baseUrl, outputDir })
+  return { fixture, outputDir }
+}
 
 afterEach(async () => {
   vi.unstubAllGlobals()
-  if (outputDir) await rm(outputDir, { recursive: true, force: true })
-  outputDir = undefined
+  await Promise.all(directories.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
 })
 
 describe('Gongeo catalog updater', () => {
-  it.each(['remote', 'local-fallback', 'published'])('resolves catalogs and locales with %s banners', async (bannerMode) => {
-    outputDir = await mkdtemp(join(tmpdir(), 'gongeo-catalog-test-'))
-    const index = {
-      gameVersion: '2.10.1',
-      generatedAt: '2026-09-23T22:44:13.188Z',
-      files: Object.fromEntries(Object.entries(catalogPaths).map(([name, path]) => [name, { path }]))
-    }
-    const responses = new Map<string, string>([
-      [`${baseUrl}/public/catalog/index.json`, JSON.stringify(index)],
-      [`${baseUrl}/app/locales/zh/outfit.json`, JSON.stringify({ outfits: {} })],
-      [`${baseUrl}/app/locales/en/outfit.json`, JSON.stringify({ outfits: {} })],
-      [`${baseUrl}/app/locales/zh/item.json`, JSON.stringify({ items: {} })],
-      [`${baseUrl}/app/locales/en/item.json`, JSON.stringify({ items: {} })],
-      [`${baseUrl}/app/locales/zh/banner.json`, JSON.stringify({ 'banner.1.name': '遥远之海' })],
-      [`${baseUrl}/app/locales/en/banner.json`, JSON.stringify({ 'banner.1.name': 'Distant Sea' })]
-    ])
-    for (const [name, path] of Object.entries(catalogPaths)) {
-      responses.set(`${baseUrl}/public${path}`, JSON.stringify(catalogFiles[name as keyof typeof catalogFiles]))
-    }
-    if (bannerMode === 'remote') {
-      responses.set(`${baseUrl}/data/banners.ts`, bannerSource.replaceAll("version: '2.10.1'", "version: '2.11.0'"))
-    } else if (bannerMode === 'published') {
-      Object.assign(index.files, { banners: { path: '/catalog/banners.testhash.json' } })
-      responses.set(`${baseUrl}/public/catalog/index.json`, JSON.stringify(index))
-      responses.set(`${baseUrl}/public/catalog/banners.testhash.json`, JSON.stringify([{ bannerId: 1, name: '遥远之海', runs: [{ version: '2.11.0' }] }]))
-    }
-
-    const bannerSourcePath = join(outputDir, 'banners.ts')
-    const bannerLocalePath = join(outputDir, 'banner.json')
-    await writeFile(bannerSourcePath, bannerSource, 'utf8')
-    await writeFile(bannerLocalePath, JSON.stringify({ 'banner.1.name': '遥远之海' }), 'utf8')
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const body = responses.get(String(input))
-      return new Response(body ?? 'not found', { status: body === undefined ? 404 : 200 })
+  it.each([false, true])('downloads a complete remote snapshot and skips identical content (published banners: %s)', async (published) => {
+    const outputDir = await temporaryDir()
+    const fixture = fixtures(published)
+    const fetchMock = mockRemote(fixture)
+    const result = await updateGongeoCatalog({ baseUrl, outputDir })
+    expect(result).toEqual({ updated: 13, total: 13, version: '2.10.1', generatedAt, source: baseUrl })
+    expect(JSON.parse(await readFile(join(outputDir, 'banners.json'), 'utf8'))[0]).toMatchObject({
+      name: '卡池1', runs: [{ version: '2.11.0', start: '2026-01-01', end: '2026-01-20' }]
     })
-    vi.stubGlobal('fetch', fetchMock)
-
-    const result = await updateGongeoCatalog({ baseUrl, outputDir, bannerSourcePath, bannerLocalePath, catalogSourceDir: join(outputDir, 'no-upstream') })
-    const requestUrls = fetchMock.mock.calls.map(([input]) => String(input))
-
-    // 目录快照包含卡池、套装及部件的中英文名称。
-    expect(result).toEqual({ updated: 13, total: 13, version: '2.10.1', generatedAt: index.generatedAt })
-    expect(requestUrls).toContain(`${baseUrl}/public/catalog/items.testhash.json`)
-    expect(requestUrls).not.toContain(`${baseUrl}/catalog/items.testhash.json`)
-    expect(requestUrls).toContain(`${baseUrl}/app/locales/zh/outfit.json`)
-    expect(requestUrls).toContain(`${baseUrl}/app/locales/en/item.json`)
-    expect(requestUrls).toContain(`${baseUrl}/app/locales/en/banner.json`)
-    expect(JSON.parse(await readFile(join(outputDir, 'banners.json'), 'utf8'))[0].name).toBe('遥远之海')
-    // 远程新版本必须覆盖可读的旧本地源码；远程不可用时仍能回退。
-    expect(JSON.parse(await readFile(join(outputDir, 'banners.json'), 'utf8'))[0].runs[0].version).toBe(bannerMode === 'local-fallback' ? '2.10.1' : '2.11.0')
-    if (bannerMode === 'published') {
-      expect(requestUrls).not.toContain(`${baseUrl}/data/banners.ts`)
-    } else {
-      expect(requestUrls).toContain(`${baseUrl}/data/banners.ts`)
-    }
-    expect(JSON.parse(await readFile(join(outputDir, 'locales', 'zh', 'banner.json'), 'utf8'))).toEqual({ 'banner.1.name': '遥远之海' })
-    expect(JSON.parse(await readFile(join(outputDir, 'locales', 'en', 'banner.json'), 'utf8'))).toEqual({ 'banner.1.name': 'Distant Sea' })
-    expect(JSON.parse(await readFile(join(outputDir, 'locales', 'en', 'item.json'), 'utf8'))).toEqual({ items: {} })
-    expect(JSON.parse(await readFile(join(outputDir, 'items.json'), 'utf8'))).toEqual(catalogFiles.items)
-    const repeated = await updateGongeoCatalog({ baseUrl, outputDir, bannerSourcePath, bannerLocalePath, catalogSourceDir: join(outputDir, 'no-upstream') })
-    expect(repeated.updated).toBe(0)
+    expect(JSON.parse(await readFile(join(outputDir, 'catalogSource.json'), 'utf8'))).toEqual({
+      source: baseUrl, gameVersion: '2.10.1', generatedAt
+    })
+    const before = await snapshot(outputDir)
+    expect((await updateGongeoCatalog({ baseUrl, outputDir })).updated).toBe(0)
+    expect(await snapshot(outputDir)).toEqual(before)
+    const urls = fetchMock.mock.calls.map(([url]) => String(url))
+    expect(urls).toContain(baseUrl + '/public' + fixture.index.files.items.path)
+    expect(urls).not.toContain(baseUrl + fixture.index.files.items.path)
+    expect(urls.includes(baseUrl + '/data/banners.ts')).toBe(!published)
+    expect(formatGongeoResult(result)).toContain('远程同步成功')
+    expect(formatGongeoResult({ ...result, updated: 0 })).toContain('无需更新')
+    expect(formatGongeoResult(result)).toContain(baseUrl)
   })
 
-  it('reports a missing catalog asset using its mapped repository URL', async () => {
-    outputDir = await mkdtemp(join(tmpdir(), 'gongeo-catalog-test-'))
-    const index = { files: { items: { path: '/catalog/items.testhash.json' } } }
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      if (String(input) === `${baseUrl}/public/catalog/index.json`) {
-        return new Response(JSON.stringify(index), { status: 200 })
-      }
-      return new Response('not found', { status: 404 })
-    })
-    vi.stubGlobal('fetch', fetchMock)
+  it('does not rewrite an unchanged Windows CRLF snapshot', async () => {
+    const { outputDir } = await initialize()
+    const files = await snapshot(outputDir)
+    for (const [file, text] of Object.entries(files)) {
+      await writeFile(join(outputDir, file), text.replace(/\n/g, '\r\n'))
+    }
+    const before = await snapshot(outputDir)
+    expect((await updateGongeoCatalog({ baseUrl, outputDir })).updated).toBe(0)
+    expect(await snapshot(outputDir)).toEqual(before)
+  })
 
-    await expect(updateGongeoCatalog({ baseUrl, outputDir, catalogSourceDir: join(outputDir, 'no-upstream') })).rejects.toThrow(
-      `HTTP 404: ${baseUrl}/public/catalog/items.testhash.json`
-    )
+  it('accepts palette regrouping when every item ID is preserved', async () => {
+    const { fixture, outputDir } = await initialize()
+    setAsset(fixture, 'palettes', {
+      items: Array.from({ length: 50 }, (_, i) => [[1000 + i * 2, 1001 + i * 2], [1], [2]]),
+      palettes: { '1': [1, 2, 3] }
+    })
+    expect((await updateGongeoCatalog({ baseUrl, outputDir })).updated).toBe(1)
+  })
+
+  it.each([
+    ['2.10.1', '2.9.2', 1], ['2.9.2', '2.10.1', -1], ['2.10', '2.10.0', 0]
+  ])('compares version %s with %s numerically', (left, right, result) => {
+    expect(compareGameVersions(left, right)).toBe(result)
+  })
+
+  it('does not read an available local repository after a failed index request', async () => {
+    const { fixture, outputDir } = await initialize()
+    const localSource = await temporaryDir()
+    for (const [url, text] of fixture.responses) {
+      const file = join(localSource, url.slice(baseUrl.length + 1))
+      await mkdir(dirname(file), { recursive: true })
+      await writeFile(file, text)
+    }
+    const before = await snapshot(outputDir)
+    const failedFetch = vi.fn(async () => { throw Object.assign(new Error('fetch failed'), { cause: { code: 'ENOENT', message: 'getaddrinfo ENOENT raw.example.test' } }) })
+    vi.stubGlobal('fetch', failedFetch)
+    await expect(updateGongeoCatalog({ baseUrl, outputDir, catalogSourceDir: localSource })).rejects.toThrow('ENOENT')
+    expect(failedFetch).toHaveBeenCalledTimes(1)
+    expect(await snapshot(outputDir)).toEqual(before)
+  })
+
+  it('a failed last translation download preserves every file and metadata', async () => {
+    const { fixture, outputDir } = await initialize()
+    const before = await snapshot(outputDir)
+    fixture.responses.delete(baseUrl + '/app/locales/en/banner.json')
+    await expect(updateGongeoCatalog({ baseUrl, outputDir })).rejects.toThrow('HTTP 404')
+    expect(await snapshot(outputDir)).toEqual(before)
+  })
+
+  it('a failed remote banner source does not use readable local banner files', async () => {
+    const { fixture, outputDir } = await initialize()
+    const localSource = await temporaryDir()
+    const bannerSourcePath = join(localSource, 'banners.ts')
+    await writeFile(bannerSourcePath, fixture.responses.get(baseUrl + '/data/banners.ts')!)
+    fixture.responses.delete(baseUrl + '/data/banners.ts')
+    const before = await snapshot(outputDir)
+    await expect(updateGongeoCatalog({ baseUrl, outputDir, bannerSourcePath })).rejects.toThrow('HTTP 404')
+    expect(await snapshot(outputDir)).toEqual(before)
+  })
+
+  it('rejects 2.9.2 before downloading assets when the existing snapshot is 2.10.1', async () => {
+    const { fixture, outputDir } = await initialize()
+    const before = await snapshot(outputDir)
+    fixture.index.gameVersion = '2.9.2'
+    fixture.responses.set(indexUrl, JSON.stringify(fixture.index))
+    const fetchMock = mockRemote(fixture)
+    await expect(updateGongeoCatalog({ baseUrl, outputDir })).rejects.toMatchObject({ code: 'GONGEO_OLD_VERSION' })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(await snapshot(outputDir)).toEqual(before)
+  })
+
+  it('uses the documented legacy snapshot version if source metadata is absent', async () => {
+    const { fixture, outputDir } = await initialize()
+    await rm(join(outputDir, 'catalogSource.json'))
+    await writeFile(join(outputDir, 'README.md'), 'Catalog snapshot, game version 2.10.1.')
+    const before = await snapshot(outputDir)
+    fixture.index.gameVersion = '2.9.2'
+    fixture.responses.set(indexUrl, JSON.stringify(fixture.index))
+    await expect(updateGongeoCatalog({ baseUrl, outputDir })).rejects.toMatchObject({ code: 'GONGEO_OLD_VERSION' })
+    expect(await snapshot(outputDir)).toEqual(before)
+  })
+
+  it('rejects an older generation timestamp within the same game version', async () => {
+    const { fixture, outputDir } = await initialize()
+    const before = await snapshot(outputDir)
+    fixture.index.generatedAt = '2026-09-14T02:54:46.716Z'
+    fixture.responses.set(indexUrl, JSON.stringify(fixture.index))
+    await expect(updateGongeoCatalog({ baseUrl, outputDir })).rejects.toMatchObject({ code: 'GONGEO_OLD_VERSION' })
+    expect(await snapshot(outputDir)).toEqual(before)
+  })
+
+  it('allows a valid newer version and also allows same-version translation corrections', async () => {
+    const { fixture, outputDir } = await initialize()
+    fixture.index.gameVersion = '2.11.0'
+    fixture.index.generatedAt = '2026-10-11T01:00:00.000Z'
+    fixture.responses.set(indexUrl, JSON.stringify(fixture.index))
+    const url = baseUrl + '/app/locales/zh/item.json'
+    const names = JSON.parse(fixture.responses.get(url)!)
+    names['item.1000.name'] = '修正名称'
+    fixture.responses.set(url, JSON.stringify(names))
+    expect((await updateGongeoCatalog({ baseUrl, outputDir })).updated).toBe(1)
+    names['item.1000.name'] = '再次修正名称'
+    fixture.responses.set(url, JSON.stringify(names))
+    expect((await updateGongeoCatalog({ baseUrl, outputDir })).updated).toBe(1)
+    expect(JSON.parse(await readFile(join(outputDir, 'catalogSource.json'), 'utf8')).gameVersion).toBe('2.11.0')
+  })
+
+  it.each(['hash', 'bytes'])('rejects an asset with incorrect %s without writing files', async (field) => {
+    const { fixture, outputDir } = await initialize()
+    const before = await snapshot(outputDir)
+    const url = baseUrl + '/public' + fixture.index.files.items.path
+    if (field === 'hash') fixture.responses.set(url, fixture.responses.get(url)!.replace('1000', '9000'))
+    else fixture.responses.set(url, fixture.responses.get(url)! + ' ')
+    await expect(updateGongeoCatalog({ baseUrl, outputDir })).rejects.toThrow('文件校验失败')
+    expect(await snapshot(outputDir)).toEqual(before)
+  })
+
+  it.each(['missing-asset', 'empty-palette', 'bad-row', 'empty-locale', 'duplicate-id', 'path-traversal', 'invalid-version'])(
+    'rejects incomplete or malformed input: %s', async (mode) => {
+      const { fixture, outputDir } = await initialize()
+      const before = await snapshot(outputDir)
+      if (mode === 'missing-asset') {
+        delete fixture.index.files.outfits
+        fixture.responses.set(indexUrl, JSON.stringify(fixture.index))
+      } else if (mode === 'empty-palette') setAsset(fixture, 'palettes', { items: [], palettes: {} })
+      else if (mode === 'bad-row') setAsset(fixture, 'items', [{ id: 1000 }])
+      else if (mode === 'empty-locale') fixture.responses.set(baseUrl + '/app/locales/en/item.json', '{}')
+      else if (mode === 'duplicate-id') {
+        const data = JSON.parse(fixture.responses.get(baseUrl + '/public' + fixture.index.files.items.path)!)
+        data[1][0] = data[0][0]
+        setAsset(fixture, 'items', data)
+      } else if (mode === 'path-traversal') {
+        fixture.index.files.items.path = '/catalog/../../private.json'
+        fixture.responses.set(indexUrl, JSON.stringify(fixture.index))
+      } else {
+        fixture.index.gameVersion = 'unknown'
+        fixture.responses.set(indexUrl, JSON.stringify(fixture.index))
+      }
+      await expect(updateGongeoCatalog({ baseUrl, outputDir })).rejects.toMatchObject({ code: 'GONGEO_INVALID' })
+      expect(await snapshot(outputDir)).toEqual(before)
+    }
+  )
+
+  it.each([false, true])('rejects significant removal of existing IDs even if row count is preserved: %s', async (sameCount) => {
+    const { fixture, outputDir } = await initialize()
+    const before = await snapshot(outputDir)
+    const old = JSON.parse(fixture.responses.get(baseUrl + '/public' + fixture.index.files.items.path)!)
+    const next = old.slice(5)
+    if (sameCount) next.push(...Array.from({ length: 5 }, (_, i) => [[9000 + i], 5, 0, 4, [1], 1, 9000 + i]))
+    setAsset(fixture, 'items', next)
+    await expect(updateGongeoCatalog({ baseUrl, outputDir })).rejects.toMatchObject({ code: 'GONGEO_INCOMPLETE' })
+    expect(await snapshot(outputDir)).toEqual(before)
+  })
+
+  it('does not write when the remote index changes during downloads', async () => {
+    const { fixture, outputDir } = await initialize()
+    const before = await snapshot(outputDir)
+    let indexCalls = 0
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      let text = fixture.responses.get(url)!
+      if (url === indexUrl && ++indexCalls > 1) text = JSON.stringify({ ...fixture.index, gameVersion: '2.11.0' })
+      return new Response(text)
+    }))
+    await expect(updateGongeoCatalog({ baseUrl, outputDir })).rejects.toMatchObject({ code: 'GONGEO_INCOMPLETE' })
+    expect(await snapshot(outputDir)).toEqual(before)
   })
 })

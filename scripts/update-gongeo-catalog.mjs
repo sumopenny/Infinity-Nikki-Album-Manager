@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -5,6 +6,16 @@ import { pathToFileURL } from 'node:url'
 export const DEFAULT_BASE_URL = 'https://raw.githubusercontent.com/dastrokes/gongeo.us-nikki-tracker/master'
 const FILES = ['items', 'outfits', 'outfitItems', 'makeupItems', 'makeupOutfits', 'palettes']
 const LOCALES = ['zh', 'en']
+const SOURCE_FILE = 'catalogSource.json'
+const MAX_REMOVED_RATIO = 0.02
+
+const problem = (message, code = 'GONGEO_INVALID') => Object.assign(new Error(message), { code })
+const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
+const serialize = (value) => JSON.stringify(value, null, 2) + '\n'
+const sourceLabel = (value) => {
+  const url = new URL(value)
+  return url.origin + url.pathname
+}
 
 const parseArgs = (argv) => {
   const args = {}
@@ -17,141 +28,251 @@ const parseArgs = (argv) => {
   return args
 }
 
+export function compareGameVersions(left, right) {
+  const parse = (value) => {
+    if (typeof value !== 'string' || !/^\d+(?:\.\d+){1,3}$/u.test(value)) {
+      throw problem('Gongeo 游戏版本无效: ' + String(value))
+    }
+    const parts = value.split('.').map(Number)
+    if (!parts.every(Number.isSafeInteger)) throw problem('Gongeo 游戏版本无效: ' + value)
+    return parts
+  }
+  const a = parse(left)
+  const b = parse(right)
+  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
+    const difference = (a[i] ?? 0) - (b[i] ?? 0)
+    if (difference) return Math.sign(difference)
+  }
+  return 0
+}
+
 async function fetchText(url, timeoutMs) {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const response = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } })
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`)
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: { Accept: 'application/json' }
+    })
+    if (!response.ok) throw new Error('HTTP ' + response.status)
     return await response.text()
-  } finally {
-    clearTimeout(timeout)
+  } catch (error) {
+    const cause = error?.cause
+    const detail = cause?.code ? ' [' + cause.code + ': ' + cause.message + ']' : ''
+    throw problem((error instanceof Error ? error.message : String(error)) + detail + ': ' + sourceLabel(url), 'GONGEO_FETCH')
   }
 }
 
 const parseJson = (text, source) => {
-  try { return JSON.parse(text) } catch (error) { throw new Error(`Gongeo JSON 无效: ${source}`, { cause: error }) }
+  try { return JSON.parse(text) } catch { throw problem('Gongeo JSON 无效: ' + source) }
 }
 
+const validateIndex = (index) => {
+  if (!isObject(index) || !isObject(index.files)) throw problem('Gongeo 索引结构无效')
+  compareGameVersions(index.gameVersion, index.gameVersion)
+  if (typeof index.generatedAt !== 'string' || !Number.isFinite(Date.parse(index.generatedAt))) {
+    throw problem('Gongeo 索引缺少有效生成时间')
+  }
+  for (const name of [...FILES, ...(index.files.banners ? ['banners'] : [])]) {
+    const entry = index.files[name]
+    if (!isObject(entry) || typeof entry.path !== 'string' || !/^\/catalog\/[\w.-]+\.json$/u.test(entry.path)) {
+      throw problem('Gongeo 索引缺少有效文件路径: ' + name)
+    }
+    if (typeof entry.hash !== 'string' || !/^[a-f0-9]{12,64}$/u.test(entry.hash) ||
+        !Number.isSafeInteger(entry.bytes) || entry.bytes <= 0) {
+      throw problem('Gongeo 索引缺少有效文件校验信息: ' + name)
+    }
+  }
+}
+
+const validId = (value) => Number.isSafeInteger(value) && value > 0
+const validIds = (value) => validId(value) || (Array.isArray(value) && value.length > 0 && value.every(validId))
 const validate = (name, value) => {
   if (name === 'palettes') {
-    if (!value || !Array.isArray(value.items) || !value.palettes) throw new Error('Gongeo palettes 结构无效')
-  } else if (!Array.isArray(value) || value.length === 0) {
-    throw new Error(`Gongeo ${name} 目录为空或结构无效`)
+    if (!isObject(value) || !Array.isArray(value.items) || !value.items.length ||
+        !isObject(value.palettes) || !Object.keys(value.palettes).length ||
+        !value.items.every((row) => Array.isArray(row) && validIds(row[0]))) {
+      throw problem('Gongeo palettes 结构无效')
+    }
+    return
+  }
+  if (!Array.isArray(value) || value.length === 0) throw problem('Gongeo ' + name + ' 目录为空或结构无效')
+  if (name === 'banners') {
+    if (value.length < 70 || !value.every((row) => isObject(row) && validId(row.bannerId) &&
+      validId(row.bannerType) && typeof row.name === 'string' && row.name.trim() &&
+      Array.isArray(row.outfit4StarId) && Array.isArray(row.outfit5StarId) && Array.isArray(row.runs))) {
+      throw problem('Gongeo banners 记录不完整')
+    }
+  } else if (name === 'items' || name === 'outfits') {
+    if (!value.every((row) => Array.isArray(row) &&
+      validIds(row[0]) &&
+      validId(row[1]))) {
+      throw problem('Gongeo ' + name + ' 记录结构无效')
+    }
+  } else if (!value.every((row) => Array.isArray(row) && validId(row[0]) &&
+      Array.isArray(row[1]) && row[1].every(validId))) {
+    throw problem('Gongeo ' + name + ' 关联记录结构无效')
+  }
+}
+
+const validateLocale = (language, name, value) => {
+  const prefix = name + '.'
+  if (!isObject(value) || !Object.values(value).every((entry) => typeof entry === 'string') ||
+      !Object.entries(value).some(([key, entry]) => key.startsWith(prefix) && key.endsWith('.name') && entry.trim())) {
+    throw problem('Gongeo ' + language + '/' + name + ' 翻译为空或结构无效')
+  }
+}
+
+async function readOptional(file) {
+  try { return await readFile(file, 'utf8') } catch (error) {
+    if (error.code === 'ENOENT') return null
+    throw error
+  }
+}
+
+async function readCurrentSource(outputDir) {
+  const text = await readOptional(resolve(outputDir, SOURCE_FILE))
+  if (text !== null) {
+    const source = parseJson(text, SOURCE_FILE)
+    compareGameVersions(source.gameVersion, source.gameVersion)
+    if (!Number.isFinite(Date.parse(source.generatedAt))) throw problem('Gongeo 本地快照生成时间无效')
+    return source
+  }
+  // Older checkouts already document the bundled snapshot version.
+  const readme = await readOptional(resolve(outputDir, 'README.md'))
+  const version = readme?.match(/\bgame version\s+(\d+(?:\.\d+){1,3})/iu)?.[1]
+  return version ? { gameVersion: version } : null
+}
+
+const guardVersion = (index, current) => {
+  if (!current) return
+  const comparison = compareGameVersions(index.gameVersion, current.gameVersion)
+  if (comparison < 0) {
+    throw problem('远程版本 ' + index.gameVersion + ' 低于项目快照 ' + current.gameVersion, 'GONGEO_OLD_VERSION')
+  }
+  if (comparison === 0 && current.generatedAt && Date.parse(index.generatedAt) < Date.parse(current.generatedAt)) {
+    throw problem('同版本远程快照的生成时间早于项目快照', 'GONGEO_OLD_VERSION')
+  }
+}
+
+const entryKeys = (relative, value) => {
+  if (relative.startsWith('locales/')) return Object.keys(value)
+  if (relative === 'banners.json') return value.map((row) => row.bannerId)
+  if (relative === 'palettes.json') return value.items.flatMap((row) => row[0])
+  if (relative === 'items.json' || relative === 'outfits.json') return value.flatMap((row) => row[0])
+  return value.map((row) => row[0])
+}
+
+const guardExistingEntries = (relative, current, next) => {
+  const newKeys = entryKeys(relative, next)
+  const newIds = new Set(newKeys)
+  if (newIds.size !== newKeys.length) throw problem('Gongeo ID 重复: ' + relative)
+  if (!current) return
+  const oldIds = new Set(entryKeys(relative, current))
+  const removed = [...oldIds].filter((id) => !newIds.has(id)).length
+  if (oldIds.size && removed / oldIds.size > MAX_REMOVED_RATIO) {
+    throw problem(relative + ' 丢失 ' + removed + '/' + oldIds.size + ' 个现有条目，超过 2% 上限', 'GONGEO_INCOMPLETE')
   }
 }
 
 const writeIfChanged = async (file, content) => {
-  let current = null
-  try { current = await readFile(file, 'utf8') } catch (error) { if (error.code !== 'ENOENT') throw error }
-  if (current === content) return false
+  const current = await readOptional(file)
+  if (current === content || current?.replace(/\r\n/gu, '\n') === content) return false
   await mkdir(dirname(file), { recursive: true })
-  const temporary = `${file}.${process.pid}.tmp`
-  try { await writeFile(temporary, content, 'utf8'); await rename(temporary, file) } finally { await rm(temporary, { force: true }) }
+  const temporary = file + '.' + process.pid + '.tmp'
+  try { await writeFile(temporary, content, 'utf8'); await rename(temporary, file) }
+  finally { await rm(temporary, { force: true }) }
   return true
 }
 
 export async function updateGongeoCatalog(options = {}) {
-  const baseUrl = options.baseUrl ?? DEFAULT_BASE_URL
+  const root = String(options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/u, '')
   const outputDir = options.outputDir ?? resolve('src/data/gongeo')
-  const timeoutMs = options.timeoutMs ?? 15000
-  const catalogSourceDir = options.catalogSourceDir ?? resolve('..', 'gongeo.us-nikki-tracker')
-  const bannerSourcePath = options.bannerSourcePath ?? resolve(catalogSourceDir, 'data', 'banners.ts')
-  const localeSourceDir = options.localeSourceDir ?? resolve(catalogSourceDir, 'app', 'locales')
-  const bannerLocalePath = options.bannerLocalePath ?? resolve(localeSourceDir, 'zh', 'banner.json')
-  const root = String(baseUrl).replace(/\/+$/u, '')
-  const indexPath = 'public/catalog/index.json'
-  let index
-  try { index = parseJson(await fetchText(`${root}/${indexPath}`, timeoutMs), 'catalog/index.json') }
-  catch (remoteError) {
-    try { index = parseJson(await readFile(resolve(catalogSourceDir, indexPath), 'utf8'), resolve(catalogSourceDir, indexPath)) }
-    catch { throw remoteError }
+  const timeoutMs = Number(options.timeoutMs ?? 15000)
+  if (!/^https?:\/\//u.test(root) || !Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+    throw problem('Gongeo 来源地址或超时时间无效')
   }
-  const files = index?.files ?? {}
+  const indexUrl = root + '/public/catalog/index.json'
+  const index = parseJson(await fetchText(indexUrl, timeoutMs), indexUrl)
+  validateIndex(index)
+  guardVersion(index, await readCurrentSource(outputDir))
   const entries = new Map()
-  for (const name of FILES) {
-    const path = files[name]?.path
-    if (typeof path !== 'string' || !path.startsWith('/catalog/')) throw new Error(`Gongeo catalog 缺少 ${name} 文件路径`)
-    // 索引使用站点发布路径；仓库源码中的文件位于 public/catalog。
-    const sourcePath = `/public${path}`
-    let value
-    try { value = parseJson(await fetchText(`${root}${sourcePath}`, timeoutMs), path) }
-    catch (remoteError) {
-      try { value = parseJson(await readFile(resolve(catalogSourceDir, sourcePath.slice(1)), 'utf8'), resolve(catalogSourceDir, sourcePath.slice(1))) }
-      catch { throw remoteError }
+  for (const name of [...FILES, ...(index.files.banners ? ['banners'] : [])]) {
+    const entry = index.files[name]
+    const text = await fetchText(root + '/public' + entry.path, timeoutMs)
+    const hash = createHash('sha256').update(text).digest('hex')
+    if (Buffer.byteLength(text, 'utf8') !== entry.bytes || !hash.startsWith(entry.hash)) {
+      throw problem('Gongeo 文件校验失败: ' + name)
     }
+    const value = parseJson(text, entry.path)
     validate(name, value)
-    entries.set(`${name}.json`, value)
-  }
-  const bannerPath = files.banners?.path
-  if (typeof bannerPath === 'string' && bannerPath.startsWith('/catalog/')) {
-    let value
-    try { value = parseJson(await fetchText(`${root}/public${bannerPath}`, timeoutMs), bannerPath) }
-    catch (remoteError) {
-      try { value = parseJson(await readFile(resolve(catalogSourceDir, 'public', bannerPath.slice(1)), 'utf8'), resolve(catalogSourceDir, 'public', bannerPath.slice(1))) }
-      catch { throw remoteError }
-    }
-    validate('banners', value)
-    entries.set('banners.json', value)
-  }
-  if (!entries.has('banners.json')) {
-    let source
-    let bannerNames
-    // 优先获取远程卡池源码，避免可读取但未更新的本地仓库遮蔽新卡池。
-    try {
-      source = await fetchText(`${root}/data/banners.ts`, timeoutMs)
-      bannerNames = parseJson(await fetchText(`${root}/app/locales/zh/banner.json`, timeoutMs), 'app/locales/zh/banner.json')
-    } catch (remoteError) {
-      try {
-        source = await readFile(bannerSourcePath, 'utf8')
-        bannerNames = parseJson(await readFile(bannerLocalePath, 'utf8'), bannerLocalePath)
-      } catch { throw remoteError }
-    }
-    const matches = [...source.matchAll(/\b(\d+):\s*\{\s*bannerId:\s*(\d+),\s*bannerType:\s*(\d+),\s*outfit4StarId:\s*(\[[^\]]*\]),\s*outfit5StarId:\s*(\[[^\]]*\]),\s*runs:\s*\[([\s\S]*?)\][\s\S]*?\n\s*\},/gu)]
-    if (matches.length < 70) throw new Error(`Gongeo banner 源文件格式无效 (${matches.length})`)
-    const value = matches.map((match) => {
-      const runs = [...match[6].matchAll(/\{\s*version:\s*'([^']+)',\s*start:\s*'([^']+)',\s*end:\s*([^,}]+),?\s*\}/gu)]
-        .map((run) => ({ version: run[1], start: run[2], end: run[3].trim().replace(/^'|'$/gu, '') }))
-      return { bannerId: Number(match[2]), bannerType: Number(match[3]), name: bannerNames[`banner.${match[2]}.name`] ?? String(match[2]), outfit4StarId: JSON.parse(match[4].replace(/'/gu, '"')), outfit5StarId: JSON.parse(match[5].replace(/'/gu, '"')), runs }
-    })
-    entries.set('banners.json', value)
+    entries.set(name + '.json', value)
   }
   for (const language of LOCALES) {
     for (const name of ['item', 'outfit', 'banner']) {
-      const path = `app/locales/${language}/${name}.json`
-      let value
-      try {
-        value = parseJson(await fetchText(`${root}/${path}`, timeoutMs), path)
-      } catch (remoteError) {
-        const localPath = language === 'zh' && name === 'banner'
-          ? bannerLocalePath
-          : resolve(localeSourceDir, language, `${name}.json`)
-        try { value = parseJson(await readFile(localPath, 'utf8'), localPath) }
-        catch { throw remoteError }
-      }
-      if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`Gongeo ${language} ${name} locale 结构无效`)
-      entries.set(`locales/${language}/${name}.json`, value)
+      const path = 'app/locales/' + language + '/' + name + '.json'
+      const value = parseJson(await fetchText(root + '/' + path, timeoutMs), path)
+      validateLocale(language, name, value)
+      entries.set('locales/' + language + '/' + name + '.json', value)
     }
+  }
+  if (!entries.has('banners.json')) {
+    const source = await fetchText(root + '/data/banners.ts', timeoutMs)
+    const bannerNames = entries.get('locales/zh/banner.json')
+    const matches = [...source.matchAll(/\b(\d+):\s*\{\s*bannerId:\s*(\d+),\s*bannerType:\s*(\d+),\s*outfit4StarId:\s*(\[[^\]]*\]),\s*outfit5StarId:\s*(\[[^\]]*\]),\s*runs:\s*\[([\s\S]*?)\][\s\S]*?\n\s*\},/gu)]
+    const value = matches.map((match) => {
+      const runs = [...match[6].matchAll(/\{\s*version:\s*'([^']+)',\s*start:\s*'([^']+)',\s*end:\s*([^,}]+),?\s*\}/gu)]
+        .map((run) => ({ version: run[1], start: run[2], end: run[3].trim().replace(/^'|'$/gu, '') }))
+      return {
+        bannerId: Number(match[2]), bannerType: Number(match[3]),
+        name: bannerNames['banner.' + match[2] + '.name'] ?? String(match[2]),
+        outfit4StarId: JSON.parse(match[4].replace(/'/gu, '"')),
+        outfit5StarId: JSON.parse(match[5].replace(/'/gu, '"')), runs
+      }
+    })
+    validate('banners', value)
+    entries.set('banners.json', value)
+  }
+  // Every download and check completes before the first project file is written.
+  for (const [relative, value] of entries) {
+    const text = await readOptional(resolve(outputDir, relative))
+    if (text !== null) guardExistingEntries(relative, parseJson(text, relative), value)
+    else guardExistingEntries(relative, null, value)
+  }
+  const latestIndex = parseJson(await fetchText(indexUrl, timeoutMs), indexUrl)
+  if (JSON.stringify(latestIndex) !== JSON.stringify(index)) {
+    throw problem('Gongeo 索引在同步过程中发生变化，已取消写入', 'GONGEO_INCOMPLETE')
   }
   let updated = 0
   for (const [relative, value] of entries) {
-    if (await writeIfChanged(resolve(outputDir, relative), `${JSON.stringify(value, null, 2)}\n`)) updated += 1
+    if (await writeIfChanged(resolve(outputDir, relative), serialize(value))) updated += 1
   }
-  return { updated, total: entries.size, version: String(index.gameVersion ?? 'unknown'), generatedAt: index.generatedAt }
+  const source = { source: sourceLabel(root), gameVersion: index.gameVersion, generatedAt: index.generatedAt }
+  await writeIfChanged(resolve(outputDir, SOURCE_FILE), serialize(source))
+  return { updated, total: entries.size, version: index.gameVersion, generatedAt: index.generatedAt, source: source.source }
+}
+
+export function formatGongeoResult(result) {
+  const status = result.updated ? '远程同步成功' : '远程检查完成，无需更新'
+  return 'Gongeo ' + status + ': ' + result.updated + '/' + result.total +
+    ' 个文件更新，游戏版本 ' + result.version + '，来源: ' + result.source
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2))
+  const baseUrl = args['base-url'] ?? process.env.GONGEO_CATALOG_BASE_URL ?? DEFAULT_BASE_URL
   try {
     const result = await updateGongeoCatalog({
-      baseUrl: args['base-url'] ?? process.env.GONGEO_CATALOG_BASE_URL ?? DEFAULT_BASE_URL,
-      outputDir: resolve(args.output ?? 'src/data/gongeo'),
+      baseUrl, outputDir: resolve(args.output ?? 'src/data/gongeo'),
       timeoutMs: Number(args.timeout ?? process.env.GONGEO_CATALOG_TIMEOUT_MS ?? 15000)
     })
-    console.log(`Gongeo 目录检查完成: ${result.updated}/${result.total} 个文件更新，游戏版本 ${result.version}`)
+    console.log(formatGongeoResult(result))
   } catch (error) {
+    const status = error.code === 'GONGEO_OLD_VERSION' ? '拒绝旧版本覆盖' :
+      error.code === 'GONGEO_INVALID' || error.code === 'GONGEO_INCOMPLETE' ? '拒绝不完整数据' :
+      error.code === 'GONGEO_FETCH' ? '远程同步失败' : '同步失败'
+    const keptSnapshot = ['GONGEO_OLD_VERSION', 'GONGEO_INVALID', 'GONGEO_INCOMPLETE', 'GONGEO_FETCH'].includes(error.code)
+    console.warn('Gongeo ' + status + (keptSnapshot ? '，保留项目现有目录' : '') + '（未读取旁边仓库）: ' +
+      (error instanceof Error ? error.message : String(error)))
     if (args.strict === true) throw error
-    console.warn(`Gongeo 目录同步失败，继续使用本地目录: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
