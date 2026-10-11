@@ -48,19 +48,15 @@ if not exist "package.json" (
     exit /b 1
 )
 
-if not exist "node_modules\vite\bin\vite.js" (
-    echo First run detected: installing dependencies.
-    echo This may take a few minutes.
+echo Checking project dependencies...
+node "%PROJECT_DIR%\start\ensure-dependencies.mjs"
+if errorlevel 1 (
     echo.
-    call npm install
-    if errorlevel 1 (
-        echo.
-        echo [ERROR] Dependency installation failed.
-        echo Check your network, or manually run npm install in this folder.
-        echo.
-        pause
-        exit /b 1
-    )
+    echo [ERROR] Dependency check or installation failed. Website startup stopped.
+    echo Check the error above, then run this launcher again.
+    echo.
+    pause
+    exit /b 1
 )
 
 echo.
