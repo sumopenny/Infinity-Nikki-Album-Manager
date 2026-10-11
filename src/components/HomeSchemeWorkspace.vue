@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { Check, Copy, Download, Edit3, FileUp, GripVertical, ImagePlus, Plus, Trash2, Upload, X } from 'lucide-vue-next'
+import { Check, Copy, Download, Edit3, GripVertical, ImagePlus, Plus, Trash2, Upload, X } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
 import type { HomeSchemeMessages } from '../i18n/messages/homeScheme'
 import { copyTextToClipboard } from '../utils/clipboard'
@@ -613,7 +613,7 @@ onBeforeUnmount(() => {
     </Teleport>
 
     <div class="home-scheme-main">
-      <header class="gallery-header is-outfit-header home-scheme-header"><div class="home-scheme-heading"><p class="eyebrow">HOME SCHEMES</p><div class="home-scheme-title-row"><h2>{{ messages.title }}</h2><strong class="home-scheme-count">{{ visibleSchemes.length }} / {{ schemes.length }}</strong></div></div><div class="outfit-header-actions home-scheme-header-actions"><input ref="backupInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importBackup" /><button type="button" :disabled="isBusy" @click="backupInput?.click()"><Download :size="15" aria-hidden="true" />{{ busy ? messages.importing : messages.importData }}</button><button type="button" :disabled="isBusy || !schemes.length" @click="exportBackup"><FileUp :size="15" aria-hidden="true" />{{ busy ? messages.exporting : messages.exportData }}</button><button class="primary-button" type="button" :disabled="isBusy" @click="resetEditor(null)"><Plus :size="15" aria-hidden="true" />{{ messages.add }}</button></div></header>
+      <header class="gallery-header is-outfit-header home-scheme-header"><div class="home-scheme-heading"><p class="eyebrow">HOME SCHEMES</p><div class="home-scheme-title-row"><h2>{{ messages.title }}</h2><strong class="home-scheme-count">{{ visibleSchemes.length }} / {{ schemes.length }}</strong></div></div><div class="outfit-header-actions home-scheme-header-actions"><input ref="backupInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importBackup" /><button type="button" :disabled="isBusy" @click="backupInput?.click()"><Download :size="15" aria-hidden="true" />{{ busy ? messages.importing : messages.importData }}</button><button type="button" :disabled="isBusy || !schemes.length" @click="exportBackup"><Upload :size="15" aria-hidden="true" />{{ busy ? messages.exporting : messages.exportData }}</button><button class="primary-button" type="button" :disabled="isBusy" @click="resetEditor(null)"><Plus :size="15" aria-hidden="true" />{{ messages.add }}</button></div></header>
       <div v-if="!visibleSchemes.length" class="empty-album inline-empty home-scheme-empty"><ImagePlus :size="30" aria-hidden="true" /><h2>{{ messages.emptyTitle }}</h2><p>{{ messages.emptyDescription }}</p></div>
       <div v-else class="photo-grid-wrap outfit-grid-wrap home-scheme-grid-wrap" :class="`mode-${thumbnailMode}`">
         <div class="photo-grid outfit-grid">
@@ -633,12 +633,14 @@ onBeforeUnmount(() => {
           <div class="photo-frame home-scheme-card-image">
             <img v-if="item.imageUrl" :src="item.imageUrl" alt="" loading="lazy" />
             <div v-else class="home-scheme-card-no-image"><ImagePlus :size="22" aria-hidden="true" /></div>
-            <div class="photo-overlay outfit-overlay home-scheme-overlay"><span>{{ item.tags[0] || messages.uncategorized }}</span></div>
             <span class="selected-badge"><Check :size="15" aria-hidden="true" /></span>
             <button class="outfit-card-delete home-scheme-card-delete" type="button" :title="messages.delete" :aria-label="messages.delete" :disabled="isBusy" @click.stop="removeScheme(item)"><Trash2 :size="16" aria-hidden="true" /></button>
           </div>
           <div class="home-scheme-card-details">
-            <h3>{{ item.schemeType === 'home' ? messages.homeType : messages.comboType }}-{{ item.name || messages.untitled }}</h3>
+            <div class="home-scheme-name-tag">
+              <h3>{{ item.schemeType === 'home' ? messages.homeType : messages.comboType }}-{{ item.name || messages.untitled }}</h3>
+              <span v-if="item.tags[0]" class="home-scheme-card-tag">{{ item.tags[0] }}</span>
+            </div>
             <div class="home-scheme-card-meta"><span v-if="item.metadata.furnitureCount !== null">{{ item.metadata.furnitureCount }} {{ messages.furnitureCount }}</span><span v-if="item.note">{{ item.note }}</span></div>
           </div>
           <div class="outfit-card-footer home-scheme-card-footer">
@@ -762,12 +764,13 @@ onBeforeUnmount(() => {
 .home-scheme-card-no-image{height:100%;display:grid;place-items:center;color:var(--muted)}
 .home-scheme-card-delete{right:8px}
 .home-scheme-card-details{min-width:0;padding:8px 1px 0}
-.home-scheme-card-details h3{margin:0;overflow-wrap:anywhere;color:var(--heading);font-size:13px;line-height:1.4}
+.home-scheme-name-tag{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;min-width:0;}
+.home-scheme-card-details h3{min-width:0;margin:0;overflow-wrap:anywhere;color:var(--heading);font-size:13px;line-height:1.4}
 .home-scheme-card-meta{display:flex;flex-wrap:wrap;gap:4px 8px;min-height:20px;margin-top:4px;color:var(--muted);font-size:11px}
 .home-scheme-card-footer{min-height:38px;padding-top:5px}
 .home-scheme-code{display:flex;min-width:0;flex:1;align-items:center;gap:5px;padding:0;border:0;background:transparent;color:var(--text);text-align:left}
 .home-scheme-code .outfit-code{font-size:11px}
-.home-scheme-card-tag{padding:3px 1px 0;color:var(--muted);font-size:11px}
+.home-scheme-card-tag{flex-shrink:0;max-width:50%;padding:3px 7px;border-radius:7px;background:color-mix(in srgb,var(--pink-deep) 10%,var(--surface-strong));color:var(--pink-deep);font-size:10px;overflow-wrap:anywhere}
 .home-scheme-editor{width:min(820px,100%)}
 .home-scheme-image-dropzone{aspect-ratio:16/9}
 

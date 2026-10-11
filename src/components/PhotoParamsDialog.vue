@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { Copy, ScanSearch, X } from 'lucide-vue-next'
+import { Bookmark, Copy, ScanSearch, X } from 'lucide-vue-next'
 import type { PhotoItem } from '../utils/photoGrouping'
 import type { PhotoParamsProgress, PhotoParamsResult } from '../utils/photo-params/types'
 import type { PhotoParamsMessages } from '../i18n/messages/photoParams'
 
 const props = defineProps<{
   visible: boolean
+  saved?: boolean
+  favoriteLabel?: string
   photo: PhotoItem | { name: string } | null
   progress: PhotoParamsProgress
   result: PhotoParamsResult | null
@@ -15,7 +17,7 @@ const props = defineProps<{
   messages: PhotoParamsMessages
 }>()
 
-const emit = defineEmits<{ close: []; cancel: []; copy: []; submitUid: [uid: string] }>()
+const emit = defineEmits<{ close: []; cancel: []; copy: []; favorite: []; submitUid: [uid: string] }>()
 const uidInput = ref('')
 const failedImages = ref<Set<string>>(new Set())
 watch(() => props.visible, (visible) => { if (!visible) uidInput.value = ''; failedImages.value = new Set() })
@@ -35,6 +37,7 @@ function markImageFailed(title: string, name: string) { failedImages.value = new
               <p v-if="photo" class="photo-params-file-name">{{ photo.name }}</p>
             </div>
           </div>
+          <button v-if="result?.rawCameraParams && favoriteLabel" type="button" class="photo-params-favorite-button" :disabled="saved" @click="emit('favorite')"><Bookmark :size="16" />{{ favoriteLabel }}</button>
           <button type="button" :aria-label="messages.close" :title="messages.close" @click="emit('close')"><X :size="19" aria-hidden="true" /></button>
         </header>
 
@@ -89,7 +92,7 @@ function markImageFailed(title: string, name: string) { failedImages.value = new
           <div class="photo-params-resource-grid">
             <section v-for="group in result.resourceGroups" :key="group.title" class="photo-params-section">
               <h3>{{ group.title }}</h3>
-              <div class="photo-params-resource-row">
+              <div class="photo-params-resource-row" :class="{ 'photo-params-resource-row--pose': group.kind === 'pose' || (!group.kind && group.title === messages.action) }">
                 <img v-if="group.imageUrl && !failedImages.has(resourceKey(group.title, group.name))" :src="group.imageUrl" :alt="group.name" @error="markImageFailed(group.title, group.name)" />
                 <span v-else class="photo-params-resource-image-placeholder" aria-hidden="true"><ScanSearch :size="19" /></span>
                 <span class="photo-params-resource-placeholder">{{ group.name }}</span>
@@ -108,3 +111,15 @@ function markImageFailed(title: string, name: string) { failedImages.value = new
     </div>
   </Teleport>
 </template>
+
+<style scoped>
+/* 2026-10-11：仅动作图片使用项目内银色卡片背景，加载失败时保留默认占位背景。 */
+.photo-params-resource-row--pose img {
+  background: var(--surface-soft) url('../../img/silverCardBg.png') center / cover no-repeat;
+}
+.photo-params-header-content{flex:1;min-width:0}
+.photo-params-header{gap:12px}
+.photo-params-header .photo-params-favorite-button{display:flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0;width:auto;height:auto;padding:9px 12px;border:1px solid var(--line);border-radius:10px;color:var(--pink-deep);font-size:12px;font-weight:700;white-space:nowrap}
+.photo-params-header .photo-params-favorite-button:disabled{opacity:.65;cursor:default}
+@media(max-width:520px){.photo-params-header{flex-wrap:wrap}.photo-params-header-content{flex:1 1 170px}}
+</style>

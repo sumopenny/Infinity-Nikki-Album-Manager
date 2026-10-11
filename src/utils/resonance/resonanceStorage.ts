@@ -1,22 +1,8 @@
 import type { ResonanceRecord } from './resonanceTypes'
 
-const DB_NAME = 'infinity-nikki-album-manager'
-// 与 directoryStorage 保持同一版本号；版本号只能递增，避免触发降级打开错误。
-const DB_VERSION = 4
+import { openDb } from '../file-system/database'
 const STORE_NAME = 'resonance-records'
 const RECORDS_KEY = 'current-profile'
-
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION)
-    request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains('album-handles')) request.result.createObjectStore('album-handles')
-      if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME)
-    }
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error)
-  })
-}
 
 async function transact<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
   const db = await openDb()

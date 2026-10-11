@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, toRaw, watch } from 'vue'
-import { Bookmark, Cloud, Copy, ExternalLink, FileUp, Plus, Terminal, Trash2, X } from 'lucide-vue-next'
+import { Bookmark, Cloud, Copy, ExternalLink, FileUp, Plus, Terminal, Trash2, Upload, X } from 'lucide-vue-next'
 import ConfirmDialog from './ConfirmDialog.vue'
 import type { Language } from '../i18n/types'
 import { messages } from '../i18n'
@@ -309,7 +309,7 @@ onMounted(async () => { records.value = await loadResonanceRecords() })
       <div class="outfit-header-actions resonance-actions">
         <button class="resonance-cloud-sync-placeholder" type="button" disabled><Cloud :size="16" aria-hidden="true" />{{ t.cloudSyncComingSoon }}</button>
         <button type="button" :disabled="!records.length || clearing" @click="requestClearRecords"><Trash2 :size="16" aria-hidden="true" />{{ t.clearRecords }}</button>
-        <button type="button" :disabled="!records.length" @click="exportRecords"><FileUp :size="16" aria-hidden="true" />{{ t.exportData }}</button>
+        <button type="button" :disabled="!records.length" @click="exportRecords"><Upload :size="16" aria-hidden="true" />{{ t.exportData }}</button>
         <button class="primary-button" type="button" @click="openDialog"><Plus :size="16" aria-hidden="true" />{{ t.addData }}</button>
       </div>
     </header>
@@ -516,7 +516,11 @@ onMounted(async () => { records.value = await loadResonanceRecords() })
 .resonance-part { position: relative; aspect-ratio: 1; overflow: visible; border-radius: 8px; background: var(--frame-bg) url('../../img/pinkCardBg.png') center / contain no-repeat; }
 .resonance-part.is-even-banner { background-image: url('../../img/purpleCardBg.png'); }
 .resonance-part.is-missing { background-image: url('../../img/silverCardBg.png'); }
-.resonance-part img { border-radius: 8px; }
+.resonance-part img {
+  /* 本次修复：消除行内图片的基线留白，避免撑高方形卡片导致背景上下露底。 */
+  display: block;
+  border-radius: 8px;
+}
 .resonance-pull-number { position: absolute; right: -4px; bottom: -4px; display: grid; width: 25px; height: 25px; place-items: center; border: 2px solid var(--surface); border-radius: 50%; background: var(--pink-deep); color: #fff; font-size: 11px; font-weight: 800; }
 .resonance-pull-number.missing { background: var(--muted); }
 .resonance-second-set { margin-top: 14px; border: 0; background: transparent; color: var(--pink-deep); font-size: 13px; font-weight: 700; cursor: pointer; }

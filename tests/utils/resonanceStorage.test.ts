@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto'
+import { DB_VERSION } from '../../src/utils/file-system/database'
 import { afterEach, describe, expect, it } from 'vitest'
 import { loadResonanceRecords, saveResonanceRecords } from '../../src/utils/resonance/resonanceStorage'
 import type { ResonanceRecord } from '../../src/utils/resonance/resonanceTypes'
@@ -41,11 +42,11 @@ describe('resonanceStorage', () => {
     await expect(loadResonanceRecords()).resolves.toEqual([record])
 
     const upgradedDb = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(dbName, 4)
+      const request = indexedDB.open(dbName, DB_VERSION)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
-    expect([...upgradedDb.objectStoreNames]).toEqual(['album-handles', 'resonance-records'])
+    expect([...upgradedDb.objectStoreNames]).toEqual(['album-handles', 'camera-favorite-covers', 'camera-favorite-tags', 'camera-favorites', 'resonance-records'])
     upgradedDb.close()
   })
 

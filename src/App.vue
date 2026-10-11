@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { CircleHelp, Download, FileUp, Plus, Trash2 } from 'lucide-vue-next'
+import { CircleHelp, Download, Plus, Trash2, Upload } from 'lucide-vue-next'
 import UpdateLogDialog from './components/UpdateLogDialog.vue'
 import HelpAboutDialog from './components/HelpAboutDialog.vue'
 import AlbumViewSwitcher, { type AlbumView } from './components/AlbumViewSwitcher.vue'
@@ -27,6 +27,8 @@ import SelectionBar from './components/SelectionBar.vue'
 import TopBar from './components/TopBar.vue'
 import PhotoTransferProgressDialog from './components/PhotoTransferProgressDialog.vue'
 import PhotoParamsDialog from './components/PhotoParamsDialog.vue'
+import CameraFavorites from './components/CameraFavorites.vue'
+import { normalizeCameraCode } from './utils/photo-params/favorites'
 import { DEFAULT_LANGUAGE, messages, type Language } from './i18n'
 import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
 import { isThemeMode, type ThemeMode } from './types/theme'
@@ -246,6 +248,17 @@ function invalidatePendingRefreshes() {
 
 // 派生视图状态
 const locale = computed(() => messages[language.value])
+const favoriteTab = ref<'photos' | 'camera'>('camera')
+const cameraFavoritesRef = ref<InstanceType<typeof CameraFavorites> | null>(null)
+const cameraFavoriteCodes = ref<string[]>([])
+const cameraFavoriteModal = ref(false)
+const isCameraFavoritesView = computed(() => activeView.value === 'favorites' && favoriteTab.value === 'camera')
+const photoParamsSaved = computed(() => cameraFavoriteCodes.value.includes(normalizeCameraCode(photoParamsResult.value?.rawCameraParams ?? '')))
+function changeFavoriteTab(tab: 'photos' | 'camera') {
+  favoriteTab.value = tab
+  selectedIds.value = new Set()
+  currentPreview.value = null
+}
 const photoParamsMessages = computed(() => locale.value.photoParams)
 const photoParams = usePhotoParams({ language, messages: photoParamsMessages })
 const photoActionParsing = usePhotoActionParsing({ language })
@@ -462,11 +475,11 @@ async function resolveActionCandidateUids(): Promise<string[]> {
 }
 
 watch([autoParseActionsEnabled, photos, albumDirectoryHandle], ([enabled, currentPhotos, directory]) => {
-  if (!enabled || !directory || !currentPhotos.length) {
+  if (!directory || !currentPhotos.length) {
     photoActionParsing.cancel()
     return
   }
-  void photoActionParsing.start(currentPhotos, directory.name, resolveActionCandidateUids)
+  void photoActionParsing.start(currentPhotos, directory.name, resolveActionCandidateUids, enabled)
 }, { immediate: true })
 
 /**
@@ -688,7 +701,7 @@ async function clearData() {
   if (isAnyFileOperationBusy.value) return
   const confirmed = await openConfirmDialog({
     title: locale.value.app.clearDataDialogTitle,
-    message: locale.value.app.clearDataFirstConfirmMessage,
+    message: locale.value.app.clearDataFirstConfirmMessage + (language.value === 'zh' ? '\n相机参数收藏和封面也将清除，请先导出备份。' : '\nCamera favorites and covers will also be deleted. Export a backup first.'),
     tone: 'danger',
     confirmLabel: locale.value.topBar.clearData,
     cancelLabel: locale.value.app.dialogCancel
@@ -700,6 +713,7 @@ async function clearData() {
     await clearSavedAlbumDirectoryHandle()
     await clearSavedX6GameDirectoryHandle()
     await clearSavedCameraParamUids()
+    await cameraFavoritesRef.value?.clearLibrary()
     await clearSavedPhotoActionCache()
     await clearOutfitCodeParseCache()
     clearWebsiteLocalStorage()
@@ -951,6 +965,8 @@ async function updateOutfitLibrary(importExternal = true, announce = true) {
 function changeAlbumView(view: AlbumView) {
   const isViewChanged = view !== activeView.value
   const isEnteringOutfits = view === 'outfits' && isViewChanged
+  // 点击收藏夹入口时默认显示相机参数。
+  if (view === 'favorites' && favoriteTab.value !== 'camera') changeFavoriteTab('camera')
   activeView.value = view
   currentPreview.value = null
   // 视图真正变化时清空所有选中状态，避免上个视图的选中残留；重复点击当前视图不受影响
@@ -1833,7 +1849,7 @@ onBeforeUnmount(() => {
       @update-search="searchQuery = $event"
     />
 
-    <main class="album-layout" :class="{ 'without-album': !albumDirectoryHandle && activeView !== 'resonance' }">
+    <main class="album-layout" :class="{ 'without-album': !albumDirectoryHandle && activeView !== 'resonance' && !isCameraFavoritesView }">
       <div id="album-sidebar-column" class="sidebar-column">
         <AlbumViewSwitcher
           :active-view="activeView"
@@ -1841,7 +1857,8 @@ onBeforeUnmount(() => {
           :outfits-count="outfits.length"
           :home-schemes-count="homeSchemesCount"
           :resonance-label="locale.viewNav.resonance"
-          :favorite-count="favoriteCount"
+          :favorite-count="favoriteCount + cameraFavoriteCodes.length"
+          :favorite-count-text="`${favoriteCount + cameraFavoriteCodes.length} ${language === 'zh' ? '项' : 'items'}`"
           :trash-count="recentlyDeleted.length"
           :outfit-label="outfitLocale.viewName"
           :disabled="isAnyFileOperationBusy"
@@ -1873,7 +1890,7 @@ onBeforeUnmount(() => {
           @jump-to-record="scrollToResonanceRecord"
         />
         <DateSidebar
-          v-else-if="activeView !== 'trash' && activeView !== 'home'"
+          v-else-if="activeView !== 'trash' && activeView !== 'home' && !isCameraFavoritesView"
           :year-groups="yearGroups"
           :action-groups="actionGroups"
           :mode="sidebarMode"
@@ -1889,7 +1906,30 @@ onBeforeUnmount(() => {
       </div>
 
       <section class="album-content" :aria-label="locale.app.albumContentAria">
-        <div v-if="!albumDirectoryHandle && activeView !== 'resonance'" class="empty-album-start">
+        <!-- 收藏夹：标签页与当前页操作按钮共用一行，移除重复标题。 -->
+        <div v-if="activeView === 'favorites'" class="favorites-toolbar">
+        <nav class="favorites-tabs" :aria-label="locale.viewNav.favorites">
+          <button type="button" :aria-pressed="favoriteTab === 'camera'" @click="changeFavoriteTab('camera')">{{ language === 'zh' ? '相机参数' : 'Camera parameters' }} <small>{{ cameraFavoriteCodes.length }}</small></button>
+          <button type="button" :aria-pressed="favoriteTab === 'photos'" @click="changeFavoriteTab('photos')">{{ language === 'zh' ? '照片收藏' : 'Photo favorites' }} <small>{{ favoriteCount }}</small></button>
+        </nav>
+          <div v-if="favoriteTab === 'photos' && albumDirectoryHandle" class="outfit-header-actions photo-header-actions">
+            <label class="auto-parse-actions-toggle" :data-tooltip="locale.grid.autoParseActionsHint">
+              <input v-model="autoParseActionsEnabled" type="checkbox" :aria-label="locale.grid.autoParseActions" />
+              <span class="auto-parse-actions-checkbox" :class="{ checked: autoParseActionsEnabled }" aria-hidden="true"></span>
+              <span>{{ locale.grid.autoParseActions }}</span>
+              <span class="auto-parse-actions-help" aria-hidden="true">?</span>
+            </label>
+            <button type="button" :disabled="isAnyFileOperationBusy" @click="openPhotoImportPicker">
+              <Download :size="16" aria-hidden="true" />{{ isImportingPhotos ? locale.topBar.importingPhotos : locale.topBar.importPhotos }}
+            </button>
+            <button type="button" :disabled="isAnyFileOperationBusy || !photos.length" @click="exportAlbumPhotos([], true)">
+              <Upload :size="16" aria-hidden="true" />{{ isExportingPhotos ? locale.topBar.exportingPhotos : locale.topBar.exportAllPhotos }}
+            </button>
+          </div>
+          <div id="favorites-camera-actions" v-show="isCameraFavoritesView" class="favorites-toolbar-actions"></div>
+        </div>
+        <CameraFavorites ref="cameraFavoritesRef" sidebar-target="#album-sidebar-column" actions-target="#favorites-camera-actions" :active="isCameraFavoritesView" :language="language" :messages="photoParamsMessages" :search-query="searchQuery" :confirm-action="confirmHomeSchemeAction" @codes-change="cameraFavoriteCodes = $event" @modal-change="cameraFavoriteModal = $event" @status="handleHomeSchemeStatus" />
+        <div v-if="!albumDirectoryHandle && activeView !== 'resonance' && !isCameraFavoritesView" class="empty-album-start">
           <div class="empty-start-mark" aria-hidden="true"></div>
           <h2>{{ locale.grid.emptyTitle }}</h2>
           <p>{{ locale.grid.emptyDescription }}</p>
@@ -1900,7 +1940,7 @@ onBeforeUnmount(() => {
           <p class="hidden-folder-tip">{{ locale.grid.hiddenFolderTip }}</p>
         </div>
 
-        <header v-else-if="activeView !== 'home' && activeView !== 'resonance'" class="gallery-header" :class="{ 'is-outfit-header': activeView === 'outfits' }">
+        <header v-else-if="activeView !== 'home' && activeView !== 'resonance' && activeView !== 'favorites'" class="gallery-header" :class="{ 'is-outfit-header': activeView === 'outfits' }">
           <div>
             <p class="eyebrow">{{ activeView === 'trash' ? 'TRASH' : activeView === 'outfits' ? outfitLocale.eyebrow : 'ALBUM' }}</p>
             <div v-if="activeView === 'outfits'" class="outfit-title-row">
@@ -1920,7 +1960,7 @@ onBeforeUnmount(() => {
               <Download :size="16" aria-hidden="true" />{{ isImportingOutfits ? outfitLocale.importing : outfitLocale.importData }}
             </button>
             <button type="button" :disabled="isAnyFileOperationBusy" @click="exportOutfits">
-              <FileUp :size="16" aria-hidden="true" />{{ isExportingOutfits ? outfitLocale.exporting : outfitLocale.exportData }}
+              <Upload :size="16" aria-hidden="true" />{{ isExportingOutfits ? outfitLocale.exporting : outfitLocale.exportData }}
             </button>
             <button class="primary-button" type="button" :disabled="isAnyFileOperationBusy" @click="openOutfitEditor()">
               <Plus :size="16" aria-hidden="true" />{{ outfitLocale.addOutfit }}
@@ -1937,7 +1977,7 @@ onBeforeUnmount(() => {
               <Download :size="16" aria-hidden="true" />{{ isImportingPhotos ? locale.topBar.importingPhotos : locale.topBar.importPhotos }}
             </button>
             <button type="button" :disabled="isAnyFileOperationBusy || !photos.length" @click="exportAlbumPhotos([], true)">
-              <FileUp :size="16" aria-hidden="true" />{{ isExportingPhotos ? locale.topBar.exportingPhotos : locale.topBar.exportAllPhotos }}
+              <Upload :size="16" aria-hidden="true" />{{ isExportingPhotos ? locale.topBar.exportingPhotos : locale.topBar.exportAllPhotos }}
             </button>
           </div>
           <p v-if="activeView === 'trash'">{{ locale.trash.totalSummary(recentlyDeleted.length, trashTotalSizeText) }}</p>
@@ -1993,7 +2033,7 @@ onBeforeUnmount(() => {
           @toggle-outfit="toggleOutfit"
         />
         <PhotoGrid
-          v-else-if="albumDirectoryHandle"
+          v-else-if="albumDirectoryHandle && !isCameraFavoritesView"
           :date-groups="formattedDateGroups"
           :action-groups="actionGroups"
           :grouping-mode="sidebarMode"
@@ -2014,7 +2054,7 @@ onBeforeUnmount(() => {
     </main>
 
     <SelectionBar
-      v-if="activeView !== 'home' && activeView !== 'resonance'"
+      v-if="activeView !== 'home' && activeView !== 'resonance' && !isCameraFavoritesView"
       :mode="activeView === 'trash' ? 'trash' : activeView === 'outfits' ? 'outfit' : activeView === 'favorites' ? 'favorites' : 'album'"
       :selected-count="activeView === 'trash' ? trashSelectedCount : activeView === 'outfits' ? selectedOutfitCount : selectedCount"
       :all-selected="activeView === 'trash' ? allTrashSelected : activeView === 'outfits' ? allOutfitsSelected : allSelected"
@@ -2037,7 +2077,7 @@ onBeforeUnmount(() => {
       :has-previous="hasPreviousPreview"
       :has-next="hasNextPreview"
       :is-deleting="isDeleting || isTrashBusy"
-      :keyboard-enabled="!confirmDialog.visible && !isOutfitEditorVisible && !isOutfitParseVisible"
+      :keyboard-enabled="!confirmDialog.visible && !isOutfitEditorVisible && !isOutfitParseVisible && !isPhotoParamsVisible && !cameraFavoriteModal"
       :mode="activeView === 'trash' ? 'trash' : activeView === 'outfits' ? 'outfit' : 'album'"
       :outfit="currentPreviewOutfit"
       :outfit-messages="outfitLocale"
@@ -2058,7 +2098,10 @@ onBeforeUnmount(() => {
     />
 
     <PhotoParamsDialog
-      :visible="isPhotoParamsVisible"
+      :visible="isPhotoParamsVisible && !cameraFavoriteModal"
+      :saved="photoParamsSaved"
+      :favorite-label="photoParamsSaved ? (language === 'zh' ? '已收藏' : 'Saved') : (language === 'zh' ? '收藏参数' : 'Save parameters')"
+      @favorite="photoParamsResult && cameraFavoritesRef?.openFromResult(photoParamsResult, photoParamsPhoto)"
       :photo="photoParamsPhoto"
       :progress="photoParamsProgress"
       :result="photoParamsResult"
@@ -2178,7 +2221,7 @@ onBeforeUnmount(() => {
       @cancel="resolveCleanupAccounts(null)"
     />
 
-    <input ref="outfitImportInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importOutfits" />
+    <input id="outfit-backup-input" ref="outfitImportInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importOutfits" />
     <input ref="photoImportInput" class="visually-hidden" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif" multiple @change="importAlbumPhotos" />
 
     <PhotoTransferProgressDialog
@@ -2226,3 +2269,15 @@ onBeforeUnmount(() => {
     />
   </div>
 </template>
+
+<style scoped>
+.favorites-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px 16px;border-bottom:1px solid var(--line);margin-bottom:22px;padding-bottom:10px}
+.favorites-tabs{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.favorites-toolbar-actions{margin-left:auto;min-width:0;max-width:100%}
+.favorites-toolbar :deep(.outfit-header-actions){width:auto;flex-wrap:wrap;justify-content:flex-end;overflow:visible}
+.favorites-toolbar :deep(.outfit-header-actions > button){white-space:nowrap}
+.favorites-tabs button{display:flex;gap:8px;align-items:center;padding:10px 16px;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--muted);font:inherit;font-weight:700;cursor:pointer;transition:border-color .2s ease}
+.favorites-tabs button:hover{border-color:var(--pink-deep)}
+.favorites-tabs button[aria-pressed=true]{background:color-mix(in srgb,var(--pink-deep) 12%,var(--surface-strong));color:var(--pink-deep)}
+.favorites-tabs small{font-size:11px}
+</style>

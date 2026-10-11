@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto'
+import { DB_VERSION } from '../../src/utils/file-system/database'
 import { afterEach, describe, expect, it } from 'vitest'
 import { clearSavedAlbumDirectoryHandle, clearSavedHomeSchemeParseResults, clearSavedOutfitParseResults, clearSavedX6GameDirectoryHandle, getSavedAlbumDirectoryHandle, getSavedHomeSchemeParseResult, getSavedOutfitParseResult, getSavedX6GameDirectoryHandle, saveAlbumDirectoryHandle, saveHomeSchemeParseResult, saveOutfitParseResult, saveX6GameDirectoryHandle } from '../../src/utils/file-system/directoryStorage'
 
@@ -52,7 +53,7 @@ describe('directoryStorage', () => {
     await clearSavedOutfitParseResults()
 
     const checkDb = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('infinity-nikki-album-manager', 4)
+      const request = indexedDB.open('infinity-nikki-album-manager', DB_VERSION)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })

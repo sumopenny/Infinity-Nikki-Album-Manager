@@ -37,9 +37,10 @@ export function usePhotoActionParsing(options: {
     progress.value = { ...progress.value, running: false }
   }
 
-  async function start(photos: PhotoItem[], albumKey: string, resolveCandidateUids: () => Promise<string[]>) {
+  // 缓存始终加载；开关只决定是否继续解析未命中的照片。
+  async function start(photos: PhotoItem[], albumKey: string, resolveCandidateUids: () => Promise<string[]>, parseMissing = true) {
     const run = ++runId
-    progress.value = { running: true, completed: 0, total: photos.length, failed: 0 }
+    progress.value = { running: parseMissing, completed: 0, total: photos.length, failed: 0 }
     const next = new Map<string, PhotoActionInfo>()
     const pending: PhotoItem[] = []
 
@@ -50,7 +51,7 @@ export function usePhotoActionParsing(options: {
       if (cache && cache.fingerprint === fingerprint && cache.parserVersion === PHOTO_ACTION_PARSER_VERSION && cache.catalogVersion === PHOTO_ACTION_CATALOG_VERSION) {
         next.set(photo.id, { ...toInfo(cache), fingerprint })
       } else {
-        next.set(photo.id, { status: 'pending', fingerprint })
+        next.set(photo.id, { status: parseMissing ? 'pending' : 'unparsed', fingerprint })
         pending.push(photo)
       }
     }))
@@ -59,6 +60,11 @@ export function usePhotoActionParsing(options: {
     const cachedCount = photos.length - pending.length
     const cachedFailed = [...next.values()].filter((item) => item.status === 'unparsed').length
     progress.value = { ...progress.value, completed: cachedCount, failed: cachedFailed }
+    // 关闭时仅展示缓存，不获取 UID、不弹授权，也不读取原图解码。
+    if (!parseMissing) {
+      progress.value = { running: false, completed: cachedCount, total: photos.length, failed: 0 }
+      return
+    }
     if (!pending.length) {
       progress.value = { running: false, completed: photos.length, total: photos.length, failed: cachedFailed }
       return

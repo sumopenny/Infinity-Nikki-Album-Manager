@@ -66,8 +66,8 @@
   top: clamp(14px, 3vh, 28px);
   /* 用 vw 而非 %，避免滚动条出现时可视宽度变化导致提示窗左移 */
   left: 50vw;
-  /* 层级高于所有弹窗（最高 150），避免清理结果等提示被专项清理等窗口遮住 */
-  z-index: 300;
+  /* 顶部公共通知高于参数收藏弹窗及标签浮层（1600 / 1601）。 */
+  z-index: 2000;
   width: min(400px, calc(100vw - 32px));
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

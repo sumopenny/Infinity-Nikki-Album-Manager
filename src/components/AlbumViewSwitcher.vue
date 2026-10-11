@@ -12,6 +12,7 @@ defineProps<{
   homeSchemesCount: number
   resonanceLabel?: string
   favoriteCount: number
+  favoriteCountText?: string
   trashCount: number
   outfitLabel: string
   disabled: boolean
@@ -47,7 +48,7 @@ defineEmits<{
         { view: 'outfits' as const, label: outfitLabel, count: outfitsCount },
         { view: 'home' as const, label: messages.homeSchemes, count: homeSchemesCount, countText: messages.homeSchemesCount(homeSchemesCount) },
         { view: 'resonance' as const, label: resonanceLabel ?? 'Resonance', count: 0, countText: '' },
-        { view: 'favorites' as const, label: messages.favorites, count: favoriteCount },
+        { view: 'favorites' as const, label: messages.favorites, count: favoriteCount, countText: favoriteCountText },
         { view: 'trash' as const, label: messages.recentlyDeleted, count: trashCount }
       ]"
       :key="item.view"

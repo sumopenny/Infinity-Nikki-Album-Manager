@@ -170,7 +170,7 @@ describe('App lifecycle coordination', () => {
     })
     const wrapper = mount(App)
     await flushPromises()
-    const input = wrapper.get('input[accept=".zip,application/zip"]')
+    const input = wrapper.get('#outfit-backup-input')
     const backup = new File(['zip'], 'backup.zip', { type: 'application/zip' })
     Object.defineProperty(input.element, 'files', { configurable: true, value: [backup] })
 

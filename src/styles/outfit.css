@@ -359,6 +359,7 @@
 }
 
 .outfit-tag-editor input,
+.outfit-fields > textarea,
 .outfit-fields > input {
   min-width: 0;
   height: 36px;
@@ -371,6 +372,7 @@
 }
 
 .outfit-tag-editor input:focus,
+.outfit-fields > textarea:focus,
 .outfit-fields > input:focus {
   border-color: var(--pink-deep);
   box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 14%, transparent);
@@ -706,6 +708,7 @@
   right: 44px;
 }
 
+.camera-favorite-card:hover .outfit-card-delete,
 .outfit-card:hover .outfit-card-parse,
 .outfit-card-parse:focus-visible,
 .outfit-card:hover .outfit-card-delete,
@@ -871,6 +874,7 @@
   font-weight: 700;
 }
 
+.outfit-fields > textarea,
 .outfit-fields > input {
   width: 100%;
   margin-bottom: 20px;
@@ -1431,6 +1435,11 @@
   margin: 0;
   border: 0;
   border-radius: 0;
+}
+
+/* 2026-10-11：搭配码部件详情的套装图片使用 back.png，缺图占位保留默认背景。 */
+.outfit-detail-image-frame img.outfit-detail-image {
+  background: var(--frame-bg) url('../../img/back.png') center / cover no-repeat;
 }
 
 .outfit-detail-image.is-loading {

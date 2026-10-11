@@ -6,13 +6,15 @@ import { MAX_OUTFIT_TAG_LENGTH, MAX_OUTFIT_TAGS, type OutfitItem } from '../util
 
 export type OutfitFilter = 'all' | 'pending' | 'uncategorized' | `tag:${string}`
 
-const props = defineProps<{
-  outfits: OutfitItem[]
+const props = withDefaults(defineProps<{
+  outfits: Pick<OutfitItem, 'code' | 'tags'>[]
   tags: string[]
   activeFilter: OutfitFilter
   disabled: boolean
   messages: OutfitMessages
-}>()
+  showPending?: boolean
+  maxTagLength?: number
+}>(), { showPending: true, maxTagLength: MAX_OUTFIT_TAG_LENGTH })
 
 const emit = defineEmits<{
   changeFilter: [filter: OutfitFilter]
@@ -174,7 +176,7 @@ onBeforeUnmount(() => {
       <Teleport to="body">
         <Transition name="outfit-tag-editor">
           <form v-if="isAdding" ref="editorRef" class="outfit-tag-editor outfit-tag-editor-popover" :style="editorPosition" @submit.prevent="submitTag">
-            <input ref="inputRef" v-model="tagInput" :maxlength="MAX_OUTFIT_TAG_LENGTH" :placeholder="messages.tagPlaceholder" autocomplete="off" />
+            <input ref="inputRef" v-model="tagInput" :maxlength="maxTagLength" :placeholder="messages.tagPlaceholder" autocomplete="off" />
             <button type="submit" :disabled="disabled">{{ messages.confirmAddTag }}</button>
           </form>
         </Transition>
@@ -185,7 +187,7 @@ onBeforeUnmount(() => {
       <button
         v-for="item in [
           { filter: 'all' as const, label: messages.all },
-          { filter: 'pending' as const, label: messages.pending },
+          ...(showPending ? [{ filter: 'pending' as const, label: messages.pending }] : []),
           { filter: 'uncategorized' as const, label: messages.uncategorized }
         ]"
         :key="item.filter"

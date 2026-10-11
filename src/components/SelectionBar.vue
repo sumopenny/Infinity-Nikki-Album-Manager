@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileUp, Heart, HeartOff, RotateCcw, Trash2, X } from 'lucide-vue-next'
+import { Heart, HeartOff, RotateCcw, Trash2, Upload, X } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
 
 export type SelectionBarMode = 'album' | 'favorites' | 'trash' | 'outfit'
@@ -45,7 +45,7 @@ defineEmits<{
           <span>{{ messages.unfavorite }}</span>
         </button>
         <button type="button" :disabled="isBusy" @click="$emit('export')">
-          <FileUp :size="16" aria-hidden="true" />
+          <Upload :size="16" aria-hidden="true" />
           <span>{{ messages.exportPhotos }}</span>
         </button>
         <button class="selection-danger" type="button" :disabled="isBusy" @click="$emit('deleteRelated')">

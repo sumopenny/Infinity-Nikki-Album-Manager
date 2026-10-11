@@ -39,8 +39,6 @@ export interface PhotoParamsMessages {
     focalLength: string
     aperture: string
     vignette: string
-    momoPose: string
-    momoVisible: string
     imageFields: Record<PhotoParamsImageField, string>
   }
   errors: {
@@ -69,7 +67,6 @@ export const photoParamsZh: PhotoParamsMessages = {
   },
   labels: {
     gameTime: '游戏时间', weather: '天气', focalLength: '焦距', aperture: '光圈', vignette: '晕影',
-    momoPose: '大喵动作', momoVisible: '显示大喵',
     imageFields: {
       bloomIntensity: '柔光强度', bloomRange: '柔光范围', brightness: '亮度', exposure: '曝光',
       contrast: '对比度', saturation: '饱和度', vibrance: '自然饱和', highlights: '高光', shadows: '阴影'
@@ -112,7 +109,6 @@ export const photoParamsEn: PhotoParamsMessages = {
   },
   labels: {
     gameTime: 'Game time', weather: 'Weather', focalLength: 'Focal length', aperture: 'Aperture', vignette: 'Vignette',
-    momoPose: 'Momo pose', momoVisible: 'Momo visible',
     imageFields: {
       bloomIntensity: 'Bloom', bloomRange: 'Bloom range', brightness: 'Brightness', exposure: 'Exposure',
       contrast: 'Contrast', saturation: 'Saturation', vibrance: 'Vibrance', highlights: 'Highlights', shadows: 'Shadows'
