@@ -207,3 +207,17 @@ describe('loadOutfitDetail', () => {
     expect(requests.some((url) => url.includes('/api/gongeo/items/'))).toBe(false)
   })
 })
+
+
+it('retries a failed detail request and caches the successful retry', async () => {
+  const fetchMock = vi.fn().mockRejectedValue(new Error('offline'))
+  vi.stubGlobal('fetch', fetchMock)
+  const failed = await loadOutfitDetail(999999999, null, 'zh', 'Unknown', [])
+  expect(failed.loadError).toBe(true)
+  fetchMock.mockImplementation(async () => jsonResponse({ name: 'Recovered' }))
+  const recovered = await loadOutfitDetail(999999999, null, 'zh', 'Unknown', [])
+  expect(recovered.loadError).toBe(false)
+  const calls = fetchMock.mock.calls.length
+  expect(await loadOutfitDetail(999999999, null, 'zh', 'Unknown', [])).toBe(recovered)
+  expect(fetchMock).toHaveBeenCalledTimes(calls)
+})

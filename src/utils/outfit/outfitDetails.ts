@@ -107,7 +107,7 @@ const loadCatalogSnapshot = async (language: Language): Promise<CatalogSnapshot>
     makeupItems: makeupItems.default as CompactRow[],
     makeupOutfits: makeupOutfits.default as CompactRow[],
     dyeCatalog: dyeCatalog.default as CatalogSnapshot['dyeCatalog']
-  }))
+  })).catch((error) => { catalogSnapshotPromise = null; throw error })
   const [snapshot, names] = await Promise.all([
     catalogSnapshotPromise,
     language === 'en'
@@ -412,7 +412,7 @@ const createDetail = async (
       const areaOrder = Number(left.area.replace(/\D/g, '')) - Number(right.area.replace(/\D/g, ''))
       return areaOrder
     }),
-    loadError: !isMakeup && !entityLoaded && !outfitEntity
+    loadError: !entityLoaded || outfitResult.status === 'rejected'
   }
 }
 
@@ -446,10 +446,14 @@ export function loadOutfitDetail(
     dyes: [],
     loadError: true
   }))
+  void promise.then((detail) => {
+    if (detail.loadError && detailCache.get(key) === promise) detailCache.delete(key)
+  })
   detailCache.set(key, promise)
   return promise
 }
 
 export function clearOutfitDetailCache(): void {
   detailCache.clear()
+  catalogSnapshotPromise = null
 }

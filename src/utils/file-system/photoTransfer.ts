@@ -50,28 +50,37 @@ function safeFileName(name: string): string {
 
 function allocateName(preferred: string, occupied: Set<string>, suffix: string): string {
   const clean = safeFileName(preferred)
-  if (!occupied.has(clean)) {
-    occupied.add(clean)
+  if (!occupied.has(clean.toLowerCase())) {
+    occupied.add(clean.toLowerCase())
     return clean
   }
   const { base, extension } = splitFileName(clean)
   let index = 1
   let candidate = `${base}${suffix}_${index}${extension}`
-  while (occupied.has(candidate)) candidate = `${base}${suffix}_${++index}${extension}`
-  occupied.add(candidate)
+  while (occupied.has(candidate.toLowerCase())) candidate = `${base}${suffix}_${++index}${extension}`
+  occupied.add(candidate.toLowerCase())
   return candidate
 }
 
 async function listFileNames(directory: FileSystemDirectoryHandle): Promise<Set<string>> {
   const names = new Set<string>()
-  for await (const [name, handle] of directory.entries()) {
-    if (handle.kind === 'file') names.add(name)
+  for await (const [name] of directory.entries()) {
+    names.add(name.toLowerCase())
   }
   return names
 }
 
 async function writeFile(directory: FileSystemDirectoryHandle, name: string, source: File): Promise<void> {
+  // Preparation may be stale: never open an existing destination for writing.
+  try {
+    await directory.getFileHandle(name)
+    throw new Error('Destination already exists: ' + name)
+  } catch (error) {
+    if (!(error instanceof DOMException && error.name === 'NotFoundError')) throw error
+  }
   const handle = await directory.getFileHandle(name, { create: true })
+  const emptyFile = await handle.getFile()
+  if (emptyFile.size !== 0) throw new Error('Destination changed: ' + name)
   let writable: FileSystemWritableFileStream | null = null
   try {
     writable = await handle.createWritable()
@@ -79,7 +88,14 @@ async function writeFile(directory: FileSystemDirectoryHandle, name: string, sou
     await writable.close()
   } catch (error) {
     await writable?.abort(error).catch(() => undefined)
-    await directory.removeEntry(name).catch(() => undefined)
+    // Remove only our still-empty placeholder. Keep any externally changed file.
+    try {
+      const current = await directory.getFileHandle(name)
+      const file = await current.getFile()
+      if (await current.isSameEntry(handle) && file.size === 0 && file.lastModified === emptyFile.lastModified) {
+        await directory.removeEntry(name)
+      }
+    } catch { /* Cleanup must not hide the original write error. */ }
     throw error
   }
 }

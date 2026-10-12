@@ -25,6 +25,7 @@ type CookieMethod = 'bookmark' | 'console'
 type ImportMethod = 'pearpal' | 'file'
 
 const records = ref<ResonanceRecord[]>([])
+const recordsLoaded = ref(false)
 const selectedSet = ref<Record<string, 1 | 2>>({})
 const showAddDialog = ref(false)
 const showClearConfirm = ref(false)
@@ -246,6 +247,7 @@ async function createPreview() {
 
 async function confirmImport() {
   if (confirming.value || !preview.value.length) return
+  if (!recordsLoaded.value) { notify('load-error', props.language === 'zh' ? '共鸣记录读取失败，请刷新页面后重试。' : 'Records could not be loaded. Reload the page and retry.', 'error'); return }
   confirming.value = true
   clearNotice()
   try {
@@ -296,7 +298,14 @@ async function clearRecords() {
   }
 }
 
-onMounted(async () => { records.value = await loadResonanceRecords() })
+onMounted(async () => {
+  try {
+    records.value = await loadResonanceRecords()
+    recordsLoaded.value = true
+  } catch {
+    notify('load-error', props.language === 'zh' ? '共鸣记录读取失败，请刷新页面后重试。' : 'Records could not be loaded. Reload the page and retry.', 'error')
+  }
+})
 </script>
 
 <template>

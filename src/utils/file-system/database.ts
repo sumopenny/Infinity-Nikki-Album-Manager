@@ -31,3 +31,30 @@ export function openDb(): Promise<IDBDatabase> {
     }
   })
 }
+
+/** Resolve writes only after the transaction has committed. */
+export async function runStoreRequest<T>(storeName: string, mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  const db = await openDb()
+  return new Promise((resolve, reject) => {
+    let request: IDBRequest<T> | undefined
+    let result: T
+    let tx: IDBTransaction | undefined
+    try {
+      tx = db.transaction(storeName, mode)
+      tx.oncomplete = () => { db.close(); resolve(result) }
+      tx.onabort = () => { db.close(); reject(tx?.error ?? request?.error ?? new Error('IndexedDB transaction aborted')) }
+      tx.onerror = () => { /* onabort reports the final transaction failure. */ }
+      request = action(tx.objectStore(storeName))
+      request.onsuccess = () => { result = request!.result }
+    } catch (error) {
+      try { tx?.abort() } catch { /* Transaction may already be inactive. */ }
+      db.close()
+      reject(error)
+    }
+  })
+}
+
+/** Clear authorization and parser state only; user collections and resonance records are retained. */
+export async function clearBrowserSessionData(): Promise<void> {
+  await runStoreRequest('album-handles', 'readwrite', store => store.clear())
+}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { fileExists, readIgnoredShareCodes, readTags, writeIgnoredShareCodes } from '../../src/utils/outfit/outfitStorage'
+import { readIgnoredShareCodes, readTags, writeIgnoredShareCodes } from '../../src/utils/outfit/outfitStorage'
+import { fileExists } from '../../src/utils/file-system/fileIO'
 class F { constructor(public name: string, public contents = '') {} async getFile() { const f=new File([this.contents],this.name); Object.defineProperty(f,'text',{value:async()=>this.contents}); return f } async createWritable() { return { write: async (v: string) => { this.contents = v }, close: async () => undefined, abort: async () => undefined } as any } }
 class D { files = new Map<string, F>(); async getFileHandle(n: string, o?: any) { let f=this.files.get(n); if(!f&&o?.create){f=new F(n);this.files.set(n,f)}; if(!f) throw new DOMException('missing','NotFoundError'); return f as any } async removeEntry(n: string){if(!this.files.delete(n)) throw new DOMException('missing','NotFoundError')} }
 const d = () => new D() as any

@@ -1,3 +1,4 @@
+import { cacheGeneration, isCurrentCacheGeneration, persistCacheIfCurrent } from '../cacheLifecycle'
 // 搭配码解析：在本地 WASM 还原对象路径编号，再通过同源代理读取原始搭配数据。
 import {
   clearSavedOutfitParseResults,
@@ -183,12 +184,13 @@ export async function parseOutfitCode(rawCode: string): Promise<LookbookDecodeRe
   const pending = pendingParseRequests.get(code)
   if (pending) return pending
 
+  const generation = cacheGeneration()
   const request = (async () => {
     try {
       const stored = await getSavedOutfitParseResult(code)
       if (isCachedParseResult(stored, code)) {
         const result = inferMissingClothTypes(stored)
-        parsedResultCache.set(code, result)
+        if (isCurrentCacheGeneration(generation)) parsedResultCache.set(code, result)
         return result
       }
     } catch {
@@ -196,8 +198,8 @@ export async function parseOutfitCode(rawCode: string): Promise<LookbookDecodeRe
     }
 
     const result = inferMissingClothTypes(await requestLookbookParse(code))
-    parsedResultCache.set(code, result)
-    try { await saveOutfitParseResult(code, result) } catch {
+    if (isCurrentCacheGeneration(generation)) parsedResultCache.set(code, result)
+    try { await persistCacheIfCurrent(generation, () => saveOutfitParseResult(code, result)) } catch {
       // 持久化失败不影响本次已成功的解析结果。
     }
     return result
@@ -206,14 +208,12 @@ export async function parseOutfitCode(rawCode: string): Promise<LookbookDecodeRe
   try {
     return await request
   } finally {
-    pendingParseRequests.delete(code)
+    if (pendingParseRequests.get(code) === request) pendingParseRequests.delete(code)
   }
 }
 
 export async function clearOutfitCodeParseCache(): Promise<void> {
   parsedResultCache.clear()
   pendingParseRequests.clear()
-  try { await clearSavedOutfitParseResults() } catch {
-    // 浏览器不支持 IndexedDB 时无需阻断清理流程。
-  }
+  if (typeof indexedDB !== 'undefined') await clearSavedOutfitParseResults()
 }

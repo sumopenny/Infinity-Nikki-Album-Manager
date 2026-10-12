@@ -91,7 +91,7 @@ export interface OutfitMessages {
     deletedSelected: (deletedCount: number, failedCount: number) => string
     rollbackFailed: (fileNames: string[]) => string
     exportTitle: string
-    exportConfirm: (directoryName: string) => string
+    exportConfirm: () => string
     exportAction: string
     exportSucceeded: (fileName: string, count: number) => string
     rejectedTags: (count: number) => string
@@ -204,9 +204,9 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       deletedSelected: (deletedCount, failedCount) => `已永久删除 ${deletedCount} 个搭配方案${failedCount ? `，${failedCount} 个删除失败。` : '。'}`,
       rollbackFailed: (fileNames) => `删除过程发生错误，以下搭配方案无法完整恢复：${fileNames.join('、')}。请手动检查相册 clothe 文件夹。`,
       exportTitle: '导出搭配码数据',
-      exportConfirm: (directoryName) => `导出的 ZIP 将自动保存在当前相册文件夹“${directoryName}”中。是否继续？`,
+      exportConfirm: () => '备份 ZIP 将通过浏览器下载，保存位置由浏览器下载设置决定；数据较多时会生成多个 ZIP，请允许下载多个文件。是否继续？',
       exportAction: '开始导出',
-      exportSucceeded: (fileName, count) => `导出成功：${fileName}（${count} 个方案），文件位于当前相册文件夹。`,
+      exportSucceeded: (fileName, count) => `已生成备份并发起下载：${fileName}（${count} 个方案）。`,
       rejectedTags: (count) => `另有 ${count} 个标签因超过限制未添加。`,
       importCompleted: (added, duplicates, failed, tagNote) => `导入完成：新增 ${added} 个方案，跳过 ${duplicates} 个重复方案，${failed} 个方案导入失败。${tagNote}`
     },
@@ -223,7 +223,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       { title: '搭配码解析', items: ['可在搭配页顶部输入搭配码并点击“解析搭配码”，无需先创建搭配方案。', '已填写搭配码的方案可点击卡片右上角的解析按钮，查看搭配部件与染色信息。'] },
       { title: '标签与整理', items: ['左侧可按全部、待填写、未分类和用户标签筛选。最多创建 40 个标签，每个标签不超过 5 个字符。', '删除正在使用的标签只会让相关方案归入“未分类”，不会删除图片或方案。'] },
       { title: '添加与编辑方案', items: ['点击“添加方案”，可以选择、拖拽或粘贴图片（点击窗口空白处 Ctrl+V 粘贴）。', '搭配码可以留空稍后填写；每个方案最多选择一个标签，双击图片可打开预览。'] },
-      { title: '导入与导出', items: ['批量导入时，把搭配图片放入当前相册的 clothe 文件夹；打开、刷新相册或返回页面后会自动转为待填写方案。', '“导出数据”会在当前相册生成 ZIP；“导入数据”会合并有效方案且不覆盖已有内容。删除方案不可恢复。'] }
+      { title: '导入与导出', items: ['批量导入时，把搭配图片放入当前相册的 clothe 文件夹；打开、刷新相册或返回页面后会自动转为待填写方案。', '“导出数据”会通过浏览器下载 ZIP；“导入数据”会合并有效方案且不覆盖已有内容。删除方案不可恢复。'] }
     ],
     guideDontShowAgain: '不再提示',
     guideConfirm: '知道了',
@@ -326,9 +326,9 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       deletedSelected: (deletedCount, failedCount) => `Permanently deleted ${deletedCount} outfit(s)${failedCount ? `; ${failedCount} failed.` : '.'}`,
       rollbackFailed: (fileNames) => `A delete failed and these outfits could not be fully restored: ${fileNames.join(', ')}. Manually inspect the album's clothe folder.`,
       exportTitle: 'Export outfit code data',
-      exportConfirm: (directoryName) => `The exported ZIP will be saved automatically in the current album folder “${directoryName}”. Continue?`,
+      exportConfirm: () => 'Backup ZIP files will be downloaded using your browser download settings. Large backups create multiple ZIP files; allow multiple downloads. Continue?',
       exportAction: 'Export',
-      exportSucceeded: (fileName, count) => `Exported ${count} outfit(s) to ${fileName} in the current album folder.`,
+      exportSucceeded: (fileName, count) => `Created backup and requested download: ${fileName} (${count} outfits).`,
       rejectedTags: (count) => ` ${count} tag(s) were rejected by the limits.`,
       importCompleted: (added, duplicates, failed, tagNote) => `Import complete: ${added} added, ${duplicates} duplicate(s) skipped, ${failed} failed.${tagNote}`
     },
@@ -345,7 +345,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       { title: 'Decode outfit codes', items: ['Enter a code at the top of the Outfit Code page and click Decode outfit code without creating a plan first.', 'For a plan with a code, click the decode button in the upper-right corner of its card to view outfit items and dye information.'] },
       { title: 'Tags and filters', items: ['Filter by All, Pending, Uncategorized, or user tags. You can create up to 40 tags with no more than 5 characters each.', 'Deleting a tag in use only moves matching plans to Uncategorized; it does not delete their images or plans.'] },
       { title: 'Add and edit', items: ['Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press Ctrl+V).', 'The outfit code can be left blank and filled in later. Each plan can use at most one tag, and double-clicking the image opens the preview.'] },
-      { title: 'Import and export', items: ['For bulk import, place outfit images in the current album’s clothe folder. Opening or refreshing the album, or returning to the page, converts them into pending plans.', 'Export creates a ZIP in the current album; Import merges valid plans without replacing existing ones. Deleting a plan is permanent.'] }
+      { title: 'Import and export', items: ['For bulk import, place outfit images in the current album’s clothe folder. Opening or refreshing the album, or returning to the page, converts them into pending plans.', 'Export downloads ZIP backups through the browser; Import merges valid plans without replacing existing ones. Deleting a plan is permanent.'] }
     ],
     guideDontShowAgain: "Don't show again",
     guideConfirm: 'Got it',

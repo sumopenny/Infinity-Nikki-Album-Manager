@@ -12,8 +12,8 @@ import type { PhotoItem } from '../utils/photoGrouping'
 import { usePhotoParams } from '../composables/usePhotoParams'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import { copyTextToClipboard } from '../utils/clipboard'
-import { convertImageToWebp } from '../utils/outfit/outfitImage'
-import { applyCameraImport, clearCameraFavorites, cloneFavorite, coverMetadata, deleteCameraFavorite, deleteCameraFavorites, DuplicateCameraCodeError, normalizeCameraCode, planCameraImport, readCameraFavorites, saveCameraFavorite, type CameraFavorite, type FavoriteLibrary, type FavoriteSource, type ImportPlan } from '../utils/photo-params/favorites'
+import { convertImageToWebp } from '../utils/image'
+import { applyCameraImport, cloneFavorite, coverMetadata, deleteCameraFavorite, deleteCameraFavorites, DuplicateCameraCodeError, normalizeCameraCode, planCameraImport, readCameraFavorites, saveCameraFavorite, type CameraFavorite, type FavoriteLibrary, type FavoriteSource, type ImportPlan } from '../utils/photo-params/favorites'
 import { exportCameraBackup, readCameraBackup } from '../utils/photo-params/favoritesBackup'
 import PhotoParamsDialog from './PhotoParamsDialog.vue'
 
@@ -42,6 +42,11 @@ const importPlan = shallowRef<ImportPlan | null>(null)
 const choices = ref<Record<string, 'local' | 'incoming'>>({})
 const coverInput = ref<HTMLInputElement | null>(null)
 const backupInput = ref<HTMLInputElement | null>(null)
+const backupDownloads = ref<Array<{ fileName: string; url: string }>>([])
+function releaseBackupDownloads() {
+  for (const download of backupDownloads.value) URL.revokeObjectURL(download.url)
+  backupDownloads.value = []
+}
 const form = ref<HTMLElement | null>(null)
 const tagFilter = ref<OutfitFilter>('all')
 const tagOrder = ref<string[]>([])
@@ -351,14 +356,16 @@ async function copy(raw: string) {
 async function exportBackup() {
   busy.value = true
   try {
-    const blob = await exportCameraBackup(await readCameraFavorites())
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'camera-favorites-' + new Date().toISOString().slice(0, 10) + '.zip'
-    link.click()
-    window.setTimeout(() => URL.revokeObjectURL(url), 10000)
-    emit('status', t('备份已导出', 'Backup exported'), 'success')
+    releaseBackupDownloads()
+    for await (const part of exportCameraBackup(await readCameraFavorites())) {
+      const url = URL.createObjectURL(part.blob)
+      backupDownloads.value.push({ fileName: part.fileName, url })
+      const link = document.createElement('a')
+      link.href = url
+      link.download = part.fileName
+      link.click()
+    }
+    emit('status', t('已生成 ' + backupDownloads.value.length + ' 个备份文件', 'Created ' + backupDownloads.value.length + ' backup file(s)'), 'success')
   } catch (caught) { report(caught) }
   finally { busy.value = false }
 }
@@ -422,6 +429,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   disposed = true; cancelAutoParse(); loadGeneration++; channel?.close()
+  releaseBackupDownloads()
   document.removeEventListener('pointerdown', tagOutsideClick)
   window.removeEventListener('resize', updateTagPosition)
   window.removeEventListener('scroll', updateTagPosition, true)
@@ -429,8 +437,10 @@ onBeforeUnmount(() => {
   releaseUrls()
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
 })
-async function clearLibrary() {
-  await clearCameraFavorites()
+async function resetLibrary() {
+  cancelAutoParse()
+  releaseBackupDownloads()
+  importPlan.value = null
   tagOrder.value = []
   tagFilter.value = 'all'
   detail.value = null
@@ -438,7 +448,7 @@ async function clearLibrary() {
   await reload()
   channel?.postMessage('changed')
 }
-defineExpose({ openFromResult, clearLibrary })
+defineExpose({ openFromResult, resetLibrary })
 </script>
 
 <template>
@@ -446,6 +456,11 @@ defineExpose({ openFromResult, clearLibrary })
     <OutfitSidebar ref="sidebar" :outfits="sidebarRecords" :tags="allTags" :active-filter="tagFilter" :disabled="busy" :messages="tagMessages" :show-pending="false" :max-tag-length="60" @change-filter="tagFilter = $event" @add-tag="addTag($event)" @delete-tag="removeTag" @reorder-tags="reorderTags" />
   </Teleport>
   <section v-show="active" class="camera-favorites">
+    <div v-if="backupDownloads.length > 1" class="camera-backup-downloads">
+      <p>{{ t('备份已自动分包；如浏览器未下载全部文件，请逐个点击保存。每个 ZIP 均可独立导入。', 'The backup was split. If your browser blocked downloads, save each file below. Each ZIP can be imported independently.') }}</p>
+      <a v-for="part in backupDownloads" :key="part.fileName" :href="part.url" :download="part.fileName">{{ part.fileName }}</a>
+      <button type="button" @click="releaseBackupDownloads">{{ t('关闭', 'Close') }}</button>
+    </div>
     <!-- 操作按钮移至收藏夹标签行，保持组件内的原有事件和状态。 -->
     <Teleport v-if="active" :to="actionsTarget || 'body'" :disabled="!actionsTarget">
       <div class="outfit-header-actions">
@@ -559,6 +574,7 @@ defineExpose({ openFromResult, clearLibrary })
 </template>
 
 <style scoped>
+.camera-backup-downloads { display: grid; gap: 8px; margin: 12px 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--ui-radius); }
 .camera-favorites{min-width:0}.camera-favorites h2 small{font-size:13px;color:var(--muted);margin-left:8px}.camera-tags-filter{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.camera-tags-filter button{border:1px solid var(--line);border-radius:16px;padding:6px 12px;background:var(--surface-strong);color:var(--text)}.camera-tags-filter button[aria-pressed=true]{border-color:var(--pink-deep);color:var(--pink-deep)}.camera-empty{padding:60px 20px;text-align:center;color:var(--muted)}.camera-favorite-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;padding:10px 0 100px}.camera-favorite-card.selected{border-color:var(--pink-deep);box-shadow:0 0 0 2px color-mix(in srgb,var(--pink-deep) 22%,transparent)}
 .camera-favorite-card:focus-visible{outline:2px solid var(--pink-deep);outline-offset:3px}
 .camera-selected-badge{position:absolute;left:8px;top:8px;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--pink-deep);color:white}

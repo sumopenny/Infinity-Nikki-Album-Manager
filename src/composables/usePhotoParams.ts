@@ -1,3 +1,4 @@
+import { formatCameraParams } from '../utils/photo-params/formatCameraParams'
 import { nextTick, onScopeDispose, ref, type ComputedRef, type Ref } from 'vue'
 import type { Language } from '../i18n'
 import type { PhotoParamsMessages } from '../i18n/messages/photoParams'
@@ -6,9 +7,6 @@ import { listGamePlayPhotoAccounts } from '../utils/file-system/directoryAccess'
 import { addSavedCameraParamUid, getSavedCameraParamUids, getSavedX6GameDirectoryHandle } from '../utils/file-system/directoryStorage'
 import { decodeCameraParams, decodePhoto } from '../utils/photo-params/wasmClient'
 import type { PhotoParamsProgress, PhotoParamsResult, PhotoParamsStage } from '../utils/photo-params/types'
-import { resourceImage, resourceName } from '../utils/photo-params/resourceManifest'
-import { PHOTO_PARAM_RANGES, photoFocalLengthDisplay, rawFocalLengthDisplay, sliderPercent } from '../utils/photo-params/slider'
-import { weatherName } from '../utils/photo-params/weather'
 
 type DecodedPhoto = { rawCameraParams: string; photo: Record<string, unknown>; camera: Record<string, unknown> }
 
@@ -40,71 +38,7 @@ export function usePhotoParams(options: {
   }
 
   function presentCameraParams(camera: Record<string, unknown>, rawCameraParams: string, photoData?: Record<string, unknown>) {
-    const formatNumber = (value: unknown, digits: number) => {
-      const parsed = Number(value)
-      if (!Number.isFinite(parsed)) return messages.value.noValue
-      return parsed.toFixed(digits)
-    }
-    const formatPercent = (value: unknown) => {
-      const parsed = Number(value)
-      if (!Number.isFinite(parsed)) return messages.value.noValue
-      return `${Math.round(parsed * 100)}%`
-    }
-    const preferred = (key: string) => String(photoData?.[key] ?? camera[key] ?? messages.value.noValue)
-    const display = (key: string, source: Record<string, unknown> = camera) => {
-      const value = source[key]
-      if (value == null) return messages.value.noValue
-      if (['bloomIntensity', 'brightness', 'contrast'].includes(key)) return formatPercent(value)
-      return formatNumber(value, 1)
-    }
-    const number = (key: string, source: Record<string, unknown> = camera) => Number(source[key])
-    const focal = photoData?.focalLength != null
-      ? photoFocalLengthDisplay(photoData.focalLength)
-      : rawFocalLengthDisplay(camera.focalLength)
-    const captureTime = photoData?.captureTime as { hour?: number; minute?: number; second?: number } | undefined
-    const pad = (value: unknown) => String(Math.max(0, Math.floor(Number(value) || 0))).padStart(2, '0')
-    const light = (photoData?.light ?? camera.light ?? { id: photoData?.lightId ?? camera.lightId, strength: photoData?.lightStrength ?? camera.lightStrength }) as { id?: string; strength?: number } | undefined
-    const filter = (photoData?.filter ?? camera.filter ?? { id: photoData?.filterId ?? camera.filterId, strength: photoData?.filterStrength ?? camera.filterStrength }) as { id?: string; strength?: number } | undefined
-    const resourceId = (resource: { id?: string } | undefined) => {
-      const id = String(resource?.id ?? '').trim()
-      return id && id !== 'None' ? id : undefined
-    }
-    const lightId = resourceId(light)
-    const filterId = resourceId(filter)
-    const poseId = photoData?.poseId as string | number | undefined
-    // 2026-10-11：仅照片解析展示角色动作；纯相机参数不含动作，所有解析结果均不展示大喵动作。
-    const resources: PhotoParamsResult['resourceGroups'] = []
-    if (photoData) {
-      resources.push({ kind: 'pose', id: poseId == null || String(poseId) === '0' || String(poseId) === 'None' ? undefined : String(poseId), title: messages.value.action, name: poseId == null ? messages.value.noValue : resourceName('pose', poseId, language.value), imageUrl: poseId == null ? undefined : resourceImage('pose', poseId) })
-    }
-    resources.push(
-      { kind: 'light', id: lightId, title: messages.value.light, name: lightId ? resourceName('light', lightId, language.value) : messages.value.noValue, value: lightId ? formatPercent(light?.strength) : undefined, imageUrl: lightId ? resourceImage('light', lightId) : undefined },
-      { kind: 'filter', id: filterId, title: messages.value.filter, name: filterId ? resourceName('filter', filterId, language.value) : messages.value.noValue, value: filterId ? formatPercent(filter?.strength) : undefined, imageUrl: filterId ? resourceImage('filter', filterId) : undefined }
-    )
-    result.value = {
-      environmentFields: captureTime || photoData?.weatherType != null ? [
-        ...(captureTime ? [{ label: messages.value.labels.gameTime, value: `${pad(captureTime.hour)}:${pad(captureTime.minute)}:${pad(captureTime.second)}` }] : []),
-        ...(photoData?.weatherType != null ? [{ label: messages.value.labels.weather, value: weatherName(photoData.weatherType, language.value) }] : [])
-      ] : [],
-      cameraFields: [
-        { label: messages.value.labels.focalLength, value: focal ? `${formatNumber(focal.millimeters, 0)}mm` : messages.value.noValue, position: focal?.position },
-        { label: messages.value.labels.aperture, value: preferred('apertureValue'), position: sliderPercent(number('aperture', photoData ?? camera), PHOTO_PARAM_RANGES.aperture) },
-        { label: messages.value.labels.vignette, value: formatPercent((photoData ?? camera).vignette), position: sliderPercent(number('vignette', photoData ?? camera), PHOTO_PARAM_RANGES.unit) }
-      ],
-      imageFields: [
-        { key: 'bloomIntensity' as const, range: PHOTO_PARAM_RANGES.unit, format: 'percent' },
-        { key: 'bloomRange' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' },
-        { key: 'brightness' as const, range: PHOTO_PARAM_RANGES.unit, format: 'percent' },
-        { key: 'exposure' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' },
-        { key: 'contrast' as const, range: PHOTO_PARAM_RANGES.unit, format: 'percent' },
-        { key: 'saturation' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' },
-        { key: 'vibrance' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' },
-        { key: 'highlights' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' },
-        { key: 'shadows' as const, range: PHOTO_PARAM_RANGES.signed, format: 'number' }
-      ].map(({ key, range, format }) => ({ label: messages.value.labels.imageFields[key], value: format === 'percent' ? formatPercent(camera[key]) : display(key), position: sliderPercent(camera[key], range) })),
-      resourceGroups: resources,
-      rawCameraParams
-    }
+    result.value = formatCameraParams(camera, rawCameraParams, language.value, messages.value, photoData)
   }
 
   async function parsePhotoBytes(bytes: Uint8Array, candidateUids: string[], run: number) {

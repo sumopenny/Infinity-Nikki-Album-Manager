@@ -1,12 +1,19 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto'
+import { CAMERA_BACKUP_LIMITS } from '../../src/utils/backup/zipBackup'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { zipSync, strToU8, unzipSync, strFromU8 } from 'fflate'
-import { DB_NAME } from '../../src/utils/file-system/database'
+import { DB_NAME, runStoreRequest } from '../../src/utils/file-system/database'
 import { applyCameraImport, clearCameraFavorites, saveCameraFavoriteTags, deleteCameraFavoriteTag, coverMetadata, deleteCameraFavorite, deleteCameraFavorites, DuplicateCameraCodeError, planCameraImport, readCameraFavorites, saveCameraFavorite, type CameraFavorite } from '../../src/utils/photo-params/favorites'
-import { exportCameraBackup, readCameraBackup } from '../../src/utils/photo-params/favoritesBackup'
+import { exportCameraBackup as exportCameraParts, readCameraBackup } from '../../src/utils/photo-params/favoritesBackup'
 import { getSavedAlbumDirectoryHandle } from '../../src/utils/file-system/directoryStorage'
 import { loadResonanceRecords } from '../../src/utils/resonance/resonanceStorage'
+
+async function exportCameraBackup(library: Parameters<typeof exportCameraParts>[0]): Promise<Blob> {
+  const first = await exportCameraParts(library).next()
+  if (first.done) throw new Error('Missing backup')
+  return first.value.blob
+}
 
 const record = (id = 'one', code = 'ABC'): CameraFavorite => ({
   id, code, version: 1, name: '暖光人像', tag: '人像', source: 'album', cover: null,
@@ -246,4 +253,47 @@ describe('complete camera backup', () => {
     expect(getItem).not.toHaveBeenCalled()
     expect(removeItem).not.toHaveBeenCalled()
   })
+})
+
+it('splits a camera library into separately importable archives with all tags', async () => {
+  const old = CAMERA_BACKUP_LIMITS.records
+  CAMERA_BACKUP_LIMITS.records = 2
+  try {
+    const records = Array.from({ length: 5 }, (_, i) => record('record-' + i, 'CODE' + i))
+    const restored: CameraFavorite[] = []
+    let count = 0
+    for await (const part of exportCameraParts({ records, covers: new Map(), tags: ['空分类'] })) {
+      expect(part.fileName).toContain('_part-')
+      const data = await readCameraBackup(part.blob)
+      expect(data.records.length).toBeLessThanOrEqual(2)
+      expect(data.tags).toContain('空分类')
+      restored.push(...data.records)
+      count++
+    }
+    expect(count).toBe(3)
+    expect(restored).toEqual(records)
+  } finally { CAMERA_BACKUP_LIMITS.records = old }
+})
+
+
+it('reads pre-change version 1 favorites and round-trips the original version 2 backup format', async () => {
+  // Seed the stored representation directly, without passing through the current save path.
+  const cover = new Blob(['existing-cover'], { type: 'image/webp' })
+  const original = { ...record('existing', 'EXISTING'), cover: await coverMetadata(cover, 'existing.webp') }
+  await runStoreRequest('camera-favorites', 'readwrite', store => store.put(original))
+  await runStoreRequest('camera-favorite-covers', 'readwrite', store => store.put(cover, original.id))
+  await runStoreRequest('camera-favorite-tags', 'readwrite', store => store.put(['人像', '空标签'], 'order'))
+  const loaded = await readCameraFavorites()
+  expect(loaded.records).toEqual([original])
+  expect(await loaded.covers.get(original.id)!.text()).toBe('existing-cover')
+  const archive = await exportCameraBackup(loaded)
+  const manifest = JSON.parse(strFromU8(unzipSync(new Uint8Array(await archive.arrayBuffer()))['favorites.json']))
+  expect(manifest.version).toBe(2)
+  expect(manifest.records[0].version).toBe(1)
+  const restored = await readCameraBackup(archive)
+  expect(restored.records).toEqual([original])
+  expect(restored.tags).toEqual(['人像', '空标签'])
+  const edited = { ...original, name: '修改名称' }
+  await saveCameraFavorite(edited, cover, original)
+  expect((await readCameraFavorites()).records).toEqual([edited])
 })

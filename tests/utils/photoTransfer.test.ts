@@ -21,7 +21,7 @@ class TestDirectory implements FileSystemDirectoryHandle {
   async *entries(): AsyncIterableIterator<[string, FileSystemHandle]> { for (const [name, handle] of this.files) yield [name, handle as unknown as FileSystemHandle] }
   values(): AsyncIterableIterator<FileSystemHandle> { return this.entriesAsValues() }
   private async *entriesAsValues() { for await (const [, handle] of this.entries()) yield handle }
-  async getFileHandle(name: string, options?: { create?: boolean }): Promise<FileSystemFileHandle> { const existing = this.files.get(name); if (existing) return existing; if (!options?.create) throw new DOMException('missing', 'NotFoundError'); const handle = new TestFileHandle(name); this.files.set(name, handle); return handle }
+  async getFileHandle(name: string, options?: { create?: boolean }): Promise<FileSystemFileHandle> { const existing = this.files.get(name); if (existing) return existing; if (!options?.create) throw new DOMException('missing', 'NotFoundError'); const handle = new TestFileHandle(name, new Blob()); this.files.set(name, handle); return handle }
   async getDirectoryHandle(): Promise<FileSystemDirectoryHandle> { throw new DOMException('missing', 'NotFoundError') }
   async removeEntry(name: string): Promise<void> { this.files.delete(name) }
   async resolve(): Promise<string[] | null> { return null }
@@ -57,4 +57,38 @@ describe('photo transfer', () => {
     expect(result.succeeded).toBeGreaterThanOrEqual(1)
     expect(target.files.size).toBe(result.succeeded)
   })
+})
+
+
+it('allocates case-insensitive names for existing files and the same import batch', async () => {
+  const dir = new TestDirectory('album')
+  const original = new TestFileHandle('A.JPG')
+  dir.files.set('A.JPG', original)
+  const prepared = await preparePhotoTransfer(dir, { kind: 'import', files: [new File(['new'], 'a.jpg'), new File(['next'], 'a.JPG')] })
+  const result = await runPhotoTransfer(dir, prepared)
+  expect(result.succeeded).toBe(2)
+  expect(dir.files.get('A.JPG')).toBe(original)
+  expect([...dir.files.keys()]).toEqual(['A.JPG', 'a_imported_1.jpg', 'a_imported_2.JPG'])
+})
+it('preserves a destination that appears after preparation, including on failure', async () => {
+  const dir = new TestDirectory('album')
+  const prepared = await preparePhotoTransfer(dir, { kind: 'import', files: [new File(['new'], 'a.jpg')] })
+  const original = new TestFileHandle('a.jpg')
+  dir.files.set('a.jpg', original)
+  const result = await runPhotoTransfer(dir, prepared)
+  expect(result.succeeded).toBe(0)
+  expect(result.failedNames).toEqual(['a.jpg'])
+  expect(dir.files.get('a.jpg')).toBe(original)
+})
+it('removes only a new empty placeholder when opening a writer fails', async () => {
+  const dir = new TestDirectory('album')
+  const get = dir.getFileHandle.bind(dir)
+  dir.getFileHandle = async (name, options) => {
+    const handle = await get(name, options)
+    if (options?.create) handle.createWritable = async () => { throw new Error('write denied') }
+    return handle
+  }
+  const prepared = await preparePhotoTransfer(dir, { kind: 'import', files: [new File(['new'], 'a.jpg')] })
+  expect((await runPhotoTransfer(dir, prepared)).succeeded).toBe(0)
+  expect(dir.files.size).toBe(0)
 })

@@ -1,42 +1,24 @@
+import { datePartsFromTimestamp } from '../photoGrouping'
+import { formatFileSize } from '../file-system/photoUrl'
+import { normalizeOutfitTags } from './outfitTypes'
 // 搭配备份：负责 ZIP 备份导出、导入、流式解压、安全校验和重复数据识别。
-import { strFromU8, strToU8, Unzip, UnzipInflate, Zip, ZipDeflate, ZipPassThrough } from 'fflate'
+import { strFromU8, Unzip, UnzipInflate } from 'fflate'
+import { OUTFIT_BACKUP_LIMITS, planBackupParts, downloadBackupParts, type BackupDownload } from '../backup/zipBackup'
 import { readOutfitLibrary, getClotheDirectory, saveOutfitTags } from './outfitFileSystem'
-import { fileExists, writeBlob, writeJson } from './outfitStorage'
-import { imageExtension, MAX_IMAGE_BYTES, validateImageBlob, validateWrittenFileSize } from './outfitImage'
+import { writeBlob, writeJson } from '../file-system/fileIO'
+import { imageExtension, MAX_IMAGE_BYTES, validateImageBlob, validateWrittenFileSize } from '../image'
 import { MAX_OUTFIT_NOTE_LENGTH, MAX_OUTFIT_TAGS, isReservedOutfitTag, isValidOutfitTag, normalizeOutfitCode, normalizeOutfitTag, type OutfitImportResult, type OutfitItem } from './outfitTypes'
 
 const BACKUP_FORMAT = 'infinity-nikki-outfit-backup'
 const BACKUP_VERSION = 1
-const MAX_BACKUP_BYTES = 512 * 1024 * 1024
-const MAX_BACKUP_ENTRIES = 2_000
+const MAX_BACKUP_BYTES = OUTFIT_BACKUP_LIMITS.bytes
+const MAX_BACKUP_ENTRIES = OUTFIT_BACKUP_LIMITS.entries
 const IMPORT_CONCURRENCY = 27
 
 interface OutfitMetadata { id: string; image: string; code: string; tags: string[]; createdAt: string; note?: string; diyImageModifiedAt?: number }
 interface BackupManifest { format: string; version: number; exportedAt: string; tags: string[]; outfits: OutfitMetadata[] }
 
-function dateParts(timestamp: number) {
-  const date = new Date(timestamp)
-  const year = String(date.getFullYear())
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hour = String(date.getHours()).padStart(2, '0')
-  const minute = String(date.getMinutes()).padStart(2, '0')
 
-  return {
-    dateKey: `${year}-${month}-${day}`,
-    year,
-    monthDay: `${month}月${day}日`,
-    displayDate: `${year}年${month}月${day}日`,
-    timeText: `${hour}:${minute}`,
-    timestamp
-  }
-}
-
-function formatFileSize(size: number): string {
-  if (size < 1024) return `${size} B`
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
-  return `${(size / 1024 / 1024).toFixed(1)} MB`
-}
 
 function isSafeOutfitId(value: string): boolean {
   return value.length > 0 && value.length <= 128 && value !== '.' && value !== '..' && !/[\\/\0]/.test(value)
@@ -49,104 +31,31 @@ function createOutfitId(): string {
   return `outfit-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
-function normalizeTags(value: unknown, allowedTags?: Set<string>): string[] {
-  if (!Array.isArray(value)) return []
-  const tag = normalizeOutfitTag(value[0])
-  return isValidOutfitTag(tag) && (!allowedTags || allowedTags.has(tag)) ? [tag] : []
-}
 
 function backupTimestamp(date = new Date()): string {
   const pad = (value: number) => String(value).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
 }
 
-async function availableBackupName(directory: FileSystemDirectoryHandle): Promise<string> {
-  const base = `无限暖暖搭配码备份_${backupTimestamp()}`
-  let suffix = 0
-  while (await fileExists(directory, `${base}${suffix ? `_${suffix}` : ''}.zip`)) suffix += 1
-  return `${base}${suffix ? `_${suffix}` : ''}.zip`
-}
-
 export async function exportOutfitBackup(
   albumDirectory: FileSystemDirectoryHandle,
-  targetDirectory: FileSystemDirectoryHandle
-): Promise<{ fileName: string; count: number }> {
+  download?: BackupDownload
+): Promise<{ fileNames: string[]; count: number }> {
   const library = await readOutfitLibrary(albumDirectory, { importExternal: false, create: true })
-  const manifest: BackupManifest = {
-    format: BACKUP_FORMAT,
-    version: BACKUP_VERSION,
-    exportedAt: new Date().toISOString(),
-    tags: library.tags,
-    outfits: library.outfits.map(({ id, image, code, tags, createdAt, note, diyImageModifiedAt }) => ({
-      id,
-      image: `images/${image}`,
-      code,
-      tags,
-      createdAt,
-      ...(note ? { note: note.trim().slice(0, MAX_OUTFIT_NOTE_LENGTH) } : {}),
-      ...(diyImageModifiedAt !== undefined ? { diyImageModifiedAt } : {})
-    }))
+  if (library.failedCount) throw new Error('收藏读取不完整，无法导出完整备份 / Some outfits could not be read')
+  const exportedAt = new Date().toISOString()
+  const items = []
+  for (const outfit of library.outfits) {
+    if (!/^[^/\\]+\.webp$/i.test(outfit.image)) throw new Error('备份图片必须为 WebP / Backup images must be WebP')
+    const image = 'images/' + outfit.image
+    items.push({
+      record: { id: outfit.id, image, code: outfit.code, tags: outfit.tags, createdAt: outfit.createdAt, note: outfit.note, diyImageModifiedAt: outfit.diyImageModifiedAt },
+      files: [{ name: image, blob: await outfit.fileHandle.getFile() }]
+    })
   }
-  const fileName = await availableBackupName(targetDirectory)
-  const targetHandle = await targetDirectory.getFileHandle(fileName, { create: true })
-  const writable = await targetHandle.createWritable()
-  let pendingWrite = Promise.resolve()
-  let resolveArchive!: () => void
-  let rejectArchive!: (error: Error) => void
-  const archiveComplete = new Promise<void>((resolve, reject) => {
-    resolveArchive = resolve
-    rejectArchive = reject
-  })
-  const archive = new Zip((error, chunk, final) => {
-    if (error) {
-      rejectArchive(error)
-      return
-    }
-    pendingWrite = pendingWrite.then(() => writable.write(chunk))
-    if (final) pendingWrite.then(resolveArchive, rejectArchive)
-  })
-
-  const addBytes = async (name: string, bytes: Uint8Array) => {
-    const entry = new ZipDeflate(name, { level: 6 })
-    archive.add(entry)
-    entry.push(bytes, true)
-    await pendingWrite
-  }
-
-  const addFile = async (name: string, file: File) => {
-    const entry = new ZipPassThrough(name)
-    archive.add(entry)
-    const reader = file.stream().getReader()
-    try {
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-        entry.push(value)
-        await pendingWrite
-      }
-      entry.push(new Uint8Array(), true)
-      await pendingWrite
-    } finally {
-      reader.releaseLock()
-    }
-  }
-
-  try {
-    await addBytes('manifest.json', strToU8(`${JSON.stringify(manifest, null, 2)}\n`))
-    for (const outfit of library.outfits) {
-      await addFile(`images/${outfit.image}`, await outfit.fileHandle.getFile())
-    }
-    archive.end()
-    await archiveComplete
-    await writable.close()
-    return { fileName, count: library.outfits.length }
-  } catch (error) {
-    archive.terminate()
-    void archiveComplete.catch(() => undefined)
-    await writable.abort(error).catch(() => undefined)
-    await targetDirectory.removeEntry(fileName).catch(() => undefined)
-    throw error
-  }
+  const parts = planBackupParts(items, outfits => ({ format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt, tags: library.tags, outfits }), 'manifest.json', OUTFIT_BACKUP_LIMITS)
+  const fileNames = await downloadBackupParts('无限暖暖搭配码备份_' + backupTimestamp(), parts, 'manifest.json', OUTFIT_BACKUP_LIMITS, download)
+  return { fileNames, count: library.outfits.length }
 }
 
 export function isSafeOutfitArchivePath(path: string): boolean {
@@ -193,7 +102,7 @@ async function streamBackupEntries(
         throw new Error('Backup contains an unsupported file')
       }
       if (entry.originalSize !== undefined) {
-        if (entry.name !== 'manifest.json' && entry.originalSize > MAX_IMAGE_BYTES) throw new Error('Backup image is too large')
+        if (entry.originalSize > (entry.name === 'manifest.json' ? OUTFIT_BACKUP_LIMITS.manifest : MAX_IMAGE_BYTES)) throw new Error('Backup image is too large')
         declaredBytes += entry.originalSize
         if (declaredBytes > MAX_BACKUP_BYTES) throw new Error('Expanded backup is too large')
       }
@@ -214,7 +123,7 @@ async function streamBackupEntries(
         if (chunk?.length) {
           entryBytes += chunk.length
           expandedBytes += chunk.length
-          if (entry.name !== 'manifest.json' && entryBytes > MAX_IMAGE_BYTES) {
+          if (entryBytes > (entry.name === 'manifest.json' ? OUTFIT_BACKUP_LIMITS.manifest : MAX_IMAGE_BYTES)) {
             extractionError = new Error('Backup image is too large')
             entry.terminate()
             return
@@ -323,7 +232,7 @@ async function isIdenticalOutfit(
 ): Promise<boolean> {
   const createdTimestamp = typeof raw.createdAt === 'string' ? Date.parse(raw.createdAt) : Number.NaN
   const createdAt = Number.isFinite(createdTimestamp) ? new Date(createdTimestamp).toISOString() : ''
-  const rawTag = normalizeTags(raw.tags)[0] ?? ''
+  const rawTag = normalizeOutfitTags(raw.tags)[0] ?? ''
   if (existing.code !== code || existing.createdAt !== createdAt || (existing.tags[0] ?? '') !== rawTag) return false
   const existingBytes = new Uint8Array(await (await existing.fileHandle.getFile()).arrayBuffer())
   return bytesEqual(existingBytes, imageBytes)
@@ -431,7 +340,7 @@ export async function importOutfitBackup(
       imageName = `${id}.webp`
       metadataName = `${id}.json`
       const createdTimestamp = typeof raw.createdAt === 'string' ? Date.parse(raw.createdAt) : Number.NaN
-      const tag = normalizeTags(raw.tags, new Set(tags))[0]
+      const tag = normalizeOutfitTags(raw.tags, new Set(tags))[0]
       const createdAt = Number.isFinite(createdTimestamp) ? new Date(createdTimestamp).toISOString() : new Date().toISOString()
       const note = typeof raw.note === 'string' ? raw.note.trim().slice(0, MAX_OUTFIT_NOTE_LENGTH) : ''
       const metadata: OutfitMetadata = {
@@ -449,7 +358,7 @@ export async function importOutfitBackup(
         await validateWrittenFileSize(directory, imageName, imageBlob.size)
         await writeJson(directory, metadataName, metadata)
         createdOutfits.push({
-          ...dateParts(Date.parse(createdAt)),
+          ...datePartsFromTimestamp(Date.parse(createdAt))!,
           id,
           name: imageName,
           image: imageName,

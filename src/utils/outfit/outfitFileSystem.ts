@@ -1,6 +1,10 @@
+import { datePartsFromTimestamp } from '../photoGrouping'
+import { formatFileSize } from '../file-system/photoUrl'
+import { normalizeOutfitTags } from './outfitTypes'
 // 搭配文件系统：负责搭配方案扫描、游戏数据导入、标签、保存和删除流程。
-import { fileExists, readIgnoredShareCodes, readTags, writeBlob, writeIgnoredShareCodes, writeJson } from './outfitStorage'
-import { convertImageToWebp, isSupportedImage, validateWrittenFileSize } from './outfitImage'
+import { readIgnoredShareCodes, readTags, writeIgnoredShareCodes } from './outfitStorage'
+import { fileExists, writeBlob, writeJson } from '../file-system/fileIO'
+import { convertImageToWebp, isSupportedImage, validateWrittenFileSize } from '../image'
 import { runWithConcurrency } from '../concurrency'
 import {
   DEFAULT_OUTFIT_TAGS,
@@ -32,7 +36,7 @@ export {
 } from './outfitTypes'
 export type { OutfitItem, OutfitLibraryResult, SharedOutfitSource, SharedOutfitImportResult, SaveOutfitInput, OutfitImportResult, OutfitDeleteResult } from './outfitTypes'
 export { OutfitDeleteRollbackError } from './outfitTypes'
-export { convertImageToWebp } from './outfitImage'
+export { convertImageToWebp } from '../image'
 
 const CLOTHE_DIRECTORY_NAME = 'clothe'
 const TAGS_FILE_NAME = 'tags.json'
@@ -73,12 +77,6 @@ function isMissingEntryError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'NotFoundError'
 }
 
-function normalizeTags(value: unknown, allowedTags?: Set<string>): string[] {
-  if (!Array.isArray(value)) return []
-  const tag = normalizeOutfitTag(value[0])
-  if (!isValidOutfitTag(tag) || (allowedTags && !allowedTags.has(tag))) return []
-  return [tag]
-}
 
 function createOutfitId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
@@ -99,28 +97,7 @@ async function createAvailableOutfitId(directory: FileSystemDirectoryHandle, pre
   return candidate
 }
 
-function dateParts(timestamp: number) {
-  const date = new Date(timestamp)
-  const year = String(date.getFullYear())
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hour = String(date.getHours()).padStart(2, '0')
-  const minute = String(date.getMinutes()).padStart(2, '0')
-  return {
-    dateKey: `${year}-${month}-${day}`,
-    year,
-    monthDay: `${month}月${day}日`,
-    displayDate: `${year}年${month}月${day}日`,
-    timeText: `${hour}:${minute}`,
-    timestamp
-  }
-}
 
-function formatFileSize(size: number): string {
-  if (size < 1024) return `${size} B`
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
-  return `${(size / 1024 / 1024).toFixed(1)} MB`
-}
 
 export async function getClotheDirectory(
   albumDirectory: FileSystemDirectoryHandle,
@@ -170,12 +147,12 @@ async function parseOutfit(
   const createdAt = new Date(timestamp).toISOString()
   const id = parsed.id.trim()
   const outfit: OutfitItem = {
-    ...dateParts(timestamp),
+    ...datePartsFromTimestamp(timestamp)!,
     id,
     name: pairedImage,
     image: pairedImage,
     code: normalizeOutfitCode(parsed.code),
-    tags: normalizeTags(parsed.tags, allowedTags),
+    tags: normalizeOutfitTags(parsed.tags, allowedTags),
     note: typeof parsed.note === 'string' ? parsed.note.trim().slice(0, MAX_OUTFIT_NOTE_LENGTH) : '',
     createdAt,
     metadataName,

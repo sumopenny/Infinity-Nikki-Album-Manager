@@ -1,3 +1,4 @@
+import { cacheGeneration, persistCacheIfCurrent } from '../cacheLifecycle'
 import {
   decodeHomeBuildShareCode,
   parseHomeBuildResponse,
@@ -51,6 +52,7 @@ function toResult(code: string, server: number, value: HomeBuildWireData): HomeS
 
 /** 先查带解析器版本的本地缓存；未命中时通过同源代理取二进制并交给 WASM。 */
 export async function parseHomeScheme(codeInput: string, signal?: AbortSignal): Promise<HomeSchemeParseResult> {
+  const generation = cacheGeneration()
   const code = codeInput.replace(/\s/g, '')
   const route = await decodeHomeBuildShareCode(code)
   if (!route.ok) throw new Error(route.errorCode)
@@ -85,6 +87,6 @@ export async function parseHomeScheme(codeInput: string, signal?: AbortSignal): 
     cachedAt: Date.now(),
     parserVersion: HOME_SCHEME_PARSER_VERSION
   }
-  await saveHomeSchemeParseResult(code, cache).catch(() => undefined)
+  await persistCacheIfCurrent(generation, () => saveHomeSchemeParseResult(code, cache)).catch(() => undefined)
   return result
 }

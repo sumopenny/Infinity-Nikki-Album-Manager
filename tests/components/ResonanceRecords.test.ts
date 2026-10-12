@@ -1,3 +1,4 @@
+import * as resonanceStorage from '../../src/utils/resonance/resonanceStorage'
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
@@ -158,7 +159,7 @@ describe('ResonanceRecords', () => {
     expect(wrapper.find('.resonance-cloud-sync-placeholder').text()).toBe('云端同步（待上线）')
     expect(wrapper.find('.resonance-cloud-sync-placeholder').attributes('disabled')).toBeDefined()
     expect(wrapper.find('.resonance-actions button:nth-child(3)').text()).toContain('导出数据')
-    expect(wrapper.find('.resonance-actions button:nth-child(3) .lucide-file-up').exists()).toBe(true)
+    expect(wrapper.find('.resonance-actions button:nth-child(3) .lucide-upload').exists()).toBe(true)
     expect(wrapper.find('.resonance-actions button:nth-child(3)').attributes('disabled')).toBeDefined()
     expect(wrapper.find('.resonance-actions button:last-child').text()).toContain('添加数据')
   })
@@ -362,4 +363,27 @@ describe('ResonanceRecords', () => {
     expect(panel.textContent).toContain('Resonance Recorder')
     expect(panel.textContent).not.toContain('国服')
   })
+})
+
+
+it('blocks import after a storage read failure without overwriting existing records', async () => {
+  await saveResonanceRecords([savedRecord])
+  vi.spyOn(resonanceStorage, 'loadResonanceRecords').mockRejectedValueOnce(new Error('read failed'))
+  const save = vi.spyOn(resonanceStorage, 'saveResonanceRecords')
+  const { wrapper, panel } = await openDialog()
+  panel.querySelectorAll<HTMLButtonElement>('.resonance-choice-row:first-child button')[1]!.click()
+  await flushPromises()
+  const input = panel.querySelector<HTMLInputElement>('input[type="file"]')!
+  Object.defineProperty(input, 'files', { configurable: true, value: [{
+    name: 'resonance.json', text: async () => JSON.stringify({ 77: [['2026-01-01', HAIR]] })
+  }] })
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  await flushPromises()
+  panel.querySelector<HTMLButtonElement>('.resonance-import-footer .primary-button')!.click()
+  await flushPromises()
+  panel.querySelector<HTMLButtonElement>('.resonance-import-footer .primary-button')!.click()
+  await flushPromises()
+  expect(save).not.toHaveBeenCalled()
+  expect(latestNotice(wrapper)).toMatchObject({ tone: 'error', message: expect.stringContaining('读取失败') })
+  expect(await loadResonanceRecords()).toEqual([savedRecord])
 })

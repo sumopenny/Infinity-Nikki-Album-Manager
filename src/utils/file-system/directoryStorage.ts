@@ -1,5 +1,5 @@
 // 目录句柄存储：使用 IndexedDB 保存和读取相册及 X6Game 目录授权句柄。
-import { openDb } from './database'
+import { openDb, runStoreRequest } from './database'
 const STORE_NAME = 'album-handles'
 const SAVED_DIRECTORY_KEY = 'current-album-directory'
 const SAVED_X6GAME_DIRECTORY_KEY = 'current-x6game-directory'
@@ -22,16 +22,8 @@ export interface PhotoActionCacheEntry {
   parsedAt: number
 }
 
-async function transaction<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  const db = await openDb()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, mode)
-    const request = action(tx.objectStore(STORE_NAME))
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error)
-    tx.oncomplete = () => db.close()
-    tx.onerror = () => { db.close(); reject(tx.error) }
-  })
+function transaction<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  return runStoreRequest(STORE_NAME, mode, action)
 }
 
 export async function saveAlbumDirectoryHandle(handle: FileSystemDirectoryHandle): Promise<void> {
@@ -161,4 +153,23 @@ export async function clearSavedHomeSchemeParseResults(): Promise<void> {
     tx.onerror = () => { db.close(); reject(tx.error) }
     tx.onabort = () => { db.close(); reject(tx.error) }
   })
+}
+
+/** One readonly transaction for an album instead of one connection per photo. */
+export async function getSavedPhotoActionCaches(albumKey: string): Promise<Map<string, PhotoActionCacheEntry>> {
+  const prefix = PHOTO_ACTION_CACHE_KEY_PREFIX + encodeURIComponent(albumKey) + ':'
+  try {
+    let keys: IDBValidKey[] = []
+    const values = await transaction('readonly', (store) => {
+      const range = IDBKeyRange.bound(prefix, prefix + '\uffff')
+      const request = store.getAllKeys(range)
+      request.onsuccess = () => { keys = request.result }
+      return store.getAll(range)
+    })
+    return new Map(values.flatMap((value, index) => {
+      const key = keys[index]
+      if (typeof key !== 'string' || !value || typeof value !== 'object') return []
+      try { return [[decodeURIComponent(key.slice(prefix.length)), value as PhotoActionCacheEntry] as const] } catch { return [] }
+    }))
+  } catch { return new Map() }
 }

@@ -1,3 +1,4 @@
+import { HOME_BACKUP_LIMITS } from '../../src/utils/backup/zipBackup'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import { exportHomeSchemeBackup, importHomeSchemeBackup } from '../../src/utils/homeBuild/homeSchemeBackup'
@@ -150,7 +151,7 @@ describe('home scheme ZIP backup validation', () => {
     }, [])
 
     const target = new MemoryDirectoryHandle('target')
-    const result = await exportHomeSchemeBackup(albumHandle(source), albumHandle(target))
+    const result = await exportHomeSchemeBackup(albumHandle(source), async (name, blob) => { const file = await target.getFileHandle(name, { create: true }); const writer = await file.createWritable(); await writer.write(blob); await writer.close() })
     expect(result.count).toBe(1)
     const backupName = [...target.files.keys()].find((name) => name.endsWith('.zip'))
     expect(backupName).toBeTruthy()
@@ -175,4 +176,31 @@ describe('home scheme ZIP backup validation', () => {
       metadata: saved.metadata
     })
   })
+})
+
+
+it('exports multiple independently importable home ZIPs without rescanning after every saved item', async () => {
+  const source = new MemoryDirectoryHandle('source'), target = new MemoryDirectoryHandle('exports')
+  for (let i = 0; i < 5; i++) await saveHomeScheme(albumHandle(source), {
+    code: 'CODE' + i, name: '花园' + i, schemeType: 'home', tags: [], note: '', metadata: createEmptyHomeSchemeMetadata()
+  }, [])
+  const old = HOME_BACKUP_LIMITS.records
+  HOME_BACKUP_LIMITS.records = 2
+  try {
+    const result = await exportHomeSchemeBackup(albumHandle(source), async (name, blob) => { const file = await target.getFileHandle(name, { create: true }); const writer = await file.createWritable(); await writer.write(blob); await writer.close() })
+    expect(result.fileNames).toHaveLength(3)
+    let total = 0
+    for (const name of result.fileNames) {
+      const dest = new MemoryDirectoryHandle('restored')
+      const scans = vi.spyOn(MemoryDirectoryHandle.prototype, 'entries')
+      const data = await importHomeSchemeBackup(albumHandle(dest), streamedFile(await readBlobBytes(target.files.get(name)!.contents)))
+      expect(data.failedCount).toBe(0)
+      expect(data.addedCount).toBeLessThanOrEqual(2)
+      // Empty destination: only the final library scan; save does not enumerate it.
+      expect(scans).toHaveBeenCalledTimes(1)
+      scans.mockRestore()
+      total += data.addedCount
+    }
+    expect(total).toBe(5)
+  } finally { HOME_BACKUP_LIMITS.records = old }
 })

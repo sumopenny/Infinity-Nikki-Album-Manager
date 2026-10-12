@@ -1,5 +1,5 @@
-import { convertImageToWebp, validateWrittenFileSize } from '../outfit/outfitImage'
-import { fileExists, writeBlob, writeJson } from '../outfit/outfitStorage'
+import { convertImageToWebp, validateWrittenFileSize } from '../image'
+import { fileExists, writeBlob, writeJson } from '../file-system/fileIO'
 import {
   isValidHomeSchemeTag,
   MAX_HOME_SCHEME_CODE_LENGTH,
@@ -161,7 +161,7 @@ export async function readHomeSchemeLibrary(album: FileSystemDirectoryHandle): P
       failedCount += 1
     }
   }
-  schemes.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+  schemes.sort((left, right) => right.createdAt.localeCompare(left.createdAt))
   return { schemes, tags, failedCount }
 }
 
@@ -235,6 +235,9 @@ export async function saveHomeScheme(
     }
     await writeJson(directory, metadataName, record)
     if (oldImageName && oldImageName !== imageFileName) await directory.removeEntry(oldImageName)
+    const fileHandle = imageFileName ? await directory.getFileHandle(imageFileName) : null
+    const imageUrl = fileHandle ? URL.createObjectURL(await fileHandle.getFile()) : record.metadata.coverImageUrl
+    return { ...record, imageUrl, fileHandle, directoryHandle: directory }
   } catch (error) {
     if (previousRecord) await writeBlob(await directory.getFileHandle(metadataName, { create: true }), previousRecord).catch(() => undefined)
     else await directory.removeEntry(metadataName).catch(() => undefined)
@@ -243,11 +246,7 @@ export async function saveHomeScheme(
     throw error
   }
 
-  const library = await readHomeSchemeLibrary(album)
-  const saved = library.schemes.find((scheme) => scheme.id === id)
-  releaseHomeSchemeUrls(library.schemes.filter((scheme) => scheme.id !== id))
-  if (!saved) throw new Error('Saved home scheme could not be read')
-  return saved
+
 }
 
 export async function deleteHomeScheme(item: HomeSchemeItem): Promise<void> {

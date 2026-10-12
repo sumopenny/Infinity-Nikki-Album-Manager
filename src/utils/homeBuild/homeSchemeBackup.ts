@@ -1,13 +1,14 @@
-import { strFromU8, strToU8, Unzip, UnzipInflate, UnzipPassThrough, Zip, ZipDeflate, ZipPassThrough } from 'fflate'
-import { fileExists, writeBlob } from '../outfit/outfitStorage'
+import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from 'fflate'
+import { HOME_BACKUP_LIMITS, planBackupParts, downloadBackupParts, type BackupDownload } from '../backup/zipBackup'
+import { writeBlob } from '../file-system/fileIO'
 import { deleteHomeScheme, readHomeSchemeLibrary, saveHomeScheme, saveHomeSchemeTags } from './homeSchemeFileSystem'
 import { normalizeHomeSchemeCode, normalizeHomeSchemeTag, type HomeSchemeItem, type HomeSchemeMetadata } from './homeSchemeTypes'
 
 const BACKUP_FORMAT = 'infinity-nikki-home-scheme-backup'
 const BACKUP_VERSION = 1
-const MAX_BACKUP_BYTES = 128 * 1024 * 1024
-const MAX_IMAGE_BYTES = 64 * 1024 * 1024
-const MAX_ENTRIES = 500
+const MAX_BACKUP_BYTES = HOME_BACKUP_LIMITS.bytes
+const MAX_IMAGE_BYTES = HOME_BACKUP_LIMITS.image
+const MAX_ENTRIES = HOME_BACKUP_LIMITS.entries
 
 interface BackupScheme {
   id: string
@@ -62,102 +63,25 @@ function backupBaseName(): string {
     pad(date.getDate()) + '_' + pad(date.getHours()) + pad(date.getMinutes()) + pad(date.getSeconds())
 }
 
-async function availableBackupName(directory: FileSystemDirectoryHandle): Promise<string> {
-  const base = backupBaseName()
-  let suffix = 0
-  while (await fileExists(directory, base + (suffix ? '_' + suffix : '') + '.zip')) suffix += 1
-  return base + (suffix ? '_' + suffix : '') + '.zip'
-}
-
-// 备份按清单、图片的顺序流式写入目标目录，避免把整个 ZIP 同时保存在内存中。
 export async function exportHomeSchemeBackup(
   album: FileSystemDirectoryHandle,
-  targetDirectory: FileSystemDirectoryHandle = album
-): Promise<{ fileName: string; count: number }> {
+  download?: BackupDownload
+): Promise<{ fileNames: string[]; count: number }> {
   const library = await readHomeSchemeLibrary(album)
-  const manifest: BackupManifest = {
-    format: BACKUP_FORMAT,
-    version: BACKUP_VERSION,
-    exportedAt: new Date().toISOString(),
-    tags: library.tags,
-    homeSchemes: library.schemes.map((scheme) => ({
-      id: scheme.id,
-      image: scheme.image ? 'images/' + scheme.image : null,
-      code: scheme.code,
-      name: scheme.name,
-      schemeType: scheme.schemeType,
-      tags: scheme.tags,
-      note: scheme.note,
-      metadata: scheme.metadata,
-      createdAt: scheme.createdAt,
-      updatedAt: scheme.updatedAt
-    }))
-  }
-  const manifestBytes = strToU8(JSON.stringify(manifest, null, 2) + '\n')
-  const fileName = await availableBackupName(targetDirectory)
-  const targetHandle = await targetDirectory.getFileHandle(fileName, { create: true })
-  const writable = await targetHandle.createWritable()
-  let pendingWrite = Promise.resolve()
-  let resolveArchive!: () => void
-  let rejectArchive!: (error: Error) => void
-  const archiveComplete = new Promise<void>((resolve, reject) => {
-    resolveArchive = resolve
-    rejectArchive = reject
-  })
-  const archive = new Zip((error, chunk, final) => {
-    if (error) {
-      rejectArchive(error)
-      return
-    }
-    pendingWrite = pendingWrite.then(() => writable.write(chunk))
-    if (final) pendingWrite.then(resolveArchive, rejectArchive)
-  })
-
-  const addBytes = async (name: string, bytes: Uint8Array) => {
-    const entry = new ZipDeflate(name, { level: 6 })
-    archive.add(entry)
-    entry.push(bytes, true)
-    await pendingWrite
-  }
-
-  const addFile = async (name: string, file: File) => {
-    const entry = new ZipPassThrough(name)
-    archive.add(entry)
-    const reader = file.stream().getReader()
-    try {
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-        entry.push(value)
-        await pendingWrite
-      }
-      entry.push(new Uint8Array(), true)
-      await pendingWrite
-    } finally {
-      reader.releaseLock()
-    }
-  }
-
-  let totalBytes = manifestBytes.byteLength
   try {
-    await addBytes('manifest.json', manifestBytes)
+    if (library.failedCount) throw new Error('家园收藏读取不完整，无法导出完整备份 / Some home schemes could not be read')
+    const exportedAt = new Date().toISOString()
+    const items = []
     for (const scheme of library.schemes) {
-      if (!scheme.image || !scheme.fileHandle) continue
-      const file = await scheme.fileHandle.getFile()
-      totalBytes += file.size
-      if (file.size > MAX_IMAGE_BYTES || totalBytes > MAX_BACKUP_BYTES) throw new Error('home_scheme_backup_too_large')
-      await addFile('images/' + scheme.image, file)
+      const image = scheme.image ? 'images/' + scheme.image : null
+      items.push({
+        record: { id: scheme.id, image, code: scheme.code, name: scheme.name, schemeType: scheme.schemeType, tags: scheme.tags, note: scheme.note, metadata: scheme.metadata, createdAt: scheme.createdAt, updatedAt: scheme.updatedAt },
+        files: image && scheme.fileHandle ? [{ name: image, blob: await scheme.fileHandle.getFile() }] : []
+      })
     }
-    archive.end()
-    await archiveComplete
-    await writable.close()
-    return { fileName, count: library.schemes.length }
-  } catch (error) {
-    archive.terminate()
-    void archiveComplete.catch(() => undefined)
-    await writable.abort(error).catch(() => undefined)
-    await targetDirectory.removeEntry(fileName).catch(() => undefined)
-    throw error
+    const parts = planBackupParts(items, homeSchemes => ({ format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt, tags: library.tags, homeSchemes }), 'manifest.json', HOME_BACKUP_LIMITS)
+    const fileNames = await downloadBackupParts(backupBaseName(), parts, 'manifest.json', HOME_BACKUP_LIMITS, download)
+    return { fileNames, count: library.schemes.length }
   } finally {
     for (const scheme of library.schemes) if (scheme.fileHandle && scheme.imageUrl) URL.revokeObjectURL(scheme.imageUrl)
   }
@@ -180,7 +104,7 @@ async function extractBackup(file: File): Promise<Map<string, Uint8Array>> {
         if (chunk?.byteLength) {
           size += chunk.byteLength
           expandedBytes += chunk.byteLength
-          if ((manifest && size > 4 * 1024 * 1024) || (!manifest && size > MAX_IMAGE_BYTES) || expandedBytes > MAX_BACKUP_BYTES) {
+          if ((manifest && size > HOME_BACKUP_LIMITS.manifest) || (!manifest && size > MAX_IMAGE_BYTES) || expandedBytes > MAX_BACKUP_BYTES) {
             failure = new Error('home_scheme_backup_expanded_size_invalid')
             entry.terminate()
             return

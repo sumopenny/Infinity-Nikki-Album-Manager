@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { invalidateCacheWrites } from './utils/cacheLifecycle'
+import { clearBrowserSessionData } from './utils/file-system/database'
+import { clearOutfitDetailCache } from './utils/outfit/outfitDetails'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CircleHelp, Download, Plus, Trash2, Upload } from 'lucide-vue-next'
 import UpdateLogDialog from './components/UpdateLogDialog.vue'
@@ -47,7 +50,7 @@ import {
 } from './utils/file-system/albumFileSystem'
 import { clearRecentlyDeleted, listRecentlyDeleted, movePhotosToRecentlyDeleted, permanentlyDeleteRecentlyDeleted, restoreRecentlyDeletedPhotos } from './utils/file-system/trashFileSystem'
 import { getX6GameDirectoryForAlbum, isProtectedAlbumDirectory, listGamePlayPhotoAccounts, pickStandaloneX6GameDirectory, resolveX6GameAccountDirectory } from './utils/file-system/directoryAccess'
-import { clearSavedCameraParamUids, clearSavedPhotoActionCache, clearSavedX6GameDirectoryHandle, getSavedCameraParamUids, getSavedX6GameDirectoryHandle } from './utils/file-system/directoryStorage'
+import { clearSavedPhotoActionCache, getSavedCameraParamUids, getSavedX6GameDirectoryHandle } from './utils/file-system/directoryStorage'
 import { executeMatchingPhotoCleanup, executeSpecialCleanup, prepareMatchingPhotoCleanup, prepareSpecialCleanup, type SpecialCleanupItem } from './utils/file-system/cleanupFileSystem'
 import { savePhotoNote } from './utils/file-system/photoMetadata'
 import { releasePhotoUrl, releasePhotoUrls } from './utils/file-system/photoUrl'
@@ -94,7 +97,7 @@ const FAVORITES_STORAGE_KEY = 'infinity-nikki-favorite-photo-ids'
 const AUTO_PARSE_ACTIONS_STORAGE_KEY = 'infinity-nikki-auto-parse-actions'
 const ABOUT_STATE_STORAGE_KEY = 'infinity-nikki-about-state'
 const CLEANUP_ACCOUNT_CHOICE_KEY = 'infinity-nikki-cleanup-account-choice'
-const WEBSITE_LOCAL_STORAGE_KEYS = [THUMBNAIL_STORAGE_KEY, OUTFIT_THUMBNAIL_STORAGE_KEY, HOME_THUMBNAIL_STORAGE_KEY, OUTFIT_GUIDE_DISMISSED_KEY, X6GAME_AUTO_PROMPT_DISMISSED_KEY, THEME_STORAGE_KEY, LANGUAGE_STORAGE_KEY, FAVORITES_STORAGE_KEY, AUTO_PARSE_ACTIONS_STORAGE_KEY, ABOUT_STATE_STORAGE_KEY, CLEANUP_ACCOUNT_CHOICE_KEY]
+const WEBSITE_LOCAL_STORAGE_KEYS = [THUMBNAIL_STORAGE_KEY, OUTFIT_THUMBNAIL_STORAGE_KEY, HOME_THUMBNAIL_STORAGE_KEY, OUTFIT_GUIDE_DISMISSED_KEY, X6GAME_AUTO_PROMPT_DISMISSED_KEY, THEME_STORAGE_KEY, LANGUAGE_STORAGE_KEY, AUTO_PARSE_ACTIONS_STORAGE_KEY, ABOUT_STATE_STORAGE_KEY, CLEANUP_ACCOUNT_CHOICE_KEY]
 const currentAboutVersion = messages.zh.updateLog.currentVersion.replace(/^v/, '')
 
 function isLanguage(value: string | null): value is Language {
@@ -689,6 +692,9 @@ async function clearCache() {
   if (!confirmed) return
 
   try {
+    photoActionParsing.reset()
+    await invalidateCacheWrites()
+    clearOutfitDetailCache()
     await Promise.all([clearOutfitCodeParseCache(), clearSavedHomeSchemeParseResults(), clearSavedPhotoActionCache()])
     statusState.value = { type: 'custom', message: locale.value.app.clearCacheStatus, tone: 'success' }
   } catch (error) {
@@ -696,12 +702,12 @@ async function clearCache() {
   }
 }
 
-/** 确认后清除所有网站本地数据和授权。参数：无。 */
+/** 清除缓存、设置和授权，保留共鸣记录及所有收藏。 */
 async function clearData() {
   if (isAnyFileOperationBusy.value) return
   const confirmed = await openConfirmDialog({
     title: locale.value.app.clearDataDialogTitle,
-    message: locale.value.app.clearDataFirstConfirmMessage + (language.value === 'zh' ? '\n相机参数收藏和封面也将清除，请先导出备份。' : '\nCamera favorites and covers will also be deleted. Export a backup first.'),
+    message: locale.value.app.clearDataFirstConfirmMessage,
     tone: 'danger',
     confirmLabel: locale.value.topBar.clearData,
     cancelLabel: locale.value.app.dialogCancel
@@ -710,17 +716,23 @@ async function clearData() {
 
   suppressLocalPersistence = true
   try {
-    await clearSavedAlbumDirectoryHandle()
-    await clearSavedX6GameDirectoryHandle()
-    await clearSavedCameraParamUids()
-    await cameraFavoritesRef.value?.clearLibrary()
-    await clearSavedPhotoActionCache()
+    photoActionParsing.reset()
+    photoParams.close()
+    await invalidateCacheWrites()
+    clearOutfitDetailCache()
     await clearOutfitCodeParseCache()
+    await clearBrowserSessionData()
+    cameraParamsInput.value = ''
+    autoParseActionsEnabled.value = false
+    homeThumbnailMode.value = 'wide'
+    favoriteTab.value = 'camera'
+    cleanupRememberedChoice.value = null
+    cleanupAccounts.value = []
+    isAboutDialogDismissed.value = false
     clearWebsiteLocalStorage()
     resetLoadedAlbumState()
     cleanupX6GameHandle.value = null
     hasX6GameAuthorization.value = false
-    favoriteIds.value = new Set()
     activeOutfitFilter.value = 'all'
     albumDirectoryHandle.value = null
     activeView.value = 'all'
@@ -1342,25 +1354,18 @@ async function deleteSelectedOutfits() {
   }
 }
 
-/** 确认后将搭配码 ZIP 直接导出到当前相册根目录。参数：无。 */
+/** 通过浏览器直接下载搭配码 ZIP。 */
 async function exportOutfits() {
+  if (isAnyFileOperationBusy.value) return
   const directoryHandle = albumDirectoryHandle.value
-  if (!directoryHandle || isAnyFileOperationBusy.value) return
-  const confirmed = await openConfirmDialog({
-    title: outfitLocale.value.operations.exportTitle,
-    message: outfitLocale.value.operations.exportConfirm(directoryHandle.name),
-    tone: 'info',
-    confirmLabel: outfitLocale.value.operations.exportAction,
-    cancelLabel: locale.value.app.dialogCancel
-  })
-  if (!confirmed) return
+  if (!directoryHandle) { showOutfitStatus(outfitLocale.value.emptyTitle, 'info'); return }
   activeOperation.value = 'exporting-outfits'
   showOutfitStatus(outfitLocale.value.exporting, 'info', true)
   try {
-    const result = await exportOutfitBackup(directoryHandle, directoryHandle)
+    const result = await exportOutfitBackup(directoryHandle)
     statusState.value = {
       type: 'custom',
-      message: outfitLocale.value.operations.exportSucceeded(result.fileName, result.count),
+      message: outfitLocale.value.operations.exportSucceeded(result.fileNames.join('、'), result.count),
       tone: 'success'
     }
   } catch (error) {
@@ -1849,7 +1854,7 @@ onBeforeUnmount(() => {
       @update-search="searchQuery = $event"
     />
 
-    <main class="album-layout" :class="{ 'without-album': !albumDirectoryHandle && activeView !== 'resonance' && !isCameraFavoritesView }">
+    <main class="album-layout" :class="{ 'without-album': !albumDirectoryHandle && activeView !== 'outfits' && activeView !== 'home' && activeView !== 'resonance' && !isCameraFavoritesView }">
       <div id="album-sidebar-column" class="sidebar-column">
         <AlbumViewSwitcher
           :active-view="activeView"
@@ -1929,7 +1934,7 @@ onBeforeUnmount(() => {
           <div id="favorites-camera-actions" v-show="isCameraFavoritesView" class="favorites-toolbar-actions"></div>
         </div>
         <CameraFavorites ref="cameraFavoritesRef" sidebar-target="#album-sidebar-column" actions-target="#favorites-camera-actions" :active="isCameraFavoritesView" :language="language" :messages="photoParamsMessages" :search-query="searchQuery" :confirm-action="confirmHomeSchemeAction" @codes-change="cameraFavoriteCodes = $event" @modal-change="cameraFavoriteModal = $event" @status="handleHomeSchemeStatus" />
-        <div v-if="!albumDirectoryHandle && activeView !== 'resonance' && !isCameraFavoritesView" class="empty-album-start">
+        <div v-if="!albumDirectoryHandle && activeView !== 'outfits' && activeView !== 'home' && activeView !== 'resonance' && !isCameraFavoritesView" class="empty-album-start">
           <div class="empty-start-mark" aria-hidden="true"></div>
           <h2>{{ locale.grid.emptyTitle }}</h2>
           <p>{{ locale.grid.emptyDescription }}</p>
@@ -1956,13 +1961,13 @@ onBeforeUnmount(() => {
             </h2>
           </div>
           <div v-if="activeView === 'outfits'" class="outfit-header-actions">
-            <button type="button" :disabled="isAnyFileOperationBusy" @click="chooseOutfitBackup">
+            <button type="button" :disabled="!albumDirectoryHandle || isAnyFileOperationBusy" @click="chooseOutfitBackup">
               <Download :size="16" aria-hidden="true" />{{ isImportingOutfits ? outfitLocale.importing : outfitLocale.importData }}
             </button>
             <button type="button" :disabled="isAnyFileOperationBusy" @click="exportOutfits">
               <Upload :size="16" aria-hidden="true" />{{ isExportingOutfits ? outfitLocale.exporting : outfitLocale.exportData }}
             </button>
-            <button class="primary-button" type="button" :disabled="isAnyFileOperationBusy" @click="openOutfitEditor()">
+            <button class="primary-button" type="button" :disabled="!albumDirectoryHandle || isAnyFileOperationBusy" @click="openOutfitEditor()">
               <Plus :size="16" aria-hidden="true" />{{ outfitLocale.addOutfit }}
             </button>
           </div>
@@ -1985,7 +1990,7 @@ onBeforeUnmount(() => {
         </header>
 
         <HomeSchemeWorkspace
-          v-if="albumDirectoryHandle && activeView === 'home'"
+          v-if="activeView === 'home'"
           :album-directory="albumDirectoryHandle"
           :messages="locale.homeScheme"
           :copy-messages="locale.app"
@@ -2019,7 +2024,7 @@ onBeforeUnmount(() => {
           @open-preview="openPreview"
         />
         <OutfitGrid
-          v-else-if="albumDirectoryHandle && activeView === 'outfits'"
+          v-else-if="activeView === 'outfits'"
           :outfits="visibleOutfits"
           :selected-ids="selectedOutfitIds"
           :thumbnail-mode="outfitThumbnailMode"
@@ -2112,7 +2117,6 @@ onBeforeUnmount(() => {
       @cancel="closePhotoParams"
       @copy="copyRawCameraParams"
       @submit-uid="photoParams.submitUid"
-      @upload="photoParams.openForFile"
     />
 
     <ParseToolsDialog

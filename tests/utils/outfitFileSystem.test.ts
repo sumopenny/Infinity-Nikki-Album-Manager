@@ -1,3 +1,4 @@
+import { OUTFIT_BACKUP_LIMITS } from '../../src/utils/backup/zipBackup'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { strToU8, Unzip, UnzipInflate, zipSync } from 'fflate'
 import {
@@ -769,8 +770,8 @@ describe('outfit filesystem', () => {
       note: '保留这条备注'
     })
     const target = new MemoryDirectoryHandle('exports')
-    const result = await exportOutfitBackup(asDirectory(album), asDirectory(target))
-    const backup = await target.files.get(result.fileName)!.getFile()
+    const result = await exportOutfitBackup(asDirectory(album), async (name, blob) => { const file = await target.getFileHandle(name, { create: true }); const writer = await file.createWritable(); await writer.write(blob); await writer.close() })
+    const backup = await target.files.get(result.fileNames[0])!.getFile()
     const compressionMethods = await archiveCompressionMethods(backup)
     const importedAlbum = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
 
@@ -783,3 +784,26 @@ describe('outfit filesystem', () => {
   })
 })
 
+
+
+it('exports outfit parts with complete image and metadata sets', async () => {
+  const album = new MemoryDirectoryHandle('album'), target = new MemoryDirectoryHandle('exports')
+  for (let i = 0; i < 5; i++) await saveOutfit(asDirectory(album), {
+    imageFile: browserFile(['image-' + i], 'look.webp', { type: 'image/webp' }), code: 'CODE' + i, tag: null
+  })
+  const old = OUTFIT_BACKUP_LIMITS.records
+  OUTFIT_BACKUP_LIMITS.records = 2
+  try {
+    const result = await exportOutfitBackup(asDirectory(album), async (name, blob) => { const file = await target.getFileHandle(name, { create: true }); const writer = await file.createWritable(); await writer.write(blob); await writer.close() })
+    expect(result.fileNames).toHaveLength(3)
+    let total = 0
+    for (const name of result.fileNames) {
+      const dest = new MemoryDirectoryHandle('restored')
+      const restored = await importOutfitBackup(asDirectory(dest), await target.files.get(name)!.getFile())
+      expect(restored.failedCount).toBe(0)
+      expect(restored.addedCount).toBeLessThanOrEqual(2)
+      total += restored.addedCount
+    }
+    expect(total).toBe(5)
+  } finally { OUTFIT_BACKUP_LIMITS.records = old }
+})

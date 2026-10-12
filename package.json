@@ -13,7 +13,7 @@
     "predev": "npm run resources:update:startup",
     "build": "vue-tsc --noEmit && vite build",
     "build:cloudflare": "npm run resources:update:startup && npm run build",
-    "test": "vitest run",
+    "test": "vitest run && node --test tests/startupDependencies.test.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "predev:remote": "npm run resources:update:startup",
     "dev:remote": "vite --host 0.0.0.0 --mode remote",

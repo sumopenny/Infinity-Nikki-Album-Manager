@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { convertImageToWebp, imageExtension, isSupportedImage, validateImageBlob } from '../../src/utils/outfit/outfitImage'
+import { convertImageToWebp, imageExtension, isSupportedImage, validateImageBlob } from '../../src/utils/image'
 afterEach(() => vi.restoreAllMocks())
 describe('outfitImage', () => {
   it('recognizes supported extensions case-insensitively', () => { expect(imageExtension('A.PNG')).toBe('png'); expect(isSupportedImage('A.PNG')).toBe(true); expect(isSupportedImage('a.txt')).toBe(false) })

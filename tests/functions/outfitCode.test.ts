@@ -77,3 +77,35 @@ describe('outfit-code Pages Function', () => {
     await expect(response.json()).resolves.toEqual({ error: 'upstream_timeout' })
   })
 })
+
+
+it.each(['timeout', 'request'] as const)('keeps %s protection active after response headers', async (source) => {
+  const timeout = new AbortController(), client = new AbortController()
+  vi.spyOn(AbortSignal, 'timeout').mockReturnValue(timeout.signal)
+  let signal!: AbortSignal
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    signal = init.signal
+    return new Response(new ReadableStream<Uint8Array>({
+      start(controller) { signal.addEventListener('abort', () => controller.error(signal.reason), { once: true }) }
+    }))
+  }))
+  const response = await onRequestGet({ request: new Request('https://example.test', { signal: client.signal }), params: { id: '488547348102388135' } })
+  expect(signal.aborted).toBe(false)
+  const text = response.text()
+  const reason = new Error('body interrupted')
+  ;(source === 'timeout' ? timeout : client).abort(reason)
+  await expect(text).rejects.toThrow('body interrupted')
+  expect(signal.aborted).toBe(true)
+})
+it('cancels the upstream body when the downstream reader cancels', async () => {
+  const cancel = vi.fn()
+  let signal!: AbortSignal
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    signal = init.signal
+    return new Response(new ReadableStream({ cancel }))
+  }))
+  const response = await onRequestGet(makeContext('488547348102388135'))
+  await response.body!.cancel('reader stopped')
+  expect(signal.aborted).toBe(true)
+  expect(cancel).toHaveBeenCalled()
+})

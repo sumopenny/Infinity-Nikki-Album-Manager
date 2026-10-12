@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({ read: vi.fn(), saveTags: vi.fn(), save: vi.fn(
 vi.mock('../../src/utils/photo-params/favorites', async (original) => ({
   ...await original<object>(), readCameraFavorites: mocks.read, saveCameraFavoriteTags: mocks.saveTags, saveCameraFavorite: mocks.save, coverMetadata: mocks.cover
 }))
-vi.mock('../../src/utils/outfit/outfitImage', () => ({ convertImageToWebp: mocks.webp }))
+vi.mock('../../src/utils/image', () => ({ convertImageToWebp: mocks.webp }))
 vi.mock('../../src/utils/clipboard', () => ({ copyTextToClipboard: mocks.copy }))
 vi.mock('../../src/composables/usePhotoParams', () => ({
   usePhotoParams: () => {

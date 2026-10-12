@@ -32,7 +32,7 @@ import SelectionBar from './SelectionBar.vue'
 import type { ThumbnailMode } from '../types/thumbnail'
 
 const props = defineProps<{
-  albumDirectory: FileSystemDirectoryHandle
+  albumDirectory: FileSystemDirectoryHandle | null
   messages: HomeSchemeMessages
   copyMessages?: { copySucceeded: string; copyFailed: (value: string) => string }
   disabled: boolean
@@ -100,7 +100,7 @@ const visibleSchemes = computed(() => {
   return query ? result.filter((item) => `${item.name} ${item.code} ${item.note}`.toLocaleLowerCase().includes(query)) : result
 })
 const previewUrl = computed(() => localImageUrl.value ?? (removeLocalImage.value ? null : coverImageUrl.value))
-const isBusy = computed(() => props.disabled || busy.value)
+const isBusy = computed(() => !props.albumDirectory || props.disabled || busy.value)
 const selectedSchemeCount = computed(() => visibleSchemes.value.filter((item) => selectedSchemeIds.value.has(item.id)).length)
 const allSchemesSelected = computed(() => visibleSchemes.value.length > 0 && visibleSchemes.value.every((item) => selectedSchemeIds.value.has(item.id)))
 const previewIndex = computed(() => previewScheme.value ? visibleSchemes.value.findIndex((item) => item.id === previewScheme.value?.id) : -1)
@@ -126,6 +126,7 @@ const previewPhoto = computed<PhotoItem | null>(() => {
 
 async function loadLibrary() {
   const generation = ++loadGeneration
+  if (!props.albumDirectory) { busy.value = false; emit('countChange', 0); return }
   busy.value = true
   try {
     const result = await readHomeSchemeLibrary(props.albumDirectory)
@@ -320,6 +321,7 @@ function handleEditorBackdropClick() {
 }
 
 async function save() {
+  if (!props.albumDirectory) return
   if (isBusy.value || parsing.value) return
   const normalizedCode = normalizeHomeSchemeCode(code.value)
   if (normalizedCode.length < 2 || normalizedCode.length > MAX_HOME_SCHEME_CODE_LENGTH) { emit('status', props.messages.invalidCode, 'warning'); return }
@@ -349,7 +351,7 @@ async function save() {
     const next = schemes.value.filter((item) => item.id !== saved.id)
     const previous = schemes.value.find((item) => item.id === saved.id)
     if (previous) releaseHomeSchemeUrls([previous])
-    schemes.value = [saved, ...next].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    schemes.value = [saved, ...next].sort((left, right) => right.createdAt.localeCompare(left.createdAt))
     emit('countChange', schemes.value.length)
     busy.value = false
     closeEditor()
@@ -454,6 +456,7 @@ async function deleteSelectedSchemes() {
 }
 
 async function addTag() {
+  if (!props.albumDirectory) return
   const tag = normalizeHomeSchemeTag(tagInput.value)
   if (!tag || [...tag].length > MAX_HOME_SCHEME_TAG_LENGTH || tags.value.includes(tag) || tags.value.length >= MAX_HOME_SCHEME_TAGS) return
   const owner = tagInputOwner.value
@@ -503,6 +506,7 @@ function handleTagPointerDown(event: PointerEvent) {
 }
 
 async function removeTag(tag: string) {
+  if (!props.albumDirectory) return
   if (isBusy.value) return
   const usedCount = schemes.value.filter((scheme) => scheme.tags.includes(tag)).length
   if (usedCount) {
@@ -531,6 +535,7 @@ function startTagDrag(event: DragEvent, tag: string) {
 }
 
 async function dropTag(event: DragEvent, target: string) {
+  if (!props.albumDirectory) return
   event.preventDefault()
   const source = draggedTag.value || event.dataTransfer?.getData('text/plain') || ''
   draggedTag.value = ''
@@ -544,6 +549,7 @@ async function dropTag(event: DragEvent, target: string) {
 }
 
 async function importBackup(event: Event) {
+  if (!props.albumDirectory) return
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
@@ -561,18 +567,13 @@ async function importBackup(event: Event) {
 }
 
 async function exportBackup() {
-  if (isBusy.value) return
-  const confirmed = await props.confirmAction(
-    props.messages.exportConfirm(props.albumDirectory.name),
-    props.messages.exportTitle,
-    props.messages.exportAction
-  )
-  if (!confirmed || isBusy.value) return
+  if (props.disabled || busy.value) return
+  if (!props.albumDirectory) { emit('status', props.messages.emptyTitle, 'info'); return }
   busy.value = true
   try {
     const result = await exportHomeSchemeBackup(props.albumDirectory)
-    emit('status', props.messages.exportSucceeded(result.count, result.fileName), 'success')
-  } catch { emit('status', props.messages.operationFailed, 'error') }
+    emit('status', props.messages.exportSucceeded(result.count, result.fileNames.join('、')), 'success')
+  } catch (error) { emit('status', error instanceof Error ? error.message : props.messages.operationFailed, 'error') }
   finally { busy.value = false }
 }
 
@@ -613,7 +614,7 @@ onBeforeUnmount(() => {
     </Teleport>
 
     <div class="home-scheme-main">
-      <header class="gallery-header is-outfit-header home-scheme-header"><div class="home-scheme-heading"><p class="eyebrow">HOME SCHEMES</p><div class="home-scheme-title-row"><h2>{{ messages.title }}</h2><strong class="home-scheme-count">{{ visibleSchemes.length }} / {{ schemes.length }}</strong></div></div><div class="outfit-header-actions home-scheme-header-actions"><input ref="backupInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importBackup" /><button type="button" :disabled="isBusy" @click="backupInput?.click()"><Download :size="15" aria-hidden="true" />{{ busy ? messages.importing : messages.importData }}</button><button type="button" :disabled="isBusy || !schemes.length" @click="exportBackup"><Upload :size="15" aria-hidden="true" />{{ busy ? messages.exporting : messages.exportData }}</button><button class="primary-button" type="button" :disabled="isBusy" @click="resetEditor(null)"><Plus :size="15" aria-hidden="true" />{{ messages.add }}</button></div></header>
+      <header class="gallery-header is-outfit-header home-scheme-header"><div class="home-scheme-heading"><p class="eyebrow">HOME SCHEMES</p><div class="home-scheme-title-row"><h2>{{ messages.title }}</h2><strong class="home-scheme-count">{{ visibleSchemes.length }} / {{ schemes.length }}</strong></div></div><div class="outfit-header-actions home-scheme-header-actions"><input ref="backupInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importBackup" /><button type="button" :disabled="isBusy" @click="backupInput?.click()"><Download :size="15" aria-hidden="true" />{{ busy ? messages.importing : messages.importData }}</button><button type="button" :disabled="disabled || busy" @click="exportBackup"><Upload :size="15" aria-hidden="true" />{{ busy ? messages.exporting : messages.exportData }}</button><button class="primary-button" type="button" :disabled="isBusy" @click="resetEditor(null)"><Plus :size="15" aria-hidden="true" />{{ messages.add }}</button></div></header>
       <div v-if="!visibleSchemes.length" class="empty-album inline-empty home-scheme-empty"><ImagePlus :size="30" aria-hidden="true" /><h2>{{ messages.emptyTitle }}</h2><p>{{ messages.emptyDescription }}</p></div>
       <div v-else class="photo-grid-wrap outfit-grid-wrap home-scheme-grid-wrap" :class="`mode-${thumbnailMode}`">
         <div class="photo-grid outfit-grid">

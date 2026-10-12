@@ -1,3 +1,6 @@
+import { Blob as NodeBlob } from 'node:buffer'
+import 'fake-indexeddb/auto'
+import { runStoreRequest } from '../src/utils/file-system/database'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
@@ -84,6 +87,47 @@ describe('App lifecycle coordination', () => {
     document.body.innerHTML = ''
   })
 
+  it('retains resonance and all favorites when clearing data through the application', async () => {
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+    const favoriteKey = 'infinity-nikki-favorite-photo-ids'
+    localStorage.setItem(favoriteKey, JSON.stringify(['original-album/photo.jpg']))
+    localStorage.setItem('infinity-nikki-language', 'zh')
+    const preserved = [
+      ['resonance-records', 'current-profile', [{ id: 'kept-record' }]],
+      ['camera-favorite-tags', 'order', ['保留分类']],
+      ['camera-favorite-covers', 'kept', new NodeBlob(['kept-cover'])],
+      ['camera-favorites', undefined, {
+        id: 'kept', version: 1, name: '保留参数', tag: '保留分类', code: 'ABC', source: 'manual',
+        createdAt: '2026-10-12T00:00:00Z', updatedAt: '2026-10-12T00:00:00Z', cover: null,
+        result: { rawCameraParams: 'ABC', environmentFields: [], cameraFields: [], imageFields: [], resourceGroups: [] }
+      }]
+    ] as const
+    for (const [storeName, key, value] of preserved)
+      await runStoreRequest(storeName, 'readwrite', store => key === undefined ? store.put(value) : store.put(value, key))
+    await runStoreRequest('album-handles', 'readwrite', store => store.put('cache', 'home-scheme-parse:one'))
+    const wrapper = mount(App, {
+      attachTo: document.body,
+      global: { stubs: { CameraFavorites: true, ResonanceRecords: true } }
+    })
+    try {
+      await flushPromises()
+      wrapper.findComponent({ name: 'TopBar' }).vm.$emit('clearData')
+      await nextTick()
+      const dialog = wrapper.findComponent({ name: 'ConfirmDialog' })
+      expect(dialog.props('message')).toContain('全部保留')
+      dialog.vm.$emit('confirm')
+      await vi.waitFor(() => expect(document.body.textContent).toContain(messages.zh.app.clearDataStatus))
+      expect(localStorage.getItem(favoriteKey)).toBe(JSON.stringify(['original-album/photo.jpg']))
+      expect(await runStoreRequest('album-handles', 'readonly', store => store.count())).toBe(0)
+      for (const [storeName, key, value] of preserved)
+        expect(await runStoreRequest(storeName, 'readonly', store => store.get(key ?? 'kept'))).toEqual(value)
+    } finally {
+      wrapper.unmount()
+      for (const [storeName] of preserved)
+        await runStoreRequest(storeName, 'readwrite', store => store.clear())
+    }
+  })
+
   it('locks directory selection while the saved directory lookup is pending', async () => {
     const savedDirectoryLookup = deferred<FileSystemDirectoryHandle | null>()
     getSavedAlbumDirectoryHandleMock.mockReturnValue(savedDirectoryLookup.promise)
@@ -105,6 +149,7 @@ describe('App lifecycle coordination', () => {
   it('allows navigation without an album and opens resonance independently', async () => {
     getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
     const wrapper = mount(App, {
+      attachTo: document.body,
       global: { stubs: { ResonanceRecords: { template: '<div class="resonance-workspace-stub" />' } } }
     })
     await flushPromises()
@@ -115,7 +160,22 @@ describe('App lifecycle coordination', () => {
       await button.trigger('click')
       await flushPromises()
       expect(button.attributes('aria-pressed')).toBe('true')
-      expect(wrapper.find('.empty-album-start').exists()).toBe(true)
+      expect(wrapper.find('.empty-album-start').exists()).toBe(index === 0 || index === 5)
+      if (index === 1) {
+        expect(wrapper.get('.outfit-grid-wrap .inline-empty h2').text()).toBe(messages.zh.outfit.emptyTitle)
+        expect(wrapper.findAll('.outfit-header-actions button').map(button => (button.element as HTMLButtonElement).disabled)).toEqual([true, false, true])
+        await wrapper.findAll('.outfit-header-actions button')[1].trigger('click')
+        await flushPromises()
+        expect(wrapper.findComponent({ name: 'ConfirmDialog' }).props('visible')).toBe(false)
+      }
+      if (index === 2) {
+        expect(wrapper.get('.home-scheme-empty h2').text()).toBe(messages.zh.homeScheme.emptyTitle)
+        expect(wrapper.findAll('.home-scheme-header-actions button').map(button => (button.element as HTMLButtonElement).disabled)).toEqual([true, false, true])
+        await wrapper.findAll('.home-scheme-header-actions button')[1].trigger('click')
+        await flushPromises()
+        expect(wrapper.findComponent({ name: 'ConfirmDialog' }).props('visible')).toBe(false)
+      }
+      if (index === 4) expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('active')).toBe(true)
     }
     expect(readOutfitLibraryMock).not.toHaveBeenCalled()
     expect(wrapper.findComponent({ name: 'OutfitGuideDialog' }).props('visible')).toBe(false)

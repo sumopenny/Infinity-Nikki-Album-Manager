@@ -1,4 +1,4 @@
-// 搭配图片处理：负责图片格式识别、WebP 转换、尺寸和写入结果校验。
+// 通用图片处理：负责图片格式识别、WebP 转换、尺寸和写入结果校验。
 const SUPPORTED_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
 export const MAX_IMAGE_BYTES = 64 * 1024 * 1024
 const MAX_IMAGE_PIXELS = 40_000_000
