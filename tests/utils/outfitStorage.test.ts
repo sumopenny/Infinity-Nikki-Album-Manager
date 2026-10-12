@@ -1,11 +1,70 @@
-import { describe, expect, it } from 'vitest'
-import { readIgnoredShareCodes, readTags, writeIgnoredShareCodes } from '../../src/utils/outfit/outfitStorage'
-import { fileExists } from '../../src/utils/file-system/fileIO'
-class F { constructor(public name: string, public contents = '') {} async getFile() { const f=new File([this.contents],this.name); Object.defineProperty(f,'text',{value:async()=>this.contents}); return f } async createWritable() { return { write: async (v: string) => { this.contents = v }, close: async () => undefined, abort: async () => undefined } as any } }
-class D { files = new Map<string, F>(); async getFileHandle(n: string, o?: any) { let f=this.files.get(n); if(!f&&o?.create){f=new F(n);this.files.set(n,f)}; if(!f) throw new DOMException('missing','NotFoundError'); return f as any } async removeEntry(n: string){if(!this.files.delete(n)) throw new DOMException('missing','NotFoundError')} }
-const d = () => new D() as any
-describe('outfitStorage', () => {
-  it('creates defaults and filters tags', async () => { const x=d(); expect(await readTags(x)).toHaveLength(6); x.files.get('tags.json')!.contents=JSON.stringify(['甜美','甜美','全部','abcdef']); expect(await readTags(x)).toEqual(['甜美']) })
-  it('reads and writes ignored share codes', async () => { const x=d(); x.files.set('ignored-sharecodes.json', new F('ignored-sharecodes.json', JSON.stringify([' A ', 'A', 2]))); expect([...await readIgnoredShareCodes(x)]).toEqual(['A']); await writeIgnoredShareCodes(x, new Set(['B'])); expect(JSON.parse(x.files.get('ignored-sharecodes.json')!.contents)).toEqual(['B']); await writeIgnoredShareCodes(x, new Set()); expect(x.files.has('ignored-sharecodes.json')).toBe(false) })
-  it('reports file existence accurately', async () => { const x=d(); expect(await fileExists(x,'x')).toBe(false); x.files.set('x',new F('x')); expect(await fileExists(x,'x')).toBe(true) })
+// @vitest-environment node
+import { expect, it, vi } from 'vitest'
+import { setupOutfitDatabaseTests, webp } from '../helpers/outfitDatabase'
+import { DB_NAME, DB_VERSION, OUTFITS_STORE, OUTFIT_IMAGES_STORE, openDb, runStoreRequest, clearBrowserSessionData } from '../../src/utils/file-system/database'
+import { saveOutfit, saveOutfitTags, deleteOutfitTag, deleteOutfits, readOutfitCollection, readOutfitSnapshot, outfitTransaction } from '../../src/utils/outfit/outfitStorage'
+import { DuplicateOutfitCodeError } from '../../src/utils/outfit/outfitTypes'
+setupOutfitDatabaseTests()
+const input = (code = 'CODE1') => ({ imageFile: webp(), code, tag: null, note: '备注' })
+
+it('upgrades version 7 without losing existing camera, home or resonance data', async () => {
+  await new Promise<void>((resolve, reject) => {
+    const r = indexedDB.open(DB_NAME, 7)
+    r.onupgradeneeded = () => {
+      for (const name of ['camera-favorites', 'home-schemes']) { const store = r.result.createObjectStore(name, { keyPath: 'id' }); store.put({ id: name, code: name }) }
+      r.result.createObjectStore('resonance-records').put(['existing'], 'current-profile')
+    }
+    r.onsuccess = () => { r.result.close(); resolve() }; r.onerror = () => reject(r.error)
+  })
+  const db = await openDb(); expect(db.version).toBe(DB_VERSION); db.close()
+  for (const name of ['camera-favorites', 'home-schemes']) expect(await runStoreRequest(name, 'readonly', store => store.get(name))).toMatchObject({ id: name })
+  expect(await runStoreRequest('resonance-records', 'readonly', store => store.get('current-profile'))).toEqual(['existing'])
+})
+it('allows multiple pending outfits but rejects duplicate codes even across concurrent writers', async () => {
+  await saveOutfit(input('')); await saveOutfit(input(''))
+  const results = await Promise.allSettled([saveOutfit(input(' A B C ')), saveOutfit(input('ABC'))])
+  expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1)
+  expect((results.find(result => result.status === 'rejected') as PromiseRejectedResult).reason).toBeInstanceOf(DuplicateOutfitCodeError)
+  expect((await readOutfitSnapshot()).records).toHaveLength(3)
+})
+it('rejects changing a pending outfit to an existing code and preserves the image', async () => {
+  await saveOutfit(input('EXISTS')); const pending = await saveOutfit(input(''))
+  await expect(saveOutfit({ outfit: pending, code: 'EXISTS', tag: null })).rejects.toBeInstanceOf(DuplicateOutfitCodeError)
+  expect((await readOutfitSnapshot()).records.find(record => record.id === pending.id)?.code).toBe('')
+})
+it('retains creation order and notes when tags are removed, and rejects stale edits', async () => {
+  await saveOutfitTags(['甜美'])
+  const first = await saveOutfit({ ...input('FIRST'), tag: '甜美' })
+  await saveOutfit(input('SECOND'))
+  expect(await deleteOutfitTag('甜美')).toEqual({ tags: [], updatedCount: 1 })
+  const records = (await readOutfitCollection()).outfits
+  expect(records.find(record => record.id === first.id)).toMatchObject({ note: '备注', tags: [], createdAt: first.createdAt })
+  await expect(saveOutfit({ outfit: first, code: 'FIRST', tag: null, note: '旧窗口' })).rejects.toThrow('outfit_record_changed')
+  const current = records.find(record => record.id === first.id)!
+  const saved = await saveOutfit({ outfit: current, code: 'FIRST', tag: null, note: '已修改' })
+  expect(saved.createdAt).toBe(first.createdAt)
+})
+it('deletes records and images atomically, preserves ignores on clearing session data and lifts only manually restored codes', async () => {
+  const first = await saveOutfit(input('FIRST')), second = await saveOutfit(input('SECOND'))
+  expect((await deleteOutfits([first, second])).deleted).toHaveLength(2)
+  await clearBrowserSessionData()
+  let snapshot = await readOutfitSnapshot()
+  expect(snapshot.images.size).toBe(0); expect(snapshot.ignoredCodes.sort()).toEqual(['FIRST', 'SECOND'])
+  await saveOutfit(input('FIRST'))
+  snapshot = await readOutfitSnapshot(); expect(snapshot.ignoredCodes).toEqual(['SECOND'])
+})
+it('rolls back image and record writes if the transaction aborts after a successful request', async () => {
+  await expect(outfitTransaction([OUTFITS_STORE, OUTFIT_IMAGES_STORE], 'readwrite', async tx => {
+    tx.objectStore(OUTFIT_IMAGES_STORE).put({ id: 'one', blob: webp() })
+    const request = tx.objectStore(OUTFITS_STORE).put({ id: 'one', codeKey: 'CODE1' }); request.onsuccess = () => tx.abort()
+  })).rejects.toThrow()
+  expect(await runStoreRequest(OUTFIT_IMAGES_STORE, 'readonly', store => store.count())).toBe(0)
+  expect(await runStoreRequest(OUTFITS_STORE, 'readonly', store => store.count())).toBe(0)
+})
+it('loads images only on demand when displaying a global collection', async () => {
+  await saveOutfit(input())
+  const get = vi.spyOn(IDBObjectStore.prototype, 'get')
+  const library = await readOutfitCollection()
+  expect(get.mock.contexts.some(context => (context as IDBObjectStore).name === OUTFIT_IMAGES_STORE)).toBe(false)
+  expect(await library.outfits[0].loadImageBlob!()).toBeInstanceOf(Blob)
 })

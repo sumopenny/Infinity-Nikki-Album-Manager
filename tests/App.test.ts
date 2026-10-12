@@ -15,6 +15,8 @@ import { listRecentlyDeleted } from '../src/utils/file-system/trashFileSystem'
 import { readOutfitLibrary, type OutfitItem } from '../src/utils/outfit/outfitFileSystem'
 import { importOutfitBackup } from '../src/utils/outfit/outfitBackup'
 import { decodeCameraParams } from '../src/utils/photo-params/wasmClient'
+import { readOutfitCollection } from '../src/utils/outfit/outfitStorage'
+import { getSavedX6GameDirectoryHandle } from '../src/utils/file-system/directoryStorage'
 import { countHomeSchemes } from '../src/utils/homeBuild/homeSchemeStorage'
 
 vi.mock('../src/utils/file-system/albumFileSystem', async (importOriginal) => {
@@ -35,6 +37,15 @@ vi.mock('../src/utils/file-system/trashFileSystem', async (importOriginal) => {
 vi.mock('../src/utils/outfit/outfitFileSystem', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/utils/outfit/outfitFileSystem')>()
   return { ...actual, readOutfitLibrary: vi.fn() }
+})
+
+vi.mock('../src/utils/outfit/outfitStorage', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/utils/outfit/outfitStorage')>()
+  return { ...actual, readOutfitCollection: vi.fn() }
+})
+vi.mock('../src/utils/file-system/directoryStorage', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/utils/file-system/directoryStorage')>()
+  return { ...actual, getSavedX6GameDirectoryHandle: vi.fn() }
 })
 
 vi.mock('../src/utils/outfit/outfitBackup', async (importOriginal) => {
@@ -61,6 +72,8 @@ const listRecentlyDeletedMock = vi.mocked(listRecentlyDeleted)
 const readAlbumDirectoryMock = vi.mocked(readAlbumDirectory)
 const saveAlbumDirectoryHandleMock = vi.mocked(saveAlbumDirectoryHandle)
 const readOutfitLibraryMock = vi.mocked(readOutfitLibrary)
+const readOutfitCollectionMock = vi.mocked(readOutfitCollection)
+const getSavedX6GameDirectoryHandleMock = vi.mocked(getSavedX6GameDirectoryHandle)
 const importOutfitBackupMock = vi.mocked(importOutfitBackup)
 const decodeCameraParamsMock = vi.mocked(decodeCameraParams)
 const countHomeSchemesMock = vi.mocked(countHomeSchemes)
@@ -75,12 +88,13 @@ describe('App lifecycle coordination', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.clearAllMocks()
+    getSavedX6GameDirectoryHandleMock.mockResolvedValue(null)
+    readOutfitCollectionMock.mockResolvedValue({ outfits: [], tags: [] })
     listRecentlyDeletedMock.mockResolvedValue([])
     saveAlbumDirectoryHandleMock.mockResolvedValue(undefined)
     readOutfitLibraryMock.mockResolvedValue({
       outfits: [],
       tags: [],
-      importedExternalCount: 0,
       importedSharedCount: 0,
       failedCount: 0
     })
@@ -167,7 +181,7 @@ describe('App lifecycle coordination', () => {
       expect(wrapper.find('.empty-album-start').exists()).toBe(index === 0 || index === 5)
       if (index === 1) {
         expect(wrapper.get('.outfit-grid-wrap .inline-empty h2').text()).toBe(messages.zh.outfit.emptyTitle)
-        expect(wrapper.findAll('.outfit-header-actions button').map(button => (button.element as HTMLButtonElement).disabled)).toEqual([true, true, true])
+        expect(wrapper.findAll('.outfit-header-actions button').map(button => (button.element as HTMLButtonElement).disabled)).toEqual([false, true, false])
         await wrapper.findAll('.outfit-header-actions button')[1].trigger('click')
         await flushPromises()
         expect(wrapper.findComponent({ name: 'ConfirmDialog' }).props('visible')).toBe(false)
@@ -181,7 +195,7 @@ describe('App lifecycle coordination', () => {
       }
       if (index === 4) expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('active')).toBe(true)
     }
-    expect(readOutfitLibraryMock).not.toHaveBeenCalled()
+    expect(readOutfitLibraryMock).toHaveBeenCalledWith(null, expect.objectContaining({ sharedSource: null }))
     expect(wrapper.findComponent({ name: 'OutfitGuideDialog' }).props('visible')).toBe(false)
 
     await wrapper.findAll('.album-view-button')[3].trigger('click')
@@ -202,7 +216,6 @@ describe('App lifecycle coordination', () => {
     readOutfitLibraryMock.mockResolvedValue({
       outfits: [outfit],
       tags: [],
-      importedExternalCount: 0,
       importedSharedCount: 0,
       failedCount: 0
     })
@@ -214,11 +227,9 @@ describe('App lifecycle coordination', () => {
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:outfit')
   })
 
-  it('applies the imported ZIP library without rescanning outfits', async () => {
-    const directoryHandle = { kind: 'directory', name: 'NikkiPhotos_HighQuality' } as FileSystemDirectoryHandle
+  it('imports ZIP data without an album and applies the result without rescanning', async () => {
     const importedOutfit = { id: 'imported-outfit', url: null, timestamp: 1 } as OutfitItem
-    getSavedAlbumDirectoryHandleMock.mockResolvedValue(directoryHandle)
-    readAlbumDirectoryMock.mockResolvedValue({ directoryName: directoryHandle.name, directoryHandle, photos: [] })
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
     importOutfitBackupMock.mockResolvedValue({
       addedCount: 1,
       duplicateCount: 0,
@@ -227,13 +238,13 @@ describe('App lifecycle coordination', () => {
       library: {
         outfits: [importedOutfit],
         tags: ['甜美'],
-        importedExternalCount: 0,
         importedSharedCount: 0,
         failedCount: 0
       }
     })
     const wrapper = mount(App)
     await flushPromises()
+    const scanCount = readOutfitLibraryMock.mock.calls.length
     const input = wrapper.get('#outfit-backup-input')
     const backup = new File(['zip'], 'backup.zip', { type: 'application/zip' })
     Object.defineProperty(input.element, 'files', { configurable: true, value: [backup] })
@@ -241,9 +252,85 @@ describe('App lifecycle coordination', () => {
     await input.trigger('change')
     await flushPromises()
 
-    expect(importOutfitBackupMock).toHaveBeenCalledWith(directoryHandle, backup)
-    expect(readOutfitLibraryMock).toHaveBeenCalledTimes(1)
+    expect(importOutfitBackupMock).toHaveBeenCalledWith(backup)
+    expect(readOutfitLibraryMock).toHaveBeenCalledTimes(scanCount)
     wrapper.unmount()
+  })
+
+  it('keeps the global collection visible after cancelling album authorization', async () => {
+    const directory = { kind: 'directory', name: 'NikkiPhotos_HighQuality' } as FileSystemDirectoryHandle
+    const outfit: OutfitItem = { version: 1, id: 'global', image: 'global.webp', code: 'GLOBAL', tags: [], name: 'global.webp', note: '', url: null,
+      createdAt: '2026-07-31T00:00:00.000Z', updatedAt: '2026-07-31T00:00:00.000Z', fileSizeText: '1 KB',
+      dateKey: '2026-07-31', year: '2026', monthDay: '07月31日', displayDate: '2026年07月31日', timeText: '08:00', timestamp: 1 }
+    readOutfitCollectionMock.mockResolvedValue({ outfits: [outfit], tags: [] })
+    readOutfitLibraryMock.mockResolvedValue({ outfits: [outfit], tags: [], importedSharedCount: 0, failedCount: 0 })
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(directory)
+    readAlbumDirectoryMock.mockResolvedValue({ directoryName: directory.name, directoryHandle: directory, photos: [] })
+    const wrapper = mount(App, { global: { stubs: { CameraFavorites: true, OutfitGrid: { props: ['outfits'], template: '<div class="outfit-grid-stub">{{ outfits.length }}</div>' } } } })
+    try {
+      await flushPromises()
+      wrapper.findComponent({ name: 'TopBar' }).vm.$emit('clearDirectory')
+      await vi.waitFor(() => expect(wrapper.findComponent({ name: 'TopBar' }).props('hasAlbumDirectory')).toBe(false))
+      await wrapper.findAll('.album-view-button')[1].trigger('click')
+      await flushPromises()
+      expect(wrapper.get('.outfit-grid-stub').text()).toBe('1')
+      expect(wrapper.findAll('.outfit-header-actions button').map(button => (button.element as HTMLButtonElement).disabled)).toEqual([false, false, false])
+    } finally { wrapper.unmount() }
+  })
+
+  it.each([
+    { name: 'Android', userAgent: 'Mozilla/5.0 (Linux; Android 14)', platform: 'Linux', touchPoints: 5, picker: true },
+    { name: 'iPhone', userAgent: 'Mozilla/5.0 (iPhone)', platform: 'iPhone', touchPoints: 5, picker: false },
+    { name: 'iPad desktop mode', userAgent: 'Mozilla/5.0 (Macintosh)', platform: 'MacIntel', touchPoints: 5, picker: true },
+    { name: 'unsupported desktop', userAgent: 'Mozilla/5.0 (Windows NT 10.0)', platform: 'Win32', touchPoints: 0, picker: false }
+  ])('opens outfits silently on $name without directory authorization', async device => {
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+    localStorage.setItem('infinity-nikki-outfit-guide-dismissed', 'true')
+    const userAgent = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(device.userAgent)
+    const platform = vi.spyOn(navigator, 'platform', 'get').mockReturnValue(device.platform)
+    const touchDescriptor = Object.getOwnPropertyDescriptor(navigator, 'maxTouchPoints')
+    Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: device.touchPoints })
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'showDirectoryPicker')
+    const picker = vi.fn()
+    Object.defineProperty(window, 'showDirectoryPicker', { configurable: true, value: device.picker ? picker : undefined })
+    const wrapper = mount(App, { global: { stubs: { CameraFavorites: true } } })
+    try {
+      await flushPromises()
+      await wrapper.findAll('.album-view-button')[1].trigger('click')
+      await flushPromises()
+      expect(wrapper.find('.outfit-grid-wrap').exists()).toBe(true)
+      expect(wrapper.findComponent({ name: 'ConfirmDialog' }).props('visible')).toBe(false)
+      expect(wrapper.text()).not.toContain(messages.zh.fileSystem.mobileBrowserUnsupported)
+      expect(wrapper.text()).not.toContain(messages.zh.fileSystem.unsupportedBrowser)
+      expect(picker).not.toHaveBeenCalled()
+      expect(readOutfitLibraryMock).toHaveBeenLastCalledWith(null, expect.objectContaining({ sharedSource: null }))
+    } finally {
+      wrapper.unmount()
+      userAgent.mockRestore(); platform.mockRestore()
+      if (touchDescriptor) Object.defineProperty(navigator, 'maxTouchPoints', touchDescriptor)
+      else Reflect.deleteProperty(navigator, 'maxTouchPoints')
+      if (descriptor) Object.defineProperty(window, 'showDirectoryPicker', descriptor)
+      else delete window.showDirectoryPicker
+    }
+  })
+
+  it('checks an authorized game directory without an album and skips permission requests in background', async () => {
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+    const requestPermission = vi.fn(), queryPermission = vi.fn(async () => 'granted' as PermissionState)
+    const game = { kind: 'directory', name: 'X6Game', queryPermission, requestPermission } as unknown as FileSystemDirectoryHandle
+    getSavedX6GameDirectoryHandleMock.mockResolvedValue(game)
+    const wrapper = mount(App, { global: { stubs: { CameraFavorites: true } } })
+    try {
+      await flushPromises()
+      expect(readOutfitLibraryMock).toHaveBeenCalledWith(null, expect.objectContaining({ sharedSource: { x6GameDirectory: game } }))
+      queryPermission.mockResolvedValue('prompt')
+      window.dispatchEvent(new Event('focus'))
+      await new Promise(resolve => window.setTimeout(resolve, 450))
+      await flushPromises()
+      expect(readOutfitLibraryMock).toHaveBeenLastCalledWith(null, expect.objectContaining({ sharedSource: null }))
+      expect(requestPermission).not.toHaveBeenCalled()
+      expect(wrapper.findComponent({ name: 'ConfirmDialog' }).props('visible')).toBe(false)
+    } finally { wrapper.unmount() }
   })
 
   it('opens the shared parse dialog from the outfit code input', async () => {

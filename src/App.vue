@@ -35,7 +35,7 @@ import { normalizeCameraCode } from './utils/photo-params/favorites'
 import { DEFAULT_LANGUAGE, messages, type Language } from './i18n'
 import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
 import { isThemeMode, type ThemeMode } from './types/theme'
-import { type ActionSort, type PhotoItem, type RecentlyDeletedPhoto } from './utils/photoGrouping'
+import { type ActionSort, type PhotoDisplayItem, type PhotoItem, type RecentlyDeletedPhoto } from './utils/photoGrouping'
 import {
   clearSavedAlbumDirectoryHandle,
   formatFileSize,
@@ -49,7 +49,7 @@ import {
   type RefreshAlbumResult
 } from './utils/file-system/albumFileSystem'
 import { clearRecentlyDeleted, listRecentlyDeleted, movePhotosToRecentlyDeleted, permanentlyDeleteRecentlyDeleted, restoreRecentlyDeletedPhotos } from './utils/file-system/trashFileSystem'
-import { getX6GameDirectoryForAlbum, isProtectedAlbumDirectory, listGamePlayPhotoAccounts, pickStandaloneX6GameDirectory, resolveX6GameAccountDirectory } from './utils/file-system/directoryAccess'
+import { getX6GameDirectoryForAlbum, isProtectedAlbumDirectory, listGamePlayPhotoAccounts, pickStandaloneX6GameDirectory, resolveX6GameAccountDirectory, supportsDirectoryAuthorization } from './utils/file-system/directoryAccess'
 import { clearSavedPhotoActionCache, getSavedCameraParamUids, getSavedX6GameDirectoryHandle } from './utils/file-system/directoryStorage'
 import { executeMatchingPhotoCleanup, executeSpecialCleanup, prepareMatchingPhotoCleanup, prepareSpecialCleanup, type SpecialCleanupItem } from './utils/file-system/cleanupFileSystem'
 import { savePhotoNote } from './utils/file-system/photoMetadata'
@@ -58,7 +58,6 @@ import { preparePhotoTransfer, runPhotoTransfer } from './utils/file-system/phot
 import {
   deleteOutfit,
   deleteOutfits,
-  OutfitDeleteRollbackError,
   deleteOutfitTag,
   readOutfitLibrary,
   saveOutfit,
@@ -70,6 +69,8 @@ import {
   MAX_OUTFIT_CODE_LENGTH,
   normalizeOutfitCode
 } from './utils/outfit/outfitFileSystem'
+import { readOutfitCollection } from './utils/outfit/outfitStorage'
+import { DuplicateOutfitCodeError } from './utils/outfit/outfitTypes'
 import { exportOutfitBackup, importOutfitBackup } from './utils/outfit/outfitBackup'
 import { isValidOutfitTag, MAX_OUTFIT_TAG_LENGTH, MAX_OUTFIT_TAGS, normalizeOutfitTag } from './utils/outfit/outfitTypes'
 import { useOperationNotice, type StatusState, type StatusTone } from './composables/useOperationNotice'
@@ -203,7 +204,7 @@ const activeView = ref<AlbumView>('all')
 const sidebarMode = ref<'date' | 'action'>('date')
 const actionSort = ref<ActionSort>('id')
 const autoParseActionsEnabled = ref(storedAutoParseActions === 'true')
-const currentPreview = ref<PhotoItem | null>(null)
+const currentPreview = ref<PhotoDisplayItem | null>(null)
 const sharedOutfitSource = ref<SharedOutfitSource | null>(null)
 const hasX6GameAuthorization = ref(false)
 const language = ref<Language>(isLanguage(storedLanguage) ? storedLanguage : DEFAULT_LANGUAGE)
@@ -329,7 +330,7 @@ const {
 const currentPreviewIndex = computed(() => currentPreview.value ? previewPhotos.value.findIndex((photo) => photo.id === currentPreview.value?.id) : -1)
 const hasPreviousPreview = computed(() => currentPreviewIndex.value > 0)
 const hasNextPreview = computed(() => currentPreviewIndex.value >= 0 && currentPreviewIndex.value < previewPhotos.value.length - 1)
-function openPreview(photo: PhotoItem) { currentPreview.value = photo }
+function openPreview(photo: PhotoDisplayItem) { currentPreview.value = photo }
 function closePreview() { currentPreview.value = null }
 function showPreviousPreview() {
   if (hasPreviousPreview.value) {
@@ -565,6 +566,7 @@ async function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusStat
   statusState.value = outfitResult.failedCount
     ? { type: 'custom', message: outfitLocale.value.operations.albumOpenedWithFailures(outfitResult.failedCount), tone: 'warning' }
     : nextStatus
+  if (outfitResult.migration && (outfitResult.migration.addedCount || outfitResult.migration.replacedCount || outfitResult.migration.tagsChanged || outfitResult.migration.clotheDirectoryRemoved || outfitResult.failedCount)) showOutfitRefreshResult(outfitResult, false)
   const migrationStatus = await migrateHomeSchemes(result.directoryHandle)
   if (migrationStatus) statusState.value = migrationStatus
 }
@@ -657,11 +659,8 @@ function resetLoadedAlbumState(options: { clearSharedOutfit?: boolean } = {}) {
   photoActionParsing.cancel()
   actionInfo.value = new Map()
   releasePhotoUrls(photos.value)
-  releasePhotoUrls(outfits.value)
   releasePhotoUrls(recentlyDeleted.value)
   photos.value = []
-  outfits.value = []
-  outfitTags.value = []
   recentlyDeleted.value = []
   selectedIds.value = new Set()
   selectedOutfitIds.value = new Set()
@@ -822,14 +821,7 @@ async function refreshAlbum(manual: boolean) {
     applyRefreshResult(result)
     const migrationStatus = await migrateHomeSchemes(directoryHandle)
     if (refreshToken !== latestRefreshToken || directoryHandle !== albumDirectoryHandle.value) return
-    const outfitResult = await scanOutfitLibrary(true, activeView.value === 'outfits')
-    if (refreshToken !== latestRefreshToken || directoryHandle !== albumDirectoryHandle.value) return
-    applyOutfitLibraryResult(outfitResult)
-    if (didCancelX6GameAutoPrompt.value) {
-      if (migrationStatus) statusState.value = migrationStatus
-      return
-    }
-    const refreshStatus = migrationStatus ?? createRefreshResultStatus(result, outfitResult, manual)
+    const refreshStatus = migrationStatus ?? createRefreshResultStatus(result, manual)
     if (refreshStatus) statusState.value = refreshStatus
   } catch (error) {
     if (refreshToken !== latestRefreshToken || directoryHandle !== albumDirectoryHandle.value) return
@@ -863,66 +855,53 @@ function toggleTheme() {
 // X6Game 授权与搭配码流程
 /** 获取或恢复当前相册对应的 X6Game 授权，用于自动读取游戏最新搭配码。参数：prompt 表示是否允许弹出授权说明（false 时也不弹系统目录选择器，未授权则静默跳过共享导入），autoPrompt 表示是否为搭配码界面自动触发。 */
 async function ensureSharedOutfitSource(prompt: boolean, autoPrompt = prompt, forcePick = false): Promise<SharedOutfitSource | null> {
-  const directoryHandle = albumDirectoryHandle.value
-  if (!directoryHandle) return null
-  if (sharedOutfitSource.value && !forcePick) return sharedOutfitSource.value
-  if (autoPrompt && isX6GameAutoPromptDismissed.value) return null
-
-  let didCancelDirectoryPrompt = false
+  if (autoPrompt && isX6GameAutoPromptDismissed.value && !forcePick) return null
+  let cancelledPrompt = false
+  const confirmAuthorization = async (message: string) => {
+    const confirmed = await openConfirmDialog({ title: locale.value.app.x6GameDirectoryDialogTitle, message, tone: 'info',
+      confirmLabel: locale.value.app.dialogContinueAuthorization, cancelLabel: locale.value.app.dialogCancel })
+    cancelledPrompt = !confirmed
+    return confirmed
+  }
   try {
-    const result = await getX6GameDirectoryForAlbum(directoryHandle, locale.value.fileSystem, {
-      allowUnrelatedAlbum: true,
-      forcePick,
-      beforeRequestX6GamePermission: async () => {
-        if (!prompt || forcePick) return true
-        const confirmed = await openConfirmDialog({
-          title: locale.value.app.x6GameDirectoryDialogTitle,
-          message: locale.value.fileSystem.restoreX6GamePermissionPrompt,
-          tone: 'info',
-          confirmLabel: locale.value.app.dialogContinueAuthorization,
-          cancelLabel: locale.value.app.dialogCancel
-        })
-        didCancelDirectoryPrompt = !confirmed
-        return confirmed
-      },
-      beforePickX6GameDirectory: async () => {
-        if (forcePick) return true
-        // 刷新、后台扫描等静默流程不弹系统目录选择器：未授权时共享搭配码导入直接跳过
-        if (!prompt) return false
-        const confirmed = await openConfirmDialog({
-          title: locale.value.app.x6GameDirectoryDialogTitle,
-          message: locale.value.fileSystem.selectX6GameDirectoryPrompt,
-          tone: 'info',
-          confirmLabel: locale.value.app.dialogOk,
-          cancelLabel: locale.value.app.dialogCancel
-        })
-        didCancelDirectoryPrompt = !confirmed
-        return confirmed
+    const saved = sharedOutfitSource.value?.x6GameDirectory ?? await getSavedX6GameDirectoryHandle()
+    if (!forcePick && saved && saved.name === 'X6Game') {
+      const permission = saved.queryPermission ? await saved.queryPermission({ mode: 'readwrite' }) : 'granted'
+      if (permission === 'granted') {
+        sharedOutfitSource.value = { x6GameDirectory: saved }
+        hasX6GameAuthorization.value = true
+        return sharedOutfitSource.value
       }
+    }
+    hasX6GameAuthorization.value = false
+    sharedOutfitSource.value = null
+    // 后台不请求授权；进入模块时，不支持目录授权的设备静默跳过。
+    if (!prompt || (autoPrompt && !supportsDirectoryAuthorization())) return null
+    const directoryHandle = await pickStandaloneX6GameDirectory(locale.value.fileSystem, {
+      forcePick,
+      beforeRequestX6GamePermission: () => confirmAuthorization(locale.value.fileSystem.restoreX6GamePermissionPrompt),
+      beforePickX6GameDirectory: () => forcePick || confirmAuthorization(locale.value.fileSystem.selectX6GameDirectoryPrompt)
     })
-    sharedOutfitSource.value = { x6GameDirectory: result.directoryHandle }
+    sharedOutfitSource.value = { x6GameDirectory: directoryHandle }
     hasX6GameAuthorization.value = true
     isX6GameAutoPromptDismissed.value = false
     didCancelX6GameAutoPrompt.value = false
     if (!suppressLocalPersistence) removeLocalStorage(X6GAME_AUTO_PROMPT_DISMISSED_KEY)
     return sharedOutfitSource.value
   } catch (error) {
-    if (autoPrompt && (didCancelDirectoryPrompt || isUserCancelledFilePicker(error))) {
-      dismissX6GameAutoPrompt()
-      return null
-    }
-    if (didCancelDirectoryPrompt) return null
-    if (prompt) statusState.value = createErrorStatus(error, { type: 'readFailed' })
+    if (autoPrompt && (cancelledPrompt || isUserCancelledFilePicker(error))) dismissX6GameAutoPrompt()
+    else if (prompt && !cancelledPrompt && !isUserCancelledFilePicker(error)) showOutfitStorageError(error)
     return null
   }
 }
 
-/** 手动授权当前相册对应的 X6Game 文件夹。参数：无。 */
+/** 独立授权 X6Game 文件夹并检查游戏搭配，无需选择相册。 */
 async function authorizeX6GameDirectory() {
-  if (!albumDirectoryHandle.value || isAnyFileOperationBusy.value) return
+  if (isAnyFileOperationBusy.value) return
   const source = await ensureSharedOutfitSource(true, false, hasX6GameAuthorization.value)
   if (!source) return
   statusState.value = { type: 'custom', message: locale.value.app.authorizeX6GameStatus, tone: 'success' }
+  await updateOutfitLibrary(false, false)
 }
 
 /** 重新扫描搭配方案并应用结果；提示由上层流程统一决定。 */
@@ -940,60 +919,77 @@ function applyOutfitLibraryResult(result: OutfitLibraryResult) {
 }
 
 /** 扫描搭配方案并返回结果，不直接修改页面状态。 */
-async function scanOutfitLibrary(importExternal: boolean, promptSharedAccess = false): Promise<OutfitLibraryResult> {
+async function scanOutfitLibrary(promptSharedAccess = false): Promise<OutfitLibraryResult> {
   const directoryHandle = albumDirectoryHandle.value
-  if (!directoryHandle) return { outfits: [], tags: [], importedExternalCount: 0, importedSharedCount: 0, failedCount: 0 }
   const sharedSource = await ensureSharedOutfitSource(promptSharedAccess)
-  return readOutfitLibrary(directoryHandle, { importExternal, create: true, sharedSource })
+  return readOutfitLibrary(directoryHandle, { sharedSource })
 }
 
 /** 扫描搭配方案并在当前任务仍有效时应用结果。 */
-async function refreshOutfitLibrary(importExternal: boolean, promptSharedAccess = false): Promise<OutfitLibraryResult> {
-  const directoryHandle = albumDirectoryHandle.value
-  const result = await scanOutfitLibrary(importExternal, promptSharedAccess)
-  if (directoryHandle !== albumDirectoryHandle.value) return result
-  applyOutfitLibraryResult(result)
+let outfitLoadGeneration = 0
+let appDisposed = false
+async function reloadOutfitCollection() {
+  const generation = ++outfitLoadGeneration
+  const library = await readOutfitCollection()
+  if (appDisposed || generation !== outfitLoadGeneration) return
+  applyOutfitLibraryResult({ ...library, importedSharedCount: 0, failedCount: 0 })
+}
+async function refreshOutfitLibrary(promptSharedAccess = false): Promise<OutfitLibraryResult> {
+  const generation = ++outfitLoadGeneration
+  const result = await scanOutfitLibrary(promptSharedAccess)
+  if (!appDisposed && generation === outfitLoadGeneration) applyOutfitLibraryResult(result)
+  else releasePhotoUrls(result.outfits)
   return result
+}
+function showOutfitStorageError(error: unknown) {
+  const message = error instanceof DuplicateOutfitCodeError ? outfitLocale.value.duplicateCode
+    : error instanceof DOMException && error.name === 'QuotaExceededError' ? outfitLocale.value.storageFull
+    : error instanceof Error && error.message === 'outfit_record_changed' ? outfitLocale.value.recordChanged
+    : error instanceof Error && error.message.startsWith('outfit_') ? outfitLocale.value.operationFailed : null
+  if (message) showOutfitStatus(message, 'warning')
+  else statusState.value = createErrorStatus(error, { type: 'readFailed' })
 }
 
 /** 显示搭配码更新结果。重复的共享搭配码保持静默，其它结果按状态提示。 */
-function showOutfitRefreshResult(result: OutfitLibraryResult) {
-  const addedCount = result.importedExternalCount + result.importedSharedCount
-  if (result.sharedFailureStage === 'duplicate') {
-    statusState.value = { type: 'initial' }
-    return
+let lastOutfitWarning = ''
+function showOutfitRefreshResult(result: OutfitLibraryResult, announce = true) {
+  const added = result.importedSharedCount
+  const migration = result.migration
+  const migrated = migration && (migration.addedCount || migration.replacedCount || migration.skippedCount || migration.tagsChanged || migration.clotheDirectoryRemoved)
+  let message = migrated || migration?.failedCount
+    ? outfitLocale.value.migrationComplete(migration!.addedCount, migration!.replacedCount, migration!.skippedCount, migration!.failedCount)
+    : ''
+  if (migration?.clotheDirectoryRemoved) message += ' ' + outfitLocale.value.migrationDirectoryRemoved
+  if (migration?.failures.length) {
+    message += ' ' + outfitLocale.value.migrationFailedItems([...new Set(migration.failures.map(item => item.fileName))].slice(0, 5).join('、'))
+    if (migration.failures.some(item => item.message.startsWith('outfit_tag_limit'))) message += ' ' + outfitLocale.value.migrationTagLimit
+    if (migration.failures.some(item => item.fileName === 'clothe')) message += ' ' + outfitLocale.value.migrationCleanupFailed
+    if (migration.failures.some(item => item.message === 'outfit_migration_source_changed')) message += ' ' + outfitLocale.value.migrationSourceChanged
+    if (migration.failures.some(item => item.errorName === 'QuotaExceededError')) message += ' ' + outfitLocale.value.storageFull
   }
-  if (result.sharedFailureStage) {
-    showOutfitStatus(
-      outfitLocale.value.sharedImportResult[result.sharedFailureStage],
-      'warning'
-    )
-    return
-  }
-  showOutfitStatus(
-    addedCount || result.failedCount
-      ? outfitLocale.value.scanComplete(addedCount, result.failedCount)
-      : outfitLocale.value.upToDate,
-    result.failedCount ? 'warning' : 'success'
-  )
+  if (added || result.failedCount > (migration?.failedCount ?? 0)) message += ' ' + outfitLocale.value.scanComplete(added, result.failedCount - (migration?.failedCount ?? 0))
+  if (result.sharedFailureStage && result.sharedFailureStage !== 'duplicate') message += ' ' + outfitLocale.value.sharedImportResult[result.sharedFailureStage]
+  if (!message.trim()) message = result.sharedFailureStage === 'duplicate' ? outfitLocale.value.sharedImportResult.duplicate : outfitLocale.value.upToDate
+  const signature = result.failedCount ? message.trim() : ''
+  if (!announce && !added && !migrated && (!result.failedCount || signature === lastOutfitWarning)) return
+  lastOutfitWarning = signature
+  showOutfitStatus(message.trim(), result.failedCount ? 'warning' : 'success')
 }
 
 /**
  * 更新搭配码库。
- * 参数：importExternal 表示是否接收直接放入 clothe 的图片；
- * announce 表示是否为用户明确触发，用户触发时立即显示“更新中”和完整结果；
+ * 参数：announce 表示是否为用户明确触发，用户触发时立即显示“更新中”和完整结果；
  * 后台扫描无新增且无失败时保持静默。
  */
-async function updateOutfitLibrary(importExternal = true, announce = true) {
-  if (isAnyFileOperationBusy.value) return
+async function updateOutfitLibrary(announce = true, promptSharedAccess = announce) {
+  if (appDisposed || isAnyFileOperationBusy.value || isOutfitEditorVisible.value || confirmDialog.value.visible) return
   activeOperation.value = 'updating-outfits'
   if (announce) showOutfitStatus(outfitLocale.value.updating, 'info', true)
   try {
     didCancelX6GameAutoPrompt.value = false
-    const result = await refreshOutfitLibrary(importExternal, true)
+    const result = await refreshOutfitLibrary(promptSharedAccess)
     if (didCancelX6GameAutoPrompt.value) return
-    const addedCount = result.importedExternalCount + result.importedSharedCount
-    if (announce || addedCount || result.failedCount) showOutfitRefreshResult(result)
+    showOutfitRefreshResult(result, announce)
   } catch (error) {
     statusState.value = createErrorStatus(error, { type: 'readFailed' })
   } finally {
@@ -1017,8 +1013,8 @@ function changeAlbumView(view: AlbumView) {
   }
   activeOutfitFilter.value = 'all'
   if (view === 'trash') void refreshAlbum(false)
-  if (view === 'outfits' && albumDirectoryHandle.value) void updateOutfitLibrary(true, false)
-  isOutfitGuideVisible.value = isEnteringOutfits && Boolean(albumDirectoryHandle.value) && !isOutfitGuideDismissed.value
+  if (view === 'outfits') void updateOutfitLibrary(false, true)
+  isOutfitGuideVisible.value = isEnteringOutfits && !isOutfitGuideDismissed.value
 }
 
 /** 关闭搭配码操作指南。参数：dontShowAgain 表示后续进入模块时是否不再显示；同时同步本地偏好。 */
@@ -1123,16 +1119,17 @@ function parseToolsOutfitCode(code: string) {
   openOutfitParse(normalizedCode)
 }
 
-async function editPhotoNote(photo: PhotoItem | null) {
+async function editPhotoNote(photo: PhotoDisplayItem | null) {
   const directory = albumDirectoryHandle.value
-  if (!directory || !photo || isAnyFileOperationBusy.value) return
-  noteDialogPhoto.value = photo
+  if (!directory || !photo || !('fileHandle' in photo) || isAnyFileOperationBusy.value) return
+  noteDialogPhoto.value = photo as PhotoItem
   isNoteDialogVisible.value = true
 }
 
-function openPhotoParams(photo: PhotoItem) {
+function openPhotoParams(photo: PhotoDisplayItem) {
+  if (!('fileHandle' in photo)) return
   reopenParseToolsAfterPhotoClose.value = false
-  return photoParams.openForPhoto(photo)
+  return photoParams.openForPhoto(photo as PhotoItem)
 }
 async function parseHeaderCameraParams(input?: string) {
   const raw = (input ?? normalizedCameraParamsInput.value).trim()
@@ -1183,19 +1180,18 @@ async function closeOutfitEditor(scan = true) {
   isOutfitEditorVisible.value = false
   editingOutfit.value = null
   if (!scan) return
-  await updateOutfitLibrary(true, false)
+  await updateOutfitLibrary(false)
 }
 
-/** 保存搭配方案。参数：input 为图片、搭配码和标签；保存及重新扫描全部成功后才关闭编辑窗口。 */
+/** 保存全局搭配并重新读取收藏库，成功后关闭编辑窗口。 */
 async function handleSaveOutfit(input: Omit<SaveOutfitInput, 'outfit'>) {
-  const directoryHandle = albumDirectoryHandle.value
-  if (!directoryHandle || isAnyFileOperationBusy.value) return
+  if (isAnyFileOperationBusy.value) return
   activeOperation.value = 'saving-outfit'
   showOutfitStatus(outfitLocale.value.saving, 'info', true)
   try {
-    await saveOutfit(directoryHandle, { ...input, outfit: editingOutfit.value ?? undefined })
+    await saveOutfit({ ...input, outfit: editingOutfit.value ?? undefined })
     const wasEditing = Boolean(editingOutfit.value)
-    await refreshOutfitLibrary(true)
+    await reloadOutfitCollection()
     isOutfitEditorVisible.value = false
     editingOutfit.value = null
     showOutfitStatus(
@@ -1203,7 +1199,7 @@ async function handleSaveOutfit(input: Omit<SaveOutfitInput, 'outfit'>) {
       'success'
     )
   } catch (error) {
-    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+    showOutfitStorageError(error)
   } finally {
     if (activeOperation.value === 'saving-outfit') activeOperation.value = null
   }
@@ -1211,8 +1207,7 @@ async function handleSaveOutfit(input: Omit<SaveOutfitInput, 'outfit'>) {
 
 /** 新增搭配标签。参数：用户输入的原始标签文本。 */
 async function addOutfitTag(rawTag: string, selectInEditor = false) {
-  const directoryHandle = albumDirectoryHandle.value
-  if (!directoryHandle || isAnyFileOperationBusy.value) return
+  if (isAnyFileOperationBusy.value) return
   const tag = normalizeOutfitTag(rawTag)
   const reserved = new Set(['全部', '待填写', '未分类', 'all', 'pending', 'uncategorized'])
   if (!isValidOutfitTag(tag)) {
@@ -1229,12 +1224,12 @@ async function addOutfitTag(rawTag: string, selectInEditor = false) {
   }
   activeOperation.value = 'mutating-outfits'
   try {
-    outfitTags.value = await saveOutfitTags(directoryHandle, [tag, ...outfitTags.value])
+    outfitTags.value = await saveOutfitTags([tag, ...outfitTags.value], outfitTags.value)
     outfitSidebarRef.value?.closeTagInput()
     if (selectInEditor) outfitEditorRef.value?.selectCreatedTag(tag)
     showOutfitStatus(outfitLocale.value.operations.tagAdded)
   } catch (error) {
-    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+    showOutfitStorageError(error)
   } finally {
     if (activeOperation.value === 'mutating-outfits') activeOperation.value = null
   }
@@ -1242,24 +1237,22 @@ async function addOutfitTag(rawTag: string, selectInEditor = false) {
 
 /** 保存用户在左侧栏调整后的标签顺序。参数：tags 为拖拽完成后的完整标签数组。 */
 async function reorderOutfitTags(tags: string[]) {
-  const directoryHandle = albumDirectoryHandle.value
-  if (!directoryHandle || isAnyFileOperationBusy.value) return
+  if (isAnyFileOperationBusy.value) return
   const previousTags = [...outfitTags.value]
   outfitTags.value = [...tags]
   activeOperation.value = 'mutating-outfits'
   try {
-    outfitTags.value = await saveOutfitTags(directoryHandle, tags)
+    outfitTags.value = await saveOutfitTags(tags, previousTags)
   } catch (error) {
     outfitTags.value = previousTags
-    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+    showOutfitStorageError(error)
   } finally {
     if (activeOperation.value === 'mutating-outfits') activeOperation.value = null
   }
 }
 
 async function removeOutfitTag(tag: string) {
-  const directoryHandle = albumDirectoryHandle.value
-  if (!directoryHandle || isAnyFileOperationBusy.value) return
+  if (isAnyFileOperationBusy.value) return
   const usedCount = outfits.value.filter((outfit) => outfit.tags[0] === tag).length
   if (usedCount) {
     const confirmed = await openConfirmDialog({
@@ -1273,12 +1266,12 @@ async function removeOutfitTag(tag: string) {
   }
   try {
     activeOperation.value = 'mutating-outfits'
-    const result = await deleteOutfitTag(directoryHandle, outfits.value, tag)
+    const result = await deleteOutfitTag(tag)
     outfitTags.value = result.tags
-    await refreshOutfitLibrary(false)
+    await reloadOutfitCollection()
     showOutfitStatus(outfitLocale.value.operations.tagDeleted)
   } catch (error) {
-    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+    showOutfitStorageError(error)
   } finally {
     if (activeOperation.value === 'mutating-outfits') activeOperation.value = null
   }
@@ -1300,104 +1293,58 @@ async function copyOutfitCodeValue(code: string) {
 /** 删除单个搭配方案，先弹确认框再执行删除。参数：outfit 为待删除的搭配方案。 */
 async function removeOutfit(outfit: OutfitItem) {
   if (isAnyFileOperationBusy.value) return
-  const confirmed = await openConfirmDialog({
-    title: outfitLocale.value.operations.deleteOutfitTitle,
-    message: outfitLocale.value.operations.confirmPermanentDelete,
-    tone: 'danger',
-    confirmLabel: outfitLocale.value.operations.permanentlyDelete,
-    cancelLabel: locale.value.app.dialogCancel
-  })
+  const confirmed = await openConfirmDialog({ title: outfitLocale.value.operations.deleteOutfitTitle,
+    message: outfitLocale.value.operations.confirmPermanentDelete, tone: 'danger',
+    confirmLabel: outfitLocale.value.operations.permanentlyDelete, cancelLabel: locale.value.app.dialogCancel })
   if (!confirmed) return
+  activeOperation.value = 'mutating-outfits'
   try {
-    activeOperation.value = 'mutating-outfits'
     await deleteOutfit(outfit)
     releasePhotoUrl(outfit)
     if (currentPreview.value?.id === outfit.id) currentPreview.value = null
-    outfits.value = outfits.value.filter((item) => item.id !== outfit.id)
+    selectedOutfitIds.value = new Set([...selectedOutfitIds.value].filter(id => id !== outfit.id))
+    outfits.value = outfits.value.filter(item => item.id !== outfit.id)
     showOutfitStatus(outfitLocale.value.operations.outfitDeleted)
-  } catch (error) {
-    await refreshOutfitLibrary(false).catch(() => undefined)
-    if (error instanceof OutfitDeleteRollbackError && error.rollbackFailedNames.length) {
-      await openConfirmDialog({
-        title: outfitLocale.value.operations.deleteIncomplete,
-        message: outfitLocale.value.operations.rollbackFailed(error.rollbackFailedNames),
-        tone: 'warning',
-        confirmLabel: locale.value.app.dialogOk
-      })
-    } else {
-      showOutfitStatus(outfitLocale.value.operations.deleteIncomplete, 'warning')
-    }
-  } finally {
-    if (activeOperation.value === 'mutating-outfits') activeOperation.value = null
-  }
+  } catch (error) { await reloadOutfitCollection().catch(() => undefined); showOutfitStorageError(error) }
+  finally { if (activeOperation.value === 'mutating-outfits') activeOperation.value = null }
 }
 
 /** 永久删除当前选中的搭配方案。参数：无；删除结果不会进入最近删除。 */
 async function deleteSelectedOutfits() {
-  const targets = visibleOutfits.value.filter((outfit) => selectedOutfitIds.value.has(outfit.id))
+  const targets = visibleOutfits.value.filter(outfit => selectedOutfitIds.value.has(outfit.id))
   if (!targets.length || isAnyFileOperationBusy.value) return
-  const confirmed = await openConfirmDialog({
-    title: outfitLocale.value.operations.deleteSelectedTitle,
-    message: outfitLocale.value.operations.confirmPermanentDelete,
-    tone: 'danger',
-    confirmLabel: outfitLocale.value.operations.permanentlyDelete,
-    cancelLabel: locale.value.app.dialogCancel
-  })
+  const confirmed = await openConfirmDialog({ title: outfitLocale.value.operations.deleteSelectedTitle,
+    message: outfitLocale.value.operations.confirmPermanentDelete, tone: 'danger',
+    confirmLabel: outfitLocale.value.operations.permanentlyDelete, cancelLabel: locale.value.app.dialogCancel })
   if (!confirmed) return
-
   activeOperation.value = 'mutating-outfits'
   showOutfitStatus(outfitLocale.value.operations.deletingSelected, 'info', true)
   try {
     const result = await deleteOutfits(targets)
-    const deletedIds = new Set(result.deleted.map((outfit) => outfit.id))
-    const failedNames = result.failedNames
-    const rollbackFailedNames = result.rollbackFailedNames
-    result.deleted.forEach((outfit) => releasePhotoUrl(outfit))
+    const deletedIds = new Set(result.deleted.map(item => item.id))
+    result.deleted.forEach(releasePhotoUrl)
     if (currentPreview.value && deletedIds.has(currentPreview.value.id)) currentPreview.value = null
-    selectedOutfitIds.value = new Set([...selectedOutfitIds.value].filter((id) => !deletedIds.has(id)))
-    outfits.value = outfits.value.filter((outfit) => !deletedIds.has(outfit.id))
-    showOutfitStatus(outfitLocale.value.operations.deletedSelected(deletedIds.size, failedNames.length), failedNames.length ? 'warning' : 'success')
-    if (rollbackFailedNames.length) {
-      await openConfirmDialog({
-        title: outfitLocale.value.operations.deleteIncomplete,
-        message: outfitLocale.value.operations.rollbackFailed(rollbackFailedNames),
-        tone: 'warning',
-        confirmLabel: locale.value.app.dialogOk
-      })
-    }
-  } catch (error) {
-    if (error instanceof OutfitDeleteRollbackError && error.rollbackFailedNames.length) {
-      await refreshOutfitLibrary(false).catch(() => undefined)
-      await openConfirmDialog({
-        title: outfitLocale.value.operations.deleteIncomplete,
-        message: outfitLocale.value.operations.rollbackFailed(error.rollbackFailedNames),
-        tone: 'warning',
-        confirmLabel: locale.value.app.dialogOk
-      })
-    } else {
-      statusState.value = createErrorStatus(error, { type: 'readFailed' })
-    }
-  } finally {
-    if (activeOperation.value === 'mutating-outfits') activeOperation.value = null
-  }
+    selectedOutfitIds.value = new Set([...selectedOutfitIds.value].filter(id => !deletedIds.has(id)))
+    outfits.value = outfits.value.filter(item => !deletedIds.has(item.id))
+    showOutfitStatus(outfitLocale.value.operations.deletedSelected(deletedIds.size, result.failedNames.length), result.failedNames.length ? 'warning' : 'success')
+  } catch (error) { await reloadOutfitCollection().catch(() => undefined); showOutfitStorageError(error) }
+  finally { if (activeOperation.value === 'mutating-outfits') activeOperation.value = null }
 }
 
 /** 通过浏览器直接下载搭配码 ZIP。 */
 async function exportOutfits() {
   if (isAnyFileOperationBusy.value || (!outfits.value.length && !outfitTags.value.length)) return
-  const directoryHandle = albumDirectoryHandle.value
-  if (!directoryHandle) { showOutfitStatus(outfitLocale.value.emptyTitle, 'info'); return }
   activeOperation.value = 'exporting-outfits'
   showOutfitStatus(outfitLocale.value.exporting, 'info', true)
   try {
-    const result = await exportOutfitBackup(directoryHandle)
+    const result = await exportOutfitBackup()
     statusState.value = {
       type: 'custom',
       message: outfitLocale.value.operations.exportSucceeded(result.fileNames.join('、'), result.count),
       tone: 'success'
     }
   } catch (error) {
-    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+    showOutfitStorageError(error)
   } finally {
     if (activeOperation.value === 'exporting-outfits') activeOperation.value = null
   }
@@ -1410,16 +1357,15 @@ function chooseOutfitBackup() {
 }
 
 async function importOutfits(event: Event) {
-  const directoryHandle = albumDirectoryHandle.value
   const input = event.target as HTMLInputElement
   suppressNextFocusRefresh = false
   const file = input.files?.[0]
   input.value = ''
-  if (!directoryHandle || !file || isAnyFileOperationBusy.value) return
+  if (!file || isAnyFileOperationBusy.value) return
   activeOperation.value = 'importing-outfits'
   showOutfitStatus(outfitLocale.value.importing, 'info', true)
   try {
-    const result = await importOutfitBackup(directoryHandle, file)
+    const result = await importOutfitBackup(file)
     applyOutfitLibraryResult(result.library)
     const tagNote = result.rejectedTagCount
       ? outfitLocale.value.operations.rejectedTags(result.rejectedTagCount)
@@ -1429,7 +1375,7 @@ async function importOutfits(event: Event) {
       result.failedCount || result.rejectedTagCount ? 'warning' : 'success'
     )
   } catch (error) {
-    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+    showOutfitStorageError(error)
   } finally {
     if (activeOperation.value === 'importing-outfits') activeOperation.value = null
   }
@@ -1485,18 +1431,11 @@ function applyMovedPhotosResult(result: Awaited<ReturnType<typeof movePhotosToRe
   }
 }
 
-/** 合并相册、最近删除和搭配扫描结果，统一生成本次刷新提示。 */
-function createRefreshResultStatus(album: RefreshAlbumResult, outfit: OutfitLibraryResult, manual: boolean): StatusState | null {
-  const outfitAddedCount = outfit.importedExternalCount + outfit.importedSharedCount
-  if (outfitAddedCount || outfit.failedCount) {
-    return { type: 'custom', message: outfitLocale.value.scanComplete(outfitAddedCount, outfit.failedCount), tone: outfit.failedCount ? 'warning' : 'success' }
-  }
-  if (album.addedCount || album.removedCount) {
-    return { type: 'custom', message: locale.value.trash.refreshStatus(album.addedCount, album.removedCount), tone: 'success' }
-  }
+/** 生成照片与最近删除的刷新提示；搭配更新独立报告结果。 */
+function createRefreshResultStatus(album: RefreshAlbumResult, manual: boolean): StatusState | null {
+  if (album.addedCount || album.removedCount) return { type: 'custom', message: locale.value.trash.refreshStatus(album.addedCount, album.removedCount), tone: 'success' }
   if (!manual) return null
-  if (outfit.sharedFailureStage === 'duplicate') return { type: 'initial' }
-  return { type: 'custom', message: activeView.value === 'outfits' ? outfitLocale.value.upToDate : locale.value.trash.upToDate, tone: 'success' }
+  return { type: 'custom', message: locale.value.trash.upToDate, tone: 'success' }
 }
 
 async function pickPhotoExportDirectory(): Promise<FileSystemDirectoryHandle | null> {
@@ -1644,8 +1583,8 @@ async function deleteMatchingLowQualityPhotos() {
 
 /** 将当前预览照片移到最近删除。参数：无。 */
 async function deleteCurrentPreview() {
-  if (!currentPreview.value || activeView.value === 'trash') return
-  await movePhotosToTrash([currentPreview.value], true)
+  if (!currentPreview.value || !('fileHandle' in currentPreview.value) || activeView.value === 'trash') return
+  await movePhotosToTrash([currentPreview.value as PhotoItem], true)
 }
 
 /**
@@ -1800,6 +1739,12 @@ function updateSidebarStickyOffset() {
   appShellRef.value.style.setProperty('--sidebar-sticky-top', `${Math.ceil(topBarElement.getBoundingClientRect().height) + 10}px`)
 }
 
+async function refreshAfterFocus() {
+  if (isAnyFileOperationBusy.value || confirmDialog.value.visible || isOutfitEditorVisible.value) return
+  if (albumDirectoryHandle.value) await refreshAlbum(false)
+  await updateOutfitLibrary(false, false)
+}
+
 /** 合并窗口聚焦和页面可见事件后执行自动刷新。参数：无。 */
 function scheduleFocusRefresh() {
   const generation = ++focusRefreshGeneration
@@ -1807,22 +1752,30 @@ function scheduleFocusRefresh() {
     suppressNextFocusRefresh = false
     return
   }
-  if (document.visibilityState === 'hidden' || !albumDirectoryHandle.value || isOutfitEditorVisible.value) return
+  if (document.visibilityState === 'hidden' || isOutfitEditorVisible.value) return
   if (focusRefreshTimer !== undefined) window.clearTimeout(focusRefreshTimer)
   focusRefreshTimer = window.setTimeout(() => {
     focusRefreshTimer = undefined
     if (generation !== focusRefreshGeneration) return
-    void refreshAlbum(false)
+    void refreshAfterFocus()
   }, 400)
 }
 
 // 生命周期
 onMounted(() => {
+  activeOperation.value = 'loading'
   void updateHomeSchemeCount().catch(() => {
     statusState.value = { type: 'custom', message: locale.value.homeScheme.operationFailed, tone: 'error' }
   })
-  void restoreSavedDirectory()
-  void restoreSavedX6GameAuthorization()
+  void (async () => {
+    try { await reloadOutfitCollection() } catch (error) { showOutfitStorageError(error) }
+    if (appDisposed) return
+    await restoreSavedDirectory()
+    if (appDisposed) return
+    await restoreSavedX6GameAuthorization()
+    if (appDisposed) return
+    await updateOutfitLibrary(false, false)
+  })()
   // 没有记录、版本号变化或未勾选“不再提示”时，打开网站自动显示更新记录
   if (!storedAboutState || storedAboutState.version !== currentAboutVersion || !storedAboutState.dismissed) {
     isUpdateLogVisible.value = true
@@ -1840,6 +1793,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  appDisposed = true
+  outfitLoadGeneration++
   invalidatePendingRefreshes()
   disposeStatusNotice()
   if (focusRefreshTimer !== undefined) window.clearTimeout(focusRefreshTimer)
@@ -1908,7 +1863,7 @@ onBeforeUnmount(() => {
           :outfits="outfits"
           :tags="outfitTags"
           :active-filter="activeOutfitFilter"
-          :disabled="!albumDirectoryHandle || isAnyFileOperationBusy"
+          :disabled="isAnyFileOperationBusy"
           :messages="outfitLocale"
           @change-filter="changeOutfitFilter"
           @add-tag="addOutfitTag"
@@ -1992,13 +1947,13 @@ onBeforeUnmount(() => {
             </h2>
           </div>
           <div v-if="activeView === 'outfits'" class="outfit-header-actions">
-            <button type="button" :disabled="!albumDirectoryHandle || isAnyFileOperationBusy" @click="chooseOutfitBackup">
+            <button type="button" :disabled="isAnyFileOperationBusy" @click="chooseOutfitBackup">
               <Download :size="16" aria-hidden="true" />{{ isImportingOutfits ? outfitLocale.importing : outfitLocale.importData }}
             </button>
             <button type="button" :disabled="isAnyFileOperationBusy || (!outfits.length && !outfitTags.length)" @click="exportOutfits">
               <Upload :size="16" aria-hidden="true" />{{ isExportingOutfits ? outfitLocale.exporting : outfitLocale.exportData }}
             </button>
-            <button class="primary-button" type="button" :disabled="!albumDirectoryHandle || isAnyFileOperationBusy" @click="openOutfitEditor()">
+            <button class="primary-button" type="button" :disabled="isAnyFileOperationBusy" @click="openOutfitEditor()">
               <Plus :size="16" aria-hidden="true" />{{ outfitLocale.addOutfit }}
             </button>
           </div>

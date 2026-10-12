@@ -166,7 +166,7 @@ async function updateDisplayedPhoto(nextPhoto: PhotoItem | PreviewPhoto): Promis
   try {
     const { width, height } = props.mode === 'home'
       ? await loadImageUrlWithSize(nextPhoto.url ?? '', previewAbortController.signal)
-      : 'fileHandle' in nextPhoto
+      : 'fileHandle' in nextPhoto || nextPhoto.loadImageBlob
         ? await loadPhotoWithRetryAndSize(nextPhoto, previewAbortController.signal)
         : await loadImageUrlWithSize(nextPhoto.url ?? '', previewAbortController.signal)
     if (currentToken !== previewLoadToken) return

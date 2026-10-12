@@ -28,14 +28,16 @@ it('clears session data while preserving every user collection store', async () 
   const db = await openDb()
   const names = [...db.objectStoreNames]
   db.close()
+  const originals = new Map<string, unknown[]>()
   for (const name of names) {
-    await runStoreRequest(name, 'readwrite', store => Array.isArray(store.keyPath) ? store.put({ sourceId: 'one', fileName: 'one' }) : store.keyPath ? store.put({ id: 'one' }) : store.put('data', 'one'))
+    await runStoreRequest(name, 'readwrite', store => {
+      if (Array.isArray(store.keyPath)) return store.put(Object.fromEntries(store.keyPath.map(key => [key, 'one'])))
+      return store.keyPath ? store.put({ [store.keyPath]: 'one' }) : store.put('data', 'one')
+    })
+    originals.set(name, await runStoreRequest(name, 'readonly', store => store.getAll()))
   }
   await clearBrowserSessionData()
-  for (const name of names) {
-    const values = await runStoreRequest(name, 'readonly', store => store.getAll())
-    expect(values).toEqual(name === 'album-handles' ? [] : name === 'home-scheme-migration-entries' ? [{ sourceId: 'one', fileName: 'one' }] : ['camera-favorites', 'home-schemes', 'home-scheme-images', 'home-scheme-migration-sources'].includes(name) ? [{ id: 'one' }] : ['data'])
-  }
+  for (const name of names) expect(await runStoreRequest(name, 'readonly', store => store.getAll())).toEqual(name === 'album-handles' ? [] : originals.get(name))
 })
 it('cache clearing preserves UID, directory authorization, favorites and resonance records', async () => {
   const entries = [

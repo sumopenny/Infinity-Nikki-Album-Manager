@@ -586,7 +586,7 @@ defineExpose({ openFromResult, resetLibrary })
 .camera-cover-tools{margin-top:8px}
 .camera-cover-tools button{display:inline-flex;align-items:center;gap:6px}
 .camera-cover-hint{color:var(--muted);font-size:12px;line-height:1.6;margin:12px 0}
-.camera-favorite-editor .outfit-fields>textarea{height:auto;min-height:84px;padding:10px;resize:vertical;overflow-wrap:anywhere;font:inherit;font-size:12px}
+.camera-favorite-editor .outfit-fields>textarea{box-sizing:border-box;height:104px;min-height:104px;max-height:104px;padding:10px;resize:none;overflow-y:auto;overflow-wrap:anywhere;font:inherit;font-size:12px}
 .camera-favorite-editor .camera-parse-status{gap:8px;margin:0px 0 12px}
 @media(max-width:850px){.camera-favorite-editor-body{grid-template-columns:1fr}}
 .camera-tag-popover{z-index:1601}

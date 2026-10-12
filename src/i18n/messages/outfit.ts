@@ -17,10 +17,20 @@ export interface OutfitMessages {
   importing: string
   exportData: string
   exporting: string
+  duplicateCode: string
+  storageFull: string
+  recordChanged: string
+  operationFailed: string
+  migrationComplete: (added: number, replaced: number, skipped: number, failed: number) => string
+  migrationFailedItems: (names: string) => string
+  migrationTagLimit: string
+  migrationSourceChanged: string
+  migrationDirectoryRemoved: string
+  migrationCleanupFailed: string
   updating: string
   upToDate: string
   scanComplete: (added: number, failed: number) => string
-  sharedImportResult: Record<'duplicate' | 'missing-image' | 'image-not-updated' | 'image-write-failed', string>
+  sharedImportResult: Record<'duplicate' | 'missing-image' | 'image-not-updated' | 'source-changed' | 'image-write-failed', string>
   addOutfit: string
   editTitle: string
   imageLabel: string
@@ -89,7 +99,6 @@ export interface OutfitMessages {
     deleteIncomplete: string
     deletingSelected: string
     deletedSelected: (deletedCount: number, failedCount: number) => string
-    rollbackFailed: (fileNames: string[]) => string
     exportTitle: string
     exportConfirm: () => string
     exportAction: string
@@ -125,6 +134,16 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     importing: '正在导入',
     exportData: '导出数据',
     exporting: '正在生成备份',
+    duplicateCode: '该搭配码已存在，请编辑已有方案。',
+    storageFull: '浏览器存储空间不足，请释放空间后重试。源文件已保留。',
+    recordChanged: '方案已被其他页面修改或删除，请刷新后重试。',
+    operationFailed: '搭配数据读取或保存失败，请重试。',
+    migrationComplete: (added, replaced, skipped, failed) => `旧搭配迁移：新增 ${added} 个，替换 ${replaced} 个，跳过 ${skipped} 个，失败 ${failed} 个。`,
+    migrationFailedItems: names => `未完成文件：${names}。源文件已保留。`,
+    migrationDirectoryRemoved: '旧 clothe 文件夹已删除。',
+    migrationCleanupFailed: 'clothe 文件夹已保留：存在未迁移内容、源文件变化或删除权限不足。请检查后再次更新。',
+    migrationTagLimit: '全局标签已达上限，请整理标签后再次更新。',
+    migrationSourceChanged: '已迁移的源文件发生变化，未再次覆盖收藏；请通过编辑或备份导入更新。',
     updating: '搭配码更新中…',
     upToDate: '搭配码已是最新状态。',
     scanComplete: (added, failed) => `搭配码更新完成：新增 ${added} 个，失败 ${failed} 个。`,
@@ -132,7 +151,8 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       duplicate: '最新搭配码已存在，已跳过。',
       'missing-image': '检测到新搭配码，但找不到游戏搭配图片。',
       'image-not-updated': '检测到新搭配码，但游戏搭配图片没有更新，已停止导入。',
-      'image-write-failed': '游戏搭配图片转换或写入失败。'
+      'source-changed': '游戏正在更新搭配码或图片，本次暂缓，下次更新会重试。',
+      'image-write-failed': '游戏搭配图片转换或保存失败，请检查浏览器存储空间后重试。'
     },
     addOutfit: '添加方案',
     editTitle: '编辑方案',
@@ -177,7 +197,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     detailColor: '颜色',
     parseItemCount: (count) => `${count} 个部件`,
     emptyTitle: '还没有搭配方案',
-    emptyDescription: '添加方案，或把图片放入相册的 clothe 文件夹。',
+    emptyDescription: '添加搭配方案，或在游戏中生成搭配码后返回页面自动导入。',
     imageRequired: '请先选择一张搭配图片。',
     unsupportedImage: '请选择 JPG、JPEG、PNG 或 WebP 图片。',
     imageLoadFailed: '搭配图片读取失败',
@@ -199,10 +219,9 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       confirmPermanentDelete: '确定永久删除选中搭配码吗？删除后不可恢复。',
       permanentlyDelete: '永久删除',
       outfitDeleted: '删除成功。',
-      deleteIncomplete: '方案未能完整清理，请检查 clothe 文件夹中的残留文件。',
+      deleteIncomplete: '方案删除失败，请刷新后重试。',
       deletingSelected: '正在永久删除搭配方案…',
       deletedSelected: (deletedCount, failedCount) => `已永久删除 ${deletedCount} 个搭配方案${failedCount ? `，${failedCount} 个删除失败。` : '。'}`,
-      rollbackFailed: (fileNames) => `删除过程发生错误，以下搭配方案无法完整恢复：${fileNames.join('、')}。请手动检查相册 clothe 文件夹。`,
       exportTitle: '导出搭配码数据',
       exportConfirm: () => '备份 ZIP 将通过浏览器下载，保存位置由浏览器下载设置决定；数据较多时会生成多个 ZIP，请允许下载多个文件。是否继续？',
       exportAction: '开始导出',
@@ -211,11 +230,11 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       importCompleted: (added, duplicates, failed, tagNote) => `导入完成：新增 ${added} 个方案，跳过 ${duplicates} 个重复方案，${failed} 个方案导入失败。${tagNote}`
     },
     guideTitle: '搭配码使用指南',
-    guideIntro: '搭配图片、搭配码和标签都保存在当前相册本地，不会上传到网站服务器。',
+    guideIntro: '搭配图片、搭配码和标签保存在当前浏览器，所有相册共用，不会上传到网站服务器。',
     guideFeaturedSection: {
       title: '自动更新游戏搭配码',
       items: [
-        '使用自动更新搭配码的功能需要授权当前游戏的 X6Game 文件夹。可前往页面右上角相册下拉栏进行文件夹授权。',
+        '自动更新需要授权游戏的 X6Game 文件夹，可在右上角相册菜单中授权，无需先选择相册。',
         '在游戏内点击分享按钮，需要在搭配截图右下角点击框选按钮，框选完成后生成搭配码，再返回网页，网站会自动更新该条搭配码数据。'
       ]
     },
@@ -223,7 +242,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       { title: '搭配码解析', items: ['可在搭配页顶部输入搭配码并点击“解析搭配码”，无需先创建搭配方案。', '已填写搭配码的方案可点击卡片右上角的解析按钮，查看搭配部件与染色信息。'] },
       { title: '标签与整理', items: ['左侧可按全部、待填写、未分类和用户标签筛选。最多创建 40 个标签，每个标签不超过 5 个字符。', '删除正在使用的标签只会让相关方案归入“未分类”，不会删除图片或方案。'] },
       { title: '添加与编辑方案', items: ['点击“添加方案”，可以选择、拖拽或粘贴图片（点击窗口空白处 Ctrl+V 粘贴）。', '搭配码可以留空稍后填写；每个方案最多选择一个标签，双击图片可打开预览。'] },
-      { title: '导入与导出', items: ['批量导入时，把搭配图片放入当前相册的 clothe 文件夹；打开、刷新相册或返回页面后会自动转为待填写方案。', '“导出数据”会通过浏览器下载 ZIP；“导入数据”会合并有效方案且不覆盖已有内容。删除方案不可恢复。'] }
+      { title: '导入与导出', items: ['选择相册后，旧 clothe 搭配数据会自动迁入浏览器。全部迁移成功且源文件未变化后删除旧文件夹；有失败或未迁移内容时保留并提示。', '“导出数据”备份所有相册共用的搭配和标签；“导入数据”会跳过已有搭配码。请定期导出备份。删除方案后该码不会再次自动导入，手动添加或备份恢复仍可使用。'] }
     ],
     guideDontShowAgain: '不再提示',
     guideConfirm: '知道了',
@@ -247,6 +266,16 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     importing: 'Importing',
     exportData: 'Export',
     exporting: 'Creating backup',
+    duplicateCode: 'This outfit code already exists. Edit the existing outfit.',
+    storageFull: 'Browser storage is full. Free some space and retry. Source files were retained.',
+    recordChanged: 'This outfit was changed or deleted in another page. Refresh and retry.',
+    operationFailed: 'Unable to read or save outfit data. Please retry.',
+    migrationComplete: (added, replaced, skipped, failed) => `Outfit migration: ${added} added, ${replaced} replaced, ${skipped} skipped, ${failed} failed.`,
+    migrationFailedItems: names => `Unfinished files: ${names}. Source files were retained.`,
+    migrationDirectoryRemoved: 'The old clothe folder was removed.',
+    migrationCleanupFailed: 'The clothe folder was retained because of unmigrated content, changed files or insufficient deletion permission. Check it and update again.',
+    migrationTagLimit: 'The global tag limit was reached. Organize your tags and update again.',
+    migrationSourceChanged: 'A migrated source file changed. Saved outfits were preserved. Use editing or backup import to update it.',
     updating: 'Updating outfit codes…',
     upToDate: 'Outfit codes are up to date.',
     scanComplete: (added, failed) => `Outfit code update complete: ${added} added, ${failed} failed.`,
@@ -254,6 +283,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       duplicate: 'The latest outfit code already exists and was skipped.',
       'missing-image': 'A new outfit code was found, but the game outfit image is missing.',
       'image-not-updated': 'A new outfit code was found, but the game outfit image has not been updated.',
+      'source-changed': 'The game changed the code or image during import. The next update will retry.',
       'image-write-failed': 'The game outfit image could not be converted or written.'
     },
     addOutfit: 'Add outfit',
@@ -299,7 +329,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     detailColor: 'Color',
     parseItemCount: (count) => `${count} item${count === 1 ? '' : 's'}`,
     emptyTitle: 'No outfit plans yet',
-    emptyDescription: 'Add a plan, or place images in the album clothe folder.',
+    emptyDescription: 'Add an outfit, or generate a code in the game and return to automatically import it.',
     imageRequired: 'Choose an outfit image first.',
     unsupportedImage: 'Choose a JPG, JPEG, PNG, or WebP image.',
     imageLoadFailed: 'Unable to read outfit image',
@@ -321,10 +351,9 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       confirmPermanentDelete: 'Permanently delete this outfit code? This cannot be undone.',
       permanentlyDelete: 'Delete permanently',
       outfitDeleted: 'Outfit deleted.',
-      deleteIncomplete: 'The outfit could not be fully removed. Check the clothe folder for leftover files.',
+      deleteIncomplete: 'Unable to delete outfits. Refresh and retry.',
       deletingSelected: 'Permanently deleting outfits…',
       deletedSelected: (deletedCount, failedCount) => `Permanently deleted ${deletedCount} outfit(s)${failedCount ? `; ${failedCount} failed.` : '.'}`,
-      rollbackFailed: (fileNames) => `A delete failed and these outfits could not be fully restored: ${fileNames.join(', ')}. Manually inspect the album's clothe folder.`,
       exportTitle: 'Export outfit code data',
       exportConfirm: () => 'Backup ZIP files will be downloaded using your browser download settings. Large backups create multiple ZIP files; allow multiple downloads. Continue?',
       exportAction: 'Export',
@@ -333,11 +362,11 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       importCompleted: (added, duplicates, failed, tagNote) => `Import complete: ${added} added, ${duplicates} duplicate(s) skipped, ${failed} failed.${tagNote}`
     },
     guideTitle: 'Outfit Code Guide',
-    guideIntro: 'Outfit images, codes, and tags stay in the current album on your device and are not uploaded to the website server.',
+    guideIntro: 'Outfit images, codes and tags are stored in this browser and shared across albums. Collections are not uploaded.',
     guideFeaturedSection: {
       title: 'Auto update in-game codes',
       items: [
-        'Using auto update for outfit codes requires authorizing the current game X6Game folder.',
+        'Authorize the game’s X6Game folder from the top-right album menu. Selecting an album is not required.',
         'In the game, tap Share, then tap the selection button at the lower-right of the outfit screenshot. After the selection generates an outfit code, return to the web page and the app will automatically update that outfit code data.'
       ]
     },
@@ -345,7 +374,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       { title: 'Decode outfit codes', items: ['Enter a code at the top of the Outfit Code page and click Decode outfit code without creating a plan first.', 'For a plan with a code, click the decode button in the upper-right corner of its card to view outfit items and dye information.'] },
       { title: 'Tags and filters', items: ['Filter by All, Pending, Uncategorized, or user tags. You can create up to 40 tags with no more than 5 characters each.', 'Deleting a tag in use only moves matching plans to Uncategorized; it does not delete their images or plans.'] },
       { title: 'Add and edit', items: ['Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press Ctrl+V).', 'The outfit code can be left blank and filled in later. Each plan can use at most one tag, and double-clicking the image opens the preview.'] },
-      { title: 'Import and export', items: ['For bulk import, place outfit images in the current album’s clothe folder. Opening or refreshing the album, or returning to the page, converts them into pending plans.', 'Export downloads ZIP backups through the browser; Import merges valid plans without replacing existing ones. Deleting a plan is permanent.'] }
+      { title: 'Import and export', items: ['Selecting an album automatically migrates its old clothe collection into the browser. The old folder is removed after successful migration and source verification; failures or unmigrated content leave it intact.', 'Export backs up the global collection. Import skips existing codes. Deleted codes stay excluded from automatic import, but can be restored manually or from a backup. Export backups regularly.'] }
     ],
     guideDontShowAgain: "Don't show again",
     guideConfirm: 'Got it',

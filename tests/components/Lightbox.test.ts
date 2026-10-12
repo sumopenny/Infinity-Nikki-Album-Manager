@@ -193,7 +193,7 @@ describe('Lightbox preview navigation', () => {
 
   it('shows outfit metadata and emits copy and edit actions without closing the preview', async () => {
     loadPhotoMock.mockResolvedValue('blob:outfit')
-    const outfit = { ...createPhoto('look.webp'), code: 'ABC-123', tags: ['甜美'] } as OutfitItem
+    const outfit = { ...createPhoto('look.webp'), code: 'ABC-123', tags: ['甜美'], version: 1, image: 'look.webp', note: '', createdAt: '2026-07-31T00:00:00.000Z', updatedAt: '2026-07-31T00:00:00.000Z' } as OutfitItem
     const wrapper = mount(Lightbox, {
       props: {
         photo: outfit,

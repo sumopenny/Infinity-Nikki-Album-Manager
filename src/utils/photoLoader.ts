@@ -1,4 +1,4 @@
-import type { PhotoItem } from './photoGrouping'
+import type { PhotoDisplayItem } from './photoGrouping'
 import { ensurePhotoUrl, resetPhotoUrl } from './file-system/photoUrl'
 
 interface QueueEntry {
@@ -10,7 +10,7 @@ interface QueueEntry {
 }
 
 export interface PhotoLoadQueue {
-  load: (photo: PhotoItem, signal?: AbortSignal) => Promise<string>
+  load: (photo: PhotoDisplayItem, signal?: AbortSignal) => Promise<string>
   cancel: () => void
 }
 
@@ -64,7 +64,7 @@ export function loadImageUrlWithSize(url: string, signal?: AbortSignal): Promise
  * 参数：photo 为目标照片，signal 用于取消失效任务。
  * 返回：已经完成解码的对象地址与原始尺寸。
  */
-async function loadDecodedPhotoWithRetry(photo: PhotoItem, signal?: AbortSignal): Promise<DecodedPhoto> {
+async function loadDecodedPhotoWithRetry(photo: PhotoDisplayItem, signal?: AbortSignal): Promise<DecodedPhoto> {
   let lastError: unknown
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -87,7 +87,7 @@ async function loadDecodedPhotoWithRetry(photo: PhotoItem, signal?: AbortSignal)
  * 参数：photo 为目标照片，signal 用于取消失效任务。
  * 返回：已经完成解码的对象地址。
  */
-export async function loadPhotoWithRetry(photo: PhotoItem, signal?: AbortSignal): Promise<string> {
+export async function loadPhotoWithRetry(photo: PhotoDisplayItem, signal?: AbortSignal): Promise<string> {
   return (await loadDecodedPhotoWithRetry(photo, signal)).url
 }
 
@@ -96,7 +96,7 @@ export async function loadPhotoWithRetry(photo: PhotoItem, signal?: AbortSignal)
  * 参数：photo 为目标照片，signal 用于取消失效任务。
  * 返回：已经完成解码的对象地址与原始宽高。
  */
-export async function loadPhotoWithRetryAndSize(photo: PhotoItem, signal?: AbortSignal): Promise<DecodedPhoto> {
+export async function loadPhotoWithRetryAndSize(photo: PhotoDisplayItem, signal?: AbortSignal): Promise<DecodedPhoto> {
   return loadDecodedPhotoWithRetry(photo, signal)
 }
 
@@ -131,7 +131,7 @@ export function createPhotoLoadQueue(concurrency: number): PhotoLoadQueue {
   }
 
   // 将单张照片加入共享队列，组件卸载时可通过 signal 移除等待中的任务。
-  const load = (photo: PhotoItem, signal?: AbortSignal): Promise<string> =>
+  const load = (photo: PhotoDisplayItem, signal?: AbortSignal): Promise<string> =>
     new Promise((resolve, reject) => {
       if (cancelled || signal?.aborted) {
         reject(new DOMException('Photo load cancelled', 'AbortError'))

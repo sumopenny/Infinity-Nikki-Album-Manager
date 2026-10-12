@@ -46,16 +46,20 @@ export function parsePhotoDate(fileName: string): ParsedPhotoDate | null {
   }
 }
 
-export interface PhotoItem extends ParsedPhotoDate {
+export interface PhotoDisplayItem extends ParsedPhotoDate {
   id: string
   name: string
   url: string | null
   fileSizeText: string
   fileSize?: number
   lastModified?: number
+  loadImageBlob?: () => Promise<Blob>
+  note?: string
+}
+
+export interface PhotoItem extends PhotoDisplayItem {
   fileHandle: FileSystemFileHandle
   directoryHandle: FileSystemDirectoryHandle
-  note?: string
 }
 
 export type PhotoActionStatus = 'pending' | 'action' | 'none' | 'unparsed'

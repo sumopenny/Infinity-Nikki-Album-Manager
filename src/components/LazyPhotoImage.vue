@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
-import type { PhotoItem } from '../utils/photoGrouping'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import type { PhotoDisplayItem } from '../utils/photoGrouping'
 
 const props = defineProps<{
-  photo: PhotoItem
-  loadPhoto: (photo: PhotoItem, signal?: AbortSignal) => Promise<string>
+  photo: PhotoDisplayItem
+  loadPhoto: (photo: PhotoDisplayItem, signal?: AbortSignal) => Promise<string>
   failureText: string
 }>()
 
 const rootRef = ref<HTMLElement | null>(null)
 const displayedUrl = ref<string | null>(props.photo.url)
 const loadState = ref<'idle' | 'loading' | 'loaded' | 'failed'>(props.photo.url ? 'loaded' : 'idle')
-const abortController = new AbortController()
+let abortController = new AbortController()
 let observer: IntersectionObserver | null = null
 
 /**
@@ -21,15 +21,26 @@ let observer: IntersectionObserver | null = null
 async function startLoading(): Promise<void> {
   if (loadState.value !== 'idle') return
   loadState.value = 'loading'
+  const photo = props.photo, controller = abortController
 
   try {
-    displayedUrl.value = await props.loadPhoto(props.photo, abortController.signal)
+    const url = await props.loadPhoto(photo, controller.signal)
+    if (controller.signal.aborted || props.photo !== photo) return
+    displayedUrl.value = url
     loadState.value = 'loaded'
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') return
+    if (controller.signal.aborted || props.photo !== photo || error instanceof DOMException && error.name === 'AbortError') return
     loadState.value = 'failed'
   }
 }
+
+watch(() => props.photo, (photo) => {
+  abortController.abort()
+  abortController = new AbortController()
+  displayedUrl.value = photo.url
+  loadState.value = photo.url ? 'loaded' : 'idle'
+  if (!observer && !photo.url) void startLoading()
+})
 
 onMounted(() => {
   if (!rootRef.value || !('IntersectionObserver' in window)) {

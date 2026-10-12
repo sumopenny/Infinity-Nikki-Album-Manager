@@ -12,7 +12,9 @@ function outfit(id: string, code: string, tags: string[] = []): OutfitItem {
     id,
     name: `${id}.webp`,
     image: `${id}.webp`,
-    metadataName: `${id}.json`,
+    version: 1,
+    updatedAt: '2026-07-31T00:00:00.000Z',
+    note: '',
     code,
     tags,
     createdAt: '2026-07-31T00:00:00.000Z',
@@ -24,8 +26,7 @@ function outfit(id: string, code: string, tags: string[] = []): OutfitItem {
     timestamp: 1,
     url: null,
     fileSizeText: '1 KB',
-    fileHandle: {} as FileSystemFileHandle,
-    directoryHandle: {} as FileSystemDirectoryHandle
+    loadImageBlob: async () => new Blob(['image'])
   }
 }
 
@@ -163,7 +164,8 @@ describe('outfit workspace components', () => {
     expect(wrapper.text()).toContain('搭配截图右下角点击框选按钮')
     expect(wrapper.findAll('.outfit-guide-sections > section')).toHaveLength(4)
     expect(wrapper.findAll('.outfit-guide-sections h3').map((heading) => heading.text())).toEqual(['搭配码解析', '标签与整理', '添加与编辑方案', '导入与导出'])
-    expect(wrapper.text()).not.toContain('批量导入搭配图片')
+    expect(wrapper.text()).not.toContain('把多张图片放入')
+    expect(wrapper.text()).toContain('全部迁移成功且源文件未变化后删除旧文件夹')
     expect(wrapper.text()).toContain('clothe')
     expect(wrapper.text()).toContain('无需先创建搭配方案')
     await wrapper.get('input[type="checkbox"]').setValue(true)
@@ -272,7 +274,7 @@ describe('outfit workspace components', () => {
     const firstFile = new File(['first'], 'first.webp', { type: 'image/webp' })
     const secondFile = new File(['second'], 'second.webp', { type: 'image/webp' })
     const item = outfit('1', 'ABC')
-    item.fileHandle = { getFile: () => new Promise<File>((resolve) => files.push(resolve)) } as FileSystemFileHandle
+    item.loadImageBlob = () => new Promise<File>((resolve) => files.push(resolve))
     const createObjectURL = vi.fn((file: File) => `blob:${file.name}`)
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })

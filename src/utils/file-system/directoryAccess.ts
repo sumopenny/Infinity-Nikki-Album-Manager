@@ -11,6 +11,11 @@ function isMobileDevice(): boolean {
   return isMobileUserAgent || isTouchCapableMac
 }
 
+/** 自动授权前检查能力，不弹出错误提示。 */
+export function supportsDirectoryAuthorization(): boolean {
+  return !isMobileDevice() && typeof window.showDirectoryPicker === 'function'
+}
+
 function getSupportedDirectoryPicker(messages: FileSystemMessages): NonNullable<typeof window.showDirectoryPicker> {
   if (isMobileDevice()) {
     throw new Error(messages.mobileBrowserUnsupported)

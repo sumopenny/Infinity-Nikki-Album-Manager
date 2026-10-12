@@ -1,7 +1,7 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { DB_NAME, HOME_IMAGES_STORE, HOME_SCHEMES_STORE, openDb, runStoreRequest } from '../../src/utils/file-system/database'
+import { DB_NAME, DB_VERSION, HOME_IMAGES_STORE, HOME_SCHEMES_STORE, openDb, runStoreRequest } from '../../src/utils/file-system/database'
 import { deleteHomeScheme, deleteHomeSchemeTag, homeTransaction, readHomeSchemeSnapshot, saveHomeScheme, saveHomeSchemeTags } from '../../src/utils/homeBuild/homeSchemeStorage'
 import { createEmptyHomeSchemeMetadata } from '../helpers/homeSchemeMetadata'
 
@@ -20,7 +20,7 @@ it('upgrades version 6 without replacing existing stores or records', async () =
     r.onsuccess = () => { r.result.close(); resolve() }; r.onerror = () => reject(r.error)
   })
   const db = await openDb()
-  expect(db.version).toBe(7); db.close()
+  expect(db.version).toBe(DB_VERSION); db.close()
   expect(await runStoreRequest('resonance-records', 'readonly', store => store.get('current-profile'))).toEqual(['old'])
   expect(await saveHomeScheme({ ...input(), tags: [] })).toMatchObject({ code: 'CODE1', image: null })
 })

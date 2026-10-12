@@ -10,6 +10,7 @@ import {
   normalizeOutfitCode,
   type OutfitItem
 } from '../utils/outfit/outfitFileSystem'
+import { readPhotoBlob } from '../utils/file-system/photoUrl'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
 const props = defineProps<{
@@ -67,7 +68,7 @@ async function resetForm() {
   isDragging.value = false
   if (outfit) {
     try {
-      const file = await outfit.fileHandle.getFile()
+      const file = await readPhotoBlob(outfit)
       if (requestId !== previewRequestId || !props.visible || props.outfit !== outfit) return
       previewUrl.value = URL.createObjectURL(file)
     } catch {

@@ -46,8 +46,9 @@ describe('resonanceStorage', () => {
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
-    expect([...upgradedDb.objectStoreNames]).toEqual(['album-handles', 'camera-favorite-covers', 'camera-favorite-tags', 'camera-favorites', 'resonance-records'])
+    const names = [...upgradedDb.objectStoreNames]
     upgradedDb.close()
+    expect(names).toEqual(expect.arrayContaining(['album-handles', 'camera-favorite-covers', 'camera-favorite-tags', 'camera-favorites', 'resonance-records']))
   })
 
   it('preserves a complete bilingual profile snapshot including both sets', async () => {

@@ -1,6 +1,13 @@
 // 所有本地数据共用升级入口，避免先打开不同模块时漏建存储。
 export const DB_NAME = 'infinity-nikki-album-manager'
-export const DB_VERSION = 7
+export const DB_VERSION = 8
+export const OUTFITS_STORE = 'outfits'
+export const OUTFIT_IMAGES_STORE = 'outfit-images'
+export const OUTFIT_TAGS_STORE = 'outfit-tags'
+export const OUTFIT_IGNORED_CODES_STORE = 'outfit-ignored-sharecodes'
+export const OUTFIT_GAME_SOURCES_STORE = 'outfit-game-sources'
+export const OUTFIT_MIGRATION_SOURCES_STORE = 'outfit-migration-sources'
+export const OUTFIT_MIGRATION_ENTRIES_STORE = 'outfit-migration-entries'
 export const HOME_SCHEMES_STORE = 'home-schemes'
 export const HOME_IMAGES_STORE = 'home-scheme-images'
 export const HOME_TAGS_STORE = 'home-scheme-tags'
@@ -15,6 +22,19 @@ export function openDb(): Promise<IDBDatabase> {
     const request = indexedDB.open(DB_NAME, DB_VERSION)
     request.onupgradeneeded = () => {
       const db = request.result
+      const outfits = db.objectStoreNames.contains(OUTFITS_STORE)
+        ? request.transaction!.objectStore(OUTFITS_STORE)
+        : db.createObjectStore(OUTFITS_STORE, { keyPath: 'id' })
+      // Pending outfits omit codeKey, so multiple empty codes remain valid.
+      if (!outfits.indexNames.contains('code')) outfits.createIndex('code', 'codeKey', { unique: true })
+      for (const name of [OUTFIT_IMAGES_STORE, OUTFIT_GAME_SOURCES_STORE, OUTFIT_MIGRATION_SOURCES_STORE]) {
+        if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' })
+      }
+      if (!db.objectStoreNames.contains(OUTFIT_TAGS_STORE)) db.createObjectStore(OUTFIT_TAGS_STORE)
+      if (!db.objectStoreNames.contains(OUTFIT_IGNORED_CODES_STORE)) db.createObjectStore(OUTFIT_IGNORED_CODES_STORE, { keyPath: 'code' })
+      if (!db.objectStoreNames.contains(OUTFIT_MIGRATION_ENTRIES_STORE)) {
+        db.createObjectStore(OUTFIT_MIGRATION_ENTRIES_STORE, { keyPath: ['sourceId', 'fileName'] })
+      }
       for (const name of ['album-handles', 'resonance-records', CAMERA_COVERS_STORE, CAMERA_TAGS_STORE]) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name)
       }

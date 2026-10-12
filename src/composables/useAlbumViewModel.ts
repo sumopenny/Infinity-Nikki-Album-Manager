@@ -1,7 +1,7 @@
 // 相册视图模型：集中计算筛选结果、日期分组、预览数据和界面展示文案。
 import { computed, type ComputedRef, type Ref } from 'vue'
 import { getThumbnailModeOptions, type LocaleMessages } from '../i18n'
-import { groupDatesByYear, groupPhotosByAction, groupPhotosByDate, type ActionGroup, type ActionSort, type PhotoActionInfo, type PhotoItem, type RecentlyDeletedPhoto } from '../utils/photoGrouping'
+import { groupDatesByYear, groupPhotosByAction, groupPhotosByDate, type ActionGroup, type ActionSort, type PhotoActionInfo, type PhotoDisplayItem, type PhotoItem, type RecentlyDeletedPhoto } from '../utils/photoGrouping'
 import { formatFileSize } from '../utils/file-system/photoUrl'
 import type { OutfitItem } from '../utils/outfit/outfitTypes'
 import type { OutfitFilter } from '../components/OutfitSidebar.vue'
@@ -15,7 +15,7 @@ export function useAlbumViewModel(options: {
   activeView: Ref<'all' | 'favorites' | 'trash' | 'outfits' | 'home' | 'resonance'>
   activeOutfitFilter: Ref<OutfitFilter>
   searchQuery: Ref<string>
-  currentPreview: Ref<PhotoItem | null>
+  currentPreview: Ref<PhotoDisplayItem | null>
   thumbnailMode: Ref<'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'>
   outfitThumbnailMode: Ref<'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'>
   homeThumbnailMode: Ref<'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'>

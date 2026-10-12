@@ -1,207 +1,18 @@
-import { datePartsFromTimestamp } from '../photoGrouping'
-import { formatFileSize } from '../file-system/photoUrl'
-import { normalizeOutfitTags } from './outfitTypes'
-// 搭配文件系统：负责搭配方案扫描、游戏数据导入、标签、保存和删除流程。
-import { readIgnoredShareCodes, readTags, writeIgnoredShareCodes } from './outfitStorage'
-import { fileExists, writeBlob, writeJson } from '../file-system/fileIO'
-import { convertImageToWebp, isSupportedImage, validateWrittenFileSize } from '../image'
-import { runWithConcurrency } from '../concurrency'
-import {
-  DEFAULT_OUTFIT_TAGS,
-  MAX_OUTFIT_TAGS,
-  MAX_OUTFIT_NOTE_LENGTH,
-  normalizeOutfitCode,
-  normalizeOutfitTag,
-  isValidOutfitTag,
-  isReservedOutfitTag,
-  type OutfitItem,
-  type OutfitLibraryResult,
-  type SharedOutfitSource,
-  type SharedOutfitImportResult,
-  type SaveOutfitInput,
-  type OutfitDeleteResult,
-  OutfitDeleteRollbackError
-} from './outfitTypes'
+// File-system inputs only: legacy migration and game ShareCode/DIY. Collections live in IndexedDB.
+import { OUTFITS_STORE, OUTFIT_IMAGES_STORE, OUTFIT_IGNORED_CODES_STORE, OUTFIT_GAME_SOURCES_STORE,
+  OUTFIT_MIGRATION_SOURCES_STORE, OUTFIT_MIGRATION_ENTRIES_STORE, runStoreRequest } from '../file-system/database'
+import { convertImageToWebp, isSupportedImage } from '../image'
+import { createOutfitId, normalizeOutfitCode, normalizeOutfitRecord, type OutfitLibraryResult,
+  type SharedOutfitSource, type SharedOutfitImportResult } from './outfitTypes'
+import { hashOutfitBlob, initializeOutfitTags, outfitRequest, outfitTransaction, prepareOutfitImage,
+  readOutfitCollection, withOutfitImportLock } from './outfitStorage'
+import { isMissingOutfitEntry, migrateOutfitLibrary,
+  type OutfitMigrationSource, type OutfitMigrationMarker } from './outfitMigration'
 
-export {
-  DEFAULT_OUTFIT_TAGS,
-  MAX_OUTFIT_TAGS,
-  MAX_OUTFIT_TAG_LENGTH,
-  MAX_OUTFIT_CODE_LENGTH,
-  MAX_OUTFIT_NOTE_LENGTH,
-  normalizeOutfitCode,
-  normalizeOutfitTag,
-  isValidOutfitTag,
-  isReservedOutfitTag
-} from './outfitTypes'
-export type { OutfitItem, OutfitLibraryResult, SharedOutfitSource, SharedOutfitImportResult, SaveOutfitInput, OutfitImportResult, OutfitDeleteResult } from './outfitTypes'
-export { OutfitDeleteRollbackError } from './outfitTypes'
+export * from './outfitTypes'
+export { saveOutfit, saveOutfitTags, deleteOutfitTag, deleteOutfit, deleteOutfits } from './outfitStorage'
 export { convertImageToWebp } from '../image'
-
-const CLOTHE_DIRECTORY_NAME = 'clothe'
-const TAGS_FILE_NAME = 'tags.json'
-const IGNORED_SHARE_CODES_FILE_NAME = 'ignored-sharecodes.json'
-const SCAN_CONCURRENCY = 10
-const IMPORT_CONCURRENCY = 27
-const DELETE_BACKUP_CONCURRENCY = 6
-const DELETE_FILE_CONCURRENCY = 10
-
-interface PreparedOutfitDelete {
-  outfit: OutfitItem
-  image: File | null
-  metadata: File | null
-}
-
-interface SuccessfulOutfitDelete extends PreparedOutfitDelete {
-  image: File
-  metadata: File
-}
-
-interface OutfitMetadata {
-  id: string
-  image: string
-  code: string
-  tags: string[]
-  createdAt: string
-  note?: string
-  diyImageModifiedAt?: number
-}
-
-interface ScanResult {
-  outfits: OutfitItem[]
-  failedCount: number
-  pairedImageNames: Set<string>
-}
-
-function isMissingEntryError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === 'NotFoundError'
-}
-
-
-function createOutfitId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
-  return `outfit-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-}
-
-function isSafeOutfitId(value: string): boolean {
-  return value.length > 0 && value.length <= 128 && value !== '.' && value !== '..' && !/[\\/\0]/.test(value)
-}
-
-async function createAvailableOutfitId(directory: FileSystemDirectoryHandle, preferred?: string, reservedIds?: Set<string>): Promise<string> {
-  let candidate = preferred?.trim() ?? ''
-  if (!isSafeOutfitId(candidate) || reservedIds?.has(candidate) || await fileExists(directory, `${candidate}.webp`) || await fileExists(directory, `${candidate}.json`)) {
-    do {
-      candidate = createOutfitId()
-    } while (reservedIds?.has(candidate) || await fileExists(directory, `${candidate}.webp`) || await fileExists(directory, `${candidate}.json`))
-  }
-  return candidate
-}
-
-
-
-export async function getClotheDirectory(
-  albumDirectory: FileSystemDirectoryHandle,
-  create: boolean
-): Promise<FileSystemDirectoryHandle | null> {
-  try {
-    return await albumDirectory.getDirectoryHandle(CLOTHE_DIRECTORY_NAME, { create })
-  } catch (error) {
-    if (!create && isMissingEntryError(error)) return null
-    throw error
-  }
-}
-
-export async function saveOutfitTags(albumDirectory: FileSystemDirectoryHandle, tags: string[]): Promise<string[]> {
-  const directory = await getClotheDirectory(albumDirectory, true)
-  if (!directory) throw new Error('Unable to create clothe directory')
-  const normalized: string[] = []
-  for (const value of tags) {
-    const tag = normalizeOutfitTag(value)
-    if (!isValidOutfitTag(tag) || isReservedOutfitTag(tag) || normalized.includes(tag)) continue
-    normalized.push(tag)
-    if (normalized.length === MAX_OUTFIT_TAGS) break
-  }
-  await writeJson(directory, TAGS_FILE_NAME, normalized)
-  return normalized
-}
-
-async function parseOutfit(
-  directory: FileSystemDirectoryHandle,
-  metadataName: string,
-  allowedTags: Set<string>
-): Promise<{ outfit: OutfitItem | null; pairedImage: string | null }> {
-  const metadataHandle = await directory.getFileHandle(metadataName)
-  const metadataFile = await metadataHandle.getFile()
-  const parsed = JSON.parse(await metadataFile.text()) as Partial<OutfitMetadata>
-  const pairedImage = typeof parsed.image === 'string' ? parsed.image : null
-  if (!pairedImage || !isSupportedImage(pairedImage) || typeof parsed.id !== 'string' || !parsed.id.trim()) {
-    return { outfit: null, pairedImage }
-  }
-
-  const imageHandle = await directory.getFileHandle(pairedImage)
-  const imageFile = await imageHandle.getFile()
-  if (!imageFile.size) return { outfit: null, pairedImage }
-
-  const parsedTimestamp = typeof parsed.createdAt === 'string' ? Date.parse(parsed.createdAt) : Number.NaN
-  const timestamp = Number.isFinite(parsedTimestamp) ? parsedTimestamp : metadataFile.lastModified
-  const createdAt = new Date(timestamp).toISOString()
-  const id = parsed.id.trim()
-  const outfit: OutfitItem = {
-    ...datePartsFromTimestamp(timestamp)!,
-    id,
-    name: pairedImage,
-    image: pairedImage,
-    code: normalizeOutfitCode(parsed.code),
-    tags: normalizeOutfitTags(parsed.tags, allowedTags),
-    note: typeof parsed.note === 'string' ? parsed.note.trim().slice(0, MAX_OUTFIT_NOTE_LENGTH) : '',
-    createdAt,
-    metadataName,
-    url: null,
-    fileSizeText: formatFileSize(imageFile.size),
-    fileHandle: imageHandle,
-    directoryHandle: directory
-  }
-  if (Number.isFinite(parsed.diyImageModifiedAt)) outfit.diyImageModifiedAt = parsed.diyImageModifiedAt
-  return { outfit, pairedImage }
-}
-
-async function scanOutfits(directory: FileSystemDirectoryHandle, tags: string[]): Promise<ScanResult> {
-  const metadataNames: string[] = []
-  const pairedImageNames = new Set<string>()
-  for await (const [name, handle] of directory.entries()) {
-    if (handle.kind === 'file' && name.endsWith('.json') && name !== TAGS_FILE_NAME && name !== IGNORED_SHARE_CODES_FILE_NAME) metadataNames.push(name)
-  }
-
-  const outfits: OutfitItem[] = []
-  let failedCount = 0
-  const seenIds = new Set<string>()
-  const allowedTags = new Set(tags)
-  const parsedOutfits = await runWithConcurrency(metadataNames, async (metadataName) => {
-    try {
-      return await parseOutfit(directory, metadataName, allowedTags)
-    } catch {
-      // 单个元数据损坏或暂时不可读时计为一次失败，不中断其余方案扫描。
-      return null
-    }
-  }, { concurrency: SCAN_CONCURRENCY })
-
-  for (const result of parsedOutfits) {
-    if (!result) {
-      failedCount += 1
-      continue
-    }
-    if (result.pairedImage) pairedImageNames.add(result.pairedImage)
-    if (!result.outfit || seenIds.has(result.outfit.id)) {
-      failedCount += 1
-      continue
-    }
-    seenIds.add(result.outfit.id)
-    outfits.push(result.outfit)
-  }
-
-  outfits.sort((a, b) => b.timestamp - a.timestamp)
-  return { outfits, failedCount, pairedImageNames }
-}
+const isMissingEntryError = isMissingOutfitEntry
 
 /** 逐级进入游戏目录的子文件夹。参数：rootHandle 为起点目录，segments 为路径片段；缺少目录时返回 null。 */
 async function findOptionalNestedDirectory(
@@ -249,7 +60,7 @@ function parseLatestShareCode(content: string, playerId: string): string | null 
 /** 找到最近修改且可解析的搭配码历史文件。参数：shareCodeDirectory 为 ShareCode 目录。 */
 async function findLatestShareCode(
   shareCodeDirectory: FileSystemDirectoryHandle
-): Promise<{ code: string; playerId: string; timestamp: number } | null> {
+): Promise<{ code: string; playerId: string; timestamp: number; file: File; fileName: string } | null> {
   const candidates: Array<{ file: File; playerId: string }> = []
   for await (const [name, handle] of shareCodeDirectory.entries()) {
     const playerId = playerIdFromShareCodeFileName(name)
@@ -260,7 +71,7 @@ async function findLatestShareCode(
   for (const candidate of candidates) {
     try {
       const code = parseLatestShareCode(await candidate.file.text(), candidate.playerId)
-      if (code) return { code, playerId: candidate.playerId, timestamp: candidate.file.lastModified || Date.now() }
+      if (code) return { code, playerId: candidate.playerId, timestamp: candidate.file.lastModified || Date.now(), file: candidate.file, fileName: candidate.file.name }
     } catch {
       // 损坏的历史文件会被跳过，继续尝试时间更早的候选文件。
     }
@@ -284,343 +95,105 @@ async function findLatestDiyImage(
   return latest
 }
 
-/** 从游戏 ShareCode 与 DIY 目录导入最新搭配方案。 */
-async function importLatestSharedOutfit(
-  directory: FileSystemDirectoryHandle,
-  existingOutfits: OutfitItem[],
-  source: SharedOutfitSource
-): Promise<SharedOutfitImportResult> {
+interface PlayerProgress { timestamp: number; sha256: string }
+interface GameSourceState { id: string; directory: FileSystemDirectoryHandle; players: Record<string, PlayerProgress> }
+
+async function gameSourceState(directory: FileSystemDirectoryHandle): Promise<GameSourceState> {
+  const sources = await runStoreRequest<GameSourceState[]>(OUTFIT_GAME_SOURCES_STORE, 'readonly', store => store.getAll())
+  for (const source of sources) if (await directory.isSameEntry(source.directory)) return source
+  const next: GameSourceState = { id: createOutfitId(), directory, players: {} }
+  await runStoreRequest(OUTFIT_GAME_SOURCES_STORE, 'readwrite', store => store.put(next))
+  return next
+}
+
+/** Seed only timestamps demonstrably migrated from this game installation, never the global maximum. */
+async function migratedPlayerTimestamp(directory: FileSystemDirectoryHandle, playerId: string): Promise<number> {
+  if (!directory.resolve) return 0
+  const sources = await runStoreRequest<OutfitMigrationSource[]>(OUTFIT_MIGRATION_SOURCES_STORE, 'readonly', store => store.getAll())
+  const sourceIds = new Set<string>()
+  for (const source of sources) {
+    let path: string[] | null
+    try { path = await directory.resolve(source.albumDirectory ?? source.directory) }
+    catch (error) { if (isMissingEntryError(error)) continue; throw error }
+    if (path && path[0] === 'Saved' && path[1] === 'GamePlayPhotos') sourceIds.add(source.id)
+  }
+  if (!sourceIds.size) return 0
+  return outfitTransaction([OUTFITS_STORE, OUTFIT_MIGRATION_ENTRIES_STORE], 'readonly', async tx => {
+    const markers = await outfitRequest(tx.objectStore(OUTFIT_MIGRATION_ENTRIES_STORE).getAll()) as OutfitMigrationMarker[]
+    let latest = 0
+    for (const marker of markers) {
+      if (marker.kind !== 'legacy' || !sourceIds.has(marker.sourceId)) continue
+      if (marker.sourcePlayerId === playerId) latest = Math.max(latest, marker.diyImageModifiedAt ?? 0)
+    }
+    return latest
+  })
+}
+
+async function importShared(source: SharedOutfitSource): Promise<SharedOutfitImportResult> {
   let failureStage: SharedOutfitImportResult['failureStage']
   try {
-    const shareCodeDirectory = await findOptionalNestedDirectory(source.x6GameDirectory, ['Saved', 'ShareCode'])
-    if (!shareCodeDirectory) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
-    const latestShareCode = await findLatestShareCode(shareCodeDirectory)
-    if (!latestShareCode) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
-    const ignoredShareCodes = await readIgnoredShareCodes(directory)
-    if (ignoredShareCodes.has(latestShareCode.code)) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
-    if (existingOutfits.some((outfit) => outfit.code === latestShareCode.code)) {
-      return { importedCount: 0, duplicateCount: 1, failedCount: 0, failureStage: 'duplicate' }
-    }
-
-    const diyDirectory = await findOptionalNestedDirectory(source.x6GameDirectory, ['Saved', 'DIY', latestShareCode.playerId])
+    await initializeOutfitTags()
+    const shareDirectory = await findOptionalNestedDirectory(source.x6GameDirectory, ['Saved', 'ShareCode'])
+    if (!shareDirectory) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
+    const latest = await findLatestShareCode(shareDirectory)
+    if (!latest) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
+    const codeState = await outfitTransaction([OUTFITS_STORE, OUTFIT_IGNORED_CODES_STORE], 'readonly', async tx => ({
+      duplicate: Boolean(await outfitRequest(tx.objectStore(OUTFITS_STORE).index('code').get(latest.code))),
+      ignored: Boolean(await outfitRequest(tx.objectStore(OUTFIT_IGNORED_CODES_STORE).get(latest.code)))
+    }))
+    if (codeState.ignored) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
+    if (codeState.duplicate) return { importedCount: 0, duplicateCount: 1, failedCount: 0, failureStage: 'duplicate' }
+    const diyDirectory = await findOptionalNestedDirectory(source.x6GameDirectory, ['Saved', 'DIY', latest.playerId])
     const latestImage = diyDirectory ? await findLatestDiyImage(diyDirectory) : null
-    if (!latestImage) {
-      failureStage = 'missing-image'
-      return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage }
+    if (!latestImage || !diyDirectory) return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage: 'missing-image' }
+    const state = await gameSourceState(source.x6GameDirectory)
+    const baseline = state.players[latest.playerId]?.timestamp ?? await migratedPlayerTimestamp(source.x6GameDirectory, latest.playerId)
+    if (baseline && latestImage.file.lastModified <= baseline) return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage: 'image-not-updated' }
+    const fingerprint = await hashOutfitBlob(latest.file), originalImageHash = await hashOutfitBlob(latestImage.file)
+    const id = createOutfitId()
+    const image = await prepareOutfitImage(await convertImageToWebp(latestImage.file), id, false)
+    const refreshedCode = await findLatestShareCode(shareDirectory), refreshedImage = await findLatestDiyImage(diyDirectory)
+    if (!refreshedCode || refreshedCode.code !== latest.code || refreshedCode.fileName !== latest.fileName ||
+        await hashOutfitBlob(refreshedCode.file) !== fingerprint || !refreshedImage || refreshedImage.file.name !== latestImage.file.name ||
+        refreshedImage.file.lastModified !== latestImage.file.lastModified || await hashOutfitBlob(refreshedImage.file) !== originalImageHash) {
+      return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage: 'source-changed' }
     }
-    const previousImageModifiedAt = existingOutfits.reduce((latest, outfit) => Math.max(latest, outfit.diyImageModifiedAt ?? 0), 0)
-    if (previousImageModifiedAt && latestImage.file.lastModified <= previousImageModifiedAt) {
-      failureStage = 'image-not-updated'
-      return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage }
-    }
-
-    const id = await createAvailableOutfitId(directory, `sharecode-${latestShareCode.playerId}-${Math.floor(latestShareCode.timestamp)}`)
-    const imageName = `${id}.webp`
-    const metadataName = `${id}.json`
-    try {
-      try {
-        const webp = await convertImageToWebp(latestImage.file)
-        await writeBlob(await directory.getFileHandle(imageName, { create: true }), webp)
-        await validateWrittenFileSize(directory, imageName, webp.size)
-        await writeJson(directory, metadataName, {
-          id,
-          image: imageName,
-          code: latestShareCode.code,
-          tags: [],
-          createdAt: new Date(latestShareCode.timestamp).toISOString(),
-          diyImageModifiedAt: latestImage.file.lastModified
-        } satisfies OutfitMetadata)
-      } catch (error) {
-        failureStage = 'image-write-failed'
-        throw error
-      }
-      if (ignoredShareCodes.size) {
-        try {
-          await writeIgnoredShareCodes(directory, new Set())
-        } catch (error) {
-          await writeIgnoredShareCodes(directory, ignoredShareCodes).catch(() => undefined)
-          throw error
-        }
-      }
-      return { importedCount: 1, duplicateCount: 0, failedCount: 0 }
-    } catch (error) {
-      await directory.removeEntry(imageName).catch(() => undefined)
-      await directory.removeEntry(metadataName).catch(() => undefined)
-      if (ignoredShareCodes.size) {
-        await writeIgnoredShareCodes(directory, ignoredShareCodes).catch(() => undefined)
-      }
-      throw error
-    }
-  } catch {
-    // 自动读取失败统一折算为一项失败，保留现有调用方的计数式反馈。
-    return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage: failureStage ?? 'image-write-failed' }
-  }
+    const record = normalizeOutfitRecord({ version: 1, id, image: `${id}.webp`, imageSize: image.size, code: latest.code, tags: [], note: '',
+      createdAt: new Date(latest.timestamp).toISOString(), updatedAt: new Date(latest.timestamp).toISOString(),
+      diyImageModifiedAt: latestImage.file.lastModified, sourcePlayerId: latest.playerId, gameSourceId: state.id })
+    failureStage = 'image-write-failed'
+    const outcome = await outfitTransaction([OUTFITS_STORE, OUTFIT_IMAGES_STORE, OUTFIT_IGNORED_CODES_STORE, OUTFIT_GAME_SOURCES_STORE], 'readwrite', async tx => {
+      const records = tx.objectStore(OUTFITS_STORE), states = tx.objectStore(OUTFIT_GAME_SOURCES_STORE)
+      if (await outfitRequest(tx.objectStore(OUTFIT_IGNORED_CODES_STORE).get(latest.code))) return 'ignored'
+      if (await outfitRequest(records.index('code').get(latest.code))) return 'duplicate'
+      const current = await outfitRequest(states.get(state.id)) as GameSourceState
+      const progress = current.players[latest.playerId]
+      if (progress && latestImage.file.lastModified <= progress.timestamp) return 'stale'
+      records.put(record); tx.objectStore(OUTFIT_IMAGES_STORE).put(image)
+      states.put({ ...current, players: { ...current.players, [latest.playerId]: { timestamp: latestImage.file.lastModified, sha256: originalImageHash } } })
+      return 'added'
+    })
+    return { importedCount: outcome === 'added' ? 1 : 0, duplicateCount: outcome === 'duplicate' ? 1 : 0, failedCount: outcome === 'stale' ? 1 : 0,
+      ...(outcome === 'duplicate' ? { failureStage: 'duplicate' as const } : outcome === 'stale' ? { failureStage: 'image-not-updated' as const } : {}) }
+  } catch { return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage: failureStage ?? 'image-write-failed' } }
+}
+export function importLatestSharedOutfit(source: SharedOutfitSource): Promise<SharedOutfitImportResult> {
+  return withOutfitImportLock(() => importShared(source))
 }
 
-/** 把未配对的外部图片导入为待填写方案。 */
-async function importExternalImages(directory: FileSystemDirectoryHandle, pairedImageNames: Set<string>): Promise<{ imported: number; failed: number }> {
-  const candidates: Array<{ name: string; handle: FileSystemFileHandle }> = []
-  for await (const [name, handle] of directory.entries()) {
-    if (handle.kind === 'file' && isSupportedImage(name) && !pairedImageNames.has(name)) {
-      candidates.push({ name, handle: handle as FileSystemFileHandle })
-    }
-  }
-  const jobs: Array<{ candidate: typeof candidates[number]; id: string; imageName: string; metadataName: string }> = []
-  const reservedIds = new Set<string>()
-  for (const candidate of candidates) {
-    const id = await createAvailableOutfitId(directory, undefined, reservedIds)
-    reservedIds.add(id)
-    const imageName = `${id}.webp`
-    const metadataName = `${id}.json`
-    jobs.push({ candidate, id, imageName, metadataName })
-  }
-
-  let imported = 0
-  let failed = 0
-  await runWithConcurrency(jobs, async ({ candidate, id, imageName, metadataName }) => {
-      try {
-        const source = await candidate.handle.getFile()
-        const webp = await convertImageToWebp(source)
-        await writeBlob(await directory.getFileHandle(imageName, { create: true }), webp)
-        await validateWrittenFileSize(directory, imageName, webp.size)
-        const metadata: OutfitMetadata = {
-          id,
-          image: imageName,
-          code: '',
-          tags: [],
-          createdAt: new Date().toISOString()
-        }
-        await writeJson(directory, metadataName, metadata)
-        if (candidate.name !== imageName) await directory.removeEntry(candidate.name)
-        imported += 1
-      } catch {
-        // 保留原始外部图片，并清理本轮可能写入一半的托管文件后继续处理。
-        failed += 1
-        await directory.removeEntry(imageName).catch(() => undefined)
-        await directory.removeEntry(metadataName).catch(() => undefined)
-      }
-  }, { concurrency: IMPORT_CONCURRENCY })
-  return { imported, failed }
-}
-
-/** 扫描并更新搭配码库，返回完整扫描和导入结果，由调用方统一决定提示。 */
 export async function readOutfitLibrary(
-  albumDirectory: FileSystemDirectoryHandle,
-  options: { importExternal?: boolean; create?: boolean; sharedSource?: SharedOutfitSource | null } = {}
+  album?: FileSystemDirectoryHandle | null,
+  options: { sharedSource?: SharedOutfitSource | null } = {}
 ): Promise<OutfitLibraryResult> {
-  const directory = await getClotheDirectory(albumDirectory, options.create ?? true)
-  if (!directory) return { outfits: [], tags: [...DEFAULT_OUTFIT_TAGS], importedExternalCount: 0, importedSharedCount: 0, failedCount: 0 }
-  const tags = await readTags(directory)
-  let scan = await scanOutfits(directory, tags)
-  let importedExternalCount = 0
-  let importedSharedCount = 0
-  let externalFailures = 0
-  let sharedFailures = 0
-  if (options.importExternal ?? true) {
-    const external = await importExternalImages(directory, scan.pairedImageNames)
-    importedExternalCount = external.imported
-    externalFailures = external.failed
-    if (external.imported) scan = await scanOutfits(directory, tags)
+  let migration: OutfitLibraryResult['migration']
+  if (album) {
+    try { migration = await migrateOutfitLibrary(album) }
+    catch (error) { migration = { addedCount: 0, replacedCount: 0, skippedCount: 0, failedCount: 1, tagsChanged: false, clotheDirectoryRemoved: false,
+      failures: [{ fileName: 'clothe', message: error instanceof Error ? error.message : String(error), errorName: error instanceof Error ? error.name : '' }] } }
   }
-  if (options.sharedSource) {
-    const shared = await importLatestSharedOutfit(directory, scan.outfits, options.sharedSource)
-    importedSharedCount = shared.importedCount
-    sharedFailures = shared.failedCount
-    if (shared.importedCount) scan = await scanOutfits(directory, tags)
-    return {
-      outfits: scan.outfits,
-      tags,
-      importedExternalCount,
-      importedSharedCount,
-      failedCount: scan.failedCount + externalFailures + sharedFailures,
-      sharedFailureStage: shared.failureStage
-    }
-  }
-  return {
-    outfits: scan.outfits,
-    tags,
-    importedExternalCount,
-    importedSharedCount,
-    failedCount: scan.failedCount + externalFailures + sharedFailures
-  }
+  // Always process game input independently of a missing or failed legacy directory.
+  const shared: SharedOutfitImportResult = options.sharedSource ? await importLatestSharedOutfit(options.sharedSource) : { importedCount: 0, duplicateCount: 0, failedCount: 0 }
+  const library = await readOutfitCollection()
+  return { ...library, importedSharedCount: shared.importedCount,
+    failedCount: (migration?.failedCount ?? 0) + shared.failedCount, sharedFailureStage: shared.failureStage, migration }
 }
-
-export async function saveOutfit(
-  albumDirectory: FileSystemDirectoryHandle,
-  input: SaveOutfitInput
-): Promise<OutfitItem> {
-  const directory = await getClotheDirectory(albumDirectory, true)
-  if (!directory) throw new Error('Unable to create clothe directory')
-  if (!input.outfit && !input.imageFile) throw new Error('An image is required')
-
-  const id = input.outfit?.id ?? await createAvailableOutfitId(directory)
-  const imageName = `${id}.webp`
-  const metadataName = `${id}.json`
-  const previousImage = input.outfit ? await input.outfit.fileHandle.getFile() : null
-  const previousMetadata = input.outfit
-    ? await (await directory.getFileHandle(input.outfit.metadataName)).getFile()
-    : null
-  const tags = await readTags(directory)
-  const selectedTag = input.tag && tags.includes(input.tag) && isValidOutfitTag(input.tag) ? input.tag : null
-
-  try {
-    if (input.imageFile) {
-      const webp = await convertImageToWebp(input.imageFile)
-      await writeBlob(await directory.getFileHandle(imageName, { create: true }), webp)
-      await validateWrittenFileSize(directory, imageName, webp.size)
-    }
-    const metadata: OutfitMetadata = {
-      id,
-      image: imageName,
-      code: normalizeOutfitCode(input.code),
-      tags: selectedTag ? [selectedTag] : [],
-      createdAt: input.outfit?.createdAt ?? new Date().toISOString(),
-      note: typeof input.note === 'string' ? input.note.trim().slice(0, MAX_OUTFIT_NOTE_LENGTH) : '',
-      ...(input.outfit?.diyImageModifiedAt !== undefined ? { diyImageModifiedAt: input.outfit.diyImageModifiedAt } : {})
-    }
-    await writeJson(directory, metadataName, metadata)
-    const parsed = await parseOutfit(directory, metadataName, new Set(tags))
-    if (!parsed.outfit) throw new Error('Saved outfit is invalid')
-    return parsed.outfit
-  } catch (error) {
-    if (input.outfit && previousImage && previousMetadata) {
-      await writeBlob(await directory.getFileHandle(imageName, { create: true }), previousImage).catch(() => undefined)
-      await writeBlob(await directory.getFileHandle(metadataName, { create: true }), previousMetadata).catch(() => undefined)
-    } else {
-      await directory.removeEntry(imageName).catch(() => undefined)
-      await directory.removeEntry(metadataName).catch(() => undefined)
-    }
-    throw error
-  }
-}
-
-export async function deleteOutfitTag(
-  albumDirectory: FileSystemDirectoryHandle,
-  outfits: OutfitItem[],
-  removedTag: string
-): Promise<{ tags: string[]; updatedCount: number }> {
-  const directory = await getClotheDirectory(albumDirectory, false)
-  if (!directory) return { tags: [], updatedCount: 0 }
-  const currentTags = await readTags(directory)
-  const tagsBackup = await (await directory.getFileHandle(TAGS_FILE_NAME)).getFile()
-  let updated = 0
-  const backups: Array<{ name: string; file: File }> = []
-  for (const outfit of outfits) {
-    if (outfit.tags[0] !== removedTag) continue
-    backups.push({ name: outfit.metadataName, file: await (await directory.getFileHandle(outfit.metadataName)).getFile() })
-  }
-  try {
-    for (const outfit of outfits) {
-      if (outfit.tags[0] !== removedTag) continue
-      await writeJson(directory, outfit.metadataName, {
-        id: outfit.id,
-        image: outfit.image,
-        code: outfit.code,
-        tags: [],
-        createdAt: outfit.createdAt,
-        ...(outfit.diyImageModifiedAt !== undefined ? { diyImageModifiedAt: outfit.diyImageModifiedAt } : {})
-      } satisfies OutfitMetadata)
-      updated += 1
-    }
-    const tags = currentTags.filter((tag) => tag !== removedTag)
-    await writeJson(directory, TAGS_FILE_NAME, tags)
-    return { tags, updatedCount: updated }
-  } catch (error) {
-    for (const backup of backups) await writeBlob(await directory.getFileHandle(backup.name, { create: true }), backup.file).catch(() => undefined)
-    await writeBlob(await directory.getFileHandle(TAGS_FILE_NAME, { create: true }), tagsBackup).catch(() => undefined)
-    throw error
-  }
-}
-
-/**
- * 批量永久删除搭配方案。先并发读取回滚备份，再并发删除双文件，最后一次性提交忽略搭配码列表。
- * 任一提交步骤失败都会恢复本批已删除文件，避免图片与元数据只删除一半。
- */
-export async function deleteOutfits(outfits: OutfitItem[]): Promise<OutfitDeleteResult> {
-  if (!outfits.length) return { deleted: [], failedNames: [], rollbackFailedNames: [] }
-
-  const prepared = await runWithConcurrency<OutfitItem, PreparedOutfitDelete>(outfits, async (outfit) => {
-    try {
-      const image = await outfit.fileHandle.getFile()
-      const metadata = await (await outfit.directoryHandle.getFileHandle(outfit.metadataName)).getFile()
-      return { outfit, image, metadata }
-    } catch {
-      return { outfit, image: null, metadata: null }
-    }
-  }, { concurrency: DELETE_BACKUP_CONCURRENCY })
-  const failedNames = prepared.filter((item) => !item.image || !item.metadata).map((item) => item.outfit.code || item.outfit.name)
-  const validPrepared = prepared.filter((item): item is SuccessfulOutfitDelete => Boolean(item.image && item.metadata))
-  const results = await runWithConcurrency<SuccessfulOutfitDelete, { item: SuccessfulOutfitDelete; ok: boolean; rollbackFailed: boolean }>(validPrepared, async (item) => {
-    try {
-      await item.outfit.directoryHandle.removeEntry(item.outfit.metadataName)
-      await item.outfit.directoryHandle.removeEntry(item.outfit.image)
-      return { item, ok: true, rollbackFailed: false }
-    } catch {
-      let rollbackFailed = false
-      try {
-        await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.image, { create: true }), item.image)
-      } catch {
-        rollbackFailed = true
-      }
-      try {
-        await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.metadataName, { create: true }), item.metadata)
-      } catch {
-        rollbackFailed = true
-      }
-      return { item, ok: false, rollbackFailed }
-    }
-  }, { concurrency: DELETE_FILE_CONCURRENCY })
-
-  const deleted = results.filter((result) => result.ok).map((result) => result.item.outfit)
-  const rollbackFailedNames = results
-    .filter((result) => result.rollbackFailed)
-    .map((result) => result.item.outfit.code || result.item.outfit.name)
-  const failed = [
-    ...failedNames,
-    ...results.filter((result) => !result.ok).map((result) => result.item.outfit.code || result.item.outfit.name)
-  ]
-  if (!deleted.length) return { deleted, failedNames: failed, rollbackFailedNames }
-
-  try {
-    const codes = await readIgnoredShareCodes(deleted[0].directoryHandle)
-    for (const outfit of deleted) {
-      const code = normalizeOutfitCode(outfit.code)
-      if (code) codes.add(code)
-    }
-    await writeIgnoredShareCodes(deleted[0].directoryHandle, codes)
-  } catch (error) {
-    const rollbackFailures: string[] = []
-    for (const item of results.filter((result) => result.ok).map((result) => result.item)) {
-      let restored = true
-      try {
-        await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.image, { create: true }), item.image)
-      } catch {
-        restored = false
-      }
-      try {
-        await writeBlob(await item.outfit.directoryHandle.getFileHandle(item.outfit.metadataName, { create: true }), item.metadata)
-      } catch {
-        restored = false
-      }
-      if (!restored) rollbackFailures.push(item.outfit.code || item.outfit.name)
-    }
-    if (rollbackFailures.length) {
-      throw new OutfitDeleteRollbackError(error, rollbackFailures)
-    }
-    throw error
-  }
-
-  return { deleted, failedNames: failed, rollbackFailedNames }
-}
-
-export async function deleteOutfit(outfit: OutfitItem): Promise<void> {
-  const result = await deleteOutfits([outfit])
-  if (result.rollbackFailedNames.length) {
-    throw new OutfitDeleteRollbackError(
-      new Error(`Unable to delete outfit: ${result.failedNames[0] || outfit.name}`),
-      result.rollbackFailedNames
-    )
-  }
-  if (result.failedNames.length) throw new Error(`Unable to delete outfit: ${result.failedNames[0] || outfit.name}`)
-}
-

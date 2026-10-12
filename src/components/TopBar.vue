@@ -231,7 +231,7 @@ onBeforeUnmount(() => {
             <Trash2 :size="16" />
             <span>{{ messages.clearDirectory }}</span>
           </button>
-          <button type="button" role="menuitem" :disabled="!hasAlbumDirectory || isBusy" @click="runMenuAction(() => emit('authorizeX6Game'))">
+          <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('authorizeX6Game'))">
             <FolderOpen :size="16" />
             <span>{{ hasX6GameAuthorization ? messages.reauthorizeX6Game : messages.authorizeX6Game }}</span>
           </button>
