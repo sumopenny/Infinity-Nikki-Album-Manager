@@ -768,7 +768,7 @@ onBeforeUnmount(() => {
 .home-scheme-card-details{min-width:0;padding:8px 1px 0}
 .home-scheme-name-tag{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;min-width:0;}
 .home-scheme-card-details h3{min-width:0;margin:0;overflow-wrap:anywhere;color:var(--heading);font-size:13px;line-height:1.4}
-.home-scheme-card-meta{display:flex;flex-wrap:wrap;gap:4px 8px;min-height:20px;margin-top:4px;color:var(--muted);font-size:11px}
+.home-scheme-card-meta{display:flex;flex-wrap:wrap;gap:4px 8px;min-height:20px;margin-top:4px;color:var(--muted);font-size:11px;overflow-wrap:anywhere}
 .home-scheme-card-footer{min-height:38px;padding-top:5px}
 .home-scheme-code{display:flex;min-width:0;flex:1;align-items:center;gap:5px;padding:0;border:0;background:transparent;color:var(--text);text-align:left}
 .home-scheme-code .outfit-code{font-size:11px}
@@ -789,5 +789,5 @@ onBeforeUnmount(() => {
 .home-scheme-remove-image{display:inline-flex;align-items:center;gap:6px;min-height:34px;margin-top:8px;padding:6px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface-strong);color:var(--muted);font-size:12px;font-weight:700;transition:color var(--motion-fast) ease,border-color var(--motion-fast) ease,background var(--motion-fast) ease,transform var(--motion-fast) ease}
 .home-scheme-remove-image:hover:not(:disabled){border-color:var(--pink-deep);background:color-mix(in srgb,var(--pink-deep) 8%,var(--surface-strong));color:var(--pink-deep);transform:translateY(-1px)}
 @media(max-width:850px){.home-scheme-workspace{min-height:0}.home-scheme-sidebar{margin-top:14px}.home-scheme-header-actions input[type=search]{flex:1 1 140px}.home-scheme-editor-body{grid-template-columns:1fr}.home-scheme-image-dropzone{max-width:560px}}
-@media(max-width:520px){.home-scheme-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.home-scheme-card-details h3{font-size:12px}.home-scheme-header-actions>button{justify-content:center;white-space:normal}.home-scheme-metadata{border-spacing:5px 0;margin-right:-5px;margin-left:-5px}.home-scheme-metadata td{padding:9px 8px}.home-scheme-metadata strong{font-size:13px}}
+@media(max-width:520px){.home-scheme-card-details h3{font-size:12px}.home-scheme-header-actions>button{justify-content:center;white-space:normal}.home-scheme-metadata{border-spacing:5px 0;margin-right:-5px;margin-left:-5px}.home-scheme-metadata td{padding:9px 8px}.home-scheme-metadata strong{font-size:13px}}
 </style>

@@ -764,6 +764,38 @@
   gap: 5px;
 }
 
+/* 手机端搭配码、家园方案固定双列，覆盖公共照片网格的超窄屏单列规则。 */
+@media (max-width: 560px) {
+  .outfit-grid-wrap .outfit-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding-inline: 0;
+  }
+
+  .outfit-grid .outfit-card {
+    padding: 6px;
+  }
+
+  .outfit-grid .outfit-card-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .outfit-grid .outfit-code,
+  .outfit-grid .outfit-pending-code {
+    flex: none;
+  }
+
+  .outfit-grid .outfit-card-actions {
+    justify-content: flex-end;
+  }
+
+  .outfit-grid .outfit-overlay {
+    padding-right: 6px;
+  }
+}
+
 .outfit-editor {
   position: fixed;
   inset: 0;
