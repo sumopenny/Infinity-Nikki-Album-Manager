@@ -82,7 +82,8 @@ import { usePhotoActionParsing } from './composables/usePhotoActionParsing'
 import { usePhotoTransfer } from './composables/usePhotoTransfer'
 import { clearOutfitCodeParseCache } from './utils/outfit/outfitCodeParser'
 import { clearSavedHomeSchemeParseResults } from './utils/file-system/directoryStorage'
-import { countHomeSchemes } from './utils/homeBuild/homeSchemeFileSystem'
+import { countHomeSchemes } from './utils/homeBuild/homeSchemeStorage'
+import { migrateHomeSchemeLibrary } from './utils/homeBuild/homeSchemeMigration'
 import type { ResonanceRecord } from './utils/resonance/resonanceTypes'
 import type { ResonanceBannerOrder, ResonanceRarityFilter } from './utils/resonance/resonanceCatalog'
 
@@ -117,23 +118,12 @@ function removeLocalStorage(key: string): void {
 }
 
 function readCleanupAccountChoice(): string | null {
-  try {
-    return readLocalStorage(CLEANUP_ACCOUNT_CHOICE_KEY)
-  } catch {
-    return null
-  }
+  return readLocalStorage(CLEANUP_ACCOUNT_CHOICE_KEY)
 }
 
 function persistCleanupAccountChoice(choice: string | null): void {
-  try {
-    if (choice) {
-      writeLocalStorage(CLEANUP_ACCOUNT_CHOICE_KEY, choice)
-    } else {
-      removeLocalStorage(CLEANUP_ACCOUNT_CHOICE_KEY)
-    }
-  } catch {
-    // 本地存储不可用时保留当前会话内的选择，不阻断清理流程。
-  }
+  if (choice) writeLocalStorage(CLEANUP_ACCOUNT_CHOICE_KEY, choice)
+  else removeLocalStorage(CLEANUP_ACCOUNT_CHOICE_KEY)
 }
 function readStoredAboutState(): { version: string; dismissed: boolean } | null {
   try { const parsed = JSON.parse(readLocalStorage(ABOUT_STATE_STORAGE_KEY) ?? 'null') as { version?: unknown; dismissed?: unknown } | null; if (parsed && typeof parsed.version === 'string') return { version: parsed.version, dismissed: parsed.dismissed === true } } catch { /* invalid storage is treated as empty */ }
@@ -169,6 +159,8 @@ type DirectoryState =
 const photos = ref<PhotoItem[]>([])
 const outfits = ref<OutfitItem[]>([])
 const homeSchemesCount = ref(0)
+const homeLibraryRevision = ref(0)
+let homeCountGeneration = 0
 const resonanceRecords = ref<ResonanceRecord[]>([])
 const resonanceBannerOrder = ref<ResonanceBannerOrder>('newest')
 const resonanceRarityFilter = ref<ResonanceRarityFilter>('all')
@@ -506,6 +498,38 @@ function mergeRecentlyDeleted(nextPhotos: RecentlyDeletedPhoto[]) {
   trashSelectedIds.value = new Set([...trashSelectedIds.value].filter((id) => validIds.has(id)))
 }
 
+async function updateHomeSchemeCount() {
+  const generation = ++homeCountGeneration
+  const count = await countHomeSchemes()
+  if (generation === homeCountGeneration) homeSchemesCount.value = count
+}
+
+async function migrateHomeSchemes(directory: FileSystemDirectoryHandle): Promise<StatusState | null> {
+  try {
+    const result = await migrateHomeSchemeLibrary(directory)
+    await updateHomeSchemeCount()
+    if (result.addedCount || result.replacedCount || result.tagsChanged) homeLibraryRevision.value++
+    if (!result.addedCount && !result.replacedCount && !result.skippedCount && !result.failedCount && !result.tagsChanged && !result.homeDirectoryRemoved) return null
+    let message = locale.value.homeScheme.migrationSucceeded(result.addedCount, result.replacedCount, result.skippedCount, result.failedCount)
+    if (result.homeDirectoryRemoved) message += ' ' + locale.value.homeScheme.migrationDirectoryRemoved
+    if (result.failures.length) {
+      message += ' ' + locale.value.homeScheme.migrationFailedItems([...new Set(result.failures.map(item => item.fileName))].slice(0, 5).join('、'))
+      if (result.failures.some(item => item.message.startsWith('home_scheme_tag_limit'))) message += ' ' + locale.value.homeScheme.migrationTagLimit
+      if (result.failures.some(item => item.fileName === 'home')) message += ' ' + locale.value.homeScheme.migrationCleanupFailed
+      if (result.failures.some(item => item.errorName === 'QuotaExceededError')) message += ' ' + locale.value.homeScheme.storageFull
+    }
+    return { type: 'custom', message, tone: result.failedCount ? 'warning' : 'success' }
+  } catch (error) {
+    return { type: 'custom', message: error instanceof DOMException && error.name === 'QuotaExceededError'
+      ? locale.value.homeScheme.storageFull : locale.value.homeScheme.operationFailed, tone: 'error' }
+  }
+}
+
+function handleHomeSchemeCount(count: number) {
+  homeCountGeneration++
+  homeSchemesCount.value = count
+}
+
 // 相册加载、恢复与刷新
 /**
  * 替换当前相册并同步其最近删除目录。
@@ -513,10 +537,9 @@ function mergeRecentlyDeleted(nextPhotos: RecentlyDeletedPhoto[]) {
  */
 async function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusState) {
   invalidatePendingRefreshes()
-  const [outfitResult, nextRecentlyDeleted, nextHomeSchemesCount] = await Promise.all([
+  const [outfitResult, nextRecentlyDeleted] = await Promise.all([
     readOutfitLibrary(result.directoryHandle),
-    listRecentlyDeleted(result.directoryHandle),
-    countHomeSchemes(result.directoryHandle)
+    listRecentlyDeleted(result.directoryHandle)
   ])
   await saveAlbumDirectoryHandle(result.directoryHandle)
 
@@ -534,7 +557,6 @@ async function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusStat
   photos.value = result.photos
   outfits.value = outfitResult.outfits
   outfitTags.value = outfitResult.tags
-  homeSchemesCount.value = nextHomeSchemesCount
   recentlyDeleted.value = nextRecentlyDeleted
   // 收藏记录跨相册保留，切换相册时不再按当前照片裁剪，避免切回后丢失
   activeView.value = 'all'
@@ -543,6 +565,8 @@ async function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusStat
   statusState.value = outfitResult.failedCount
     ? { type: 'custom', message: outfitLocale.value.operations.albumOpenedWithFailures(outfitResult.failedCount), tone: 'warning' }
     : nextStatus
+  const migrationStatus = await migrateHomeSchemes(result.directoryHandle)
+  if (migrationStatus) statusState.value = migrationStatus
 }
 
 /** 应用语言或主题偏好，并显示加载及完成提示。参数：preference 为要切换的偏好。 */
@@ -638,7 +662,6 @@ function resetLoadedAlbumState(options: { clearSharedOutfit?: boolean } = {}) {
   photos.value = []
   outfits.value = []
   outfitTags.value = []
-  homeSchemesCount.value = 0
   recentlyDeleted.value = []
   selectedIds.value = new Set()
   selectedOutfitIds.value = new Set()
@@ -797,11 +820,16 @@ async function refreshAlbum(manual: boolean) {
     if (refreshToken !== latestRefreshToken || directoryHandle !== albumDirectoryHandle.value) return
     const result: RefreshAlbumResult = { ...albumResult, recentlyDeleted: trashResult }
     applyRefreshResult(result)
+    const migrationStatus = await migrateHomeSchemes(directoryHandle)
+    if (refreshToken !== latestRefreshToken || directoryHandle !== albumDirectoryHandle.value) return
     const outfitResult = await scanOutfitLibrary(true, activeView.value === 'outfits')
     if (refreshToken !== latestRefreshToken || directoryHandle !== albumDirectoryHandle.value) return
     applyOutfitLibraryResult(outfitResult)
-    if (didCancelX6GameAutoPrompt.value) return
-    const refreshStatus = createRefreshResultStatus(result, outfitResult, manual)
+    if (didCancelX6GameAutoPrompt.value) {
+      if (migrationStatus) statusState.value = migrationStatus
+      return
+    }
+    const refreshStatus = migrationStatus ?? createRefreshResultStatus(result, outfitResult, manual)
     if (refreshStatus) statusState.value = refreshStatus
   } catch (error) {
     if (refreshToken !== latestRefreshToken || directoryHandle !== albumDirectoryHandle.value) return
@@ -1356,7 +1384,7 @@ async function deleteSelectedOutfits() {
 
 /** 通过浏览器直接下载搭配码 ZIP。 */
 async function exportOutfits() {
-  if (isAnyFileOperationBusy.value) return
+  if (isAnyFileOperationBusy.value || (!outfits.value.length && !outfitTags.value.length)) return
   const directoryHandle = albumDirectoryHandle.value
   if (!directoryHandle) { showOutfitStatus(outfitLocale.value.emptyTitle, 'info'); return }
   activeOperation.value = 'exporting-outfits'
@@ -1790,6 +1818,9 @@ function scheduleFocusRefresh() {
 
 // 生命周期
 onMounted(() => {
+  void updateHomeSchemeCount().catch(() => {
+    statusState.value = { type: 'custom', message: locale.value.homeScheme.operationFailed, tone: 'error' }
+  })
   void restoreSavedDirectory()
   void restoreSavedX6GameAuthorization()
   // 没有记录、版本号变化或未勾选“不再提示”时，打开网站自动显示更新记录
@@ -1964,7 +1995,7 @@ onBeforeUnmount(() => {
             <button type="button" :disabled="!albumDirectoryHandle || isAnyFileOperationBusy" @click="chooseOutfitBackup">
               <Download :size="16" aria-hidden="true" />{{ isImportingOutfits ? outfitLocale.importing : outfitLocale.importData }}
             </button>
-            <button type="button" :disabled="isAnyFileOperationBusy" @click="exportOutfits">
+            <button type="button" :disabled="isAnyFileOperationBusy || (!outfits.length && !outfitTags.length)" @click="exportOutfits">
               <Upload :size="16" aria-hidden="true" />{{ isExportingOutfits ? outfitLocale.exporting : outfitLocale.exportData }}
             </button>
             <button class="primary-button" type="button" :disabled="!albumDirectoryHandle || isAnyFileOperationBusy" @click="openOutfitEditor()">
@@ -1991,7 +2022,7 @@ onBeforeUnmount(() => {
 
         <HomeSchemeWorkspace
           v-if="activeView === 'home'"
-          :album-directory="albumDirectoryHandle"
+          :library-revision="homeLibraryRevision"
           :messages="locale.homeScheme"
           :copy-messages="locale.app"
           :disabled="isAnyFileOperationBusy"
@@ -2002,7 +2033,7 @@ onBeforeUnmount(() => {
           :date-messages="locale.date"
           :thumbnail-mode="displayedThumbnailMode"
           @status="handleHomeSchemeStatus"
-          @count-change="homeSchemesCount = $event"
+          @count-change="handleHomeSchemeCount"
         />
         <ResonanceRecords
           v-else-if="activeView === 'resonance'"
@@ -2114,7 +2145,6 @@ onBeforeUnmount(() => {
       :uid-required="photoParamsUidRequired"
       :messages="photoParamsMessages"
       @close="closePhotoParams"
-      @cancel="closePhotoParams"
       @copy="copyRawCameraParams"
       @submit-uid="photoParams.submitUid"
     />

@@ -13,7 +13,7 @@ import {
   reorderHomeSchemeTags,
   saveHomeScheme,
   saveHomeSchemeTags
-} from '../utils/homeBuild/homeSchemeFileSystem'
+} from '../utils/homeBuild/homeSchemeStorage'
 import { parseHomeScheme, type HomeSchemeParseResult } from '../utils/homeBuild/homeSchemeParser'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import { datePartsFromTimestamp, type PhotoItem } from '../utils/photoGrouping'
@@ -32,7 +32,7 @@ import SelectionBar from './SelectionBar.vue'
 import type { ThumbnailMode } from '../types/thumbnail'
 
 const props = defineProps<{
-  albumDirectory: FileSystemDirectoryHandle | null
+  libraryRevision: number
   messages: HomeSchemeMessages
   copyMessages?: { copySucceeded: string; copyFailed: (value: string) => string }
   disabled: boolean
@@ -87,6 +87,7 @@ let parseTimer: number | undefined
 let parseController: AbortController | null = null
 let parseGeneration = 0
 let loadGeneration = 0
+let pendingLibraryReload = false
 let previousActiveElement: HTMLElement | null = null
 
 useBodyScrollLock(editorVisible)
@@ -100,13 +101,13 @@ const visibleSchemes = computed(() => {
   return query ? result.filter((item) => `${item.name} ${item.code} ${item.note}`.toLocaleLowerCase().includes(query)) : result
 })
 const previewUrl = computed(() => localImageUrl.value ?? (removeLocalImage.value ? null : coverImageUrl.value))
-const isBusy = computed(() => !props.albumDirectory || props.disabled || busy.value)
+const isBusy = computed(() => props.disabled || busy.value)
 const selectedSchemeCount = computed(() => visibleSchemes.value.filter((item) => selectedSchemeIds.value.has(item.id)).length)
 const allSchemesSelected = computed(() => visibleSchemes.value.length > 0 && visibleSchemes.value.every((item) => selectedSchemeIds.value.has(item.id)))
 const previewIndex = computed(() => previewScheme.value ? visibleSchemes.value.findIndex((item) => item.id === previewScheme.value?.id) : -1)
 const hasPreviousPreview = computed(() => previewIndex.value > 0)
 const hasNextPreview = computed(() => previewIndex.value >= 0 && previewIndex.value < visibleSchemes.value.length - 1)
-const previewPhoto = computed<PhotoItem | null>(() => {
+const previewPhoto = computed<Omit<PhotoItem, 'fileHandle' | 'directoryHandle'> | null>(() => {
   const item = previewScheme.value
   if (!item) return null
   const timestamp = Date.parse(item.updatedAt)
@@ -118,18 +119,19 @@ const previewPhoto = computed<PhotoItem | null>(() => {
     name: item.name || item.code,
     url: item.imageUrl,
     fileSizeText: '--',
-    fileHandle: item.fileHandle as FileSystemFileHandle,
-    directoryHandle: item.directoryHandle,
     note: item.note
   }
 })
 
+function operationError(error: unknown): string {
+  return error instanceof DOMException && error.name === 'QuotaExceededError' ? props.messages.storageFull : props.messages.operationFailed
+}
+
 async function loadLibrary() {
   const generation = ++loadGeneration
-  if (!props.albumDirectory) { busy.value = false; emit('countChange', 0); return }
   busy.value = true
   try {
-    const result = await readHomeSchemeLibrary(props.albumDirectory)
+    const result = await readHomeSchemeLibrary()
     if (generation !== loadGeneration) { releaseHomeSchemeUrls(result.schemes); return }
     releaseHomeSchemeUrls(schemes.value)
     schemes.value = result.schemes
@@ -138,9 +140,8 @@ async function loadLibrary() {
     closePreview()
     emit('countChange', result.schemes.length)
     if (filter.value.startsWith('tag:') && !tags.value.includes(filter.value.slice(4))) filter.value = 'all'
-    if (result.failedCount) emit('status', `${result.failedCount} invalid home scheme item(s) were skipped.`, 'warning')
-  } catch {
-    emit('status', props.messages.operationFailed, 'error')
+  } catch (error) {
+    emit('status', operationError(error), 'error')
   } finally {
     if (generation === loadGeneration) busy.value = false
   }
@@ -224,7 +225,7 @@ function resetEditor(item: HomeSchemeItem | null) {
   note.value = item?.note ?? ''
   selectedTag.value = item?.tags[0] ?? ''
   imageFile.value = null
-  localImageUrl.value = item?.fileHandle ? item.imageUrl : null
+  localImageUrl.value = item?.image ? item.imageUrl : null
   removeLocalImage.value = false
   parsedCode.value = item?.code ?? ''
   previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -243,6 +244,7 @@ function closeEditor() {
   if (localImageUrl.value && localImageUrl.value !== editing.value?.imageUrl) URL.revokeObjectURL(localImageUrl.value)
   localImageUrl.value = null
   editorVisible.value = false
+  if (pendingLibraryReload) { pendingLibraryReload = false; void loadLibrary() }
   previousActiveElement?.focus()
   previousActiveElement = null
 }
@@ -321,7 +323,6 @@ function handleEditorBackdropClick() {
 }
 
 async function save() {
-  if (!props.albumDirectory) return
   if (isBusy.value || parsing.value) return
   const normalizedCode = normalizeHomeSchemeCode(code.value)
   if (normalizedCode.length < 2 || normalizedCode.length > MAX_HOME_SCHEME_CODE_LENGTH) { emit('status', props.messages.invalidCode, 'warning'); return }
@@ -337,7 +338,7 @@ async function save() {
       lastModifyTime: lastModifyTime.value,
       coverImageUrl: coverImageUrl.value
     }
-    const saved = await saveHomeScheme(props.albumDirectory, {
+    const saved = await saveHomeScheme({
       item: editing.value ?? undefined,
       code: normalizedCode,
       name: name.value,
@@ -347,7 +348,7 @@ async function save() {
       metadata,
       imageFile: imageFile.value,
       removeImage: removeLocalImage.value
-    }, schemes.value)
+    })
     const next = schemes.value.filter((item) => item.id !== saved.id)
     const previous = schemes.value.find((item) => item.id === saved.id)
     if (previous) releaseHomeSchemeUrls([previous])
@@ -358,7 +359,7 @@ async function save() {
     emit('status', props.messages.saveSucceeded, 'success')
   } catch (error) {
     const duplicate = error instanceof Error && error.message === 'home_scheme_code_duplicate'
-    emit('status', duplicate ? props.messages.duplicateCode : props.messages.operationFailed, duplicate ? 'warning' : 'error')
+    emit('status', duplicate ? props.messages.duplicateCode : operationError(error), duplicate ? 'warning' : 'error')
   } finally { busy.value = false }
 }
 
@@ -373,7 +374,7 @@ async function removeScheme(item: HomeSchemeItem) {
     if (previewScheme.value?.id === item.id) closePreview()
     emit('countChange', schemes.value.length)
     emit('status', props.messages.deleteSucceeded, 'success')
-  } catch { emit('status', props.messages.operationFailed, 'error') }
+  } catch (error) { emit('status', operationError(error), 'error') }
   finally { busy.value = false }
 }
 
@@ -451,21 +452,20 @@ async function deleteSelectedSchemes() {
     if (previewScheme.value && deletedIds.has(previewScheme.value.id)) closePreview()
     emit('countChange', schemes.value.length)
     emit('status', props.messages.deleteSucceeded, 'success')
-  } catch { emit('status', props.messages.operationFailed, 'error') }
+  } catch (error) { emit('status', operationError(error), 'error') }
   finally { busy.value = false }
 }
 
 async function addTag() {
-  if (!props.albumDirectory) return
   const tag = normalizeHomeSchemeTag(tagInput.value)
   if (!tag || [...tag].length > MAX_HOME_SCHEME_TAG_LENGTH || tags.value.includes(tag) || tags.value.length >= MAX_HOME_SCHEME_TAGS) return
   const owner = tagInputOwner.value
   busy.value = true
   try {
-    tags.value = await saveHomeSchemeTags(props.albumDirectory, [tag, ...tags.value])
+    tags.value = await saveHomeSchemeTags([tag, ...tags.value])
     if (owner === 'editor') selectedTag.value = tag
     closeTagInput()
-  } catch { emit('status', props.messages.operationFailed, 'error') }
+  } catch (error) { emit('status', operationError(error), 'error') }
   finally { busy.value = false }
 }
 
@@ -506,7 +506,6 @@ function handleTagPointerDown(event: PointerEvent) {
 }
 
 async function removeTag(tag: string) {
-  if (!props.albumDirectory) return
   if (isBusy.value) return
   const usedCount = schemes.value.filter((scheme) => scheme.tags.includes(tag)).length
   if (usedCount) {
@@ -519,12 +518,12 @@ async function removeTag(tag: string) {
   }
   busy.value = true
   try {
-    const result = await deleteHomeSchemeTag(props.albumDirectory, schemes.value, tag)
+    const result = await deleteHomeSchemeTag(tag)
     tags.value = result.tags
     schemes.value = schemes.value.map((item) => ({ ...item, tags: item.tags.filter((entry) => entry !== tag) }))
     if (filter.value === `tag:${tag}`) filter.value = 'all'
     emit('status', props.messages.tagDeleted, 'success')
-  } catch { emit('status', props.messages.operationFailed, 'error') }
+  } catch (error) { emit('status', operationError(error), 'error') }
   finally { busy.value = false }
 }
 
@@ -535,7 +534,6 @@ function startTagDrag(event: DragEvent, tag: string) {
 }
 
 async function dropTag(event: DragEvent, target: string) {
-  if (!props.albumDirectory) return
   event.preventDefault()
   const source = draggedTag.value || event.dataTransfer?.getData('text/plain') || ''
   draggedTag.value = ''
@@ -544,40 +542,41 @@ async function dropTag(event: DragEvent, target: string) {
   const from = next.indexOf(source), to = next.indexOf(target)
   if (from < 0 || to < 0) return
   next.splice(to, 0, ...next.splice(from, 1))
-  try { tags.value = await reorderHomeSchemeTags(props.albumDirectory, tags.value, next) }
-  catch { emit('status', props.messages.operationFailed, 'error') }
+  try { tags.value = await reorderHomeSchemeTags(tags.value, next) }
+  catch (error) { emit('status', operationError(error), 'error') }
 }
 
 async function importBackup(event: Event) {
-  if (!props.albumDirectory) return
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
   if (!file || isBusy.value) return
   busy.value = true
   try {
-    const result = await importHomeSchemeBackup(props.albumDirectory, file)
+    const result = await importHomeSchemeBackup(file)
     releaseHomeSchemeUrls(schemes.value)
     schemes.value = result.schemes
     tags.value = result.tags
     emit('countChange', result.schemes.length)
     emit('status', props.messages.importSucceeded(result.addedCount, result.duplicateCount, result.failedCount), result.failedCount ? 'warning' : 'success')
-  } catch { emit('status', props.messages.invalidBackup, 'error') }
+  } catch (error) { emit('status', error instanceof Error && error.message.startsWith('home_scheme_backup_') ? props.messages.invalidBackup : operationError(error), 'error') }
   finally { busy.value = false }
 }
 
 async function exportBackup() {
-  if (props.disabled || busy.value) return
-  if (!props.albumDirectory) { emit('status', props.messages.emptyTitle, 'info'); return }
+  if (isBusy.value || (!schemes.value.length && !tags.value.length)) return
   busy.value = true
   try {
-    const result = await exportHomeSchemeBackup(props.albumDirectory)
+    const result = await exportHomeSchemeBackup()
     emit('status', props.messages.exportSucceeded(result.count, result.fileNames.join('、')), 'success')
-  } catch (error) { emit('status', error instanceof Error ? error.message : props.messages.operationFailed, 'error') }
+  } catch (error) { emit('status', operationError(error), 'error') }
   finally { busy.value = false }
 }
 
-watch(() => props.albumDirectory, () => { releaseHomeSchemeUrls(schemes.value); schemes.value = []; tags.value = []; selectedSchemeIds.value = new Set(); closePreview(); filter.value = 'all'; void loadLibrary() }, { immediate: true })
+watch(() => props.libraryRevision, () => {
+  if (editorVisible.value) { pendingLibraryReload = true; return }
+  void loadLibrary()
+}, { immediate: true })
 window.addEventListener('paste', handlePaste)
 window.addEventListener('keydown', handleKeydown)
 document.addEventListener('pointerdown', handleTagPointerDown)
@@ -614,7 +613,7 @@ onBeforeUnmount(() => {
     </Teleport>
 
     <div class="home-scheme-main">
-      <header class="gallery-header is-outfit-header home-scheme-header"><div class="home-scheme-heading"><p class="eyebrow">HOME SCHEMES</p><div class="home-scheme-title-row"><h2>{{ messages.title }}</h2><strong class="home-scheme-count">{{ visibleSchemes.length }} / {{ schemes.length }}</strong></div></div><div class="outfit-header-actions home-scheme-header-actions"><input ref="backupInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importBackup" /><button type="button" :disabled="isBusy" @click="backupInput?.click()"><Download :size="15" aria-hidden="true" />{{ busy ? messages.importing : messages.importData }}</button><button type="button" :disabled="disabled || busy" @click="exportBackup"><Upload :size="15" aria-hidden="true" />{{ busy ? messages.exporting : messages.exportData }}</button><button class="primary-button" type="button" :disabled="isBusy" @click="resetEditor(null)"><Plus :size="15" aria-hidden="true" />{{ messages.add }}</button></div></header>
+      <header class="gallery-header is-outfit-header home-scheme-header"><div class="home-scheme-heading"><p class="eyebrow">HOME SCHEMES</p><div class="home-scheme-title-row"><h2>{{ messages.title }}</h2><strong class="home-scheme-count">{{ visibleSchemes.length }} / {{ schemes.length }}</strong></div></div><div class="outfit-header-actions home-scheme-header-actions"><input ref="backupInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importBackup" /><button type="button" :disabled="isBusy" @click="backupInput?.click()"><Download :size="15" aria-hidden="true" />{{ busy ? messages.importing : messages.importData }}</button><button type="button" :disabled="isBusy || (!schemes.length && !tags.length)" @click="exportBackup"><Upload :size="15" aria-hidden="true" />{{ busy ? messages.exporting : messages.exportData }}</button><button class="primary-button" type="button" :disabled="isBusy" @click="resetEditor(null)"><Plus :size="15" aria-hidden="true" />{{ messages.add }}</button></div></header>
       <div v-if="!visibleSchemes.length" class="empty-album inline-empty home-scheme-empty"><ImagePlus :size="30" aria-hidden="true" /><h2>{{ messages.emptyTitle }}</h2><p>{{ messages.emptyDescription }}</p></div>
       <div v-else class="photo-grid-wrap outfit-grid-wrap home-scheme-grid-wrap" :class="`mode-${thumbnailMode}`">
         <div class="photo-grid outfit-grid">

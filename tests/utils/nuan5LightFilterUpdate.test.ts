@@ -13,8 +13,8 @@ const entry = { key: '1', aliases: ['1'], zh: '旧名称', en: 'Old name' }
 const original = {
   schemaVersion: 2,
   source: { database: 'old-db', language: { zh: 'old-lang', en: 'old-lang' }, pose: 'pose-v' },
-  templates: { light: template, filter: template, pose: template, momo_pose: template },
-  resources: { light: [entry], filter: [entry], pose: [entry], momo_pose: [entry] }
+  templates: { light: template, filter: template, pose: template },
+  resources: { light: [{ ...entry, key: '2', aliases: ['2', 'light-name'] }], filter: [{ ...entry, key: '3', aliases: ['3', 'filter-name'] }], pose: [entry] }
 }
 const manifest = [
   { id: 'nuan5_database', versionId: versions.database, files: [{ path: 'v1.db', downloadLink: 'https://updates.test/db' }] },
@@ -90,14 +90,14 @@ describe('light and filter synchronization', () => {
     expect(await readFile(catalogPath, 'utf8')).toBe(before)
   })
 
-  it.each(['database', 'language'])('refreshes on a %s version change and preserves poses and momo', async (changed) => {
+  it.each(['database', 'language'])('refreshes on a %s version change and preserves poses', async (changed) => {
     await setup({ ...original, source: { ...original.source, ...(changed === 'database' ? { language: versions.language } : { database: versions.database }) } })
     expect(await updateLightFilters({ catalogPath, manifestUrl })).toEqual({ updated: true, light: 1, filter: 1 })
     const updated = JSON.parse(await readFile(catalogPath, 'utf8'))
     expect(updated.resources.light[0]).toEqual({ key: '2', aliases: ['2', 'light-name'], zh: '新灯光', en: 'New light' })
     expect(updated.resources.filter[0].en).toBe('New filter')
     expect(updated.source.lightFilter).toEqual(versions)
-    for (const kind of ['pose', 'momo_pose'] as const) {
+    for (const kind of ['pose'] as const) {
       expect(updated.resources[kind]).toEqual(original.resources[kind])
       expect(updated.templates[kind]).toEqual(original.templates[kind])
     }
@@ -112,12 +112,14 @@ describe('light and filter synchronization', () => {
     expect((await updateLightFilters({ catalogPath, manifestUrl })).updated).toBe(true)
   })
 
-  it.each(['download', 'encrypted', 'translations', 'database', 'manifest', 'changed-version'])('keeps the snapshot on %s failure', async (failure) => {
+  it.each(['download', 'encrypted', 'translations', 'database', 'missing-id', 'missing-name', 'manifest', 'changed-version'])('keeps the snapshot on %s failure', async (failure) => {
     const { responses } = await setup()
     if (failure === 'download') responses.delete('https://updates.test/db')
     if (failure === 'encrypted') responses.set('https://updates.test/db', Buffer.from('broken'))
     if (failure === 'translations') responses.set('https://updates.test/en', encrypt(messagePack({ infinity_nikki: {} })))
     if (failure === 'database') responses.set('https://updates.test/db', encrypt(field(20001, Buffer.concat([field(1, image), field(2, image)]))))
+    if (failure === 'missing-id') responses.set('https://updates.test/db', encrypt(Buffer.concat([field(1, mapEntry(4, 'other-light')), field(3, mapEntry(3, 'filter-name')), field(20001, Buffer.concat([field(1, image), field(2, image)]))])))
+    if (failure === 'missing-name') responses.set('https://updates.test/zh', language('', '新滤镜'))
     if (failure === 'manifest') responses.set(manifestUrl, JSON.stringify([]))
     if (failure === 'changed-version') {
       let checks = 0

@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import OutfitParseDialog from '../../src/components/OutfitParseDialog.vue'
-import { getOutfitMessages } from '../../src/i18n/messages/outfit'
+import { getOutfitMessages } from '../helpers/outfitMessages'
 
 const { parseOutfitCodeMock, loadItemCatalogMock, loadOutfitDetailMock } = vi.hoisted(() => ({
   parseOutfitCodeMock: vi.fn(),

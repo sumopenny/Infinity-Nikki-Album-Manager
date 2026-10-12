@@ -570,7 +570,7 @@ defineExpose({ openFromResult, resetLibrary })
       </section>
     </div>
   </Teleport>
-  <PhotoParamsDialog :visible="!!detail" :photo="detail ? { name: detail.name } : null" :progress="{ stage: 'ready', percent: 100, message: '' }" :result="detail?.result ?? null" :error="null" :uid-required="false" :messages="messages" :saved="true" :favorite-label="t('已收藏', 'Saved')" @close="detail = null" @cancel="detail = null" @copy="detail && copy(detail.result.rawCameraParams)" />
+  <PhotoParamsDialog :visible="!!detail" :photo="detail ? { name: detail.name } : null" :progress="{ stage: 'ready', percent: 100, message: '' }" :result="detail?.result ?? null" :error="null" :uid-required="false" :messages="messages" :saved="true" :favorite-label="t('已收藏', 'Saved')" @close="detail = null" @copy="detail && copy(detail.result.rawCameraParams)" />
 </template>
 
 <style scoped>

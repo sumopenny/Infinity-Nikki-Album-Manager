@@ -8,7 +8,6 @@ interface PhotoParamsExports extends WebAssembly.Exports {
   Uint8Array_ID: WebAssembly.Global
   decodePhoto(bytesPointer: number, uidPointer: number): number
   decodeCameraParams(rawPointer: number): number
-  encodeCameraParams(modelPointer: number): number
 }
 
 export interface WasmResult<T> {
@@ -52,10 +51,4 @@ export async function decodePhoto<T>(bytes: Uint8Array, uid: string): Promise<Wa
 export async function decodeCameraParams<T>(raw: string): Promise<WasmResult<T>> {
   const wasm = await getExports()
   return parseResult<T>(wasm.__getString(wasm.decodeCameraParams(wasm.__newString(raw))))
-}
-
-/** 调用 WASM 反向生成 CameraParams 密文。 */
-export async function encodeCameraParams<T>(model: unknown): Promise<WasmResult<T>> {
-  const wasm = await getExports()
-  return parseResult<T>(wasm.__getString(wasm.encodeCameraParams(wasm.__newString(JSON.stringify(model)))))
 }

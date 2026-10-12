@@ -1,206 +1,78 @@
-import { HOME_BACKUP_LIMITS } from '../../src/utils/backup/zipBackup'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+// @vitest-environment node
+import 'fake-indexeddb/auto'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
+import { DB_NAME, HOME_IMAGES_STORE, runStoreRequest } from '../../src/utils/file-system/database'
+import { HOME_BACKUP_LIMITS } from '../../src/utils/backup/zipBackup'
 import { exportHomeSchemeBackup, importHomeSchemeBackup } from '../../src/utils/homeBuild/homeSchemeBackup'
-import { saveHomeScheme, saveHomeSchemeTags } from '../../src/utils/homeBuild/homeSchemeFileSystem'
-import { createEmptyHomeSchemeMetadata } from '../../src/utils/homeBuild/homeSchemeFileSystem'
+import { deleteHomeScheme, readHomeSchemeSnapshot, releaseHomeSchemeUrls, saveHomeScheme, saveHomeSchemeTags } from '../../src/utils/homeBuild/homeSchemeStorage'
+import { createEmptyHomeSchemeMetadata } from '../helpers/homeSchemeMetadata'
 
-class MemoryFileHandle {
-  readonly kind = 'file' as const
+const input = (code = 'CODE1') => ({ code, name: '花园', schemeType: 'home' as const, tags: ['庭院'], note: '春日', metadata: { ...createEmptyHomeSchemeMetadata(), version: '2.10', furnitureCount: 7, server: 49, lastModifyTime: 123, coverImageUrl: 'https://example.test/cover.webp' } })
+const archive = (entries: Record<string, Uint8Array>) => new File([zipSync(entries)], 'backup.zip')
+const reset = () => new Promise<void>((resolve, reject) => { const r = indexedDB.deleteDatabase(DB_NAME); r.onsuccess = () => resolve(); r.onerror = () => reject(r.error) })
+beforeEach(() => { vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 1, height: 1, close() {} }))) })
+afterEach(async () => { vi.restoreAllMocks(); vi.unstubAllGlobals(); await reset() })
 
-  constructor(readonly name: string, public contents = new Blob()) {}
-
-  async getFile(): Promise<File> {
-    const file = new File([this.contents], this.name)
-    Object.defineProperty(file, 'text', { value: () => new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(String(reader.result))
-      reader.onerror = () => reject(reader.error)
-      reader.readAsText(this.contents)
-    }) })
-    return file
-  }
-
-  async createWritable(): Promise<FileSystemWritableFileStream> {
-    const chunks: BlobPart[] = []
-    return {
-      write: async (value: Blob | string | BufferSource) => { chunks.push(value as BlobPart) },
-      close: async () => { this.contents = new Blob(chunks) },
-      abort: async () => undefined
-    } as FileSystemWritableFileStream
-  }
-}
-
-class MemoryDirectoryHandle {
-  readonly kind = 'directory' as const
-  readonly files = new Map<string, MemoryFileHandle>()
-  readonly directories = new Map<string, MemoryDirectoryHandle>()
-
-  constructor(readonly name: string) {}
-
-  async *entries(): AsyncIterableIterator<[string, FileSystemHandle]> {
-    for (const [name, handle] of this.files) yield [name, handle as unknown as FileSystemHandle]
-    for (const [name, handle] of this.directories) yield [name, handle as unknown as FileSystemHandle]
-  }
-
-  async getFileHandle(name: string, options?: { create?: boolean }): Promise<FileSystemFileHandle> {
-    let handle = this.files.get(name)
-    if (!handle && options?.create) { handle = new MemoryFileHandle(name); this.files.set(name, handle) }
-    if (!handle) throw new DOMException('Missing file', 'NotFoundError')
-    return handle as unknown as FileSystemFileHandle
-  }
-
-  async getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<FileSystemDirectoryHandle> {
-    let handle = this.directories.get(name)
-    if (!handle && options?.create) { handle = new MemoryDirectoryHandle(name); this.directories.set(name, handle) }
-    if (!handle) throw new DOMException('Missing directory', 'NotFoundError')
-    return handle as unknown as FileSystemDirectoryHandle
-  }
-
-  async removeEntry(name: string): Promise<void> {
-    if (!this.files.delete(name) && !this.directories.delete(name)) throw new DOMException('Missing entry', 'NotFoundError')
-  }
-}
-
-const albumHandle = (directory: MemoryDirectoryHandle) => directory as unknown as FileSystemDirectoryHandle
-
-function streamedFile(bytes: Uint8Array): File {
-  let consumed = false
-  const file = new Blob([bytes]) as File
-  Object.defineProperties(file, {
-    name: { value: 'backup.zip' },
-    stream: { value: () => ({ getReader: () => ({
-      read: async () => {
-        if (consumed) return { done: true, value: undefined }
-        consumed = true
-        return { done: false, value: bytes }
-      },
-      cancel: async () => { consumed = true },
-      releaseLock: () => undefined
-    }) }) }
-  })
-  return file
-}
-
-function readBlobBytes(blob: Blob): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer))
-    reader.onerror = () => reject(reader.error)
-    reader.readAsArrayBuffer(blob)
-  })
-}
-
-beforeEach(() => {
-  Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:scheme') })
-  Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })
-})
-
-function archiveFile(entries: Record<string, Uint8Array>): File {
-  const bytes = zipSync(entries)
-  let consumed = false
-  const file = new Blob([bytes]) as File
-  Object.defineProperties(file, {
-    name: { value: 'backup.zip' },
-    stream: { value: () => ({ getReader: () => ({
-      read: async () => {
-        if (consumed) return { done: true, value: undefined }
-        consumed = true
-        return { done: false, value: bytes }
-      },
-      cancel: async () => { consumed = true },
-      releaseLock: () => undefined
-    }) }) }
-  })
-  return file
-}
-
-describe('home scheme ZIP backup validation', () => {
-  it('rejects path traversal entries before accessing the album', async () => {
-    const file = archiveFile({ '../manifest.json': strToU8('{}') })
-    const album = {} as FileSystemDirectoryHandle
-
-    await expect(importHomeSchemeBackup(album, file)).rejects.toThrow('home_scheme_backup_path_invalid')
+describe('home scheme ZIP backup', () => {
+  it('rejects traversal and unsupported manifest formats before database writes', async () => {
+    await expect(importHomeSchemeBackup(archive({ '../manifest.json': strToU8('{}') }))).rejects.toThrow('home_scheme_backup_path_invalid')
+    await expect(importHomeSchemeBackup(archive({ 'manifest.json': strToU8(JSON.stringify({ format: 'infinity-nikki-outfit-backup', version: 1, tags: [], homeSchemes: [] })) }))).rejects.toThrow('home_scheme_backup_format_unsupported')
   })
 
-  it('does not accept an outfit backup manifest as a home scheme archive', async () => {
-    const manifest = { format: 'infinity-nikki-outfit-backup', version: 1, tags: [], homeSchemes: [] }
-    const file = archiveFile({ 'manifest.json': strToU8(JSON.stringify(manifest)) })
-    const album = {} as FileSystemDirectoryHandle
-
-    await expect(importHomeSchemeBackup(album, file)).rejects.toThrow('home_scheme_backup_format_unsupported')
+  it('round-trips the existing version-1 format with metadata, timestamps, tags and local images', async () => {
+    await saveHomeSchemeTags(['庭院'])
+    const saved = await saveHomeScheme({ ...input(), imageFile: new File(['RIFF0000WEBPcontent'], 'cover.webp', { type: 'image/webp' }) })
+    const parts: Blob[] = []
+    expect(await exportHomeSchemeBackup(async (_name, blob) => { parts.push(blob) })).toMatchObject({ count: 1 })
+    const bytes = new Uint8Array(await parts[0].arrayBuffer())
+    const entries = unzipSync(bytes)
+    const manifest = JSON.parse(strFromU8(entries['manifest.json']))
+    expect(manifest).toMatchObject({ format: 'infinity-nikki-home-scheme-backup', version: 1, tags: ['庭院'] })
+    expect(manifest.homeSchemes[0]).toMatchObject({ id: saved.id, image: `images/${saved.id}.webp`, metadata: saved.metadata, createdAt: saved.createdAt, updatedAt: saved.updatedAt })
+    releaseHomeSchemeUrls([saved]); await reset()
+    const restored = await importHomeSchemeBackup(new File([bytes], 'old.zip'))
+    expect(restored).toMatchObject({ addedCount: 1, duplicateCount: 0, failedCount: 0 })
+    expect(restored.schemes[0]).toMatchObject({ id: saved.id, code: saved.code, tags: saved.tags, metadata: saved.metadata, createdAt: saved.createdAt, updatedAt: saved.updatedAt })
+    const snapshot = await readHomeSchemeSnapshot()
+    expect(await snapshot.images.get(saved.id)!.blob.text()).toBe('RIFF0000WEBPcontent')
+    releaseHomeSchemeUrls(restored.schemes)
   })
 
-  it('streams an export and restores metadata and timestamps on import', async () => {
-    const source = new MemoryDirectoryHandle('source')
-    await saveHomeSchemeTags(albumHandle(source), ['庭院'])
-    const saved = await saveHomeScheme(albumHandle(source), {
-      code: '1UDB66QH',
-      name: '花园',
-      schemeType: 'home',
-      tags: ['庭院'],
-      note: '春日',
-      metadata: {
-        ...createEmptyHomeSchemeMetadata(),
-        version: '2.10',
-        furnitureCount: 7,
-        server: 49,
-        lastModifyTime: 123,
-        coverImageUrl: 'https://example.test/cover.webp'
+  it('keeps same-code records during manual import and allocates new IDs for other codes', async () => {
+    const existing = await saveHomeScheme({ ...input(), tags: [], id: 'same' })
+    const base = { ...existing, image: null, tags: [] }
+    const manifest = { format: 'infinity-nikki-home-scheme-backup', version: 1, tags: [], homeSchemes: [
+      { ...base, name: '不会覆盖' }, { ...base, code: 'CODE2', name: '新方案' }
+    ] }
+    const result = await importHomeSchemeBackup(archive({ 'manifest.json': strToU8(JSON.stringify(manifest)) }))
+    expect(result).toMatchObject({ addedCount: 1, duplicateCount: 1, failedCount: 0 })
+    expect(result.schemes.find(s => s.code === 'CODE1')).toMatchObject({ id: 'same', name: '花园' })
+    expect(result.schemes.find(s => s.code === 'CODE2')!.id).not.toBe('same')
+  })
+
+  it('exports split ZIPs that can all be imported into the same global library', async () => {
+    for (let i = 0; i < 5; i++) await saveHomeScheme({ ...input(`CODE${i}`), tags: [] })
+    const originalLimit = HOME_BACKUP_LIMITS.records
+    HOME_BACKUP_LIMITS.records = 2
+    try {
+      const parts: Blob[] = []
+      const result = await exportHomeSchemeBackup(async (_name, blob) => { parts.push(blob) })
+      expect(result.fileNames).toHaveLength(3)
+      await reset()
+      for (const part of parts) {
+        const imported = await importHomeSchemeBackup(new File([part], 'part.zip'))
+        expect(imported.failedCount).toBe(0); expect(imported.addedCount).toBeLessThanOrEqual(2)
       }
-    }, [])
-
-    const target = new MemoryDirectoryHandle('target')
-    const result = await exportHomeSchemeBackup(albumHandle(source), async (name, blob) => { const file = await target.getFileHandle(name, { create: true }); const writer = await file.createWritable(); await writer.write(blob); await writer.close() })
-    expect(result.count).toBe(1)
-    const backupName = [...target.files.keys()].find((name) => name.endsWith('.zip'))
-    expect(backupName).toBeTruthy()
-    const archiveBytes = await readBlobBytes(target.files.get(backupName!)!.contents)
-    const entries = unzipSync(archiveBytes)
-    const manifest = JSON.parse(strFromU8(entries['manifest.json'])) as { homeSchemes: Array<Record<string, unknown>> }
-    expect(manifest.homeSchemes[0]).toMatchObject({
-      id: saved.id,
-      createdAt: saved.createdAt,
-      updatedAt: saved.updatedAt,
-      metadata: saved.metadata
-    })
-
-    const restored = new MemoryDirectoryHandle('restored')
-    const imported = await importHomeSchemeBackup(albumHandle(restored), streamedFile(archiveBytes))
-    expect(imported.schemes[0]).toMatchObject({
-      id: saved.id,
-      code: saved.code,
-      name: saved.name,
-      createdAt: saved.createdAt,
-      updatedAt: saved.updatedAt,
-      metadata: saved.metadata
-    })
+      expect((await readHomeSchemeSnapshot()).records).toHaveLength(5)
+    } finally { HOME_BACKUP_LIMITS.records = originalLimit }
   })
-})
 
-
-it('exports multiple independently importable home ZIPs without rescanning after every saved item', async () => {
-  const source = new MemoryDirectoryHandle('source'), target = new MemoryDirectoryHandle('exports')
-  for (let i = 0; i < 5; i++) await saveHomeScheme(albumHandle(source), {
-    code: 'CODE' + i, name: '花园' + i, schemeType: 'home', tags: [], note: '', metadata: createEmptyHomeSchemeMetadata()
-  }, [])
-  const old = HOME_BACKUP_LIMITS.records
-  HOME_BACKUP_LIMITS.records = 2
-  try {
-    const result = await exportHomeSchemeBackup(albumHandle(source), async (name, blob) => { const file = await target.getFileHandle(name, { create: true }); const writer = await file.createWritable(); await writer.write(blob); await writer.close() })
-    expect(result.fileNames).toHaveLength(3)
-    let total = 0
-    for (const name of result.fileNames) {
-      const dest = new MemoryDirectoryHandle('restored')
-      const scans = vi.spyOn(MemoryDirectoryHandle.prototype, 'entries')
-      const data = await importHomeSchemeBackup(albumHandle(dest), streamedFile(await readBlobBytes(target.files.get(name)!.contents)))
-      expect(data.failedCount).toBe(0)
-      expect(data.addedCount).toBeLessThanOrEqual(2)
-      // Empty destination: only the final library scan; save does not enumerate it.
-      expect(scans).toHaveBeenCalledTimes(1)
-      scans.mockRestore()
-      total += data.addedCount
-    }
-    expect(total).toBe(5)
-  } finally { HOME_BACKUP_LIMITS.records = old }
+  it('refuses export when an expected cover is missing', async () => {
+    const saved = await saveHomeScheme({ ...input(), tags: [], imageFile: new File(['RIFF0000WEBPcontent'], 'cover.webp') })
+    releaseHomeSchemeUrls([saved])
+    await runStoreRequest(HOME_IMAGES_STORE, 'readwrite', store => store.delete(saved.id))
+    await expect(exportHomeSchemeBackup()).rejects.toThrow('home_scheme_image_missing')
+    await deleteHomeScheme(saved)
+  })
 })

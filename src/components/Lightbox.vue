@@ -7,15 +7,17 @@ import type { PhotoItem } from '../utils/photoGrouping'
 import type { OutfitItem } from '../utils/outfit/outfitFileSystem'
 import type { HomeSchemeItem } from '../utils/homeBuild/homeSchemeTypes'
 import type { HomeSchemeMessages } from '../i18n/messages/homeScheme'
-import { loadPhotoWithRetryAndSize } from '../utils/photoLoader'
+import { loadImageUrlWithSize, loadPhotoWithRetryAndSize } from '../utils/photoLoader'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
+
+type PreviewPhoto = Omit<PhotoItem, 'fileHandle' | 'directoryHandle'>
 
 const MIN_ZOOM = 50
 const MAX_ZOOM = 300
 const ZOOM_STEP = 25
 
 const props = defineProps<{
-  photo: PhotoItem | null
+  photo: PhotoItem | PreviewPhoto | null
   hasPrevious: boolean
   hasNext: boolean
   isDeleting: boolean
@@ -47,7 +49,7 @@ const emit = defineEmits<{
   parsePhoto: []
 }>()
 
-const displayedPhoto = ref<PhotoItem | null>(null)
+const displayedPhoto = ref<PhotoItem | PreviewPhoto | null>(null)
 const imageAspectRatio = ref<number | null>(null)
 const viewportSize = ref({ width: 0, height: 0 })
 const zoom = ref(100)
@@ -156,13 +158,17 @@ function showNavigationButtons() {
 }
 
 /** 优先读取并解码用户主动打开的原图；尺寸直接复用解码结果，不再二次探测。参数：nextPhoto 为待显示照片。 */
-async function updateDisplayedPhoto(nextPhoto: PhotoItem): Promise<void> {
+async function updateDisplayedPhoto(nextPhoto: PhotoItem | PreviewPhoto): Promise<void> {
   const currentToken = ++previewLoadToken
   previewAbortController?.abort()
   previewAbortController = new AbortController()
 
   try {
-    const { width, height } = await loadPhotoWithRetryAndSize(nextPhoto, previewAbortController.signal)
+    const { width, height } = props.mode === 'home'
+      ? await loadImageUrlWithSize(nextPhoto.url ?? '', previewAbortController.signal)
+      : 'fileHandle' in nextPhoto
+        ? await loadPhotoWithRetryAndSize(nextPhoto, previewAbortController.signal)
+        : await loadImageUrlWithSize(nextPhoto.url ?? '', previewAbortController.signal)
     if (currentToken !== previewLoadToken) return
     if (width && height) imageAspectRatio.value = width / height
     displayedPhoto.value = nextPhoto

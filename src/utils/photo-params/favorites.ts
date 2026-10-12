@@ -121,7 +121,7 @@ export function validateFavorite(value: unknown): CameraFavorite {
     || !r.result.resourceGroups.every((g) => g && string(g.title) && string(g.name)
       && (g.value === undefined || string(g.value))
       && (g.imageUrl === undefined || string(g.imageUrl) && /^(https?:\/\/|\/[^/])/.test(g.imageUrl))
-      && (g.kind === undefined || ['pose', 'light', 'filter', 'momo'].includes(g.kind))
+      && ['pose', 'light', 'filter'].includes(g.kind)
       && (g.id === undefined || string(g.id)))
     || r.cover !== null && (!r.cover || !string(r.cover.name) || !string(r.cover.type)
       || !Number.isSafeInteger(r.cover.size) || r.cover.size < 0 || !/^[a-f0-9]{64}$/.test(r.cover.sha256))) {

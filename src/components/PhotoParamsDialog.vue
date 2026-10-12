@@ -17,7 +17,7 @@ const props = defineProps<{
   messages: PhotoParamsMessages
 }>()
 
-const emit = defineEmits<{ close: []; cancel: []; copy: []; favorite: []; submitUid: [uid: string] }>()
+const emit = defineEmits<{ close: []; copy: []; favorite: []; submitUid: [uid: string] }>()
 const uidInput = ref('')
 const failedImages = ref<Set<string>>(new Set())
 watch(() => props.visible, (visible) => { if (!visible) uidInput.value = ''; failedImages.value = new Set() })
@@ -92,7 +92,7 @@ function markImageFailed(title: string, name: string) { failedImages.value = new
           <div class="photo-params-resource-grid">
             <section v-for="group in result.resourceGroups" :key="group.title" class="photo-params-section">
               <h3>{{ group.title }}</h3>
-              <div class="photo-params-resource-row" :class="{ 'photo-params-resource-row--pose': group.kind === 'pose' || (!group.kind && group.title === messages.action) }">
+              <div class="photo-params-resource-row" :class="{ 'photo-params-resource-row--pose': group.kind === 'pose' }">
                 <img v-if="group.imageUrl && !failedImages.has(resourceKey(group.title, group.name))" :src="group.imageUrl" :alt="group.name" @error="markImageFailed(group.title, group.name)" />
                 <span v-else class="photo-params-resource-image-placeholder" aria-hidden="true"><ScanSearch :size="19" /></span>
                 <span class="photo-params-resource-placeholder">{{ group.name }}</span>

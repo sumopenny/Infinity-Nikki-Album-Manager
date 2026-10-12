@@ -19,11 +19,6 @@ describe('Nuan5 resource manifest', () => {
     expect(resourceImage('pose', 1090012163)).toBe('https://nikkigallery.vip/static/img/photography/T_Icon_S0304_Suit_01.png')
   })
 
-  it('supports Momo aliases', () => {
-    expect(resourceName('momo', 'Trends_damiao_002', 'zh')).toBe('陶醉舞步')
-    expect(resourceImage('momo', 'Trends_damiao_002')).toBe('https://cdn.nikkialbums.com/momo_pose/1090050002.webp')
-  })
-
   it('falls back safely for disabled and unknown resources', () => {
     expect(resourceName('light', 'None', 'zh')).toBe('无')
     expect(resourceName('filter', 'new_filter_999', 'en')).toBe('new_filter_999')

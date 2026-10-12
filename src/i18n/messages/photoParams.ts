@@ -63,7 +63,6 @@ export const photoParamsZh: PhotoParamsMessages = {
     parsingCamera: '正在整理相机参数…',
     ready: '解析完成',
     error: '解析失败',
-    cancelled: ''
   },
   labels: {
     gameTime: '游戏时间', weather: '天气', focalLength: '焦距', aperture: '光圈', vignette: '晕影',
@@ -105,7 +104,6 @@ export const photoParamsEn: PhotoParamsMessages = {
     parsingCamera: 'Preparing camera parameters...',
     ready: 'Parsed',
     error: 'Parsing failed',
-    cancelled: ''
   },
   labels: {
     gameTime: 'Game time', weather: 'Weather', focalLength: 'Focal length', aperture: 'Aperture', vignette: 'Vignette',

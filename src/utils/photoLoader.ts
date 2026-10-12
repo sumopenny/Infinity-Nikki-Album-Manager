@@ -26,7 +26,7 @@ export interface DecodedPhoto {
  * 参数：url 为对象地址，signal 用于取消已经离开页面的加载任务。
  * 返回：图片原始宽高，供调用方复用解码结果而不必再次探测。
  */
-function waitForImageLoad(url: string, signal?: AbortSignal): Promise<{ width: number; height: number }> {
+export function loadImageUrlWithSize(url: string, signal?: AbortSignal): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const image = new Image()
 
@@ -70,7 +70,7 @@ async function loadDecodedPhotoWithRetry(photo: PhotoItem, signal?: AbortSignal)
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const url = await ensurePhotoUrl(photo, signal)
-      const { width, height } = await waitForImageLoad(url, signal)
+      const { width, height } = await loadImageUrlWithSize(url, signal)
       return { url, width, height }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') throw error

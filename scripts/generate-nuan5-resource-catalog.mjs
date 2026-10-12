@@ -133,7 +133,7 @@ function decodeNetworkImageItem(buffer) {
   return baseUrl && replace ? { baseUrl, replace } : null
 }
 
-/** 从 protobuf 数据库提取灯光、滤镜、大喵动作及图片模板。 */
+/** 从 protobuf 数据库提取灯光、滤镜及图片模板。 */
 export function decodeNuan5Database(buffer) {
   const fields = readProtoFields(buffer)
   const decodeLight = (value) => {
@@ -141,10 +141,8 @@ export function decodeNuan5Database(buffer) {
     return { stringId: stringField(nested, 1), paramId: stringField(nested, 2) }
   }
   const decodeFilter = decodeLight
-  const decodeMomoPose = (value) => ({ stringId: stringField(readProtoFields(value), 1) })
   const light = {}
   const filter = {}
-  const momoPose = {}
   for (const field of fields) {
     if (field.wire !== 2) continue
     if (field.field === 1) {
@@ -153,21 +151,18 @@ export function decodeNuan5Database(buffer) {
     } else if (field.field === 3) {
       const entry = decodeMapEntry(field.value, decodeFilter)
       if (entry) filter[entry[0]] = entry[1]
-    } else if (field.field === 5) {
-      const entry = decodeMapEntry(field.value, decodeMomoPose)
-      if (entry) momoPose[entry[0]] = entry[1]
     }
   }
   const networkField = firstField(fields, 20001, 2)
-  const network = { light: null, filter: null, momo_pose: null }
+  const network = { light: null, filter: null }
   if (networkField) {
     for (const field of readProtoFields(networkField.value)) {
       if (field.wire !== 2) continue
-      const kind = field.field === 1 ? 'light' : field.field === 2 ? 'filter' : field.field === 3 ? 'momo_pose' : null
+      const kind = field.field === 1 ? 'light' : field.field === 2 ? 'filter' : null
       if (kind) network[kind] = decodeNetworkImageItem(field.value)
     }
   }
-  return { light, filter, momoPose, network }
+  return { light, filter, network }
 }
 
 class MessagePackReader {
@@ -291,23 +286,6 @@ export function buildMappedEntries(map, zh, en) {
   })
 }
 
-function buildMomoEntries(map, zh, en) {
-  return Object.entries(map).map(([key, value]) => {
-    const aliases = unique([key, value.stringId])
-    return {
-      key,
-      aliases,
-      zh: translationValue(zh, aliases),
-      en: translationValue(en, aliases)
-    }
-  })
-}
-
-function buildPoseEntries(zh, en) {
-  const ids = unique([...Object.keys(zh), ...Object.keys(en)])
-  return ids.map((key) => ({ key, aliases: [key], zh: zh[key] ?? '', en: en[key] ?? '' }))
-}
-
 /** 根据资源类别和语言定位热更新文件及版本。 */
 export function resolveHotUpdateFiles(manifest, id, language) {
   const item = manifest.find((entry) => entry.id === id)
@@ -348,14 +326,12 @@ async function main() {
     templates: {
       light: templateValue(database.network.light),
       filter: templateValue(database.network.filter),
-      pose: GALLERY_IMAGE_TEMPLATE,
-      momo_pose: templateValue(database.network.momo_pose)
+      pose: GALLERY_IMAGE_TEMPLATE
     },
     resources: {
       light: buildMappedEntries(database.light, categoryTranslations(zh, 'light'), categoryTranslations(en, 'light')),
       filter: buildMappedEntries(database.filter, categoryTranslations(zh, 'filter'), categoryTranslations(en, 'filter')),
-      pose: gallery.poses,
-      momo_pose: buildMomoEntries(database.momoPose, categoryTranslations(zh, 'momo_pose'), categoryTranslations(en, 'momo_pose'))
+      pose: gallery.poses
     }
   }
   const output = args.out ? resolve(process.cwd(), args.out) : resolve(process.cwd(), 'src/data/nuan5ResourceCatalog.json')

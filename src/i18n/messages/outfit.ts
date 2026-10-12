@@ -354,7 +354,3 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     count: (count) => `${count} outfit${count === 1 ? '' : 's'}`
   }
 }
-
-export function getOutfitMessages(language: Language): OutfitMessages {
-  return outfitMessages[language]
-}

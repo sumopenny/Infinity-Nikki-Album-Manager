@@ -35,7 +35,7 @@ function usableCategory(catalog, kind) {
   ) && typeof template?.baseUrl === 'string' && /^https?:\/\//u.test(template.baseUrl) && typeof template.replace === 'string' && template.replace.length > 0
 }
 
-/** 仅同步灯光、滤镜及图片模板；独立记录版本，避免把未更新的大喵数据标记为最新。 */
+/** 仅同步灯光、滤镜及图片模板；独立记录灯光和滤镜版本。 */
 export async function updateLightFilters({ catalogPath = resolve('src/data/nuan5ResourceCatalog.json'), manifestUrl = DEFAULT_MANIFEST_URL, timeoutMs = 15000, force = false } = {}) {
   const catalog = JSON.parse(await readFile(catalogPath, 'utf8'))
   if (!catalog?.source || !catalog?.resources || !catalog?.templates) throw new Error('本地资源目录结构无效')
@@ -63,6 +63,17 @@ export async function updateLightFilters({ catalogPath = resolve('src/data/nuan5
     // 少量无名称的特殊灯光允许保留；整类翻译缺失则拒绝覆盖可用快照。
     if (!Object.keys(namesZh).length || !Object.keys(namesEn).length) throw new Error(`暖暖 ${kind} 双语名称为空`)
     updatedCatalog.resources[kind] = buildMappedEntries(database[kind], namesZh, namesEn)
+    // 移除前端旧映射后，拒绝丢失现有有效 ID 或中文名称的更新。
+    const nextEntries = updatedCatalog.resources[kind]
+    for (const previous of catalog.resources[kind]) {
+      if (!previous.zh) continue
+      for (const alias of previous.aliases) {
+        if (['None', '0', 'null'].includes(alias)) continue
+        if (!nextEntries.some((entry) => entry.aliases.includes(alias) && entry.zh)) {
+          throw new Error('Missing existing ' + kind + ' resource: ' + alias)
+        }
+      }
+    }
     if (!usableCategory(updatedCatalog, kind) || !updatedCatalog.resources[kind].some((entry) => entry.zh && entry.en)) throw new Error(`暖暖 ${kind} 目录或图片模板无效`)
   }
   // 下载期间上游可能切换数据库与语言包；再次确认版本，避免写入混合快照。

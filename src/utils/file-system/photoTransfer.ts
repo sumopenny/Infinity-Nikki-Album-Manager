@@ -188,7 +188,3 @@ export function runPhotoTransfer(directory: FileSystemDirectoryHandle, prepared:
     ? runPhotoImport(directory, prepared, options)
     : runPhotoExport(directory, prepared, options)
 }
-
-export function isSupportedPhotoFile(file: File): boolean {
-  return isImageFileName(file.name)
-}

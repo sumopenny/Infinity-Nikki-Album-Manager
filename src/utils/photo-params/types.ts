@@ -1,4 +1,4 @@
-export type PhotoParamsStage = 'idle' | 'resolvingUid' | 'readingPhoto' | 'loadingWasm' | 'decryptingPhoto' | 'parsingCamera' | 'ready' | 'error' | 'cancelled'
+export type PhotoParamsStage = 'idle' | 'resolvingUid' | 'readingPhoto' | 'loadingWasm' | 'decryptingPhoto' | 'parsingCamera' | 'ready' | 'error'
 
 export interface PhotoParamsProgress {
   stage: PhotoParamsStage
@@ -10,6 +10,6 @@ export interface PhotoParamsResult {
   environmentFields: Array<{ label: string; value: string }>
   cameraFields: Array<{ label: string; value: string; position?: number }>
   imageFields: Array<{ label: string; value: string; position?: number }>
-  resourceGroups: Array<{ title: string; name: string; value?: string; imageUrl?: string; kind?: 'pose' | 'light' | 'filter' | 'momo'; id?: string }>
+  resourceGroups: Array<{ title: string; name: string; value?: string; imageUrl?: string; kind: 'pose' | 'light' | 'filter'; id?: string }>
   rawCameraParams: string
 }

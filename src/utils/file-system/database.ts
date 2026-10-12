@@ -1,6 +1,11 @@
 // 所有本地数据共用升级入口，避免先打开不同模块时漏建存储。
 export const DB_NAME = 'infinity-nikki-album-manager'
-export const DB_VERSION = 6
+export const DB_VERSION = 7
+export const HOME_SCHEMES_STORE = 'home-schemes'
+export const HOME_IMAGES_STORE = 'home-scheme-images'
+export const HOME_TAGS_STORE = 'home-scheme-tags'
+export const HOME_MIGRATION_SOURCES_STORE = 'home-scheme-migration-sources'
+export const HOME_MIGRATION_ENTRIES_STORE = 'home-scheme-migration-entries'
 export const CAMERA_FAVORITES_STORE = 'camera-favorites'
 export const CAMERA_TAGS_STORE = 'camera-favorite-tags'
 export const CAMERA_COVERS_STORE = 'camera-favorite-covers'
@@ -17,6 +22,17 @@ export function openDb(): Promise<IDBDatabase> {
         ? request.transaction!.objectStore(CAMERA_FAVORITES_STORE)
         : db.createObjectStore(CAMERA_FAVORITES_STORE, { keyPath: 'id' })
       if (!favorites.indexNames.contains('code')) favorites.createIndex('code', 'code', { unique: true })
+      const schemes = db.objectStoreNames.contains(HOME_SCHEMES_STORE)
+        ? request.transaction!.objectStore(HOME_SCHEMES_STORE)
+        : db.createObjectStore(HOME_SCHEMES_STORE, { keyPath: 'id' })
+      if (!schemes.indexNames.contains('code')) schemes.createIndex('code', 'code', { unique: true })
+      for (const name of [HOME_IMAGES_STORE, HOME_MIGRATION_SOURCES_STORE]) {
+        if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' })
+      }
+      if (!db.objectStoreNames.contains(HOME_TAGS_STORE)) db.createObjectStore(HOME_TAGS_STORE)
+      if (!db.objectStoreNames.contains(HOME_MIGRATION_ENTRIES_STORE)) {
+        db.createObjectStore(HOME_MIGRATION_ENTRIES_STORE, { keyPath: ['sourceId', 'fileName'] })
+      }
     }
     request.onsuccess = () => {
       const db = request.result

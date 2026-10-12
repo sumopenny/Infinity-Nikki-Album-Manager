@@ -140,14 +140,14 @@ describe('camera favorite UI', () => {
   })
 })
 
-describe('camera favorite selection and legacy resources', () => {
-  it('keeps action data in legacy snapshots without kind/id and displays it in details', async () => {
-    const legacy = { ...item, result: { ...result, resourceGroups: [
-      { title: '动作', name: '回眸', imageUrl: '/pose.webp' },
-      { title: '灯光', name: '无' },
-      { title: '滤镜', name: '暖光' }
+describe('camera favorite selection and resources', () => {
+  it('displays typed action resources in cards and details and filters empty resources', async () => {
+    const typed = { ...item, result: { ...result, resourceGroups: [
+      { kind: 'pose', title: '动作', name: '回眸', imageUrl: '/pose.webp' },
+      { kind: 'light', title: '灯光', name: '无' },
+      { kind: 'filter', title: '滤镜', name: '暖光' }
     ] } }
-    mocks.read.mockResolvedValue({ records: [legacy], covers: new Map() })
+    mocks.read.mockResolvedValue({ records: [typed], covers: new Map() })
     const view = create()
     await flushPromises()
     expect(view.find('.camera-resources').text()).toContain('回眸')

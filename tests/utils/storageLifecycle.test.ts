@@ -29,12 +29,12 @@ it('clears session data while preserving every user collection store', async () 
   const names = [...db.objectStoreNames]
   db.close()
   for (const name of names) {
-    await runStoreRequest(name, 'readwrite', store => store.keyPath ? store.put({ id: 'one' }) : store.put('data', 'one'))
+    await runStoreRequest(name, 'readwrite', store => Array.isArray(store.keyPath) ? store.put({ sourceId: 'one', fileName: 'one' }) : store.keyPath ? store.put({ id: 'one' }) : store.put('data', 'one'))
   }
   await clearBrowserSessionData()
   for (const name of names) {
     const values = await runStoreRequest(name, 'readonly', store => store.getAll())
-    expect(values).toEqual(name === 'album-handles' ? [] : name === 'camera-favorites' ? [{ id: 'one' }] : ['data'])
+    expect(values).toEqual(name === 'album-handles' ? [] : name === 'home-scheme-migration-entries' ? [{ sourceId: 'one', fileName: 'one' }] : ['camera-favorites', 'home-schemes', 'home-scheme-images', 'home-scheme-migration-sources'].includes(name) ? [{ id: 'one' }] : ['data'])
   }
 })
 it('cache clearing preserves UID, directory authorization, favorites and resonance records', async () => {

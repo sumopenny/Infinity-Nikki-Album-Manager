@@ -1,8 +1,8 @@
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from 'fflate'
 import { HOME_BACKUP_LIMITS, planBackupParts, downloadBackupParts, type BackupDownload } from '../backup/zipBackup'
-import { writeBlob } from '../file-system/fileIO'
-import { deleteHomeScheme, readHomeSchemeLibrary, saveHomeScheme, saveHomeSchemeTags } from './homeSchemeFileSystem'
-import { normalizeHomeSchemeCode, normalizeHomeSchemeTag, type HomeSchemeItem, type HomeSchemeMetadata } from './homeSchemeTypes'
+import { HOME_SCHEMES_STORE, HOME_IMAGES_STORE, HOME_TAGS_STORE } from '../file-system/database'
+import { homeRequest, homeTransaction, readHomeSchemeSnapshot, readHomeSchemeLibrary, normalizeHomeSchemeTags, prepareHomeSchemeImage, type HomeSchemeImage } from './homeSchemeStorage'
+import { createHomeSchemeId, normalizeHomeSchemeRecord, normalizeHomeSchemeCode, normalizeHomeSchemeTag, type HomeSchemeRecord, type HomeSchemeItem, type HomeSchemeMetadata } from './homeSchemeTypes'
 
 const BACKUP_FORMAT = 'infinity-nikki-home-scheme-backup'
 const BACKUP_VERSION = 1
@@ -64,27 +64,26 @@ function backupBaseName(): string {
 }
 
 export async function exportHomeSchemeBackup(
-  album: FileSystemDirectoryHandle,
   download?: BackupDownload
 ): Promise<{ fileNames: string[]; count: number }> {
-  const library = await readHomeSchemeLibrary(album)
-  try {
-    if (library.failedCount) throw new Error('家园收藏读取不完整，无法导出完整备份 / Some home schemes could not be read')
-    const exportedAt = new Date().toISOString()
-    const items = []
-    for (const scheme of library.schemes) {
-      const image = scheme.image ? 'images/' + scheme.image : null
-      items.push({
-        record: { id: scheme.id, image, code: scheme.code, name: scheme.name, schemeType: scheme.schemeType, tags: scheme.tags, note: scheme.note, metadata: scheme.metadata, createdAt: scheme.createdAt, updatedAt: scheme.updatedAt },
-        files: image && scheme.fileHandle ? [{ name: image, blob: await scheme.fileHandle.getFile() }] : []
-      })
+  const library = await readHomeSchemeSnapshot()
+  const exportedAt = new Date().toISOString()
+  const items = []
+  for (const scheme of library.records) {
+    const image = scheme.image ? 'images/' + scheme.image : null
+    const cover = library.images.get(scheme.id)
+    if (image && cover) {
+      const checked = await prepareHomeSchemeImage(cover.blob, scheme.id)
+      if (checked.sha256 !== cover.sha256) throw new Error('home_scheme_image_invalid')
     }
-    const parts = planBackupParts(items, homeSchemes => ({ format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt, tags: library.tags, homeSchemes }), 'manifest.json', HOME_BACKUP_LIMITS)
-    const fileNames = await downloadBackupParts(backupBaseName(), parts, 'manifest.json', HOME_BACKUP_LIMITS, download)
-    return { fileNames, count: library.schemes.length }
-  } finally {
-    for (const scheme of library.schemes) if (scheme.fileHandle && scheme.imageUrl) URL.revokeObjectURL(scheme.imageUrl)
+    items.push({
+      record: { id: scheme.id, image, code: scheme.code, name: scheme.name, schemeType: scheme.schemeType, tags: scheme.tags, note: scheme.note, metadata: scheme.metadata, createdAt: scheme.createdAt, updatedAt: scheme.updatedAt },
+      files: image && cover ? [{ name: image, blob: cover.blob }] : []
+    })
   }
+  const parts = planBackupParts(items, homeSchemes => ({ format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt, tags: library.tags, homeSchemes }), 'manifest.json', HOME_BACKUP_LIMITS)
+  const fileNames = await downloadBackupParts(backupBaseName(), parts, 'manifest.json', HOME_BACKUP_LIMITS, download)
+  return { fileNames, count: library.records.length }
 }
 
 async function extractBackup(file: File): Promise<Map<string, Uint8Array>> {
@@ -164,84 +163,46 @@ function parseManifest(entries: Map<string, Uint8Array>): BackupManifest {
 }
 
 export async function importHomeSchemeBackup(
-  album: FileSystemDirectoryHandle,
   backupFile: File
 ): Promise<{ addedCount: number; duplicateCount: number; failedCount: number; schemes: HomeSchemeItem[]; tags: string[] }> {
   const entries = await extractBackup(backupFile)
   const manifest = parseManifest(entries)
-  // Check image payloads before reading the library, which creates object URLs.
+  const prepared: { record: HomeSchemeRecord; image: HomeSchemeImage | null }[] = []
+  let invalidCount = 0
   for (const raw of manifest.homeSchemes) {
-    if (!raw.image) continue
-    const bytes = entries.get(raw.image)
-    if (!bytes) throw new Error('home_scheme_backup_image_missing')
-    const image = await createImageBitmap(new Blob([bytes], { type: 'image/webp' })).catch(() => null)
-    if (!image) throw new Error('home_scheme_backup_image_invalid')
-    image.close()
-  }
-
-  const current = await readHomeSchemeLibrary(album)
-  const existingCodes = new Set(current.schemes.map((scheme) => scheme.code))
-  const existingIds = new Set(current.schemes.map((scheme) => scheme.id))
-  const tags = [...current.tags]
-  for (const rawTag of manifest.tags) {
-    const tag = normalizeHomeSchemeTag(rawTag)
-    if (tag && [...tag].length <= 5 && !tags.includes(tag) && tags.length < 40) tags.push(tag)
-  }
-  let previousTags: File | null = null
-  let hadHomeDirectory = true
-  try {
-    const home = await album.getDirectoryHandle('home')
-    previousTags = await (await home.getFileHandle('tags.json')).getFile()
-  } catch {
-    try { await album.getDirectoryHandle('home') }
-    catch { hadHomeDirectory = false }
-  }
-
-  const imported: HomeSchemeItem[] = []
-  let duplicateCount = 0, failedCount = 0
-  try {
-    await saveHomeSchemeTags(album, tags)
-    for (const raw of manifest.homeSchemes) {
-      const code = normalizeHomeSchemeCode(raw.code)
-      if (existingCodes.has(code)) { duplicateCount += 1; continue }
-      if (code.length < 2 || code.length > 30 || !raw.name.trim() || typeof raw.note !== 'string' || raw.note.length > 15) {
-        failedCount += 1
-        continue
-      }
-      const imageBytes = raw.image ? entries.get(raw.image) : undefined
-      const imageFile = imageBytes ? new File([imageBytes], raw.image!.split('/').pop()!, { type: 'image/webp' }) : null
+    // An invalid image rejects the archive before any database write.
+    const bytes = raw.image ? entries.get(raw.image)! : null
+    const image = bytes ? await prepareHomeSchemeImage(new Blob([bytes], { type: 'image/webp' }), raw.id) : null
+    try {
       const createdAt = normalizeBackupDate(raw.createdAt, new Date().toISOString())
-      const updatedAt = normalizeBackupDate(raw.updatedAt, createdAt)
-      const saved = await saveHomeScheme(album, {
-        id: existingIds.has(raw.id) ? undefined : raw.id,
-        createdAt,
-        updatedAt,
-        code, name: raw.name, schemeType: raw.schemeType,
-        tags: raw.tags.map(normalizeHomeSchemeTag),
-        note: raw.note,
-        metadata: normalizeBackupMetadata(raw.metadata),
-        imageFile
-      }, [...current.schemes, ...imported])
-      imported.push(saved)
-      existingCodes.add(code)
-      existingIds.add(saved.id)
-    }
-    const result = await readHomeSchemeLibrary(album)
-    return { addedCount: imported.length, duplicateCount, failedCount: failedCount + result.failedCount, schemes: result.schemes, tags: result.tags }
-  } catch (error) {
-    for (const scheme of imported) await deleteHomeScheme(scheme).catch(() => undefined)
-    if (previousTags) {
-      const home = await album.getDirectoryHandle('home')
-      await writeBlob(await home.getFileHandle('tags.json', { create: true }), previousTags).catch(() => undefined)
-    } else if (hadHomeDirectory) {
-      const home = await album.getDirectoryHandle('home').catch(() => null)
-      if (home) await home.removeEntry('tags.json').catch(() => undefined)
-    } else {
-      await album.removeEntry('home', { recursive: true }).catch(() => undefined)
-    }
-    throw error
-  } finally {
-    for (const scheme of current.schemes) if (scheme.fileHandle && scheme.imageUrl) URL.revokeObjectURL(scheme.imageUrl)
-    for (const scheme of imported) if (scheme.fileHandle && scheme.imageUrl) URL.revokeObjectURL(scheme.imageUrl)
+      prepared.push({ record: normalizeHomeSchemeRecord({ ...raw, version: 1,
+        image: image ? `${raw.id}.webp` : null,
+        tags: raw.tags.map(normalizeHomeSchemeTag).filter(tag => tag && [...tag].length <= 5).slice(0, 1),
+        metadata: normalizeBackupMetadata(raw.metadata), createdAt,
+        updatedAt: normalizeBackupDate(raw.updatedAt, createdAt) }), image })
+    } catch { invalidCount++ }
   }
+  const counts = await homeTransaction([HOME_SCHEMES_STORE, HOME_IMAGES_STORE, HOME_TAGS_STORE], 'readwrite', async tx => {
+    const store = tx.objectStore(HOME_SCHEMES_STORE)
+    const [current, rawTags] = await Promise.all([homeRequest(store.getAll()), homeRequest(tx.objectStore(HOME_TAGS_STORE).get('default'))])
+    const codes = new Set(current.map((record: HomeSchemeRecord) => normalizeHomeSchemeCode(record.code)))
+    const ids = new Set(current.map((record: HomeSchemeRecord) => record.id))
+    const tags = normalizeHomeSchemeTags(rawTags ?? [])
+    for (const rawTag of manifest.tags) {
+      const tag = normalizeHomeSchemeTag(rawTag)
+      if (tag && [...tag].length <= 5 && !tags.includes(tag) && tags.length < 40) tags.push(tag)
+    }
+    let addedCount = 0, duplicateCount = 0
+    for (const { record, image } of prepared) {
+      if (codes.has(record.code)) { duplicateCount++; continue }
+      const id = ids.has(record.id) ? createHomeSchemeId() : record.id
+      store.put({ ...record, id, image: image ? `${id}.webp` : null, tags: record.tags.filter(tag => tags.includes(tag)) })
+      if (image) tx.objectStore(HOME_IMAGES_STORE).put({ ...image, id })
+      codes.add(record.code); ids.add(id); addedCount++
+    }
+    tx.objectStore(HOME_TAGS_STORE).put(tags, 'default')
+    return { addedCount, duplicateCount, failedCount: invalidCount }
+  })
+  const library = await readHomeSchemeLibrary()
+  return { ...counts, ...library }
 }

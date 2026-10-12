@@ -13,14 +13,14 @@ describe('PhotoParamsDialog', () => {
   })
 
   it('shows a fixed placeholder when a resource image fails', async () => {
-    const wrapper = mount(PhotoParamsDialog, { props: { visible: true, photo: null, uidRequired: false, progress: { stage: 'ready', percent: 100, message: '' }, result: { environmentFields: [], cameraFields: [], imageFields: [], resourceGroups: [{ title: '灯光', name: 'unknown', imageUrl: 'https://invalid.example/image.webp' }], rawCameraParams: 'raw' }, error: null, messages }, global: { stubs: { Teleport: true } } })
+    const wrapper = mount(PhotoParamsDialog, { props: { visible: true, photo: null, uidRequired: false, progress: { stage: 'ready', percent: 100, message: '' }, result: { environmentFields: [], cameraFields: [], imageFields: [], resourceGroups: [{ kind: 'light', title: '灯光', name: 'unknown', imageUrl: 'https://invalid.example/image.webp' }], rawCameraParams: 'raw' }, error: null, messages }, global: { stubs: { Teleport: true } } })
     await wrapper.find('.photo-params-resource-row img').trigger('error')
     expect(wrapper.find('.photo-params-resource-image-placeholder').exists()).toBe(true)
     wrapper.unmount()
   })
 
   it('does not render a numeric value when an action only provides its name', () => {
-    const wrapper = mount(PhotoParamsDialog, { props: { visible: true, photo: null, uidRequired: false, progress: { stage: 'ready', percent: 100, message: '' }, result: { environmentFields: [], cameraFields: [], imageFields: [], resourceGroups: [{ title: '动作', name: '我生气啦！', imageUrl: '/pose.png' }], rawCameraParams: 'raw' }, error: null, messages }, global: { stubs: { Teleport: true } } })
+    const wrapper = mount(PhotoParamsDialog, { props: { visible: true, photo: null, uidRequired: false, progress: { stage: 'ready', percent: 100, message: '' }, result: { environmentFields: [], cameraFields: [], imageFields: [], resourceGroups: [{ kind: 'pose', title: '动作', name: '我生气啦！', imageUrl: '/pose.png' }], rawCameraParams: 'raw' }, error: null, messages }, global: { stubs: { Teleport: true } } })
     const row = wrapper.get('.photo-params-resource-row')
     expect(row.get('.photo-params-resource-placeholder').text()).toBe('我生气啦！')
     expect(row.find('strong').exists()).toBe(false)

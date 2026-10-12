@@ -61,6 +61,12 @@ export interface HomeSchemeMessages {
   duplicateCode: string
   nameRequired: string
   invalidBackup: string
+  storageFull: string
+  migrationSucceeded: (added: number, replaced: number, skipped: number, failed: number) => string
+  migrationFailedItems: (files: string) => string
+  migrationTagLimit: string
+  migrationDirectoryRemoved: string
+  migrationCleanupFailed: string
   operationFailed: string
 }
 
@@ -73,7 +79,7 @@ export const homeSchemeMessages = {
     image: '方案图片', imageHint: '点击选择、拖拽或粘贴 JPG、PNG、WebP 图片', chooseImage: '更换图片', removeImage: '移除本地照片', save: '保存', confirm: '确定', saving: '正在保存', cancel: '取消', edit: '编辑方案', delete: '删除', copy: '复制方案码', copySucceeded: '复制成功。', copyFailed: (code) => `复制失败，请手动复制：${code}`,
     parsePending: '正在获取并解析方案…', parseFailed: '方案码解析失败', parseSucceeded: '方案码解析成功', parseUnsupportedServer: '暂不支持此服务器的方案码', saveSucceeded: '方案已保存', deleteConfirm: '确定删除这个家园方案吗？', deleteSucceeded: '方案已删除',
     importSucceeded: (added, duplicates, failed) => '导入完成：新增 ' + added + ' 个，重复跳过 ' + duplicates + ' 个，失败 ' + failed + ' 个。', exportTitle: '导出家园方案数据', exportConfirm: () => '备份 ZIP 将通过浏览器下载，保存位置由浏览器下载设置决定；数据较多时会生成多个 ZIP，请允许下载多个文件。是否继续？', exportAction: '开始导出',
-    exportSucceeded: (count, fileName) => '已导出 ' + count + ' 个方案到 ' + fileName + '。', invalidCode: '方案码长度需为 2 到 30 个字符。', duplicateCode: '这个方案码已存在。', nameRequired: '请填写方案名称。', invalidBackup: '备份文件无效或不受支持。', operationFailed: '操作失败，请检查文件权限后重试。'
+    exportSucceeded: (count, fileName) => '已导出 ' + count + ' 个方案到 ' + fileName + '。', invalidCode: '方案码长度需为 2 到 30 个字符。', duplicateCode: '这个方案码已存在。', nameRequired: '请填写方案名称。', invalidBackup: '备份文件无效或不受支持。', storageFull: '浏览器存储空间不足，请释放空间后重试。', migrationSucceeded: (added, replaced, skipped, failed) => `家园方案迁移完成：新增 ${added} 个，替换 ${replaced} 个，相同跳过 ${skipped} 个，失败 ${failed} 项。`, migrationFailedItems: files => `失败文件：${files}。重新选择或更新相册可重试。`, migrationDirectoryRemoved: '旧 home 文件夹已自动删除。', migrationCleanupFailed: '旧 home 文件夹未删除，请检查写入权限或是否存在未迁移内容，再更新相册重试。', migrationTagLimit: '标签已达到 40 个上限，相关条目未迁移；释放标签名额后可重试。', operationFailed: '操作失败，数据未能完整读取或保存，请重试。'
   },
   en: {
     viewName: 'Home schemes', title: 'Home schemes', add: 'Add scheme', importData: 'Import data', exportData: 'Export data', importing: 'Importing…', exporting: 'Exporting…',
@@ -83,6 +89,6 @@ export const homeSchemeMessages = {
     image: 'Scheme image', imageHint: 'Click, drop, or paste JPG, PNG, WebP images', chooseImage: 'Replace image', removeImage: 'Remove local photo', save: 'Save', confirm: 'Save', saving: 'Saving', cancel: 'Cancel', edit: 'Edit scheme', delete: 'Delete', copy: 'Copy scheme code', copySucceeded: 'Copied successfully.', copyFailed: (code) => `Copy failed. Copy manually: ${code}`,
     parsePending: 'Fetching and parsing scheme…', parseFailed: 'Unable to parse this code', parseSucceeded: 'Scheme code parsed successfully', parseUnsupportedServer: 'This server is not supported yet', saveSucceeded: 'Scheme saved', deleteConfirm: 'Delete this home scheme?', deleteSucceeded: 'Scheme deleted',
     importSucceeded: (added, duplicates, failed) => 'Import complete: ' + added + ' added, ' + duplicates + ' duplicates skipped, ' + failed + ' failed.', exportTitle: 'Export home scheme data', exportConfirm: () => 'Backup ZIP files will be downloaded using your browser download settings. Large backups create multiple ZIP files; allow multiple downloads. Continue?', exportAction: 'Export',
-    exportSucceeded: (count, fileName) => 'Exported ' + count + ' schemes to ' + fileName + '.', invalidCode: 'Scheme codes must contain 2 to 30 characters.', duplicateCode: 'This scheme code already exists.', nameRequired: 'Enter a scheme name.', invalidBackup: 'The backup file is invalid or unsupported.', operationFailed: 'The operation failed. Check file access and try again.'
+    exportSucceeded: (count, fileName) => 'Exported ' + count + ' schemes to ' + fileName + '.', invalidCode: 'Scheme codes must contain 2 to 30 characters.', duplicateCode: 'This scheme code already exists.', nameRequired: 'Enter a scheme name.', invalidBackup: 'The backup file is invalid or unsupported.', storageFull: 'Browser storage is full. Free up space and try again.', migrationSucceeded: (added, replaced, skipped, failed) => `Home migration complete: ${added} added, ${replaced} replaced, ${skipped} identical, ${failed} failed.`, migrationFailedItems: files => `Failed files: ${files}. Reopen or refresh the album to retry.`, migrationDirectoryRemoved: 'The old home folder was deleted automatically.', migrationCleanupFailed: 'The old home folder was retained. Check write access or unmigrated contents, then refresh the album to retry.', migrationTagLimit: 'The 40-tag limit was reached. Free a tag slot and retry the affected items.', operationFailed: 'Unable to read or save all data. Please try again.'
   }
 } satisfies Record<'zh' | 'en', HomeSchemeMessages>

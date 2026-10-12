@@ -15,7 +15,7 @@ import { listRecentlyDeleted } from '../src/utils/file-system/trashFileSystem'
 import { readOutfitLibrary, type OutfitItem } from '../src/utils/outfit/outfitFileSystem'
 import { importOutfitBackup } from '../src/utils/outfit/outfitBackup'
 import { decodeCameraParams } from '../src/utils/photo-params/wasmClient'
-import { countHomeSchemes } from '../src/utils/homeBuild/homeSchemeFileSystem'
+import { countHomeSchemes } from '../src/utils/homeBuild/homeSchemeStorage'
 
 vi.mock('../src/utils/file-system/albumFileSystem', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/utils/file-system/albumFileSystem')>()
@@ -47,10 +47,14 @@ vi.mock('../src/utils/photo-params/wasmClient', async (importOriginal) => {
   return { ...actual, decodeCameraParams: vi.fn() }
 })
 
-vi.mock('../src/utils/homeBuild/homeSchemeFileSystem', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/utils/homeBuild/homeSchemeFileSystem')>()
+vi.mock('../src/utils/homeBuild/homeSchemeStorage', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/utils/homeBuild/homeSchemeStorage')>()
   return { ...actual, countHomeSchemes: vi.fn() }
 })
+
+vi.mock('../src/utils/homeBuild/homeSchemeMigration', () => ({
+  migrateHomeSchemeLibrary: vi.fn(async () => ({ addedCount: 0, replacedCount: 0, skippedCount: 0, failedCount: 0, tagsChanged: false, failures: [] }))
+}))
 
 const getSavedAlbumDirectoryHandleMock = vi.mocked(getSavedAlbumDirectoryHandle)
 const listRecentlyDeletedMock = vi.mocked(listRecentlyDeleted)
@@ -163,14 +167,14 @@ describe('App lifecycle coordination', () => {
       expect(wrapper.find('.empty-album-start').exists()).toBe(index === 0 || index === 5)
       if (index === 1) {
         expect(wrapper.get('.outfit-grid-wrap .inline-empty h2').text()).toBe(messages.zh.outfit.emptyTitle)
-        expect(wrapper.findAll('.outfit-header-actions button').map(button => (button.element as HTMLButtonElement).disabled)).toEqual([true, false, true])
+        expect(wrapper.findAll('.outfit-header-actions button').map(button => (button.element as HTMLButtonElement).disabled)).toEqual([true, true, true])
         await wrapper.findAll('.outfit-header-actions button')[1].trigger('click')
         await flushPromises()
         expect(wrapper.findComponent({ name: 'ConfirmDialog' }).props('visible')).toBe(false)
       }
       if (index === 2) {
         expect(wrapper.get('.home-scheme-empty h2').text()).toBe(messages.zh.homeScheme.emptyTitle)
-        expect(wrapper.findAll('.home-scheme-header-actions button').map(button => (button.element as HTMLButtonElement).disabled)).toEqual([true, false, true])
+        await vi.waitFor(() => expect(wrapper.findAll('.home-scheme-header-actions button').map(button => (button.element as HTMLButtonElement).disabled)).toEqual([false, true, false]))
         await wrapper.findAll('.home-scheme-header-actions button')[1].trigger('click')
         await flushPromises()
         expect(wrapper.findComponent({ name: 'ConfirmDialog' }).props('visible')).toBe(false)
@@ -323,4 +327,3 @@ describe('App lifecycle coordination', () => {
     wrapper.unmount()
   })
 })
-
