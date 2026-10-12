@@ -1,4 +1,4 @@
-import { strToU8, Unzip, UnzipInflate, UnzipPassThrough } from 'fflate'
+import { strToU8, unzip } from 'fflate'
 import { backupPartBlob, downloadBackupBlob, type BackupDownload } from './zipBackup'
 import { exportOutfitBackup, importOutfitBackup, inspectOutfitBackup } from '../outfit/outfitBackup'
 import { hashOutfitBlob } from '../outfit/outfitStorage'
@@ -69,48 +69,36 @@ export async function exportAllDataBackup(download: BackupDownload = downloadBac
   return name
 }
 
-/** Bounded streaming extraction: nested ZIPs are stored without expanding their images here. */
+/** Read the ZIP directory so nested module ZIP headers are never treated as outer entries. */
 async function readBundle(file: File): Promise<Map<string, Blob>> {
   if (!file.size || file.size > MAX_BYTES) throw new Error('总备份为空或过大 / Backup is empty or too large')
-  const files = new Map<string, Blob>(), names = new Set<string>()
+  const names = new Set<string>()
   let expanded = 0, failure: Error | null = null
-  const unzip = new Unzip(entry => {
-    if (failure) { entry.terminate(); return }
-    if (names.has(entry.name) || names.size >= 10000 ||
-      !/^(backup\.json|(outfits|home|camera)\/[1-9]\d*\.zip|resonance\/1\.json)$/.test(entry.name)) {
-      failure = new Error('总备份包含重复或不支持的文件 / Invalid backup entry'); entry.terminate(); return
-    }
-    names.add(entry.name)
-    const limit = entry.name === 'backup.json' ? MAX_MANIFEST : 1024 ** 3
-    if (entry.originalSize !== undefined && entry.originalSize > limit) {
-      failure = new Error('备份文件过大 / Backup entry too large'); entry.terminate(); return
-    }
-    const chunks: Uint8Array[] = []
-    let size = 0
-    entry.ondata = (error, chunk, final) => {
-      if (error) failure = error
-      if (failure) { entry.terminate(); return }
-      size += chunk.length; expanded += chunk.length
-      if (size > limit || expanded > MAX_BYTES) {
-        failure = new Error('解压后的备份过大 / Expanded backup too large'); entry.terminate(); return
+  const input = new Uint8Array(await file.arrayBuffer())
+  const entries = await new Promise<Record<string, Uint8Array>>((resolve, reject) => {
+    unzip(input, { filter: entry => {
+      const limit = entry.name === 'backup.json' ? MAX_MANIFEST : 1024 ** 3
+      if (names.has(entry.name) || names.size >= 10000 ||
+        !/^(backup\.json|(outfits|home|camera)\/[1-9]\d*\.zip|resonance\/1\.json)$/.test(entry.name)) {
+        failure = new Error('总备份包含重复或不支持的文件 / Invalid backup entry')
       }
-      chunks.push(chunk.slice())
-      if (final) files.set(entry.name, new Blob(chunks, { type: entry.name.endsWith('.json') ? 'application/json' : 'application/zip' }))
-    }
-    entry.start()
+      names.add(entry.name)
+      expanded += entry.originalSize
+      if (!Number.isSafeInteger(entry.originalSize) || entry.originalSize < 0 || entry.originalSize > limit || expanded > MAX_BYTES)
+        failure = new Error('解压后的备份过大 / Expanded backup too large')
+      return !failure
+    } }, (error, files) => error ? reject(new Error('无法读取总 ZIP / Unable to read backup ZIP')) : resolve(files))
   })
-  unzip.register(UnzipInflate); unzip.register(UnzipPassThrough)
-  const reader = file.stream().getReader()
-  try {
-    while (true) {
-      const { value, done } = await reader.read()
-      unzip.push(value ?? new Uint8Array(), done)
-      if (failure) throw failure
-      if (done) break
-    }
-  } catch (error) { await reader.cancel(error).catch(() => undefined); throw error }
-  finally { reader.releaseLock() }
-  if (files.size !== names.size) throw new Error('总备份不完整 / Incomplete backup')
+  if (failure) throw failure
+  if (Object.keys(entries).length !== names.size) throw new Error('总备份不完整 / Incomplete backup')
+  const files = new Map<string, Blob>()
+  let actualSize = 0
+  for (const [name, bytes] of Object.entries(entries)) {
+    actualSize += bytes.length
+    if (actualSize > MAX_BYTES || bytes.length > (name === 'backup.json' ? MAX_MANIFEST : 1024 ** 3))
+      throw new Error('解压后的备份过大 / Expanded backup too large')
+    files.set(name, new Blob([bytes], { type: name.endsWith('.json') ? 'application/json' : 'application/zip' }))
+  }
   return files
 }
 

@@ -68,53 +68,26 @@
 
 ### Browsing the album
 
-- On first launch or before choosing an album directory, sidebar navigation stays visible and clickable. Views that need an album directory show the selection prompt on the right; Resonance records can be used directly.
-- Group photos by year, month, and date with a collapsible timeline and quick date jumps.
-- Single-click to select a photo and show the bottom action bar.
-- Double-click to open the large preview with 50%–300% zoom, mouse-wheel zooming, and drag-to-pan after zooming in.
-- Use the keyboard to navigate photos and delete the current preview photo.
-- Choose 1:1, Half 1:1, 16:9, 4:3, 9:16, or 3:4 thumbnail ratios.
-- Add notes of up to 15 characters to photos and outfit plans, then search the current view by file name, note, or outfit code.
-- The album supports batch image import through the file picker. The gallery header exports all photos, while the selection bar exports only selected photos. After a successful export, you can choose to move successfully exported source photos to Recently Deleted. Cancelling keeps completed target files and all source photos.
+Browse photos grouped by year, month, and date, with thumbnail ratios, a large preview, Favorites, Recently Deleted, batch import/export, and notes and search for photos and outfit plans.
 
 ### Outfit codes and parameter parsing
 
+- Store outfit images, codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export; decoded results are cached in the browser by normalized code.
+- Enter an outfit code to decode its parts, and click a part to view its outfit, evolution/Glow-Up status, and dye conditions.
+- Decode a photo or a CameraParams string to view camera, environment, scene, pose, lighting, and filter parameters, and import the camera parameters into the game in one click; files are read locally in the browser and never uploaded.
+- Home schemes: enter a home or combo code to auto-parse the scheme info, with notes, tags, covers, and ZIP backup import/export.
+
 ### Resonance records
 
-- Resonance is a top-level view beside Home schemes, with desktop hover and mobile click navigation support. Its submenu matches the top-right menu's hover background, button radius, and opening animation.
-- The Resonance records sidebar lists each saved outfit with a thumbnail, name, and star rating; its hover style matches the photo action list. The menu below its title sorts banners newest or oldest first and can show all outfits, 5-star outfits only, or 4-star outfits only. The sidebar and cards share the same order and rarity filter, while preserving outfit order within each banner; filtering does not delete records or affect exports. Click an entry to scroll to its card; the list updates after imports or clearing records.
-- Add data offers Mainland China Whim-Log import or one local JSON file. For Whim-Log, sign in and sync at [Pear-Pal](https://myl.nuanpaper.com/home), then copy credentials using the bookmark or console method and paste them for UID verification; a prominent "Method source" callout above the method options credits Resonance Recorder. File import accepts this app's resonance backup and both the legacy pull-only and newer multi-source Resonance Recorder JSON formats; files are read in the browser.
-- Every import processes all recognized banners in Whim-Log in `pool_cnt` order. Records are written to browser IndexedDB only after preview and confirmation; the dialog's top-right close button exits the preview. Local records for missing or failed banners are kept.
-- Records are sorted by descending banner ID, with 5-star outfits before 4-star outfits in each banner's catalog order. Banner, outfit, and piece names follow the site language. Outfit images use `img/back.png` as their background. The first two acquisitions of each piece go to sets one and two respectively. Within each set, the most recently obtained pieces appear first, followed by missing pieces in catalog order. Older saved records without acquisition order keep their original order among obtained pieces; reimporting from Whim-Log or a pull-history file restores the exact order. Piece circles show the pulls needed for that acquisition, a gray `0` when missing, or `*` for a manual edit. The summary total adds pulls from both sets, and the average divides that total by the number of pieces with actual pull counts and shows one decimal place. Switching sets changes only piece counts. Resonance records are saved and read in the current bilingual format.
-- A disabled “Cloud sync (coming soon)” placeholder appears to the left of “Clear resonance records” and does not sync data yet. Click “Clear resonance records” and confirm to remove all resonance data stored in this browser. This cannot be undone.
-- Piece cards use square icons at `/images/items/icons/{id}.png`. Missing pieces use the `img/silverCardBg.png` background; obtained pieces use `img/pinkCardBg.png` for odd banner IDs and `img/purpleCardBg.png` for even banner IDs. Manually added pieces count as obtained. Older saved records also display the correct icon by piece ID without reimporting.
-- Import, clear, and cookie handling results appear in the global notice at the top of the page; fetch progress and busy button states stay with their operations.
-- File import previews before saving, replaces matching outfit records, and keeps other local records. Unrecognized or unparseable banners are counted and skipped; a file with no valid records is rejected. For newer Resonance Recorder files, each banner uses whichever source has more actual pulls, with game pulls winning ties. Manual edits count as owned pieces only when the game source is used; they do not increase real pull totals.
-- Export data downloads a versioned JSON backup that can be reimported with manual edit markers intact. Credentials are used for the current request only and are not stored or logged. The proxy is limited to Pear-Pal's Mainland China user-info and notebook endpoints and disables caching.
-
-- Store outfit images, outfit codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export.
-- Outfit-code results append the item type to each name, such as “Item-Hair”, “Item-Hair Accessories”, or “Item-Eyelashes”.
-- The outfit-code decoder references and uses related projects and data services from [Nikki Albums](https://github.com/RanAxro/nikki_albums) and [Nikki Tracker](https://github.com/dastrokes/gongeo.us-nikki-tracker).
-- Clicking an item image opens a detail dialog with the current item, outfit, evolution or Glow-Up state, and dye condition. On wide screens, the left summary stays fixed while long dye lists scroll independently on the right. On narrow screens, the detail content scrolls vertically as a whole and the dye list expands with it. The dye area is hidden when the decoded item has no dyes, and makeup outfit relations are restored through the makeup catalog.
-- Successful outfit-code results are persisted in the current browser's IndexedDB by normalized code, so they can be reused after a page refresh with no expiration; Clear cache and Clear data remove these parse results.
-- When Auto-parse actions is enabled, photo-action classification results are also stored in the current browser's IndexedDB using the photo fingerprint, parser version, and action catalog version. Only classification data is cached; original images and full parameter payloads are not stored. Successful action and explicit no-action results are reused, while failed parses are retried after authorization or a new UID is available.
-- Parse CameraParams from photo thumbnails or the full-size viewer. The upper-right Tools menu opens a shared Parameter / outfit-code parser window for direct camera-parameter and outfit-code input. Photo parsing shows capture time, weather, focal length, aperture, vignette, image adjustments, normal poses, lights, filters, Momo poses, and camera parameters that can be imported into the game. The Parameter / outfit-code parser window in the Tools menu can also be used on mobile devices.
-- The photo-parameter window can parse one local original game image selected on a computer or phone. The file is read temporarily in the browser only: it is not uploaded or added to the album. Saved UIDs are tried automatically, with manual UID retry when needed.
-- The Home Schemes view below Outfit Codes manages home and combo codes. Entering a code automatically parses the scheme name, type, version, and furniture count. Schemes, user tags, and optional covers are stored in the current album's `home/` directory, with notes, search, tag filters, editing, and deletion.
-- Home schemes support ZIP backup import and export; exported ZIP files are saved in the currently selected album folder. Scheme codes first use a local parser-versioned cache. On a miss, a same-origin API proxy requests the fixed Home Build CDN used by Infinity Nikki Album, and the bundled WASM parses the response. Only verified server ID `49` is enabled. `Rid` and extension fields are not yet decoded, so the UI only shows fields that can be extracted reliably. Clearing parse cache does not remove schemes, tags, or covers in `home/`.
+Import resonance records from the Mainland China Whim-Log or a local JSON file, preview first, then save. View outfit sets and the first/second-set piece pull counts, total pulls and averages per banner, with sorting, rarity filtering, and JSON export.
 
 ### File cleanup
 
-- Deleted high-quality photos move to the current album's `trash` folder for preview, restore, or permanent deletion.
-- After selecting one or more photos, use the selection bar to permanently delete same-name images from `ScreenShot` and the current account's `NikkiPhotos_LowQuality` folder. The action requires confirmation and cannot be undone; selected photos in the current album are never deleted.
-- Open Special Cleanup from the upper-right Tools menu to clean low-quality photos and game screenshots, crash snapshots, runtime logs, and the game's built-in browser cache.
+Targeted cleanup of low-quality photos and game screenshots, crash snapshots, runtime logs, and the game's built-in browser cache.
 
 ### Tools and help
 
-- Open Lucky pull times from the upper-right Tools menu to view the entertainment-only Version 2.10 timing table; actual drop rates still follow the game's probabilities.
-- The Release history window shows the current release and historical release notes; Help and introduction contains the site overview, features, tutorials, and important notes.
-- The Release history window opens automatically when the site loads; check "Don't show again" to hide it until the next version update.
-- Report issues directly through the Feedback entry in the More menu.
+Lucky pull times, Release history, Help and introduction, and issue feedback.
 
 ## Quick Start
 
@@ -266,7 +239,7 @@ npm run resources:update:light-filters # Check light/filter updates separately
 npm run preview   # Preview the build result
 ```
 
-During resonance catalog synchronization, banners come from the remote catalog when available; otherwise, remote source files take priority over the local tracker repository fallback. Identical files remain untouched. Failed synchronization prints a warning and keeps the project's existing catalog snapshot.
+EXE launcher, `dev`, `dev:remote`, and Cloudflare builds share one resource-update chain.
 
 The local EXE launcher, `dev`, `dev:remote`, and Cloudflare builds share the resource update chain. Lights/filters check database and bilingual language-pack versions in Nikki Albums' remote hot-update manifest. Changed versions trigger downloads and validation; only light/filter names, ID mappings, and image templates are replaced, preserving normal poses and Momo data. Matching versions skip resource downloads. Failures print a warning and keep the existing snapshot. Standard `npm run build` only type-checks and builds.
 
