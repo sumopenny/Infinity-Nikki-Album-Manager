@@ -2,15 +2,15 @@
 import type { LocaleMessages } from '../types'
 
 export const updateLogZh: LocaleMessages['updateLog'] = {
-  title: '更新记录', helpAbout: '使用帮助', currentTitle: '当前版本', currentVersion: 'v1.8.1', currentDate: '2026.10.11 更新',
+  title: '更新记录', helpAbout: '使用帮助', currentTitle: '当前版本', currentVersion: 'v1.8.2', currentDate: '2026.10.12 更新',
   currentItems: [
-    '新增相机参数收藏：将收藏夹分为“相机参数”和“照片收藏”，支持从照片参数解析窗口直接收藏，或输入相机参数码自动解析后保存。',
-    '支持自定义名称、单标签分类、标签排序与搜索，以及参数复制、编辑、详情查看和批量删除。',
-    '支持上传或更换收藏封面，保存时自动转换为 WebP。',
-    '支持相机参数收藏 ZIP 备份导入与导出。'
+    '搭配码与家园方案数据迁移至浏览器存储：搭配码、家园方案数据不再保存在所选相册文件夹中，改为存入浏览器并所有相册共用；进入对应页面后自动迁移旧数据，迁移成功自动清理旧文件夹。',
+    '搭配码自动更新优化：无需先选择相册，授权 X6Game 文件夹即可使用自动更新。',
+    '界面与体验优化：优化相关页面细节。'
   ],
   historyTitle: '历史版本记录',
   history: [
+    { version: 'v1.8.1', items: ['新增相机参数收藏：将收藏夹分为“相机参数”和“照片收藏”，支持从照片参数解析窗口直接收藏，或输入相机参数码自动解析后保存。', '支持自定义名称、单标签分类、标签排序与搜索，以及参数复制、编辑、详情查看和批量删除。', '支持上传或更换收藏封面，保存时自动转换为 WebP。', '支持相机参数收藏 ZIP 备份导入与导出。'] },
     { version: 'v1.8', items: ['新增共鸣记录模块：支持从美鸭梨导入共鸣记录，提供登录凭据获取指引，预览确认后保存。电脑获取登录凭据cookie后发送给手机，用手机端访问网页也可输入凭据查看共鸣记录', '支持共鸣数据导入导出：兼容暖暖共鸣录新旧版 JSON 文件，可导出本工具备份；导入时更新对应套装，保留其他本地记录。', '展示套装获取详情：支持查看第一套、第二套部件抽数，以及套装总抽数和平均抽数；部件按获取顺序展示，兼容文件中的手动补录标记。', '支持快速定位、排序与筛选：通过侧栏快速定位套装，可按卡池最新或最早排序，并筛选五星、四星记录。', '云端同步、衣柜数据等功能正在开发中，敬请期待'] },
     { version: 'v1.7.1', items: ['相册侧边栏新增“拍摄动作”分类：开启“自动解析动作”后，自动识别每张照片的拍照动作，按动作分组，支持按动作编号（新动作优先）、名称、照片数量、最近拍摄时间排序；未使用动作和未解析的照片单独成组。开关默认关闭，照片较多时网页可能卡顿，可按需开启。', '动作解析结果在浏览器本地缓存，重新打开相册无需重复解析；“清除缓存”“清除数据”会同步清理照片动作解析缓存。'] },
     { version: 'v1.7', items: ['新增家园方案管理模块：支持添加家园码和组合码，输入方案码后自动解析方案名称、类型、版本、家具数量等信息。', '新增家园方案 ZIP 备份导入导出，导出文件放在当前所选相册文件夹中。', '“清除缓存”改为清理搭配码和家园方案解析缓存。', '优化使用体验，并改进标签按钮动画、加载提示等。'] },
@@ -40,15 +40,15 @@ export const updateLogZh: LocaleMessages['updateLog'] = {
 }
 
 export const updateLogEn: LocaleMessages['updateLog'] = {
-  title: 'Release history', helpAbout: 'Help', currentTitle: 'Current version', currentVersion: 'v1.8.1', currentDate: 'Updated 2026.10.11',
+  title: 'Release history', helpAbout: 'Help', currentTitle: 'Current version', currentVersion: 'v1.8.2', currentDate: 'Updated 2026.10.12',
   currentItems: [
-    'Added camera-parameter favorites: Favorites is now split into "Camera Parameters" and "Photo Favorites". Save directly from the photo-parameter decoding window, or enter a camera-parameter code to decode and save automatically.',
-    'Supports custom names, single-tag categories, tag sorting and search, plus parameter copying, editing, detail viewing, and batch deletion.',
-    'Supports uploading or replacing a favorite cover image, automatically converted to WebP on save.',
-    'Supports ZIP backup import and export for camera-parameter favorites.'
+    'Outfit codes and home schemes are now stored in the browser and shared across all albums instead of the selected album folder. Old data is migrated automatically when you enter the page, and the old folder is removed after a successful migration.',
+    'Auto-update for outfit codes improved: authorize the X6Game folder to use auto-update without selecting an album first.',
+    'Interface and experience polish: refined related page details.'
   ],
   historyTitle: 'Previous releases',
   history: [
+    { version: 'v1.8.1', items: ['Added camera-parameter favorites: Favorites is now split into "Camera Parameters" and "Photo Favorites". Save directly from the photo-parameter decoding window, or enter a camera-parameter code to decode and save automatically.', 'Supports custom names, single-tag categories, tag sorting and search, plus parameter copying, editing, detail viewing, and batch deletion.', 'Supports uploading or replacing a favorite cover image, automatically converted to WebP on save.', 'Supports ZIP backup import and export for camera-parameter favorites.'] },
     { version: 'v1.8', items: ['Added Resonance Records: import resonance records from Pear-Pal, with instructions for obtaining sign-in credentials and a preview before saving. After obtaining the sign-in cookie credentials on a computer, send them to your phone and enter them on the website in your mobile browser to view resonance records.', 'Added resonance data import and export: supports old and new Resonance Recorder JSON files and exports backups for this app; importing updates matching outfit records while keeping other local records.', 'View outfit acquisition details: check piece pull counts for the first and second sets, plus total and average pulls for each outfit; pieces are displayed in acquisition order, with support for manual edit markers in imported files.', 'Added quick navigation, sorting, and filtering: use the sidebar to jump to an outfit, sort banners newest or oldest first, and filter 5-star or 4-star records.', 'Cloud sync, wardrobe data, and more features are in development. Stay tuned!'] },
     { version: 'v1.7.1', items: ['Added a "Capture Actions" view to the album sidebar: after turning on "Auto-parse actions", each photo\'s pose is detected automatically and photos are grouped by action, with sorting by action ID (newest first), name, photo count, or latest capture time; photos with no action and unparsed photos form separate groups. The switch is off by default—turn it on as needed, since parsing many photos may slow down the page.', 'Action results are cached locally in the browser, so reopening an album does not reparse every photo; "Clear cache" and "Clear all data" also clear the photo-action parse cache.'] },
     { version: 'v1.7', items: ['Added a Home schemes management module: add home codes and combo codes, and entering a scheme code automatically parses the scheme name, type, version, furniture count, and other information.', 'Added ZIP backup import and export for home schemes; exported files are placed in the currently selected album folder.', '"Clear cache" now clears the outfit-code and home-scheme parsing caches.', 'Polished the experience, including tag-button animations and loading hints.'] },
