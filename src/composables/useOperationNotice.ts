@@ -19,6 +19,7 @@ export type ActiveOperation =
   | 'updating-outfits'
   | 'mutating-outfits'
   | 'cleanup'
+  | 'all-data-backup'
 
 export type StatusState =
   | { type: 'initial' }

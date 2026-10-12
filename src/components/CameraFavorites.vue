@@ -16,13 +16,16 @@ import { convertImageToWebp } from '../utils/image'
 import { applyCameraImport, cloneFavorite, coverMetadata, deleteCameraFavorite, deleteCameraFavorites, DuplicateCameraCodeError, normalizeCameraCode, planCameraImport, readCameraFavorites, saveCameraFavorite, type CameraFavorite, type FavoriteLibrary, type FavoriteSource, type ImportPlan } from '../utils/photo-params/favorites'
 import { exportCameraBackup, readCameraBackup } from '../utils/photo-params/favoritesBackup'
 import PhotoParamsDialog from './PhotoParamsDialog.vue'
+import CameraImportConflictDialog from './CameraImportConflictDialog.vue'
 
-const props = defineProps<{ active: boolean; sidebarTarget?: string; actionsTarget?: string; language: Language; messages: PhotoParamsMessages; searchQuery: string; confirmAction: (message: string, title?: string, confirmLabel?: string) => Promise<boolean> }>()
-const emit = defineEmits<{ codesChange: [codes: string[]]; modalChange: [visible: boolean]; status: [message: string, tone: 'success' | 'error' | 'warning' | 'info'] }>()
+const props = defineProps<{ active: boolean; disabled?: boolean; sidebarTarget?: string; actionsTarget?: string; language: Language; messages: PhotoParamsMessages; searchQuery: string; confirmAction: (message: string, title?: string, confirmLabel?: string) => Promise<boolean> }>()
+const emit = defineEmits<{ busyChange: [busy: boolean]; codesChange: [codes: string[]]; modalChange: [visible: boolean]; status: [message: string, tone: 'success' | 'error' | 'warning' | 'info'] }>()
 const t = (zh: string, en: string) => props.language === 'zh' ? zh : en
 const library = shallowRef<FavoriteLibrary>({ records: [], covers: new Map() })
 const urls = ref<Record<string, string>>({})
-const busy = ref(false)
+const localBusy = ref(false)
+const busy = computed({ get: () => Boolean(props.disabled) || localBusy.value, set: value => { localBusy.value = value } })
+watch(localBusy, value => emit('busyChange', value))
 const loadError = ref('')
 const editor = ref(false)
 const editing = shallowRef<CameraFavorite | null>(null)
@@ -399,9 +402,6 @@ async function finishImport() {
   } catch (caught) { report(caught) }
   finally { busy.value = false }
 }
-function allChoices(value: 'local' | 'incoming') {
-  choices.value = Object.fromEntries(importPlan.value!.conflicts.map((r) => [r.id, value]))
-}
 function modalKey(event: KeyboardEvent) {
   if (event.key === 'Escape' && !busy.value) {
     event.preventDefault(); event.stopPropagation()
@@ -448,7 +448,7 @@ async function resetLibrary() {
   await reload()
   channel?.postMessage('changed')
 }
-defineExpose({ openFromResult, resetLibrary })
+defineExpose({ openFromResult, resetLibrary, reload })
 </script>
 
 <template>
@@ -556,20 +556,8 @@ defineExpose({ openFromResult, resetLibrary })
         </form>
       </div>
     </Transition>
-    <div v-if="importPlan && importPlan.conflicts.length" class="dialog-overlay camera-editor-overlay" @keydown="modalKey">
-      <section ref="form" class="dialog-panel camera-editor" role="dialog" aria-modal="true" aria-labelledby="camera-import-title">
-        <header><h2 id="camera-import-title">{{ t('处理导入冲突', 'Resolve import conflicts') }}</h2></header>
-        <p>{{ t('以下记录 ID 相同但内容不同。请选择保留哪份；参数码重复的其他记录将跳过。', 'These IDs have different content. Choose a version. Duplicate parameter codes are skipped.') }}</p>
-        <div class="camera-tags-filter"><button type="button" :disabled="busy" @click="allChoices('local')">{{ t('全部保留本地', 'Keep all local') }}</button><button type="button" :disabled="busy" @click="allChoices('incoming')">{{ t('全部使用导入', 'Use all imported') }}</button></div>
-        <label v-for="item in importPlan.conflicts" :key="item.id" class="camera-conflict">
-          <span>{{ item.name }}<small>{{ t('本地', 'Local') }}: {{ importPlan.base.find(r => r.id === item.id)?.name }} · {{ importPlan.base.find(r => r.id === item.id)?.updatedAt }}<br />{{ t('导入', 'Imported') }}: {{ item.updatedAt }}</small></span>
-          <select v-model="choices[item.id]" :disabled="busy"><option value="local">{{ t('保留本地', 'Keep local') }}</option><option value="incoming">{{ t('使用导入', 'Use imported') }}</option></select>
-        </label>
-        <p v-if="error" role="alert" class="camera-error">{{ error }}</p>
-        <footer><button type="button" :disabled="busy" @click="importPlan = null">{{ t('取消', 'Cancel') }}</button><button type="button" class="primary-button" :disabled="busy" @click="finishImport">{{ t('确认导入', 'Import') }}</button></footer>
-      </section>
-    </div>
   </Teleport>
+  <CameraImportConflictDialog :plan="importPlan" :language="language" :disabled="busy" :error="error" @confirm="choices = $event; finishImport()" @cancel="importPlan = null" />
   <PhotoParamsDialog :visible="!!detail" :photo="detail ? { name: detail.name } : null" :progress="{ stage: 'ready', percent: 100, message: '' }" :result="detail?.result ?? null" :error="null" :uid-required="false" :messages="messages" :saved="true" :favorite-label="t('已收藏', 'Saved')" @close="detail = null" @copy="detail && copy(detail.result.rawCameraParams)" />
 </template>
 
@@ -586,7 +574,7 @@ defineExpose({ openFromResult, resetLibrary })
 .camera-cover-tools{margin-top:8px}
 .camera-cover-tools button{display:inline-flex;align-items:center;gap:6px}
 .camera-cover-hint{color:var(--muted);font-size:12px;line-height:1.6;margin:12px 0}
-.camera-favorite-editor .outfit-fields>textarea{box-sizing:border-box;height:104px;min-height:104px;max-height:104px;padding:10px;resize:none;overflow-y:auto;overflow-wrap:anywhere;font:inherit;font-size:12px}
+.camera-favorite-editor .outfit-fields>textarea{box-sizing:border-box;height:124px;min-height:124px;max-height:124px;padding:10px;resize:none;overflow-y:auto;overflow-wrap:anywhere;font:inherit;font-size:12px}
 .camera-favorite-editor .camera-parse-status{gap:8px;margin:0px 0 12px}
 @media(max-width:850px){.camera-favorite-editor-body{grid-template-columns:1fr}}
 .camera-tag-popover{z-index:1601}

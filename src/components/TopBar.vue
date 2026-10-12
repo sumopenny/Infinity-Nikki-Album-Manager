@@ -2,6 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   BookHeart,
+  Download,
+  Upload,
   Bug,
   ChevronLeft,
   Eraser,
@@ -37,6 +39,8 @@ type OpenMenu = 'album' | 'view' | 'tools' | 'more' | null
 const props = defineProps<{
   directoryName: string
   isLoading: boolean
+  backupDisabled?: boolean
+  hasBackupData?: boolean
   isDeleting: boolean
   hasAlbumDirectory: boolean
   hasX6GameAuthorization: boolean
@@ -57,6 +61,9 @@ const emit = defineEmits<{
   openParseTools: []
   clearCache: []
   clearData: []
+  exportAllData: []
+  importAllData: []
+  refreshBackupAvailability: []
   toggleLanguage: []
   toggleTheme: []
   changeThumbnailMode: [mode: ThumbnailMode]
@@ -90,6 +97,7 @@ async function toggleMenu(menu: Exclude<OpenMenu, null>, event: MouseEvent) {
 
   menuTrigger.value = event.currentTarget as HTMLElement
   openMenu.value = menu
+  if (menu === 'more') emit('refreshBackupAvailability')
   await nextTick()
   await alignOpenMenu()
 }
@@ -351,6 +359,9 @@ onBeforeUnmount(() => {
         </button>
         <Teleport to="body">
           <div v-if="openMenu === 'more'" ref="dropdownRef" class="header-dropdown header-dropdown-right" :style="{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }" role="menu">
+          <button type="button" role="menuitem" :disabled="isBusy || backupDisabled || !hasBackupData" @click="runMenuAction(() => emit('exportAllData'))"><Upload :size="16" /><span>{{ messages.exportAllData }}</span></button>
+          <button type="button" role="menuitem" :disabled="isBusy || backupDisabled" @click="runMenuAction(() => emit('importAllData'))"><Download :size="16" /><span>{{ messages.importAllData }}</span></button>
+          <div class="menu-separator"></div>
           <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('clearCache'))">
             <RotateCcw :size="16" />
             <span>{{ messages.clearCache }}</span>

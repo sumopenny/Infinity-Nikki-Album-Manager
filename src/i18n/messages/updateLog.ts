@@ -5,6 +5,8 @@ export const updateLogZh: LocaleMessages['updateLog'] = {
   title: '更新记录', helpAbout: '使用帮助', currentTitle: '当前版本', currentVersion: 'v1.8.2', currentDate: '2026.10.12 更新',
   currentItems: [
     '搭配码与家园方案数据迁移至浏览器存储：搭配码、家园方案数据不再保存在所选相册文件夹中，改为存入浏览器并所有相册共用；进入对应页面后自动迁移旧数据，迁移成功自动清理旧文件夹。',
+    '新增“导出全部数据 / 导入全部数据”：可在“更多”菜单中一键将搭配码、家园方案、相机参数收藏和共鸣记录打包到一个全部数据备份 ZIP 中。',
+    '支持数据跨设备迁移：在电脑上可将除相册外的数据导出为 ZIP 并发送到手机，手机上打开网页即可导入数据并正常添加。',
     '搭配码自动更新优化：无需先选择相册，授权 X6Game 文件夹即可使用自动更新。',
     '界面与体验优化：优化相关页面细节。'
   ],
@@ -43,6 +45,8 @@ export const updateLogEn: LocaleMessages['updateLog'] = {
   title: 'Release history', helpAbout: 'Help', currentTitle: 'Current version', currentVersion: 'v1.8.2', currentDate: 'Updated 2026.10.12',
   currentItems: [
     'Outfit codes and home schemes are now stored in the browser and shared across all albums instead of the selected album folder. Old data is migrated automatically when you enter the page, and the old folder is removed after a successful migration.',
+    'Added Export all data / Import all data: from the More menu, bundle outfit codes, home schemes, camera favorites, and resonance records into a single all-data ZIP backup.',
+    'Supports cross-device transfer: on your computer, export everything except album data to a ZIP and send it to your phone, then open the site on your phone to import and add data normally.',
     'Auto-update for outfit codes improved: authorize the X6Game folder to use auto-update without selecting an album first.',
     'Interface and experience polish: refined related page details.'
   ],

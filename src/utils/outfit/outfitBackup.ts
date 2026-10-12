@@ -172,7 +172,7 @@ async function streamBackupEntries(
   }
 }
 
-async function inspectBackup(file: File): Promise<BackupManifest> {
+export async function inspectOutfitBackup(file: File): Promise<BackupManifest> {
   let manifestBytes: Uint8Array | null = null
   const images = new Set<string>()
   // Validate every image transiently before any database write, without buffering the whole archive.
@@ -194,7 +194,7 @@ async function inspectBackup(file: File): Promise<BackupManifest> {
 }
 
 async function importBackup(backupFile: File): Promise<OutfitImportResult> {
-  const manifest = await inspectBackup(backupFile)
+  const manifest = await inspectOutfitBackup(backupFile)
   let failedCount = 0, addedCount = 0, duplicateCount = 0, rejectedTagCount = 0
   const prepared: Array<{ record: OutfitRecord; path: string }> = []
   for (const raw of manifest.outfits) {

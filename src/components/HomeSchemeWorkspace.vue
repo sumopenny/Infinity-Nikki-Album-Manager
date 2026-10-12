@@ -44,6 +44,7 @@ const props = defineProps<{
   thumbnailMode: ThumbnailMode
 }>()
 const emit = defineEmits<{
+  busyChange: [busy: boolean]
   status: [message: string, tone: 'success' | 'warning' | 'error' | 'info']
   countChange: [count: number]
 }>()
@@ -101,6 +102,7 @@ const visibleSchemes = computed(() => {
   return query ? result.filter((item) => `${item.name} ${item.code} ${item.note}`.toLocaleLowerCase().includes(query)) : result
 })
 const previewUrl = computed(() => localImageUrl.value ?? (removeLocalImage.value ? null : coverImageUrl.value))
+watch(busy, value => emit('busyChange', value))
 const isBusy = computed(() => props.disabled || busy.value)
 const selectedSchemeCount = computed(() => visibleSchemes.value.filter((item) => selectedSchemeIds.value.has(item.id)).length)
 const allSchemesSelected = computed(() => visibleSchemes.value.length > 0 && visibleSchemes.value.every((item) => selectedSchemeIds.value.has(item.id)))

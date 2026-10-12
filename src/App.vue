@@ -31,6 +31,8 @@ import TopBar from './components/TopBar.vue'
 import PhotoTransferProgressDialog from './components/PhotoTransferProgressDialog.vue'
 import PhotoParamsDialog from './components/PhotoParamsDialog.vue'
 import CameraFavorites from './components/CameraFavorites.vue'
+import AllDataBackup from './components/AllDataBackup.vue'
+import { loadResonanceRecords } from './utils/resonance/resonanceStorage'
 import { normalizeCameraCode } from './utils/photo-params/favorites'
 import { DEFAULT_LANGUAGE, messages, type Language } from './i18n'
 import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
@@ -246,6 +248,27 @@ function invalidatePendingRefreshes() {
 const locale = computed(() => messages[language.value])
 const favoriteTab = ref<'photos' | 'camera'>('camera')
 const cameraFavoritesRef = ref<InstanceType<typeof CameraFavorites> | null>(null)
+const allDataBackupRef = ref<InstanceType<typeof AllDataBackup> | null>(null)
+const resonanceRecordsRef = ref<InstanceType<typeof ResonanceRecords> | null>(null)
+const hasBackupData = ref(false)
+const moduleOperations = ref({ camera: false, home: false, resonance: false })
+const allBackupDisabled = computed(() => isAnyFileOperationBusy.value || Object.values(moduleOperations.value).some(Boolean))
+function handleAllBackupBusy(busy: boolean) {
+  if (busy) activeOperation.value = 'all-data-backup'
+  else if (activeOperation.value === 'all-data-backup') activeOperation.value = null
+}
+async function refreshAfterAllImport() {
+  homeLibraryRevision.value++
+  selectedOutfitIds.value = new Set()
+  if (currentPreview.value && 'code' in currentPreview.value) currentPreview.value = null
+  const updates = await Promise.allSettled([
+    reloadOutfitCollection(), updateHomeSchemeCount(), cameraFavoritesRef.value?.reload(),
+    resonanceRecordsRef.value ? resonanceRecordsRef.value.reload() :
+      loadResonanceRecords().then(records => { resonanceRecords.value = records })
+  ])
+  if (updates.some(update => update.status === 'rejected'))
+    showStatus({ message: language.value === 'zh' ? '部分模块界面刷新失败，请刷新页面核对导入结果。' : 'Some views could not refresh. Reload to check the import results.', tone: 'warning' })
+}
 const cameraFavoriteCodes = ref<string[]>([])
 const cameraFavoriteModal = ref(false)
 const isCameraFavoritesView = computed(() => activeView.value === 'favorites' && favoriteTab.value === 'camera')
@@ -1814,7 +1837,9 @@ onBeforeUnmount(() => {
   <div ref="appShellRef" class="app-shell">
     <TopBar
       :directory-name="directoryName"
-      :is-loading="isLoading"
+      :is-loading="isLoading || activeOperation === 'all-data-backup'"
+      :backup-disabled="allBackupDisabled"
+      :has-backup-data="hasBackupData"
       :is-deleting="isDeleting || isTrashBusy"
       :has-album-directory="Boolean(albumDirectoryHandle)"
       :has-x6-game-authorization="hasX6GameAuthorization"
@@ -1832,6 +1857,9 @@ onBeforeUnmount(() => {
       @open-parse-tools="openParseTools"
       @clear-cache="clearCache"
       @clear-data="clearData"
+      @export-all-data="allDataBackupRef?.exportData()"
+      @import-all-data="allDataBackupRef?.chooseImport()"
+      @refresh-backup-availability="allDataBackupRef?.refreshAvailability()"
       @change-thumbnail-mode="changeThumbnailMode"
       @toggle-language="toggleLanguage"
       @toggle-theme="toggleTheme"
@@ -1839,6 +1867,8 @@ onBeforeUnmount(() => {
       @open-help-about="openHelpAbout"
       @update-search="searchQuery = $event"
     />
+
+    <AllDataBackup ref="allDataBackupRef" :language="language" :disabled="allBackupDisabled" @availability="hasBackupData = $event" @busy="handleAllBackupBusy" @changed="refreshAfterAllImport" @status="(message, tone, loading) => showStatus({ message, tone, loading })" />
 
     <main class="album-layout" :class="{ 'without-album': !albumDirectoryHandle && activeView !== 'outfits' && activeView !== 'home' && activeView !== 'resonance' && !isCameraFavoritesView }">
       <div id="album-sidebar-column" class="sidebar-column">
@@ -1919,7 +1949,7 @@ onBeforeUnmount(() => {
           </div>
           <div id="favorites-camera-actions" v-show="isCameraFavoritesView" class="favorites-toolbar-actions"></div>
         </div>
-        <CameraFavorites ref="cameraFavoritesRef" sidebar-target="#album-sidebar-column" actions-target="#favorites-camera-actions" :active="isCameraFavoritesView" :language="language" :messages="photoParamsMessages" :search-query="searchQuery" :confirm-action="confirmHomeSchemeAction" @codes-change="cameraFavoriteCodes = $event" @modal-change="cameraFavoriteModal = $event" @status="handleHomeSchemeStatus" />
+        <CameraFavorites :disabled="activeOperation === 'all-data-backup'" @busy-change="moduleOperations.camera = $event" ref="cameraFavoritesRef" sidebar-target="#album-sidebar-column" actions-target="#favorites-camera-actions" :active="isCameraFavoritesView" :language="language" :messages="photoParamsMessages" :search-query="searchQuery" :confirm-action="confirmHomeSchemeAction" @codes-change="cameraFavoriteCodes = $event" @modal-change="cameraFavoriteModal = $event" @status="handleHomeSchemeStatus" />
         <div v-if="!albumDirectoryHandle && activeView !== 'outfits' && activeView !== 'home' && activeView !== 'resonance' && !isCameraFavoritesView" class="empty-album-start">
           <div class="empty-start-mark" aria-hidden="true"></div>
           <h2>{{ locale.grid.emptyTitle }}</h2>
@@ -1976,6 +2006,7 @@ onBeforeUnmount(() => {
         </header>
 
         <HomeSchemeWorkspace
+          @busy-change="moduleOperations.home = $event"
           v-if="activeView === 'home'"
           :library-revision="homeLibraryRevision"
           :messages="locale.homeScheme"
@@ -1991,6 +2022,9 @@ onBeforeUnmount(() => {
           @count-change="handleHomeSchemeCount"
         />
         <ResonanceRecords
+          ref="resonanceRecordsRef"
+          :disabled="activeOperation === 'all-data-backup'"
+          @busy-change="moduleOperations.resonance = $event"
           v-else-if="activeView === 'resonance'"
           :language="language"
           :banner-order="resonanceBannerOrder"

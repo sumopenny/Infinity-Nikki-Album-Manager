@@ -12,9 +12,10 @@ import { loadResonanceRecords, saveResonanceRecords } from '../utils/resonance/r
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { ResonanceLocalizedName, ResonanceRecord } from '../utils/resonance/resonanceTypes'
 
-const props = withDefaults(defineProps<{ language?: Language; bannerOrder?: ResonanceBannerOrder; rarityFilter?: ResonanceRarityFilter }>(), { language: 'zh', bannerOrder: 'newest', rarityFilter: 'all' })
+const props = withDefaults(defineProps<{ language?: Language; bannerOrder?: ResonanceBannerOrder; rarityFilter?: ResonanceRarityFilter; disabled?: boolean }>(), { language: 'zh', bannerOrder: 'newest', rarityFilter: 'all' })
 const t = computed(() => messages[props.language].resonance)
 const emit = defineEmits<{
+  busyChange: [busy: boolean]
   notice: [payload: { message: string; tone: 'success' | 'warning' | 'error'; source: 'resonance' }]
   clearNotice: []
   recordsChange: [records: ResonanceRecord[]]
@@ -32,6 +33,7 @@ const showClearConfirm = ref(false)
 const importing = ref(false)
 const confirming = ref(false)
 const clearing = ref(false)
+watch(() => importing.value || confirming.value || clearing.value, value => emit('busyChange', value))
 const cookieMethod = ref<CookieMethod>('bookmark')
 const importMethod = ref<ImportMethod>('pearpal')
 const selectedFile = ref<File | null>(null)
@@ -110,6 +112,7 @@ function outfitPulls(record: ResonanceRecord): { total: number; average: number 
 function toggleSet(record: ResonanceRecord) { selectedSet.value[record.id] = (selectedSet.value[record.id] ?? 1) === 1 ? 2 : 1 }
 
 function openDialog() {
+  if (props.disabled) return
   clearNotice()
   showAddDialog.value = true
   preview.value = []
@@ -164,6 +167,7 @@ async function createFilePreview() {
 }
 
 function exportRecords() {
+  if (props.disabled) return
   if (!records.value.length) return
   try {
     const blob = new Blob([JSON.stringify(createResonanceExport(records.value), null, 2)], { type: 'application/json' })
@@ -246,7 +250,7 @@ async function createPreview() {
 }
 
 async function confirmImport() {
-  if (confirming.value || !preview.value.length) return
+  if (props.disabled || confirming.value || !preview.value.length) return
   if (!recordsLoaded.value) { notify('load-error', props.language === 'zh' ? '共鸣记录读取失败，请刷新页面后重试。' : 'Records could not be loaded. Reload the page and retry.', 'error'); return }
   confirming.value = true
   clearNotice()
@@ -282,7 +286,7 @@ function closeClearConfirm() {
 }
 
 async function clearRecords() {
-  if (clearing.value || !records.value.length) return
+  if (props.disabled || clearing.value || !records.value.length) return
   clearing.value = true
   clearNotice()
   try {
@@ -298,14 +302,16 @@ async function clearRecords() {
   }
 }
 
-onMounted(async () => {
+async function reload() {
   try {
     records.value = await loadResonanceRecords()
     recordsLoaded.value = true
   } catch {
     notify('load-error', props.language === 'zh' ? '共鸣记录读取失败，请刷新页面后重试。' : 'Records could not be loaded. Reload the page and retry.', 'error')
   }
-})
+}
+onMounted(reload)
+defineExpose({ reload })
 </script>
 
 <template>
@@ -317,16 +323,16 @@ onMounted(async () => {
       </div>
       <div class="outfit-header-actions resonance-actions">
         <button class="resonance-cloud-sync-placeholder" type="button" disabled><Cloud :size="16" aria-hidden="true" />{{ t.cloudSyncComingSoon }}</button>
-        <button type="button" :disabled="!records.length || clearing" @click="requestClearRecords"><Trash2 :size="16" aria-hidden="true" />{{ t.clearRecords }}</button>
-        <button type="button" :disabled="!records.length" @click="exportRecords"><Upload :size="16" aria-hidden="true" />{{ t.exportData }}</button>
-        <button class="primary-button" type="button" @click="openDialog"><Plus :size="16" aria-hidden="true" />{{ t.addData }}</button>
+        <button type="button" :disabled="disabled || !records.length || clearing" @click="requestClearRecords"><Trash2 :size="16" aria-hidden="true" />{{ t.clearRecords }}</button>
+        <button type="button" :disabled="disabled || !records.length" @click="exportRecords"><Upload :size="16" aria-hidden="true" />{{ t.exportData }}</button>
+        <button class="primary-button" type="button" :disabled="disabled" @click="openDialog"><Plus :size="16" aria-hidden="true" />{{ t.addData }}</button>
       </div>
     </header>
 
     <div v-if="!records.length" class="resonance-empty">
       <h3>{{ t.emptyTitle }}</h3>
       <p>{{ t.emptyDescription }}</p>
-      <button class="primary-button" type="button" @click="openDialog"><Plus :size="16" aria-hidden="true" />{{ t.addData }}</button>
+      <button class="primary-button" type="button" :disabled="disabled" @click="openDialog"><Plus :size="16" aria-hidden="true" />{{ t.addData }}</button>
     </div>
 
     <div v-else-if="!sortedRecords.length" class="resonance-empty">

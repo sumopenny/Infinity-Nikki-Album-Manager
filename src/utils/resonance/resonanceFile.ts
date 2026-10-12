@@ -35,12 +35,12 @@ function validBackupRecord(value: unknown): value is ResonanceRecord {
 export interface ResonanceFileResult { records: ResonanceRecord[]; skippedPools: number }
 
 /** 识别本项目备份、共鸣录旧版逐抽文件和新版多来源文件；坏卡池不阻断其余卡池。 */
-export function parseResonanceFile(value: unknown): ResonanceFileResult {
+export function parseResonanceFile(value: unknown, allowEmptyBackup = false): ResonanceFileResult {
   if (!object(value)) throw new Error(RESONANCE_FILE_INVALID)
   if ('format' in value) {
     if (value.format !== FORMAT || value.version !== 1 || !Array.isArray(value.records) ||
       !value.records.every(validBackupRecord)) throw new Error(RESONANCE_FILE_INVALID)
-    if (!value.records.length) throw new Error(RESONANCE_FILE_EMPTY)
+    if (!value.records.length && !allowEmptyBackup) throw new Error(RESONANCE_FILE_EMPTY)
     return { records: value.records, skippedPools: 0 }
   }
 

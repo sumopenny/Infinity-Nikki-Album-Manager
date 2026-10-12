@@ -123,6 +123,8 @@ export interface LocaleMessages {
     albumMenuAria: string
     viewMenuAria: string
     moreMenuAria: string
+    exportAllData: string
+    importAllData: string
     clearCache: string
     clearData: string
     helpMouseTitle: string

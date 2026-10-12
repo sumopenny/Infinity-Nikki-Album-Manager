@@ -162,9 +162,7 @@ function parseManifest(entries: Map<string, Uint8Array>): BackupManifest {
   return manifest as BackupManifest
 }
 
-export async function importHomeSchemeBackup(
-  backupFile: File
-): Promise<{ addedCount: number; duplicateCount: number; failedCount: number; schemes: HomeSchemeItem[]; tags: string[] }> {
+export async function prepareHomeSchemeBackup(backupFile: File) {
   const entries = await extractBackup(backupFile)
   const manifest = parseManifest(entries)
   const prepared: { record: HomeSchemeRecord; image: HomeSchemeImage | null }[] = []
@@ -182,6 +180,13 @@ export async function importHomeSchemeBackup(
         updatedAt: normalizeBackupDate(raw.updatedAt, createdAt) }), image })
     } catch { invalidCount++ }
   }
+  return { manifest, prepared, invalidCount }
+}
+
+export async function importHomeSchemeBackup(
+  backupFile: File
+): Promise<{ addedCount: number; duplicateCount: number; failedCount: number; schemes: HomeSchemeItem[]; tags: string[] }> {
+  const { manifest, prepared, invalidCount } = await prepareHomeSchemeBackup(backupFile)
   const counts = await homeTransaction([HOME_SCHEMES_STORE, HOME_IMAGES_STORE, HOME_TAGS_STORE], 'readwrite', async tx => {
     const store = tx.objectStore(HOME_SCHEMES_STORE)
     const [current, rawTags] = await Promise.all([homeRequest(store.getAll()), homeRequest(tx.objectStore(HOME_TAGS_STORE).get('default'))])
