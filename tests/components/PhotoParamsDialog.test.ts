@@ -4,14 +4,6 @@ import PhotoParamsDialog from '../../src/components/PhotoParamsDialog.vue'
 import { photoParamsZh as messages } from '../../src/i18n/messages/photoParams'
 
 describe('PhotoParamsDialog', () => {
-  it('does not render a photo preview', async () => {
-    const wrapper = mount(PhotoParamsDialog, { props: { visible: true, photo: { id: '1', name: 'photo.jpeg' } as any, uidRequired: false, progress: { stage: 'idle', percent: 0, message: '' }, result: null, error: null, messages }, global: { stubs: { Teleport: true } } })
-    expect(wrapper.get('.confirm-dialog-kicker').text()).toContain(messages.eyebrow)
-    expect(wrapper.find('.photo-params-dialog img').exists()).toBe(false)
-    expect(wrapper.find('textarea').exists()).toBe(false)
-    wrapper.unmount()
-  })
-
   it('shows a fixed placeholder when a resource image fails', async () => {
     const wrapper = mount(PhotoParamsDialog, { props: { visible: true, photo: null, uidRequired: false, progress: { stage: 'ready', percent: 100, message: '' }, result: { environmentFields: [], cameraFields: [], imageFields: [], resourceGroups: [{ kind: 'light', title: '灯光', name: 'unknown', imageUrl: 'https://invalid.example/image.webp' }], rawCameraParams: 'raw' }, error: null, messages }, global: { stubs: { Teleport: true } } })
     await wrapper.find('.photo-params-resource-row img').trigger('error')

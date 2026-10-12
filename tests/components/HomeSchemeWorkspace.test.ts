@@ -13,8 +13,13 @@ vi.mock('../../src/utils/homeBuild/homeSchemeParser', () => ({ parseHomeScheme: 
 const props = { libraryRevision: 0, messages: homeSchemeMessages.zh, disabled: false,
   confirmAction: async () => true, searchQuery: '', selectionMessages: messages.zh.selectionBar,
   lightboxMessages: messages.zh.lightbox, dateMessages: messages.zh.date, thumbnailMode: 'wide' as const }
-beforeEach(() => { vi.clearAllMocks(); document.body.innerHTML = '<div id="album-sidebar-column"></div>' })
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  vi.clearAllMocks()
+  document.body.innerHTML = '<div id="album-sidebar-column"></div>'
+})
 afterEach(async () => {
+  vi.useRealTimers()
   document.body.innerHTML = ''
   await new Promise<void>((resolve, reject) => { const r = indexedDB.deleteDatabase(DB_NAME); r.onsuccess = () => resolve(); r.onerror = () => reject(r.error) })
 })
@@ -27,7 +32,9 @@ it('adds and persists a parsed scheme without any album directory', async () => 
     await wrapper.get('.home-scheme-header-actions .primary-button').trigger('click')
     const code = document.querySelector<HTMLInputElement>('#home-scheme-code')!
     code.value = 'CODE1'; code.dispatchEvent(new Event('input', { bubbles: true }))
-    await vi.waitFor(() => expect(vi.mocked(parseHomeScheme)).toHaveBeenCalled())
+    await wrapper.vm.$nextTick()
+    await vi.advanceTimersByTimeAsync(450)
+    expect(vi.mocked(parseHomeScheme)).toHaveBeenCalledWith('CODE1', expect.anything())
     await flushPromises()
     const save = [...document.querySelectorAll<HTMLButtonElement>('.home-scheme-editor button')].find(button => button.textContent?.trim() === '确定')!
     expect(save).toBeTruthy(); save.click()

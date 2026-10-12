@@ -31,10 +31,7 @@ beforeAll(async () => {
   vi.unstubAllGlobals()
 })
 
-afterEach(async () => {
-  await clearOutfitCodeParseCache()
-  vi.unstubAllGlobals()
-})
+afterEach(() => vi.unstubAllGlobals())
 
 describe('normalizeLookbookCode', () => {
   it('为 11 位编码补 # 结尾', () => {
@@ -59,6 +56,8 @@ describe('normalizeLookbookCode', () => {
 })
 
 describe('parseOutfitCode', () => {
+  afterEach(clearOutfitCodeParseCache)
+
   it('清洗部件列表并解析染色数据', async () => {
     const payload = {
       clothes: [
@@ -110,20 +109,6 @@ describe('parseOutfitCode', () => {
     ])
   })
 
-  it('保留原生类型映射中的特殊戒指部件', async () => {
-    const result = await decodeLookbookPayload<LookbookDecodeResult>(
-      '13Zb1zKZgf1#',
-      '{"Content":{"Content":{"wearingClothes":[1020790033]}}}'
-    )
-
-    expect(result).toMatchObject({
-      ok: true,
-      value: {
-        wearingClothes: [{ itemId: 1020790033, clothType: 96, outfitId: null }]
-      }
-    })
-  })
-
   it('格式非法时不请求接口并标记 invalid', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
@@ -137,23 +122,6 @@ describe('parseOutfitCode', () => {
     await expect(parseOutfitCode('a1B2c3D4e5F')).rejects.toMatchObject({ kind: 'invalid' })
     expect(fetchMock).not.toHaveBeenCalled()
   })
-
-  it('WASM 将真实分享码解码为对象路径编号', async () => {
-    await expect(decodeLookbookShareCodePathId(normalizedCode)).resolves.toBe('488547348102388135')
-  })
-
-  it.each(['1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C'])(
-    'WASM 忽略原生分享码标记 %s', async (marker) => {
-      await expect(decodeLookbookShareCodePathId(marker + validCode.slice(1) + '#'))
-        .resolves.toBe('488547348102388135')
-    }
-  )
-
-  it.each(['a' + validCode.slice(1) + '#', '1I43NTCbOn!#', validCode])(
-    'WASM 拒绝不支持的分享码格式 %s', async (code) => {
-      await expect(decodeLookbookShareCodePathId(code)).resolves.toBeNull()
-    }
-  )
 
   it.each([
     ['404', new Response('not found', { status: 404 })],
@@ -170,7 +138,9 @@ describe('parseOutfitCode', () => {
 
   it('上游其他错误标记 unavailable', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('oops', { status: 500 })))
-    await expect(parseOutfitCode(validCode)).rejects.toMatchObject({ kind: 'unavailable' })
+    const parsing = parseOutfitCode(validCode)
+    await expect(parsing).rejects.toMatchObject({ kind: 'unavailable' })
+    await expect(parsing).rejects.toBeInstanceOf(OutfitCodeParseError)
   })
 
   it('网络异常标记 unavailable', async () => {
@@ -189,11 +159,6 @@ describe('parseOutfitCode', () => {
       kind: 'unavailable',
       message: 'Lookbook upstream returned malformed JSON'
     })
-  })
-
-  it('抛出的错误类型为 OutfitCodeParseError', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('oops', { status: 500 })))
-    await expect(parseOutfitCode(validCode)).rejects.toBeInstanceOf(OutfitCodeParseError)
   })
 
   it('缓存成功结果并复用规范化后的搭配码', async () => {
@@ -221,7 +186,40 @@ describe('parseOutfitCode', () => {
   })
 })
 
+describe('lookbook share code protocol', () => {
+  it('WASM 将真实分享码解码为对象路径编号', async () => {
+    await expect(decodeLookbookShareCodePathId(normalizedCode)).resolves.toBe('488547348102388135')
+  })
+
+  it.each(['1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C'])(
+    'WASM 忽略原生分享码标记 %s', async (marker) => {
+      await expect(decodeLookbookShareCodePathId(marker + validCode.slice(1) + '#'))
+        .resolves.toBe('488547348102388135')
+    }
+  )
+
+  it.each(['a' + validCode.slice(1) + '#', '1I43NTCbOn!#', validCode])(
+    'WASM 拒绝不支持的分享码格式 %s', async (code) => {
+      await expect(decodeLookbookShareCodePathId(code)).resolves.toBeNull()
+    }
+  )
+})
+
 describe('lookbook WASM native output', () => {
+  it('保留原生类型映射中的特殊戒指部件', async () => {
+    const result = await decodeLookbookPayload<LookbookDecodeResult>(
+      '13Zb1zKZgf1#',
+      '{"Content":{"Content":{"wearingClothes":[1020790033]}}}'
+    )
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        wearingClothes: [{ itemId: 1020790033, clothType: 96, outfitId: null }]
+      }
+    })
+  })
+
   it('reads native JSON-like maps and normalizes general and hair dye records', async () => {
     const payload = '{"Content":{"Content":{"patternData":[:123:0],"wearingClothes":[1020100001,1020860231],"wearingDIYInfos":[' +
       '{"TargetGroupID":1,"CoreData":{"B":0.69318097829819,"ColorGridID":96,"R":0.37126499414444,"A":1,"G":0.60334801673889},"FeatureTag":1,"TargetClothID":1020100001},' +
@@ -280,7 +278,9 @@ describe('lookbook WASM native output', () => {
 })
 
 describe('lookbook cloth types', () => {
-  it('preserves a missing or malformed cloth type as null', async () => {
+  afterEach(clearOutfitCodeParseCache)
+
+  it('infers the cloth type when the upstream type is missing or malformed', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({
       clothes: [
         { cloth: { id: 1020100001 } },

@@ -42,7 +42,7 @@ class MemoryFileHandle {
           this.writeTracker.peak = Math.max(this.writeTracker.peak, this.writeTracker.active)
         }
         try {
-          if (this.writeTracker) await new Promise((resolve) => window.setTimeout(resolve, 5))
+          if (this.writeTracker) await Promise.resolve()
           this.contents = data instanceof Blob ? data : new Blob([data])
         } finally {
           if (this.writeTracker) this.writeTracker.active -= 1
@@ -63,7 +63,7 @@ class DelayedMemoryFileHandle extends MemoryFileHandle {
     this.tracker.active += 1
     this.tracker.peak = Math.max(this.tracker.peak, this.tracker.active)
     try {
-      await new Promise((resolve) => window.setTimeout(resolve, 5))
+      await Promise.resolve()
       return await super.getFile()
     } finally {
       this.tracker.active -= 1
@@ -122,7 +122,7 @@ class MemoryDirectoryHandle {
       this.removeTracker.peak = Math.max(this.removeTracker.peak, this.removeTracker.active)
     }
     try {
-      if (this.removeTracker) await new Promise((resolve) => window.setTimeout(resolve, 5))
+      if (this.removeTracker) await Promise.resolve()
       if (!this.files.delete(name) && !this.directories.delete(name)) throw new DOMException('Missing entry', 'NotFoundError')
     } finally {
       if (this.removeTracker) this.removeTracker.active -= 1
@@ -617,18 +617,18 @@ describe('album refresh and recently deleted filesystem operations', () => {
     const moveTracker = { active: 0, peak: 0 }
     trash.writeTracker = moveTracker
     album.directories.set('trash', trash)
-    const photos = Array.from({ length: 12 }, (_, index) =>
+    const photos = Array.from({ length: 28 }, (_, index) =>
       createPhoto(album, `2026_06_26_11_${String(index).padStart(2, '0')}_00.jpeg`))
 
     const moved = await movePhotosToRecentlyDeleted(photos, new Set())
-    expect(moved.succeeded).toHaveLength(12)
+    expect(moved.succeeded).toHaveLength(28)
     expect(moveTracker.peak).toBeGreaterThan(1)
     expect(moveTracker.peak).toBeLessThanOrEqual(27)
 
     const restoreTracker = { active: 0, peak: 0 }
     album.writeTracker = restoreTracker
     const restored = await restoreRecentlyDeletedPhotos(moved.movedPhotos, album as unknown as FileSystemDirectoryHandle)
-    expect(restored.restoredPhotos).toHaveLength(12)
+    expect(restored.restoredPhotos).toHaveLength(28)
     expect(restoreTracker.peak).toBeGreaterThan(1)
     expect(restoreTracker.peak).toBeLessThanOrEqual(27)
   })
@@ -716,4 +716,3 @@ describe('album refresh and recently deleted filesystem operations', () => {
     expect(album.files.has('2026_06_26_11_22_00_restored_1.jpeg')).toBe(true)
   })
 })
-

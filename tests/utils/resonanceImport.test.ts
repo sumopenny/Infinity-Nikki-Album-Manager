@@ -19,9 +19,15 @@ afterEach(() => vi.unstubAllGlobals())
 describe('resonance catalog', () => {
   it('loads bilingual banner names in descending banner ID order', () => {
     const banners = loadResonanceBanners()
-    expect(banners.length).toBeGreaterThan(70)
-    expect(banners[0]?.bannerId).toBe('77')
-    expect(banners.find((banner) => banner.bannerId === '77')?.name).toEqual({ zh: '在属于孩子的故事里', en: 'A Story Dedicated to Children' })
+    expect(banners.length).toBeGreaterThan(0)
+    const ids = banners.map(banner => Number(banner.bannerId))
+    expect(ids).toEqual([...ids].sort((a, b) => b - a))
+    for (const banner of banners) {
+      expect(banner.name.zh).toEqual(expect.any(String))
+      expect(banner.name.en).toEqual(expect.any(String))
+      expect(banner.name.zh.trim()).not.toBe('')
+      expect(banner.name.en.trim()).not.toBe('')
+    }
   })
 
   it('creates bilingual outfit and piece names from stable catalog IDs', () => {

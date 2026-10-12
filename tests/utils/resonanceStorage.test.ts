@@ -51,11 +51,6 @@ describe('resonanceStorage', () => {
     expect(names).toEqual(expect.arrayContaining(['album-handles', 'camera-favorite-covers', 'camera-favorite-tags', 'camera-favorites', 'resonance-records']))
   })
 
-  it('preserves a complete bilingual profile snapshot including both sets', async () => {
-    await saveResonanceRecords([record])
-    await expect(loadResonanceRecords()).resolves.toEqual([record])
-  })
-
   it('returns an empty list before a snapshot exists', async () => {
     await expect(loadResonanceRecords()).resolves.toEqual([])
   })

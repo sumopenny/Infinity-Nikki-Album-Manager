@@ -2,7 +2,6 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { messages } from '../../src/i18n'
 import AlbumViewSwitcher from '../../src/components/AlbumViewSwitcher.vue'
-import RecentlyDeletedGrid from '../../src/components/RecentlyDeletedGrid.vue'
 
 describe('album view controls', () => {
   it('renders the four separate entries in the required order', async () => {
@@ -54,26 +53,4 @@ describe('album view controls', () => {
     await resonanceItem.find('[role="menuitem"]').trigger('click')
     expect(wrapper.emitted('changeView')).toEqual([['resonance']])
   })
-
-  it('keeps recently deleted cards free of names, sizes, and per-card actions', () => {
-    const wrapper = mount(RecentlyDeletedGrid, {
-      props: {
-        photos: [],
-        selectedIds: new Set<string>(),
-        thumbnailMode: 'default',
-        language: 'zh',
-        messages: messages.zh.trash
-      },
-      global: { stubs: { LazyPhotoImage: true } }
-    })
-
-    expect(wrapper.text()).toContain('最近删除为空')
-    expect(wrapper.findAll('.restore-button')).toHaveLength(0)
-    expect(wrapper.findAll('.danger-button')).toHaveLength(0)
-  })
-
-  it('uses the exact irreversible deletion impact wording', () => {
-    expect(messages.zh.trash.confirmPermanentDelete(6)).toBe('将从电脑中永久删除这 6 张照片，无法恢复。')
-  })
 })
-

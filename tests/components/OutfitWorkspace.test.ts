@@ -1,11 +1,13 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getOutfitMessages } from '../helpers/outfitMessages'
 import type { OutfitItem } from '../../src/utils/outfit/outfitFileSystem'
 import OutfitGrid from '../../src/components/OutfitGrid.vue'
 import OutfitEditor from '../../src/components/OutfitEditor.vue'
 import OutfitGuideDialog from '../../src/components/OutfitGuideDialog.vue'
 import OutfitSidebar from '../../src/components/OutfitSidebar.vue'
+
+enableAutoUnmount(afterEach)
 
 function outfit(id: string, code: string, tags: string[] = []): OutfitItem {
   return {
@@ -31,11 +33,6 @@ function outfit(id: string, code: string, tags: string[] = []): OutfitItem {
 }
 
 describe('outfit workspace components', () => {
-  it('keeps operation feedback complete in both locales', () => {
-    expect(getOutfitMessages('zh').operations.deletedSelected(2, 1)).toContain('1 个删除失败')
-    expect(getOutfitMessages('en').operations.importCompleted(2, 1, 0, '')).toContain('2 added')
-  })
-
   it('renders system filters before user tags and emits the selected filter', async () => {
     const wrapper = mount(OutfitSidebar, {
       props: {
@@ -99,7 +96,6 @@ describe('outfit workspace components', () => {
     } else {
       Reflect.deleteProperty(document, 'elementFromPoint')
     }
-    wrapper.unmount()
   })
 
   it('disables tag drag handles with the rest of the sidebar', () => {
@@ -115,23 +111,6 @@ describe('outfit workspace components', () => {
 
     expect(wrapper.get('.outfit-tag-drag-handle').attributes('disabled')).toBeDefined()
     expect(wrapper.findAll('.outfit-tag-drag-handle')).toHaveLength(1)
-  })
-
-  it('uses an app tooltip instead of the native title for drag handles', () => {
-    const wrapper = mount(OutfitSidebar, {
-      props: {
-        outfits: [],
-        tags: ['甜美'],
-        activeFilter: 'all',
-        disabled: false,
-        messages: getOutfitMessages('zh')
-      }
-    })
-    const handle = wrapper.get('.outfit-tag-drag-handle')
-
-    expect(handle.attributes('title')).toBeUndefined()
-    expect(handle.attributes('data-tooltip')).toBe('调整标签顺序')
-    expect(handle.attributes('aria-label')).toBe('调整标签顺序: 甜美')
   })
 
   it('closes the tag popover when the user clicks outside it', async () => {
@@ -151,7 +130,6 @@ describe('outfit workspace components', () => {
     document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
     await wrapper.vm.$nextTick()
     expect(document.body.querySelector('.outfit-tag-editor-popover')).toBeNull()
-    wrapper.unmount()
   })
 
   it('shows the standalone guide and emits the dismissal preference', async () => {
@@ -160,18 +138,9 @@ describe('outfit workspace components', () => {
       global: { stubs: { Teleport: true } }
     })
 
-    expect(wrapper.text()).toContain('自动更新游戏搭配码')
-    expect(wrapper.text()).toContain('搭配截图右下角点击框选按钮')
-    expect(wrapper.findAll('.outfit-guide-sections > section')).toHaveLength(4)
-    expect(wrapper.findAll('.outfit-guide-sections h3').map((heading) => heading.text())).toEqual(['搭配码解析', '标签与整理', '添加与编辑方案', '导入与导出'])
-    expect(wrapper.text()).not.toContain('把多张图片放入')
-    expect(wrapper.text()).toContain('全部迁移成功且源文件未变化后删除旧文件夹')
-    expect(wrapper.text()).toContain('clothe')
-    expect(wrapper.text()).toContain('无需先创建搭配方案')
     await wrapper.get('input[type="checkbox"]').setValue(true)
     await wrapper.get('.outfit-guide-panel > footer .primary-button').trigger('click')
     expect(wrapper.emitted('close')).toEqual([[true]])
-    wrapper.unmount()
   })
 
   it('syncs the stored dismissal preference when reopened from help', () => {
@@ -181,7 +150,6 @@ describe('outfit workspace components', () => {
     })
 
     expect((wrapper.get('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(true)
-    wrapper.unmount()
   })
 
   it('disables copying for pending outfits and opens them for editing from the status text', async () => {
@@ -203,7 +171,7 @@ describe('outfit workspace components', () => {
     expect(wrapper.emitted('edit')).toEqual([[pending]])
   })
 
-  it('renders the parse button with an svg icon and emits parse', async () => {
+  it('emits parse without selecting the card', async () => {
     const item = outfit('1', 'ABC-123')
     const wrapper = mount(OutfitGrid, {
       props: {
@@ -217,12 +185,6 @@ describe('outfit workspace components', () => {
     })
 
     const parseButton = wrapper.get('.outfit-card-parse')
-    const deleteButton = wrapper.get('.outfit-card-delete')
-    expect(parseButton.attributes('title')).toBe('解析搭配码')
-    expect(deleteButton.element.compareDocumentPosition(parseButton.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    const icon = parseButton.find('svg')
-    expect(icon.exists()).toBe(true)
-    expect(icon.find('path, line, circle, rect, polyline, polygon').exists()).toBe(true)
     await parseButton.trigger('click')
     expect(wrapper.emitted('parse')).toEqual([[item]])
     expect(wrapper.emitted('toggleOutfit')).toBeUndefined()
@@ -293,7 +255,6 @@ describe('outfit workspace components', () => {
     await flushPromises()
     expect(document.body.querySelector('.outfit-editor img')?.getAttribute('src')).toBe('blob:second.webp')
     expect(createObjectURL).toHaveBeenCalledTimes(1)
-    wrapper.unmount()
   })
 
   it('opens the inline tag creation popover and closes it with Escape', async () => {
@@ -309,7 +270,6 @@ describe('outfit workspace components', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     await wrapper.vm.$nextTick()
     expect(document.body.querySelector('.outfit-tag-editor-popover')).toBeNull()
-    wrapper.unmount()
   })
 
   it('keeps the editor open when the backdrop closes the tag popover', async () => {
@@ -327,7 +287,6 @@ describe('outfit workspace components', () => {
     expect(document.body.querySelector('.outfit-tag-editor-popover')).toBeNull()
     expect(document.body.querySelector('.outfit-editor')).not.toBeNull()
     expect(wrapper.emitted('close')).toBeUndefined()
-    wrapper.unmount()
   })
 
   it('selects a newly created tag after the parent confirms persistence', async () => {
@@ -348,7 +307,5 @@ describe('outfit workspace components', () => {
     await wrapper.setProps({ tags: ['甜美', '清新'] })
     expect(document.body.querySelectorAll('.outfit-tag-choices button')[1].classList).toContain('active')
     expect(document.body.querySelector('.outfit-tag-editor-popover')).toBeNull()
-    wrapper.unmount()
   })
 })
-

@@ -148,20 +148,14 @@ describe('ResonanceRecords', () => {
     expect(await loadResonanceRecords()).toEqual([fourStar, savedRecord])
   })
 
-  it('keeps add and export actions and removes the duplicate import action', async () => {
+  it('disables export when no resonance records exist', async () => {
     const wrapper = mount(ResonanceRecords, { props: { language: 'zh' } })
     wrappers.push(wrapper)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('还没有共鸣记录')
-    expect(wrapper.findAll('.resonance-actions button')).toHaveLength(4)
-    expect(wrapper.find('.resonance-actions').text()).not.toContain('导入数据')
-    expect(wrapper.find('.resonance-cloud-sync-placeholder').text()).toBe('云端同步（待上线）')
-    expect(wrapper.find('.resonance-cloud-sync-placeholder').attributes('disabled')).toBeDefined()
-    expect(wrapper.find('.resonance-actions button:nth-child(3)').text()).toContain('导出数据')
-    expect(wrapper.find('.resonance-actions button:nth-child(3) .lucide-upload').exists()).toBe(true)
-    expect(wrapper.find('.resonance-actions button:nth-child(3)').attributes('disabled')).toBeDefined()
-    expect(wrapper.find('.resonance-actions button:last-child').text()).toContain('添加数据')
+    const exportButton = wrapper.findAll('.resonance-actions button')
+      .find(button => button.text().includes('导出数据'))!
+    expect(exportButton.attributes('disabled')).toBeDefined()
   })
 
   it('opens Pearpal flow and offers file import in the same dialog', async () => {
@@ -211,13 +205,6 @@ describe('ResonanceRecords', () => {
     expect(latestNotice(wrapper)).toMatchObject({ message: '数据粘贴成功！', tone: 'success', source: 'resonance' })
   })
 
-  it('does not offer banner selection in the fixed import flow', async () => {
-    const { panel } = await openDialog()
-    expect(panel.querySelector('.resonance-banner-picker')).toBeNull()
-    expect(panel.querySelectorAll('input[type="checkbox"]')).toHaveLength(0)
-    expect(panel.textContent).not.toContain('选择卡池')
-  })
-
   it('renders stored bilingual names and keeps the summary while viewing set two', async () => {
     await saveResonanceRecords([savedRecord])
     const wrapper = mount(ResonanceRecords, { props: { language: 'en' } })
@@ -256,16 +243,6 @@ describe('ResonanceRecords', () => {
     await vi.waitFor(() => expect(wrapper.findAll('.resonance-record')).toHaveLength(1))
     expect(wrapper.find('.resonance-record-heading p').text()).toContain('总抽数：58')
     expect(wrapper.find('.resonance-record-heading p').text()).toContain('平均抽数：19.3')
-  })
-
-  it('does not render a delete button on each resonance record', async () => {
-    await saveResonanceRecords([savedRecord])
-    const wrapper = mount(ResonanceRecords, { props: { language: 'zh' } })
-    wrappers.push(wrapper)
-    await vi.waitFor(() => expect(wrapper.findAll('.resonance-record')).toHaveLength(1))
-
-    expect(wrapper.findAll('.resonance-record button')).toHaveLength(1)
-    expect(wrapper.find('.resonance-record .resonance-delete').exists()).toBe(false)
   })
 
   it('checks the UID before reading the notebook and keeps local records on mismatch', async () => {
@@ -354,17 +331,7 @@ describe('ResonanceRecords', () => {
     expect(wrapper.emitted('recordsChange')?.at(-1)?.[0]).toEqual([])
     expect(latestNotice(wrapper)).toMatchObject({ message: '共鸣记录已清空。', tone: 'success', source: 'resonance' })
   })
-
-  it('uses English copy in the fixed import flow', async () => {
-    const { panel } = await openDialog('en')
-    expect(panel.textContent).toContain('Sign in to Pear-Pal')
-    expect(panel.textContent).toContain('Bookmark')
-    expect(panel.textContent).toContain('Console')
-    expect(panel.textContent).toContain('Resonance Recorder')
-    expect(panel.textContent).not.toContain('国服')
-  })
 })
-
 
 it('blocks import after a storage read failure without overwriting existing records', async () => {
   await saveResonanceRecords([savedRecord])

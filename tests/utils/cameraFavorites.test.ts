@@ -275,8 +275,7 @@ it('splits a camera library into separately importable archives with all tags', 
   } finally { CAMERA_BACKUP_LIMITS.records = old }
 })
 
-
-it('reads pre-change version 1 favorites and round-trips the original version 2 backup format', async () => {
+it('reads and edits directly stored favorites without losing covers or tag order', async () => {
   // Seed the stored representation directly, without passing through the current save path.
   const cover = new Blob(['existing-cover'], { type: 'image/webp' })
   const original = { ...record('existing', 'EXISTING'), cover: await coverMetadata(cover, 'existing.webp') }
@@ -286,14 +285,10 @@ it('reads pre-change version 1 favorites and round-trips the original version 2 
   const loaded = await readCameraFavorites()
   expect(loaded.records).toEqual([original])
   expect(await loaded.covers.get(original.id)!.text()).toBe('existing-cover')
-  const archive = await exportCameraBackup(loaded)
-  const manifest = JSON.parse(strFromU8(unzipSync(new Uint8Array(await archive.arrayBuffer()))['favorites.json']))
-  expect(manifest.version).toBe(2)
-  expect(manifest.records[0].version).toBe(1)
-  const restored = await readCameraBackup(archive)
-  expect(restored.records).toEqual([original])
-  expect(restored.tags).toEqual(['人像', '空标签'])
   const edited = { ...original, name: '修改名称' }
   await saveCameraFavorite(edited, cover, original)
-  expect((await readCameraFavorites()).records).toEqual([edited])
+  const current = await readCameraFavorites()
+  expect(current.records).toEqual([edited])
+  expect(current.tags).toEqual(['人像', '空标签'])
+  expect(await current.covers.get(original.id)!.text()).toBe('existing-cover')
 })

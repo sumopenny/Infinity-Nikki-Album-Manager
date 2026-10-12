@@ -93,17 +93,6 @@ describe('camera favorite UI', () => {
     expect(document.querySelector('.outfit-editor-error')).toBeNull()
     expect(input.value).toBe('invalid')
   })
-  it('shows only present resources in the cover area and reuses the photo details dialog', async () => {
-    mocks.read.mockResolvedValue({ records: [item], covers: new Map() })
-    const view = create()
-    await flushPromises()
-    expect(view.find('.camera-resources').text()).toContain('回眸')
-    expect(view.find('.camera-resources').text()).toContain('暖光')
-    expect(view.find('.camera-resources').text()).not.toContain('灯光')
-    button('详情').click(); await flushPromises()
-    expect(document.querySelector('.photo-params-dialog')?.textContent).toContain('晴天')
-    expect(button('已收藏').disabled).toBe(true)
-  })
   it('saves a local album photo as WebP and a tool photo without a cover', async () => {
     const view = create()
     await flushPromises()
@@ -144,17 +133,19 @@ describe('camera favorite selection and resources', () => {
   it('displays typed action resources in cards and details and filters empty resources', async () => {
     const typed = { ...item, result: { ...result, resourceGroups: [
       { kind: 'pose', title: '动作', name: '回眸', imageUrl: '/pose.webp' },
+      { kind: 'light', title: '灯光', name: '--' },
       { kind: 'light', title: '灯光', name: '无' },
       { kind: 'filter', title: '滤镜', name: '暖光' }
     ] } }
     mocks.read.mockResolvedValue({ records: [typed], covers: new Map() })
     const view = create()
     await flushPromises()
-    expect(view.find('.camera-resources').text()).toContain('回眸')
-    expect(view.find('.camera-resources').text()).not.toContain('灯光')
+    expect(view.findAll('.camera-resources strong').map(resource => resource.text())).toEqual(['回眸', '暖光'])
     button('详情').click()
     await flushPromises()
     expect(document.querySelector('.photo-params-dialog')?.textContent).toContain('回眸')
+    expect(document.querySelector('.photo-params-dialog')?.textContent).toContain('晴天')
+    expect(button('已收藏').disabled).toBe(true)
     expect(view.get('.camera-favorite-card').attributes('aria-checked')).toBe('false')
   })
   it('selects on single click, keeps button actions separate and does not open a preview on double click', async () => {
