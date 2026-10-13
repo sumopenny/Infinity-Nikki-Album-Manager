@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   BookHeart,
   Download,
@@ -86,6 +86,7 @@ const emit = defineEmits<{
 const FEEDBACK_URL = 'https://v.wjx.cn/vm/tUM7gga.aspx'
 
 const compact = useCompactLayout()
+const mobileLikeTarget = inject('mobileLikeTarget', ref<HTMLElement | null>(null))
 const mobileSearchOpen = ref(false)
 const mobileSearchInput = ref<HTMLInputElement | null>(null)
 const mobileSearchTrigger = ref<HTMLButtonElement | null>(null)
@@ -282,7 +283,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div v-if="compact" class="mobile-header-row">
+    <div v-show="compact" class="mobile-header-row">
       <button ref="mobileSearchTrigger" type="button" :class="{ 'has-search': searchQuery?.trim() }" :aria-label="language === 'zh' ? '搜索当前页面' : 'Search this page'" aria-controls="mobile-search-popover" :aria-expanded="mobileSearchOpen" @click="toggleMobileSearch"><Search :size="20" aria-hidden="true" /></button>
       <button type="button" :title="messages.view" :aria-label="messages.viewMenuAria" aria-haspopup="menu" :aria-expanded="openMenu === 'view'" @click.stop="toggleMenu('view', $event)"><Grid2X2 :size="20" aria-hidden="true" /></button>
       <button type="button" :aria-label="messages.moreMenuAria" :aria-expanded="openMenu === 'more'" @click.stop="toggleMenu('more', $event)"><MoreHorizontal :size="22" /></button>
@@ -310,7 +311,10 @@ onBeforeUnmount(() => {
         <span class="official-site-text">{{ messages.officialSite }}</span>
         <span class="official-site-spark" aria-hidden="true">✦</span>
       </a>
-      <LikeCounter :messages="{ like: messages.like, likeTooltip: messages.likeTooltip }" />
+      <!-- 移动同一个点赞实例，切换布局时保留计数和未完成请求。 -->
+      <Teleport :to="mobileLikeTarget || 'body'" :disabled="!compact || !mobileLikeTarget">
+        <LikeCounter :compact="compact" :language="language" :messages="{ like: messages.like, likeTooltip: messages.likeTooltip }" />
+      </Teleport>
       <div class="header-search">
         <input :value="searchQuery ?? ''" type="search" :placeholder="messages.searchPlaceholder" :aria-label="messages.searchPlaceholder" @input="emit('updateSearch', ($event.target as HTMLInputElement).value)" />
         <button v-if="searchQuery" type="button" :title="messages.clearSearch" :aria-label="messages.clearSearch" @click="emit('updateSearch', '')"><X :size="15" /></button>

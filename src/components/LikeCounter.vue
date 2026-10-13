@@ -4,6 +4,8 @@ import { Heart } from 'lucide-vue-next'
 
 const props = defineProps<{
   messages: { like: string; likeTooltip: string }
+  compact?: boolean
+  language?: 'zh' | 'en'
 }>()
 
 const count = ref<number | null>(null)
@@ -13,6 +15,12 @@ let likeQueue: Promise<void> = Promise.resolve()
 let pendingLikes = 0
 
 const formattedCount = computed(() => (count.value === null ? '…' : count.value.toLocaleString()))
+const displayCount = computed(() => {
+  if (count.value === null || !props.compact) return formattedCount.value
+  return new Intl.NumberFormat(props.language === 'en' ? 'en' : 'zh-CN', {
+    notation: 'compact', maximumFractionDigits: 1
+  }).format(count.value)
+})
 
 /** 拉取当前点赞总数；接口不可用时（如纯静态环境）隐藏计数器。参数：无。 */
 async function loadCount() {
@@ -67,6 +75,6 @@ onMounted(loadCount)
     @click="like"
   >
     <Heart :size="16" aria-hidden="true" />
-    <span class="like-counter-number">{{ formattedCount }}</span>
+    <span class="like-counter-number">{{ displayCount }}</span>
   </button>
 </template>

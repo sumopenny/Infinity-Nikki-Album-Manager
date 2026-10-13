@@ -463,7 +463,7 @@ defineExpose({ openFromResult, reload })
 
 </template></CollectionActions>
     </Teleport>
-    <CollectionFilterBar tag-picker actions-id="camera-tag-actions" :entries="[{ key: 'all', label: t('全部', 'All') }, { key: 'uncategorized', label: t('未分类', 'Uncategorized') }, ...allTags.map(tag => ({ key: 'tag:' + tag, label: tag }))]" :active="tagFilter" :count="visibleRecords.length" :language="language" :disabled="busy" @change="tagFilter = $event as OutfitFilter" @clear="tagFilter = 'all'" @open="$emit('openFilters')" />
+    <CollectionFilterBar tag-picker :like-active="active" actions-id="camera-tag-actions" :entries="[{ key: 'all', label: t('全部', 'All') }, { key: 'uncategorized', label: t('未分类', 'Uncategorized') }, ...allTags.map(tag => ({ key: 'tag:' + tag, label: tag }))]" :active="tagFilter" :count="visibleRecords.length" :language="language" :disabled="busy" @change="tagFilter = $event as OutfitFilter" @clear="tagFilter = 'all'" @open="$emit('openFilters')" />
     <p v-if="loadError" role="alert">{{ loadError }} <button type="button" @click="reload">{{ t('重试', 'Retry') }}</button></p>
     <p v-if="!visibleRecords.length && !loadError" class="camera-empty">{{ t('暂无相机参数。添加参数码，或从照片参数窗口收藏。', 'No camera parameters yet. Add a code or save from photo parameters.') }}<button class="mobile-only empty-import-button" type="button" :disabled="busy" @click="backupInput?.click()">{{ t('导入备份', 'Import backup') }}</button></p>
     <div class="camera-favorite-grid">

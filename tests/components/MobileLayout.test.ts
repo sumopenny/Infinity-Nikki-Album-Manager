@@ -1,6 +1,6 @@
 import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h } from 'vue'
+import { defineComponent, h, provide, ref } from 'vue'
 import { messages } from '../../src/i18n'
 import AlbumViewSwitcher from '../../src/components/AlbumViewSwitcher.vue'
 import TopBar from '../../src/components/TopBar.vue'
@@ -22,6 +22,87 @@ afterEach(() => {
 })
 
 describe('mobile navigation and collection controls', () => {
+  it('moves one like instance between active tag rows and desktop while a request is pending', async () => {
+    let compact = true
+    const layoutListeners = new Set<() => void>()
+    vi.stubGlobal('matchMedia', vi.fn(() => ({
+      get matches() { return compact },
+      addEventListener: (_event: string, listener: () => void) => layoutListeners.add(listener),
+      removeEventListener: (_event: string, listener: () => void) => layoutListeners.delete(listener)
+    })))
+    let resolvePost!: (response: Response) => void
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ count: 12000 }) })
+      .mockImplementationOnce(() => new Promise<Response>(resolve => { resolvePost = resolve }))
+    vi.stubGlobal('fetch', fetchMock)
+    const view = ref('outfits')
+    const language = ref<'zh' | 'en'>('zh')
+    const root = defineComponent({
+      components: { TopBar, CollectionFilterBar },
+      setup() {
+        provide('mobileLikeTarget', ref<HTMLElement | null>(null))
+        return { view, language, topBarProps: {
+          directoryName: '', isLoading: false, isDeleting: false, hasAlbumDirectory: false,
+          hasX6GameAuthorization: false, thumbnailMode: 'default', thumbnailModeOptions: [],
+          themeMode: 'light', messages: messages.zh.topBar
+        } }
+      },
+      template: `<div>
+        <TopBar v-bind="topBarProps" :language="language" :active-view="view" />
+        <CollectionFilterBar v-if="view !== 'favorites' && view !== 'trash'" :key="view"
+          tag-picker :entries="[{key:'all',label:'All'}]" active="all" :count="0" :language="language" />
+        <section v-show="view === 'favorites'" class="retained-camera">
+          <CollectionFilterBar tag-picker :like-active="view === 'favorites'"
+            :entries="[{key:'all',label:'All'}]" active="all" :count="0" :language="language" />
+        </section>
+      </div>`
+    })
+    const wrapper = mount(root, { attachTo: document.body })
+    wrappers.push(wrapper)
+    await flushPromises()
+    const button = document.querySelector<HTMLButtonElement>('.collection-like-target .like-counter')!
+    expect(button).not.toBeNull()
+    expect(button.nextElementSibling).toBeNull()
+    expect(button.parentElement!.nextElementSibling!.classList.contains('collection-tag-select')).toBe(true)
+    expect(document.querySelector('.mobile-header-row .like-counter')).toBeNull()
+    expect(document.querySelectorAll('.like-counter')).toHaveLength(1)
+    expect(button.querySelector('.like-counter-number')!.textContent).toBe('1.2万')
+    expect(button.getAttribute('aria-label')).toContain('12,000')
+    button.click()
+    await flushPromises()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    for (const nextView of ['home', 'resonance', 'favorites', 'outfits']) {
+      view.value = nextView
+      await flushPromises()
+      expect(document.querySelector('.collection-like-target .like-counter')).toBe(button)
+      expect(document.querySelectorAll('.like-counter')).toHaveLength(1)
+      expect(button.getAttribute('aria-label')).toContain('12,001')
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    }
+    view.value = 'trash'
+    await flushPromises()
+    expect(document.querySelector('.header-actions .like-counter')).toBe(button)
+    expect(document.querySelector('.retained-camera .like-counter')).toBeNull()
+    view.value = 'favorites'
+    await flushPromises()
+    expect(document.querySelector('.retained-camera .like-counter')).toBe(button)
+    compact = false
+    layoutListeners.forEach(listener => listener())
+    await flushPromises()
+    expect(document.querySelector('.header-actions .like-counter')).toBe(button)
+    resolvePost({ ok: true, json: async () => ({ count: 12005 }) } as Response)
+    await flushPromises()
+    expect(button.querySelector('.like-counter-number')!.textContent).toBe('12,005')
+    compact = true
+    layoutListeners.forEach(listener => listener())
+    language.value = 'en'
+    await flushPromises()
+    expect(document.querySelector('.retained-camera .like-counter')).toBe(button)
+    expect(button.querySelector('.like-counter-number')!.textContent).toBe('12K')
+    expect(button.getAttribute('aria-label')).toContain('12,005')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
   it('navigates to resonance once even after a compatibility hover event', async () => {
     const wrapper = mount(AlbumViewSwitcher, { props: { activeView: 'outfits', allCount: 0, outfitsCount: 0,
       homeSchemesCount: 0, favoriteCount: 0, trashCount: 0, outfitLabel: '搭配码', disabled: false, messages: messages.zh.viewNav } })

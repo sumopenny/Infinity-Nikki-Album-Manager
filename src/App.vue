@@ -2,7 +2,7 @@
 import { invalidateCacheWrites } from './utils/cacheLifecycle'
 import { clearBrowserSessionData } from './utils/file-system/database'
 import { clearOutfitDetailCache } from './utils/outfit/outfitDetails'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { CircleHelp, Download, Plus, Trash2, Upload } from 'lucide-vue-next'
 import UpdateLogDialog from './components/UpdateLogDialog.vue'
 import HelpAboutDialog from './components/HelpAboutDialog.vue'
@@ -213,6 +213,8 @@ const directorySupported = supportsDirectoryAuthorization()
 const mobileFiltersOpen = ref(false)
 const mobileCollectionPicker = computed(() => activeView.value === 'outfits' || activeView.value === 'home' || activeView.value === 'resonance' || isCameraFavoritesView.value)
 const topBarRef = ref<InstanceType<typeof TopBar> | null>(null)
+// 筛选栏提供当前位置，顶栏保留唯一点赞实例。
+provide('mobileLikeTarget', ref<HTMLElement | null>(null))
 const homeVisibleCount = ref(0)
 const cameraVisibleCount = ref(0)
 const activeView = ref<AlbumView>(compactLayout.value && !directorySupported ? 'outfits' : 'all')

@@ -44,12 +44,13 @@
   .desktop-navigation { display: none; }
   .app-shell { min-height: 100dvh; padding-bottom: var(--mobile-nav-height); }
   .app-header { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: max(6px, env(safe-area-inset-top, 0px)) 12px 6px; background: var(--top-bg); }
-  /* 手机复用桌面品牌，右侧保留搜索、视图、更多三个入口，搜索使用独立浮层。 */
+  /* 顶栏仅保留搜索、视图、更多，品牌按剩余空间布局。 */
   .app-header .brand-lockup { flex: 1; min-width: 0; }
   .mobile-header-row { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; min-height: var(--mobile-compact-control-size); }
   .mobile-header-row button, .mobile-header-search button { display: grid; place-items: center; flex: 0 0 var(--mobile-compact-control-size); width: var(--mobile-compact-control-size); height: var(--mobile-compact-control-size); padding: 0; border: 0; border-radius: 12px; background: transparent; color: var(--text); }
   .mobile-header-row button { border-radius: 10px; }
   .mobile-header-row button svg { width: var(--mobile-icon-size); height: var(--mobile-icon-size); }
+  .mobile-header-row { margin-left: auto; }
   /* 搜索独立于顶栏的模糊层；聚焦复用电脑边框/辉光并保留半透明背景。 */
   .mobile-header-search { --search-focus-bg: var(--top-bg); position: fixed; z-index: 53; left: 12px; right: 12px; display: flex; min-width: 0; align-items: center; gap: 4px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--top-bg); -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6); box-shadow: 0 8px 24px color-mix(in srgb,var(--heading) 14%,transparent); transition: border-color var(--motion-base) ease, box-shadow var(--motion-base) ease, background var(--motion-base) ease; }
   .mobile-header-search > svg { flex-shrink: 0; margin-left: 4px; color: var(--muted); }
@@ -84,12 +85,21 @@
   .collection-filter-summary button { display: flex; align-items: center; gap: 4px; min-height: var(--mobile-control-size); padding: 4px 8px; border: 0; background: transparent; }
   /* 手机标签栏统一使用 36px 控件，长名称省略并保持单行布局。 */
   .collection-filter-bar.tag-picker-bar { flex-wrap: nowrap; align-items: center; gap: 6px; }
+  .collection-like-target { display: flex; flex-shrink: 0; }
+  .collection-like-target:empty { display: none; }
+  .tag-picker-bar .like-counter { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: var(--mobile-compact-control-size); min-height: var(--mobile-compact-control-size); margin: 0; padding: 0 6px; border-radius: 10px; color: var(--pink-deep); white-space: nowrap; }
+  .tag-picker-bar .like-counter:hover { border-color: var(--pink-deep); background: var(--surface-strong); }
+  .tag-picker-bar .like-counter svg { flex-shrink: 0; width: var(--mobile-icon-size); height: var(--mobile-icon-size); }
+  .tag-picker-bar .like-counter-number { min-width: 0; }
+  @media (prefers-reduced-motion: reduce) {
+    .tag-picker-bar .like-counter.liked svg { animation: none; }
+  }
   .tag-picker-bar .collection-tag-select { display: flex; align-items: center; justify-content: space-between; flex: 1; min-width: 0; height: var(--mobile-compact-control-size); min-height: var(--mobile-compact-control-size); padding: 0 10px; border-radius: 10px; gap: 6px; }
   .collection-tag-select span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .collection-tag-select svg { flex-shrink: 0; }
   .tag-picker-bar .collection-tag-select.is-filtered { border-color: var(--pink-deep); background: var(--soft-accent); color: var(--heading); }
   .tag-picker-bar .collection-tag-clear { display: grid; place-items: center; flex: 0 0 var(--mobile-compact-control-size); width: var(--mobile-compact-control-size); height: var(--mobile-compact-control-size); min-height: var(--mobile-compact-control-size); padding: 0; border: 0; border-radius: 50%; background: var(--soft-accent); color: var(--pink-deep); }
-  .collection-tag-count { flex-shrink: 0; color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .collection-tag-count { flex: 0 1 auto; min-width: 0; max-width: 20%; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 12px; white-space: nowrap; }
   /* 标签栏操作按钮与下拉框等高，仅收紧手机端的尺寸和间距。 */
   .collection-filter-actions { display: flex; flex-shrink: 0; }
   .tag-picker-bar .collection-actions { margin: 0; flex-wrap: nowrap; gap: 6px; }
@@ -308,7 +318,7 @@
   :root { --mobile-collection-columns: repeat(3,minmax(0,1fr)); }
 }
 
-/* 超窄屏容纳搜索、视图、更多三个紧凑入口，品牌文字保持一行。 */
+/* 超窄屏缩小品牌图标，给三个顶栏入口保留空间。 */
 @media (max-width: 360px) {
   .app-header .brand-lockup { gap: 6px; }
   .app-header .brand-icon { width: 34px; height: 34px; flex-basis: 34px; }
