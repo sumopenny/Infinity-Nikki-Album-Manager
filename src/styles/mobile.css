@@ -1,4 +1,4 @@
-/* 移动端独立收纳层：断点与 useCompactLayout 一致，覆盖历史模块规则。 */
+/* 移动端共享布局：负责控件尺寸、网格、弹窗外壳；业务组件保留内容样式。断点与 useCompactLayout 一致。 */
 .mobile-only { display: none; }
 .desktop-only { display: inline-flex; }
 .outfit-card-actions > .mobile-only { display: none; }
@@ -23,23 +23,34 @@
 @media (max-width: 899px) {
   /* 移动布局关闭浏览器原生触摸高亮，保留控件自身的点击和焦点反馈。 */
   html { -webkit-tap-highlight-color: transparent; }
-  :root { --mobile-nav-height: calc(64px + env(safe-area-inset-bottom, 0px)); --mobile-dialog-gap: 12px; --mobile-dialog-radius: 20px; --mobile-dialog-space: calc(var(--visible-height,100dvh) - max(var(--mobile-dialog-gap),env(safe-area-inset-top,0px)) - max(var(--mobile-dialog-gap),env(safe-area-inset-bottom,0px))); }
+  /* 尺寸仅在移动断点定义，组件可通过回退值保留桌面规格。 */
+  :root {
+    --mobile-control-size: 44px;
+    --mobile-compact-control-size: 36px;
+    --mobile-card-action-size: 34px;
+    --mobile-icon-size: 18px;
+    --mobile-input-font-size: 16px;
+    --mobile-collection-columns: repeat(2,minmax(0,1fr));
+    --mobile-collection-gap: 8px;
+    --mobile-nav-height: calc(64px + env(safe-area-inset-bottom, 0px));
+    --mobile-dialog-gap: 12px;
+    --mobile-dialog-radius: 20px;
+    --mobile-dialog-space: calc(var(--visible-height,100dvh) - max(var(--mobile-dialog-gap),env(safe-area-inset-top,0px)) - max(var(--mobile-dialog-gap),env(safe-area-inset-bottom,0px)));
+  }
   .mobile-only { display: flex; }
   .desktop-only { display: none !important; }
   .desktop-navigation { display: none; }
   .app-shell { min-height: 100dvh; padding-bottom: var(--mobile-nav-height); }
   .app-header { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: max(6px, env(safe-area-inset-top, 0px)) 12px 6px; background: var(--top-bg); }
-  /* 手机复用桌面品牌，右侧保留两个固定触摸目标，搜索展开后独占下一行。 */
+  /* 手机复用桌面品牌，右侧保留搜索、视图、更多三个入口，搜索使用独立浮层。 */
   .app-header .brand-lockup { flex: 1; min-width: 0; }
-  .mobile-header-row { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; min-height: 36px; }
-  .mobile-header-row button, .mobile-header-search button { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: var(--text); }
-  /* 手机右上角按钮统一为 36px，展开后的搜索框沿用原有尺寸。 */
-  .mobile-header-row button { flex-basis: 36px; width: 36px; height: 36px; border-radius: 10px; }
-  .mobile-header-row button svg { width: 18px; height: 18px; }
+  .mobile-header-row { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; min-height: var(--mobile-compact-control-size); }
+  .mobile-header-row button, .mobile-header-search button { display: grid; place-items: center; flex: 0 0 var(--mobile-compact-control-size); width: var(--mobile-compact-control-size); height: var(--mobile-compact-control-size); padding: 0; border: 0; border-radius: 12px; background: transparent; color: var(--text); }
+  .mobile-header-row button { border-radius: 10px; }
+  .mobile-header-row button svg { width: var(--mobile-icon-size); height: var(--mobile-icon-size); }
   /* 搜索独立于顶栏的模糊层；聚焦复用电脑边框/辉光并保留半透明背景。 */
   .mobile-header-search { --search-focus-bg: var(--top-bg); position: fixed; z-index: 53; left: 12px; right: 12px; display: flex; min-width: 0; align-items: center; gap: 4px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--top-bg); -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6); box-shadow: 0 8px 24px color-mix(in srgb,var(--heading) 14%,transparent); transition: border-color var(--motion-base) ease, box-shadow var(--motion-base) ease, background var(--motion-base) ease; }
   .mobile-header-search > svg { flex-shrink: 0; margin-left: 4px; color: var(--muted); }
-  .mobile-header-search button { flex: 0 0 36px; width: 36px; height: 36px; }
   .mobile-header-row button.has-search { color: var(--pink-deep); background: var(--soft-accent); }
   .mobile-search-popover-enter-active, .mobile-search-popover-leave-active { transition: opacity 180ms ease, transform 180ms ease; }
   /* 淡出期间保持聚焦外观，避免失焦后边框和阴影先跳变再消失。 */
@@ -48,7 +59,7 @@
   @media (prefers-reduced-motion: reduce) {
     .mobile-search-popover-enter-active, .mobile-search-popover-leave-active { transition: none; }
   }
-  .mobile-header-search input { outline: none; appearance: none; -webkit-appearance: none; width: 100%; min-width: 0; min-height: 44px; padding: 8px; border: 0; border-radius: inherit; background: transparent; color: var(--text); font-size: 16px; }
+  .mobile-header-search input { outline: none; appearance: none; -webkit-appearance: none; width: 100%; min-width: 0; min-height: var(--mobile-control-size); padding: 8px; border: 0; border-radius: inherit; background: transparent; color: var(--text); font-size: var(--mobile-input-font-size); }
   .album-layout, .album-layout.without-album { display: block; min-height: 0; padding: 0 12px 24px; }
   .album-layout::before { display: none; }
   .sidebar-column { position: static; width: 100%; height: auto; min-height: 0; margin: 0; padding: 0; border: 0; }
@@ -56,33 +67,33 @@
   .mobile-filter-body .date-sidebar { width: 100%; margin: 0; padding: 0; overflow: visible; }
   .mobile-filter-body .timeline-year { max-width: none; }
   .mobile-filter-body .outfit-filter-list { margin-top: 8px; }
-  .mobile-filter-body .sidebar-mode-switch button, .mobile-filter-body .action-link, .mobile-filter-body .timeline-toggle, .mobile-filter-body .date-link, .mobile-filter-body .outfit-filter-button { min-height: 44px; font-size: 14px; }
+  .mobile-filter-body .sidebar-mode-switch button, .mobile-filter-body .action-link, .mobile-filter-body .timeline-toggle, .mobile-filter-body .date-link, .mobile-filter-body .outfit-filter-button { min-height: var(--mobile-control-size); font-size: 14px; }
   .mobile-filter-body .outfit-filter-row { display: flex; align-items: center; }
   .mobile-filter-body .outfit-filter-row .outfit-filter-button { flex: 1; min-width: 0; padding-left: 8px; padding-right: 8px; }
-  .mobile-filter-body .outfit-delete-tag, .mobile-filter-body .outfit-tag-drag-handle { position: static; width: 44px; height: 44px; flex-shrink: 0; opacity: 1; }
-  .mobile-filter-body .outfit-add-tag-toggle { width: 44px; height: 44px; }
+  .mobile-filter-body .outfit-delete-tag, .mobile-filter-body .outfit-tag-drag-handle { position: static; width: var(--mobile-control-size); height: var(--mobile-control-size); flex-shrink: 0; opacity: 1; }
+  .mobile-filter-body .outfit-add-tag-toggle { width: var(--mobile-control-size); height: var(--mobile-control-size); }
   .collection-filter-bar { flex-wrap: wrap; gap: 6px; min-width: 0; }
   .collection-filter-chips { display: flex; flex: 1; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .collection-filter-chips button { flex-shrink: 0; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .collection-filter-bar button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); font-size: 13px; }
+  .collection-filter-bar button { min-height: var(--mobile-control-size); padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); font-size: 13px; }
   .collection-filter-chips button[aria-pressed='true'] { border-color: var(--pink-deep); background: var(--soft-accent); color: var(--heading); }
   .collection-filter-open { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
   .collection-filter-summary { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 24px; color: var(--muted); font-size: 12px; }
-  .collection-filter-summary button { display: flex; align-items: center; gap: 4px; min-height: 44px; padding: 4px 8px; border: 0; background: transparent; }
+  .collection-filter-summary button { display: flex; align-items: center; gap: 4px; min-height: var(--mobile-control-size); padding: 4px 8px; border: 0; background: transparent; }
   /* 手机标签栏统一使用 36px 控件，长名称省略并保持单行布局。 */
   .collection-filter-bar.tag-picker-bar { flex-wrap: nowrap; align-items: center; gap: 6px; }
-  .tag-picker-bar .collection-tag-select { display: flex; align-items: center; justify-content: space-between; flex: 1; min-width: 0; height: 36px; min-height: 36px; padding: 0 10px; border-radius: 10px; gap: 6px; }
+  .tag-picker-bar .collection-tag-select { display: flex; align-items: center; justify-content: space-between; flex: 1; min-width: 0; height: var(--mobile-compact-control-size); min-height: var(--mobile-compact-control-size); padding: 0 10px; border-radius: 10px; gap: 6px; }
   .collection-tag-select span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .collection-tag-select svg { flex-shrink: 0; }
   .tag-picker-bar .collection-tag-select.is-filtered { border-color: var(--pink-deep); background: var(--soft-accent); color: var(--heading); }
-  .tag-picker-bar .collection-tag-clear { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; min-height: 36px; padding: 0; border: 0; border-radius: 50%; background: var(--soft-accent); color: var(--pink-deep); }
+  .tag-picker-bar .collection-tag-clear { display: grid; place-items: center; flex: 0 0 var(--mobile-compact-control-size); width: var(--mobile-compact-control-size); height: var(--mobile-compact-control-size); min-height: var(--mobile-compact-control-size); padding: 0; border: 0; border-radius: 50%; background: var(--soft-accent); color: var(--pink-deep); }
   .collection-tag-count { flex-shrink: 0; color: var(--muted); font-size: 12px; white-space: nowrap; }
   /* 标签栏操作按钮与下拉框等高，仅收紧手机端的尺寸和间距。 */
   .collection-filter-actions { display: flex; flex-shrink: 0; }
   .tag-picker-bar .collection-actions { margin: 0; flex-wrap: nowrap; gap: 6px; }
-  .tag-picker-bar .collection-icon-actions > button { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 10px; }
-  .tag-picker-bar .collection-action-menu summary { width: 36px; height: 36px; border-radius: 10px; }
-  .tag-picker-bar .collection-action-menu summary svg { width: 18px; height: 18px; }
+  .tag-picker-bar .collection-icon-actions > button { display: grid; place-items: center; flex: 0 0 var(--mobile-compact-control-size); width: var(--mobile-compact-control-size); height: var(--mobile-compact-control-size); min-height: var(--mobile-compact-control-size); padding: 0; border-radius: 10px; }
+  .tag-picker-bar .collection-action-menu summary { width: var(--mobile-compact-control-size); height: var(--mobile-compact-control-size); border-radius: 10px; }
+  .tag-picker-bar .collection-action-menu summary svg { width: var(--mobile-icon-size); height: var(--mobile-icon-size); }
   .tag-picker-bar .collection-icon-actions > .primary-button { background: var(--pink-deep); border-color: var(--pink-deep); color: white; }
   .collection-icon-actions .collection-action-label { display: none; }
   /* 共鸣内容区补齐顶部间距，避免记录卡片紧贴手机筛选栏。 */
@@ -103,7 +114,7 @@
   .mobile-tag-picker .outfit-sidebar-heading .tag-picker-search { flex: 1; min-width: 0; margin-bottom: 0; }
   .mobile-tag-picker .outfit-sidebar-heading .outfit-add-tag-toggle { flex-shrink: 0; }
   .tag-picker-search { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--muted); }
-  .tag-picker-search input { width: 100%; min-width: 0; min-height: 44px; padding: 8px 0; border: 0; outline: none; background: transparent; color: var(--text); font: inherit; font-size: 16px; }
+  .tag-picker-search input { width: 100%; min-width: 0; min-height: var(--mobile-control-size); padding: 8px 0; border: 0; outline: none; background: transparent; color: var(--text); font: inherit; font-size: var(--mobile-input-font-size); }
   .tag-picker-search:focus-within { border-color: var(--pink-deep); }
   .mobile-tag-picker .outfit-sidebar:not(.is-managing-tags) .outfit-filter-list { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
   .mobile-tag-picker .outfit-sidebar:not(.is-managing-tags) .outfit-filter-row { min-width: 0; }
@@ -115,13 +126,13 @@
   .resonance-picker-controls { display: grid; gap: 16px; margin-bottom: 16px; }
   .resonance-picker-controls p { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
   .resonance-picker-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
-  .resonance-picker-options button { min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); font-size: 14px; }
+  .resonance-picker-options button { min-width: 0; min-height: var(--mobile-control-size); padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); font-size: 14px; }
   .resonance-picker-options button[aria-pressed='true'] { border-color: var(--pink-deep); background: var(--soft-accent); color: var(--pink-deep); }
   .tag-picker-empty { padding: 12px 0; color: var(--muted); font-size: 13px; }
   /* 底栏高于拖拽手柄与插入标记，避免滚动中的标签控件穿透底栏。 */
   .tag-picker-footer { position: sticky; z-index: 4; bottom: -12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 16px -16px -12px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--surface-strong); }
   .tag-picker-footer > span { min-width: 0; color: var(--muted); font-size: 12px; }
-  .tag-picker-footer button { display: flex; flex-shrink: 0; align-items: center; gap: 6px; min-height: 44px; }
+  .tag-picker-footer button { display: flex; flex-shrink: 0; align-items: center; gap: 6px; min-height: var(--mobile-control-size); }
   .outfit-card-tag, .home-scheme-card-tag { display: flex; min-width: 0; align-items: center; gap: 4px; }
   .outfit-card-tag > span, .home-scheme-card-tag > span, .camera-name-tags span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .outfit-card-tag > span, .home-scheme-card-tag > span { min-width: 0; }
@@ -134,14 +145,14 @@
   .camera-source-tag .camera-source-label { flex: 0 0 auto; white-space: nowrap; }
   .camera-favorite-card .camera-source-tag .camera-card-tag { flex: 0 1 auto; min-width: 0; max-width: none; margin-left: auto; }
   .camera-card-tag > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .empty-import-button { justify-content: center; min-height: 44px; margin: 12px auto; padding: 8px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-strong); color: var(--heading); }
+  .empty-import-button { justify-content: center; min-height: var(--mobile-control-size); margin: 12px auto; padding: 8px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-strong); color: var(--heading); }
   .mobile-navigation { position: fixed; z-index: 54; left: 0; right: 0; bottom: 0; height: var(--mobile-nav-height); padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); background: var(--surface-strong); }
   .mobile-navigation button { display: flex; flex: 1; min-width: 0; align-items: center; justify-content: center; flex-direction: column; gap: 3px; padding: 4px 2px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); font-size: 11px; }
   .mobile-navigation button[aria-current='page'] { background: var(--soft-accent); color: var(--heading); font-weight: 700; }
   .mobile-navigation button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mobile-import-start { display: flex; align-items: center; gap: 12px; margin: 10px 12px 0; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
   .mobile-import-start p { flex: 1; margin: 0; min-width: 0; font-size: 12px; color: var(--muted); }
-  .mobile-import-start button { flex-shrink: 0; max-width: 45%; min-height: 44px; padding: 8px; border: 0; border-radius: 10px; background: var(--soft-accent); color: var(--heading); }
+  .mobile-import-start button { flex-shrink: 0; max-width: 45%; min-height: var(--mobile-control-size); padding: 8px; border: 0; border-radius: 10px; background: var(--soft-accent); color: var(--heading); }
   .mobile-menu-sheet.header-dropdown { z-index: 91; top: auto; right: max(var(--mobile-dialog-gap),env(safe-area-inset-right,0px)); bottom: calc(max(0px,calc(100dvh - var(--visible-height,100dvh) - var(--visible-top,0px))) + max(var(--mobile-dialog-gap),env(safe-area-inset-bottom,0px))); left: max(var(--mobile-dialog-gap),env(safe-area-inset-left,0px)); width: auto; min-width: 0; max-width: none; max-height: min(85dvh, var(--mobile-dialog-space)); margin: 0; padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)); border-radius: var(--mobile-dialog-radius); transform: none; animation: none; background: var(--surface-strong); }
   /* 更多窗口沿用编辑器的可视高度及安全区留白，仅下方菜单内容滚动。 */
   .mobile-menu-sheet.more-menu-panel { top: calc(var(--visible-top,0px) + max(var(--mobile-dialog-gap),env(safe-area-inset-top,0px))); bottom: auto; height: var(--mobile-dialog-space); max-height: var(--mobile-dialog-space); display: flex; flex-direction: column; padding: 0; overflow: hidden; }
@@ -150,7 +161,7 @@
   /* 视图保持内容高度，在当前可视区域居中；标题抵消面板内边距。 */
   .mobile-menu-sheet.view-dropdown { top: calc(var(--visible-top,0px) + var(--visible-height,100dvh) / 2); bottom: auto; transform: translateY(-50%); }
   .mobile-menu-sheet.view-dropdown > .mobile-menu-heading { position: sticky; top: -12px; z-index: 2; margin: -12px -12px 12px; background: var(--surface-strong); }
-  .header-dropdown .mobile-menu-heading button { flex-shrink: 0; width: 44px; height: 44px; min-height: 44px; padding: 0; justify-content: center; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--heading) 8%, transparent); }
+  .header-dropdown .mobile-menu-heading button { flex-shrink: 0; width: var(--mobile-control-size); height: var(--mobile-control-size); min-height: var(--mobile-control-size); padding: 0; justify-content: center; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--heading) 8%, transparent); }
   .header-dropdown .mobile-menu-heading button:hover { background: color-mix(in srgb, var(--heading) 16%, transparent); }
   .mobile-menu-sheet .more-menu-content { display: block; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)); }
   .mobile-capability-note { margin: 8px; padding: 12px; border-radius: 12px; background: var(--surface-soft); color: var(--muted); font-size: 13px; line-height: 1.6; }
@@ -160,12 +171,12 @@
   .gallery-header h2:not(.trash-header-title) { display: none; }
   .gallery-header.is-outfit-header { flex-direction: row; align-items: center; }
   .outfit-header-actions.collection-actions { display: flex; width: auto; overflow: visible; padding: 0; margin-left: auto; align-items: center; gap: 8px; }
-  .collection-actions > button { min-height: 44px; padding: 8px 12px; }
+  .collection-actions > button { min-height: var(--mobile-control-size); padding: 8px 12px; }
   .favorites-toolbar { flex-wrap: wrap; gap: 8px; }
   .favorites-tabs { display: flex; width: 100%; }
-  .favorites-tabs button { flex: 1; min-height: 44px; }
+  .favorites-tabs button { flex: 1; min-height: var(--mobile-control-size); }
   .favorites-toolbar-actions { margin-left: auto; }
-  .outfit-grid-wrap .outfit-grid, .camera-favorite-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+  .outfit-grid-wrap .outfit-grid { grid-template-columns: var(--mobile-collection-columns); gap: var(--mobile-collection-gap); }
   .outfit-card-footer { flex-direction: column; align-items: stretch; gap: 6px; }
   /* 手机家园方案码和标签作为一个横排项，避免 display:contents 被底栏纵排拆开。 */
   .home-scheme-card .home-scheme-name-tag .home-scheme-card-tag { display: none; }
@@ -175,75 +186,76 @@
   /* 卡片操作集中到底部等宽一行，图标轻量化且不覆盖图片。 */
   .photo-card .outfit-card-actions { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); width: 100%; gap: 0; align-items: center; }
   .home-scheme-card .outfit-card-actions { grid-template-columns: repeat(3,minmax(0,1fr)); }
-  .photo-card .outfit-card-actions > button { display: grid; place-items: center; width: 100%; min-width: 0; height: 34px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--muted); }
+  .photo-card .outfit-card-actions > button { display: grid; place-items: center; width: 100%; min-width: 0; height: var(--mobile-card-action-size); padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--muted); }
   .photo-card .outfit-card-actions > button:hover:not(:disabled) { background: var(--soft-accent); color: var(--heading); }
-  .photo-card .outfit-card-actions > button svg { width: 18px; height: 18px; }
+  .photo-card .outfit-card-actions > button svg { width: var(--mobile-icon-size); height: var(--mobile-icon-size); }
   .outfit-card-note { margin: 0; color: var(--heading); font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
   /* 手机搭配码渐变向上延伸，完整衬托标签；底部内边距不变，避免移动文字。 */
   .outfit-grid .outfit-overlay { opacity: 0.7; min-height: 50px; padding: 6px; background: linear-gradient(transparent, rgba(0,0,0,.22) 40%, rgba(0,0,0,.62) 75%, rgba(0,0,0,.78)); }
   .outfit-code { flex: none; min-width: 0; overflow-wrap: anywhere; }
-  .outfit-card-footer .outfit-pending-code { min-height: 36px; }
+  .outfit-card-footer .outfit-pending-code { min-height: var(--mobile-compact-control-size); }
   .selection-bar { z-index: 55; left: 8px; right: 8px; bottom: calc(var(--mobile-nav-height) + 8px); width: auto; max-width: none; margin: 0; padding: 8px; flex-wrap: wrap; overflow: visible; justify-content: space-between; }
   .selection-bar > strong { flex: 1; }
   .selection-bar .selection-divider { display: none; }
-  .selection-bar > button { min-height: 44px; }
-  .selection-bar .selection-close { width: 44px; }
-  .dialog-overlay, .outfit-editor, .camera-editor-overlay, .outfit-detail-overlay, .note-dialog { top: var(--visible-top,0px); bottom: auto; height: var(--visible-height,100dvh); padding: max(var(--mobile-dialog-gap),env(safe-area-inset-top,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-right,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-bottom,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-left,0px)); }
+  .selection-bar > button { min-height: var(--mobile-control-size); }
+  .selection-bar .selection-close { width: var(--mobile-control-size); }
+  /* 共享可视高度与安全区，避免菜单、筛选和编辑弹窗分别维护同一套外壳尺寸。 */
+  .dialog-overlay, .outfit-editor, .camera-editor-overlay, .outfit-detail-overlay, .note-dialog,
+  .mobile-filter-overlay, .mobile-menu-backdrop, .lightbox, .outfit-guide { top: var(--visible-top,0px); bottom: auto; height: var(--visible-height,100dvh); }
+  .dialog-overlay, .outfit-editor, .camera-editor-overlay, .outfit-detail-overlay, .note-dialog,
+  .mobile-filter-overlay { padding: max(var(--mobile-dialog-gap),env(safe-area-inset-top,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-right,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-bottom,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-left,0px)); }
   .dialog-panel, .outfit-editor-panel, .camera-editor, .outfit-detail-panel, .note-dialog-panel { width: 100%; max-width: 100%; max-height: min(100%,var(--mobile-dialog-space)); border-radius: var(--mobile-dialog-radius); }
   .outfit-editor-panel, .camera-editor { height: min(100%,var(--mobile-dialog-space)); display: flex; flex-direction: column; overflow: hidden; }
   .outfit-editor-panel > header, .camera-editor > header, .outfit-editor-panel > footer, .camera-editor > footer { flex-shrink: 0; margin: 0; padding: 12px 16px; }
   .outfit-editor-content, .camera-editor fieldset { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px; }
   .outfit-editor-panel > footer, .camera-editor > footer { padding-bottom: max(12px,env(safe-area-inset-bottom,0px)); }
-  .outfit-editor input, .outfit-editor textarea, .camera-editor input, .camera-editor textarea, .dialog-panel input, .dialog-panel textarea, .note-dialog input { font-size: 16px; }
-  .outfit-tag-editor input { font-size: 16px; min-height: 44px; }
+  .outfit-editor input, .outfit-editor textarea, .camera-editor input, .camera-editor textarea, .dialog-panel input, .dialog-panel textarea, .note-dialog input { font-size: var(--mobile-input-font-size); }
+  .outfit-tag-editor input { font-size: var(--mobile-input-font-size); min-height: var(--mobile-control-size); }
   .dialog-panel > header { position: sticky; z-index: 2; top: 0; background: var(--surface-strong); }
   .dialog-panel > footer { position: sticky; z-index: 2; bottom: 0; background: var(--surface-strong); padding-bottom: max(12px,env(safe-area-inset-bottom,0px)); }
-  .dialog-panel header button, .outfit-editor header button, .camera-editor header button, .outfit-guide-open, .photo-note-edit, .photo-params-parse, .favorite-heart { min-width: 44px; min-height: 44px; }
+  .dialog-panel header button, .outfit-editor header button, .camera-editor header button, .outfit-guide-open, .photo-note-edit, .photo-params-parse, .favorite-heart { min-width: var(--mobile-control-size); min-height: var(--mobile-control-size); }
   .photo-note-edit, .photo-params-parse, .favorite-heart { opacity: 1; }
   .photo-params-parse { right: 60px; }
-  .photo-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  .lightbox { top: var(--visible-top,0px); bottom: auto; height: var(--visible-height,100dvh); padding: max(8px,env(safe-area-inset-top,0px)) 8px max(8px,env(safe-area-inset-bottom,0px)); }
-  .lightbox-panel { max-height: 100%; }
+  .photo-grid { grid-template-columns: var(--mobile-collection-columns); }
+  .lightbox { padding: max(8px,env(safe-area-inset-top,0px)) 8px max(8px,env(safe-area-inset-bottom,0px)); }
+  .lightbox-panel { max-height: 100%; border-radius: var(--mobile-dialog-radius); }
   /* 工具栏独立于图片面板：限制宽度并保留安全区留白，窄屏按钮换行后仍有完整圆角。 */
   .lightbox-footer { min-width: 0; max-width: calc(100vw - max(var(--mobile-dialog-gap),env(safe-area-inset-left,0px)) - max(var(--mobile-dialog-gap),env(safe-area-inset-right,0px))); }
   .lightbox-toolbar { flex: 0 1 auto; min-width: 0; max-width: 100%; border-radius: var(--mobile-dialog-radius); }
-  .lightbox-toolbar button, .lightbox-zoom-controls button, .lightbox-close, .lightbox-nav-button { min-width: 44px; min-height: 44px; }
+  .lightbox-toolbar button, .lightbox-zoom-controls button, .lightbox-close, .lightbox-nav-button { min-width: var(--mobile-control-size); min-height: var(--mobile-control-size); }
   /* 仅收紧手机窗口的关闭入口，保留标题栏其他操作和原有小按钮尺寸。 */
   :is(.dialog-panel, .outfit-editor-panel, .camera-editor) > header button:has(> svg.lucide-x),
   .mobile-filter-panel > header button:has(> svg.lucide-x),
   .header-dropdown .mobile-menu-heading button:has(> svg.lucide-x),
   .lightbox .lightbox-close,
   .photo-transfer-header .confirm-dialog-close {
-    flex: 0 0 36px;
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    min-height: 36px;
+    flex: 0 0 var(--mobile-compact-control-size);
+    width: var(--mobile-compact-control-size);
+    height: var(--mobile-compact-control-size);
+    min-width: var(--mobile-compact-control-size);
+    min-height: var(--mobile-compact-control-size);
     padding: 0;
   }
   :is(.dialog-panel, .outfit-editor-panel, .camera-editor) > header button > svg.lucide-x,
   .mobile-filter-panel > header button > svg.lucide-x,
   .header-dropdown .mobile-menu-heading button > svg.lucide-x,
   .lightbox .lightbox-close > svg,
-  .photo-transfer-header .confirm-dialog-close > svg { width: 18px; height: 18px; }
+  .photo-transfer-header .confirm-dialog-close > svg { width: var(--mobile-icon-size); height: var(--mobile-icon-size); }
   .app-shell:has(.selection-bar) { padding-bottom: calc(var(--mobile-nav-height) + 160px); }
-  .mobile-filter-overlay, .mobile-menu-backdrop { top: var(--visible-top,0px); bottom: auto; height: var(--visible-height,100dvh); }
   /* 保留遮罩点击关闭区域；底部面板四角完整，内容滚动不把背景涂到圆角外。 */
-  .mobile-filter-overlay { padding: max(var(--mobile-dialog-gap),env(safe-area-inset-top,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-right,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-bottom,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-left,0px)); }
   .mobile-filter-panel { max-height: min(100%,var(--mobile-dialog-space)); border-radius: var(--mobile-dialog-radius); overflow: hidden; }
   .dialog-panel, .note-dialog-panel { isolation: isolate; }
-  .outfit-guide { top: var(--visible-top,0px); bottom: auto; height: var(--visible-height,100dvh); padding: var(--mobile-dialog-gap); }
+  .outfit-guide { padding: var(--mobile-dialog-gap); }
   .outfit-guide-panel { max-width: 100%; max-height: var(--mobile-dialog-space); border-radius: var(--mobile-dialog-radius); }
   .update-log-panel, .help-about-panel { height: min(720px,var(--mobile-dialog-space)); max-height: min(100%,var(--mobile-dialog-space)); }
   .fortune-time-panel, .resonance-import-panel { height: min(820px,var(--mobile-dialog-space)); max-height: min(100%,var(--mobile-dialog-space)); }
-  .lightbox-panel { border-radius: var(--mobile-dialog-radius); }
 }
 
 @media (min-width: 600px) and (max-width: 899px) {
-  .outfit-grid-wrap .outfit-grid, .camera-favorite-grid, .photo-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  :root { --mobile-collection-columns: repeat(3,minmax(0,1fr)); }
 }
 
-/* 超窄屏容纳搜索、视图、更多三个 44px 触摸目标，品牌文字保持一行。 */
+/* 超窄屏容纳搜索、视图、更多三个紧凑入口，品牌文字保持一行。 */
 @media (max-width: 360px) {
   .app-header .brand-lockup { gap: 6px; }
   .app-header .brand-icon { width: 34px; height: 34px; flex-basis: 34px; }

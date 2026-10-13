@@ -757,22 +757,14 @@
   gap: 5px;
 }
 
-/* 手机端搭配码、家园方案固定双列，覆盖公共照片网格的超窄屏单列规则。 */
+/* 业务卡片只保留窄屏内容间距；列数、底栏方向和操作区由 mobile.css 统一维护。 */
 @media (max-width: 560px) {
   .outfit-grid-wrap .outfit-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
     padding-inline: 0;
   }
 
   .outfit-grid .outfit-card {
     padding: 6px;
-  }
-
-  .outfit-grid .outfit-card-footer {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
   }
 
   .outfit-grid .outfit-code,
