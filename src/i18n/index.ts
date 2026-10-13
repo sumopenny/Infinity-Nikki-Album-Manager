@@ -13,7 +13,7 @@ const thumbnailModeValues: ThumbnailMode[] = ['default', 'half', 'wide', 'standa
 
 const thumbnailModeLabels: Record<Language, Record<ThumbnailMode, string>> = {
   zh: {
-    default: '默认 1:1',
+    default: '1:1',
     half: '半尺寸 1:1',
     wide: '16:9',
     standard: '4:3',
@@ -21,7 +21,7 @@ const thumbnailModeLabels: Record<Language, Record<ThumbnailMode, string>> = {
     'portrait-standard': '3:4'
   },
   en: {
-    default: 'Default 1:1',
+    default: '1:1',
     half: 'Half 1:1',
     wide: '16:9',
     standard: '4:3',

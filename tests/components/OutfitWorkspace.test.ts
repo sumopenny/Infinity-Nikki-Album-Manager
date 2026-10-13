@@ -231,6 +231,31 @@ describe('outfit workspace components', () => {
     expect(wrapper.emitted('toggleOutfit')).toBeUndefined()
   })
 
+  it('shows four footer icons in order and keeps actions separate from selection and preview', async () => {
+    const item = outfit('1', 'ABC-123')
+    const messages = getOutfitMessages('zh')
+    const wrapper = mount(OutfitGrid, { props: { outfits: [item], selectedIds: new Set<string>(), thumbnailMode: 'portrait-standard', messages, disabled: false }, global: { stubs: { LazyPhotoImage: true } } })
+    const buttons = wrapper.findAll('.outfit-card-actions button')
+    expect(buttons.map(button => button.attributes('aria-label'))).toEqual([messages.copy, messages.edit, messages.delete, messages.parse])
+    expect(buttons.every(button => button.text() === '')).toBe(true)
+    expect(wrapper.find('.card-menu-trigger').exists()).toBe(false)
+    for (const [index, event] of ['copy', 'edit', 'delete', 'parse'].entries()) {
+      await buttons[index]!.trigger('click')
+      expect(wrapper.emitted(event)).toEqual([[item]])
+    }
+    await buttons[0]!.trigger('dblclick')
+    expect(wrapper.emitted('toggleOutfit')).toBeUndefined()
+    expect(wrapper.emitted('openPreview')).toBeUndefined()
+    await wrapper.get('.outfit-card').trigger('dblclick')
+    expect(wrapper.emitted('openPreview')).toEqual([[item]])
+    await wrapper.setProps({ outfits: [outfit('1', '')] })
+    expect(buttons[0]!.attributes('disabled')).toBeDefined()
+    expect(buttons[3]!.attributes('disabled')).toBeDefined()
+    expect(buttons[1]!.attributes('disabled')).toBeUndefined()
+    await wrapper.setProps({ disabled: true })
+    expect(wrapper.findAll('.outfit-card-actions button').every(button => button.attributes('disabled') !== undefined)).toBe(true)
+  })
+
   it('ignores an older asynchronous preview after the editor is reopened', async () => {
     const files: Array<(file: File) => void> = []
     const firstFile = new File(['first'], 'first.webp', { type: 'image/webp' })

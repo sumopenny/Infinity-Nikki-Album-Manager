@@ -57,6 +57,20 @@ beforeEach(() => {
 afterEach(() => { wrapper?.unmount(); wrapper = null; document.body.innerHTML = ''; vi.unstubAllGlobals(); vi.useRealTimers() })
 
 describe('camera favorite UI', () => {
+  it('provides four footer icons with a working copy action and disabled busy state', async () => {
+    mocks.read.mockResolvedValue({ records: [item], covers: new Map() })
+    const view = create()
+    await flushPromises()
+    const actions = view.findAll('.camera-favorite-card .outfit-card-actions button')
+    expect(actions.map(action => action.attributes('aria-label'))).toEqual(['复制', '编辑', '删除', '详情'])
+    expect(actions.every(action => action.text() === '')).toBe(true)
+    expect(view.find('.card-menu-trigger').exists()).toBe(false)
+    await actions[0]!.trigger('click')
+    expect(mocks.copy).toHaveBeenCalledWith('ABC')
+    expect(view.get('.camera-favorite-card').attributes('aria-checked')).toBe('false')
+    await view.setProps({ disabled: true })
+    expect(view.findAll('.camera-favorite-card .outfit-card-actions button').every(action => action.attributes('disabled') !== undefined)).toBe(true)
+  })
   it('offers manual addition without an album and requires successful parsing before saving', async () => {
     const view = create()
     await flushPromises()
@@ -182,6 +196,29 @@ describe('camera favorite selection and resources', () => {
 })
 
 describe('camera favorite tags', () => {
+  it.each(['zh', 'en'] as const)('limits new tag input and validation to five characters (%s)', async language => {
+    mocks.read.mockResolvedValue({ records: [item], covers: new Map(), tags: [item.tag] })
+    const view = create()
+    await view.setProps({ language })
+    await flushPromises()
+    const sidebar = view.findComponent({ name: 'OutfitSidebar' })
+    expect(sidebar.props('maxTagLength')).toBe(5)
+    sidebar.vm.$emit('addTag', '123456')
+    await flushPromises()
+    expect(mocks.saveTags).not.toHaveBeenCalled()
+    expect(view.emitted('status')?.at(-1)?.[0]).toContain('1–5')
+    sidebar.vm.$emit('addTag', '12345')
+    await flushPromises()
+    expect(mocks.saveTags).toHaveBeenCalledWith([item.tag, '12345'])
+    view.get('.camera-favorite-card .outfit-card-actions button[aria-label="' + (language === 'zh' ? '编辑' : 'Edit') + '"]').element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+    document.querySelector<HTMLButtonElement>('.camera-editor-tags .outfit-editor-add-tag')!.click()
+    await flushPromises()
+    const input = document.querySelector<HTMLInputElement>('.camera-tag-popover input')!
+    expect(input.maxLength).toBe(5)
+    expect(input.placeholder).toContain('5')
+  })
+
   it('counts single-tag records in the shared sidebar and filters uncategorized records', async () => {
     const untagged = { ...item, id: 'two', tag: '', name: '无标签收藏', code: 'XYZ' }
     mocks.read.mockResolvedValue({ records: [item, { ...item, id: 'warm', code: 'WARM', tag: '暖光' }, untagged], covers: new Map() })

@@ -106,6 +106,102 @@ describe('App lifecycle coordination', () => {
     document.body.innerHTML = ''
   })
 
+  it('falls back from half thumbnails on mobile without changing desktop preferences', async () => {
+    const listeners = new Set<() => void>()
+    const query = { matches: true, addEventListener: (_: string, fn: () => void) => listeners.add(fn), removeEventListener: (_: string, fn: () => void) => listeners.delete(fn) }
+    vi.stubGlobal('matchMedia', vi.fn(() => query))
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+    const keys = ['infinity-nikki-thumbnail-mode', 'infinity-nikki-outfit-thumbnail-mode', 'infinity-nikki-home-thumbnail-mode']
+    keys.forEach(key => localStorage.setItem(key, 'half'))
+    const wrapper = mount(App, { attachTo: document.body, global: { stubs: { CameraFavorites: true } } })
+    try {
+      await flushPromises()
+      const topBar = wrapper.getComponent({ name: 'TopBar' })
+      const navigation = wrapper.getComponent({ name: 'AlbumViewSwitcher' })
+      for (const view of ['all', 'outfits', 'home']) {
+        navigation.vm.$emit('changeView', view)
+        await flushPromises()
+        expect(topBar.props('thumbnailMode')).toBe('default')
+        if (view === 'outfits') expect(wrapper.getComponent({ name: 'OutfitGrid' }).props('thumbnailMode')).toBe('default')
+        topBar.vm.$emit('changeThumbnailMode', 'half')
+        await flushPromises()
+        expect(topBar.props('thumbnailMode')).toBe('default')
+      }
+      keys.forEach(key => expect(localStorage.getItem(key)).toBe('half'))
+      query.matches = false
+      listeners.forEach(fn => fn())
+      await flushPromises()
+      for (const view of ['all', 'outfits', 'home']) {
+        navigation.vm.$emit('changeView', view)
+        await flushPromises()
+        expect(topBar.props('thumbnailMode')).toBe('half')
+      }
+    } finally { wrapper.unmount(); vi.unstubAllGlobals() }
+  })
+
+  it.each([true, false])('disables all resonance ratios and rejects preference changes (compact=%s)', async compact => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: compact, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+    localStorage.setItem('infinity-nikki-thumbnail-mode', 'wide')
+    const wrapper = mount(App, { attachTo: document.body, global: { stubs: { ResonanceRecords: true, CameraFavorites: true } } })
+    try {
+      await flushPromises()
+      const navigation = wrapper.getComponent({ name: 'AlbumViewSwitcher' })
+      const topBar = wrapper.getComponent({ name: 'TopBar' })
+      navigation.vm.$emit('changeView', 'resonance')
+      await flushPromises()
+      expect(topBar.props('thumbnailModeDisabled')).toBe(true)
+      await topBar.get(compact ? '.mobile-header-row button[aria-label="打开视图菜单"]' : '.view-menu-button').trigger('click')
+      await flushPromises()
+      const options = [...document.querySelectorAll<HTMLButtonElement>('.thumbnail-options button')]
+      expect(options.length).toBeGreaterThan(0)
+      expect(options.every(button => button.disabled)).toBe(true)
+      topBar.vm.$emit('changeThumbnailMode', 'portrait-standard')
+      await flushPromises()
+      expect(localStorage.getItem('infinity-nikki-thumbnail-mode')).toBe('wide')
+      navigation.vm.$emit('changeView', 'all')
+      await flushPromises()
+      expect(topBar.props('thumbnailModeDisabled')).toBe(false)
+      expect(topBar.props('thumbnailMode')).toBe('wide')
+    } finally { wrapper.unmount(); vi.unstubAllGlobals() }
+  })
+
+  it('shows camera parameters in compact favorites and restores desktop photo tabs', async () => {
+    const listeners = new Set<() => void>()
+    const query = { matches: false, addEventListener: (_: string, fn: () => void) => listeners.add(fn), removeEventListener: (_: string, fn: () => void) => listeners.delete(fn) }
+    vi.stubGlobal('matchMedia', vi.fn(() => query))
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+    const wrapper = mount(App, { global: { stubs: { CameraFavorites: true } } })
+    try {
+      await flushPromises()
+      await wrapper.findAll('.mobile-navigation button')[2]!.trigger('click')
+      expect(wrapper.getComponent({ name: 'TopBar' }).props('thumbnailModeDisabled')).toBe(true)
+      await wrapper.findAll('.favorites-tabs button')[1]!.trigger('click')
+      expect(wrapper.getComponent({ name: 'TopBar' }).props('thumbnailModeDisabled')).toBe(false)
+      expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('active')).toBe(false)
+      query.matches = true
+      listeners.forEach(fn => fn())
+      await flushPromises()
+      expect(wrapper.findAll('.mobile-navigation button')[2]!.text()).toBe('相机参数')
+      expect(wrapper.find('.favorites-tabs').exists()).toBe(false)
+      expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('active')).toBe(true)
+      expect(wrapper.find('.empty-album-start').exists()).toBe(false)
+      expect(wrapper.get('.favorites-toolbar').isVisible()).toBe(false)
+      query.matches = false
+      listeners.forEach(fn => fn())
+      await flushPromises()
+      expect(wrapper.findAll('.favorites-tabs button')).toHaveLength(2)
+      expect(wrapper.findAll('.favorites-tabs button')[1]!.attributes('aria-pressed')).toBe('true')
+      expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('active')).toBe(false)
+      await wrapper.getComponent({ name: 'TopBar' }).vm.$emit('toggleLanguage')
+      await flushPromises()
+      await vi.waitFor(() => expect(wrapper.findAll('.mobile-navigation button')[2]!.text()).toBe('Camera parameters'))
+    } finally {
+      wrapper.unmount()
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('retains resonance and all favorites when clearing data through the application', async () => {
     getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
     const favoriteKey = 'infinity-nikki-favorite-photo-ids'

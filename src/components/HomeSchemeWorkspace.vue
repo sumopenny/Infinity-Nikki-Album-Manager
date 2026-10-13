@@ -5,7 +5,6 @@ import { messages as localeMessages, type LocaleMessages } from '../i18n'
 import OutfitSidebar from './OutfitSidebar.vue'
 import CollectionFilterBar from './CollectionFilterBar.vue'
 import CollectionActions from './CollectionActions.vue'
-import CardActions from './CardActions.vue'
 
 import type { HomeSchemeMessages } from '../i18n/messages/homeScheme'
 import { copyTextToClipboard } from '../utils/clipboard'
@@ -602,8 +601,8 @@ onBeforeUnmount(() => {
 
 <Teleport to="body"><Transition name="outfit-tag-editor"><form v-if="tagInputVisible" ref="tagEditorRef" class="outfit-tag-editor outfit-tag-editor-popover" :style="tagEditorPosition" @submit.prevent="addTag"><input ref="tagInputRef" v-model="tagInput" :maxlength="MAX_HOME_SCHEME_TAG_LENGTH" :placeholder="messages.tagPlaceholder" :disabled="isBusy" autocomplete="off" /><button type="submit" :disabled="isBusy">{{ messages.addTagConfirm }}</button></form></Transition></Teleport>
     <div class="home-scheme-main">
-      <header class="gallery-header is-outfit-header home-scheme-header"><div class="home-scheme-heading"><p class="eyebrow">HOME SCHEMES</p><div class="home-scheme-title-row"><h2>{{ messages.title }}</h2><strong class="home-scheme-count">{{ visibleSchemes.length }} / {{ schemes.length }}</strong></div></div><CollectionActions class="home-scheme-header-actions" :label="(language ?? 'zh') === 'zh' ? '家园操作' : 'Home actions'"><button class="primary-button" type="button" :disabled="isBusy" @click="resetEditor(null)"><Plus :size="15" aria-hidden="true" />{{ messages.add }}</button><template #secondary><input ref="backupInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importBackup" /><button type="button" :disabled="isBusy" @click="backupInput?.click()"><Download :size="15" aria-hidden="true" />{{ busy ? messages.importing : messages.importData }}</button><button type="button" :disabled="isBusy || (!schemes.length && !tags.length)" @click="exportBackup"><Upload :size="15" aria-hidden="true" />{{ busy ? messages.exporting : messages.exportData }}</button></template></CollectionActions></header>
-      <CollectionFilterBar tag-picker :entries="[{ key: 'all', label: messages.all }, { key: 'home', label: messages.homeType }, { key: 'combo', label: messages.comboType }, { key: 'uncategorized', label: messages.uncategorized }, ...tags.map(tag => ({ key: 'tag:' + tag, label: tag }))]" :active="filter" :count="visibleSchemes.length" :language="language ?? 'zh'" :disabled="isBusy" @change="changeSchemeFilter($event as typeof filter)" @clear="changeSchemeFilter('all')" @open="$emit('openFilters')" />
+      <header class="gallery-header is-outfit-header home-scheme-header"><div class="home-scheme-heading"><p class="eyebrow">HOME SCHEMES</p><div class="home-scheme-title-row"><h2>{{ messages.title }}</h2><strong class="home-scheme-count">{{ visibleSchemes.length }} / {{ schemes.length }}</strong></div></div><CollectionActions mobile-target="#home-tag-actions" class="home-scheme-header-actions" :label="(language ?? 'zh') === 'zh' ? '家园操作' : 'Home actions'"><button class="primary-button" type="button" :aria-label="messages.add" :title="messages.add" :disabled="isBusy" @click="resetEditor(null)"><Plus :size="15" aria-hidden="true" /><span class="collection-action-label">{{ messages.add }}</span></button><template #secondary><input ref="backupInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importBackup" /><button type="button" :disabled="isBusy" @click="backupInput?.click()"><Download :size="15" aria-hidden="true" />{{ busy ? messages.importing : messages.importData }}</button><button type="button" :disabled="isBusy || (!schemes.length && !tags.length)" @click="exportBackup"><Upload :size="15" aria-hidden="true" />{{ busy ? messages.exporting : messages.exportData }}</button></template></CollectionActions></header>
+      <CollectionFilterBar tag-picker actions-id="home-tag-actions" :entries="[{ key: 'all', label: messages.all }, { key: 'home', label: messages.homeType }, { key: 'combo', label: messages.comboType }, { key: 'uncategorized', label: messages.uncategorized }, ...tags.map(tag => ({ key: 'tag:' + tag, label: tag }))]" :active="filter" :count="visibleSchemes.length" :language="language ?? 'zh'" :disabled="isBusy" @change="changeSchemeFilter($event as typeof filter)" @clear="changeSchemeFilter('all')" @open="$emit('openFilters')" />
       <div v-if="!visibleSchemes.length" class="empty-album inline-empty home-scheme-empty"><ImagePlus :size="30" aria-hidden="true" /><h2>{{ messages.emptyTitle }}</h2><p>{{ messages.emptyDescription }}</p><button class="mobile-only empty-import-button" type="button" :disabled="isBusy" @click="backupInput?.click()">{{ messages.importData }}</button></div>
       <div v-else class="photo-grid-wrap outfit-grid-wrap home-scheme-grid-wrap" :class="`mode-${thumbnailMode}`">
         <div class="photo-grid outfit-grid">
@@ -624,20 +623,25 @@ onBeforeUnmount(() => {
             <img v-if="item.imageUrl" :src="item.imageUrl" alt="" loading="lazy" />
             <div v-else class="home-scheme-card-no-image"><ImagePlus :size="22" aria-hidden="true" /></div>
             <span class="selected-badge"><Check :size="15" aria-hidden="true" /></span>
-            <CardActions :label="messages.edit" :title="item.name || item.code" :close-label="messages.cancel" :disabled="isBusy"><button class="outfit-card-delete home-scheme-card-delete" type="button" :title="messages.delete" :aria-label="messages.delete" :disabled="isBusy" @click.stop="removeScheme(item)"><Trash2 :size="16" aria-hidden="true" /><span class="mobile-only">{{ messages.delete }}</span></button><button type="button" class="mobile-only" :disabled="isBusy" @click.stop="resetEditor(item)"><Edit3 :size="18" />{{ messages.edit }}</button><button type="button" class="mobile-only" @click.stop="openPreview(item)">{{ (language ?? 'zh') === 'zh' ? '查看大图' : 'Preview' }}</button></CardActions>
+            <button class="outfit-card-delete home-scheme-card-delete desktop-only" type="button" :title="messages.delete" :aria-label="messages.delete" :disabled="isBusy" @click.stop="removeScheme(item)"><Trash2 :size="16" aria-hidden="true" /></button>
           </div>
           <div class="home-scheme-card-details">
             <div class="home-scheme-name-tag">
               <h3>{{ item.schemeType === 'home' ? messages.homeType : messages.comboType }}-{{ item.name || messages.untitled }}</h3>
-              <span v-if="item.tags[0]" class="home-scheme-card-tag" :title="item.tags.join('、')"><span>{{ item.tags[0] }}</span><small v-if="item.tags.length > 1" class="mobile-only">+{{ item.tags.length - 1 }}</small></span>
+              <span v-if="item.tags[0]" class="home-scheme-card-tag desktop-only" :title="item.tags.join('、')"><span>{{ item.tags[0] }}</span><small v-if="item.tags.length > 1" class="mobile-only">+{{ item.tags.length - 1 }}</small></span>
             </div>
             <div class="home-scheme-card-meta"><span v-if="item.metadata.furnitureCount !== null">{{ item.metadata.furnitureCount }} {{ messages.furnitureCount }}</span><span v-if="item.note">{{ item.note }}</span></div>
           </div>
           <div class="outfit-card-footer home-scheme-card-footer">
-            <span class="outfit-code" :title="item.code">{{ item.code }}</span>
-            <div class="outfit-card-actions">
+            <!-- 手机标签放在方案码右侧；电脑端仍在标题旁显示标签。 -->
+            <div class="home-scheme-code-tag">
+              <span class="outfit-code" :title="item.code">{{ item.code }}</span>
+              <span v-if="item.tags[0]" class="home-scheme-card-tag mobile-only" :title="item.tags.join('、')"><span>{{ item.tags[0] }}</span><small v-if="item.tags.length > 1">+{{ item.tags.length - 1 }}</small></span>
+            </div>
+            <div class="outfit-card-actions" @click.stop @dblclick.stop>
               <button type="button" :title="messages.copy" :aria-label="messages.copy" :disabled="isBusy" @click.stop="copyCode(item)"><Copy :size="15" aria-hidden="true" /></button>
-              <button class="desktop-only" type="button" :title="messages.edit" :aria-label="messages.edit" :disabled="isBusy" @click.stop="resetEditor(item)"><Edit3 :size="15" aria-hidden="true" /></button>
+              <button type="button" :title="messages.edit" :aria-label="messages.edit" :disabled="isBusy" @click.stop="resetEditor(item)"><Edit3 :size="15" aria-hidden="true" /></button>
+              <button class="mobile-only" type="button" :title="messages.delete" :aria-label="messages.delete" :disabled="isBusy" @click.stop="removeScheme(item)"><Trash2 :size="18" aria-hidden="true" /></button>
             </div>
           </div>
         </article>
@@ -757,6 +761,7 @@ onBeforeUnmount(() => {
 .home-scheme-name-tag{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;min-width:0;}
 .home-scheme-card-details h3{min-width:0;margin:0;overflow-wrap:anywhere;color:var(--heading);font-size:13px;line-height:1.4}
 .home-scheme-card-meta{display:flex;flex-wrap:wrap;gap:4px 8px;min-height:20px;margin-top:4px;color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+.home-scheme-code-tag{display:contents}
 .home-scheme-card-footer{min-height:38px;padding-top:5px}
 .home-scheme-code{display:flex;min-width:0;flex:1;align-items:center;gap:5px;padding:0;border:0;background:transparent;color:var(--text);text-align:left}
 .home-scheme-code .outfit-code{font-size:11px}

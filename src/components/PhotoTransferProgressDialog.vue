@@ -37,7 +37,6 @@ const percent = computed(() => {
       <section class="dialog-panel photo-transfer-dialog">
         <header class="photo-transfer-header">
           <div>
-            <p class="confirm-dialog-kicker">TRANSFER</p>
             <h2>{{ title }}</h2>
           </div>
           <button v-if="!isRunning" type="button" class="confirm-dialog-close" :aria-label="closeLabel" @click="emit('close')"><X :size="18" /></button>

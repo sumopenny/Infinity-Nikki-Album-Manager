@@ -31,7 +31,6 @@ function markImageFailed(title: string, name: string) { failedImages.value = new
       <section class="dialog-panel fortune-time-panel photo-params-dialog">
         <header class="fortune-time-header photo-params-header">
           <div class="photo-params-header-content">
-            <p class="confirm-dialog-kicker"><ScanSearch :size="14" aria-hidden="true" /> {{ messages.eyebrow }}</p>
             <div class="photo-params-title-row">
               <h2>{{ messages.title }}</h2>
               <p v-if="photo" class="photo-params-file-name">{{ photo.name }}</p>

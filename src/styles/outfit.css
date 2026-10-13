@@ -50,13 +50,6 @@
   border-bottom: 1px solid var(--line);
 }
 
-.outfit-guide-panel > header p {
-  margin: 0 0 4px;
-  color: var(--pink-deep);
-  font-size: 12px;
-  font-weight: 800;
-}
-
 .outfit-guide-panel > header h2 {
   margin: 0;
   color: var(--heading);

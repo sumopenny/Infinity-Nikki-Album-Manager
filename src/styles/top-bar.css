@@ -110,16 +110,17 @@
 }
 
 .header-search input:focus,
-.header-search input:focus-visible {
+.header-search input:focus-visible,
+.mobile-header-search:focus-within {
   border-color: var(--pink-deep);
-  background: var(--surface-strong);
+  background: var(--search-focus-bg, var(--surface-strong));
   box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 14%, transparent);
 }
 
-.header-search input::-webkit-search-cancel-button,
-.header-search input::-webkit-search-decoration,
-.header-search input::-webkit-search-results-button,
-.header-search input::-webkit-search-results-decoration {
+:is(.header-search, .mobile-header-search) input::-webkit-search-cancel-button,
+:is(.header-search, .mobile-header-search) input::-webkit-search-decoration,
+:is(.header-search, .mobile-header-search) input::-webkit-search-results-button,
+:is(.header-search, .mobile-header-search) input::-webkit-search-results-decoration {
   display: none;
   -webkit-appearance: none;
 }

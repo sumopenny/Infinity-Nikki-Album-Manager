@@ -211,7 +211,7 @@ const compactLayout = useCompactLayout()
 useVisualViewport()
 const directorySupported = supportsDirectoryAuthorization()
 const mobileFiltersOpen = ref(false)
-const mobileTagPicker = computed(() => activeView.value === 'outfits' || activeView.value === 'home' || isCameraFavoritesView.value)
+const mobileCollectionPicker = computed(() => activeView.value === 'outfits' || activeView.value === 'home' || activeView.value === 'resonance' || isCameraFavoritesView.value)
 const topBarRef = ref<InstanceType<typeof TopBar> | null>(null)
 const homeVisibleCount = ref(0)
 const cameraVisibleCount = ref(0)
@@ -238,6 +238,10 @@ const albumDirectoryHandle = ref<FileSystemDirectoryHandle | null>(null)
 const thumbnailMode = ref<ThumbnailMode>(isThumbnailMode(storedThumbnailMode) ? storedThumbnailMode : 'default')
 const outfitThumbnailMode = ref<ThumbnailMode>(isThumbnailMode(storedOutfitThumbnailMode) ? storedOutfitThumbnailMode : 'portrait-standard')
 const homeThumbnailMode = ref<ThumbnailMode>(isThumbnailMode(storedHomeThumbnailMode) ? storedHomeThumbnailMode : 'wide')
+// 手机半尺寸不可用：显示时回退普通 1:1，保留电脑端已保存的比例偏好。
+const effectivePhotoThumbnailMode = computed(() => compactLayout.value && thumbnailMode.value === 'half' ? 'default' : thumbnailMode.value)
+const effectiveOutfitThumbnailMode = computed(() => compactLayout.value && outfitThumbnailMode.value === 'half' ? 'default' : outfitThumbnailMode.value)
+const effectiveHomeThumbnailMode = computed(() => compactLayout.value && homeThumbnailMode.value === 'half' ? 'default' : homeThumbnailMode.value)
 const themeMode = ref<ThemeMode>(isThemeMode(storedThemeMode) ? storedThemeMode : 'light')
 const appShellRef = ref<HTMLElement | null>(null)
 let topBarResizeObserver: ResizeObserver | null = null
@@ -284,7 +288,10 @@ async function refreshAfterAllImport() {
 }
 const cameraFavoriteCodes = ref<string[]>([])
 const cameraFavoriteModal = ref(false)
-const isCameraFavoritesView = computed(() => activeView.value === 'favorites' && favoriteTab.value === 'camera')
+// 手机布局只展示相机参数，保留电脑端原有的收藏标签状态。
+const isCameraFavoritesView = computed(() => activeView.value === 'favorites' && (compactLayout.value || favoriteTab.value === 'camera'))
+// 共鸣及相机参数使用固定卡片布局，两端均禁用比例设置。
+const isThumbnailModeDisabled = computed(() => isCameraFavoritesView.value || activeView.value === 'resonance')
 const photoParamsSaved = computed(() => cameraFavoriteCodes.value.includes(normalizeCameraCode(photoParamsResult.value?.rawCameraParams ?? '')))
 function changeFavoriteTab(tab: 'photos' | 'camera') {
   favoriteTab.value = tab
@@ -354,9 +361,9 @@ const {
   activeOutfitFilter,
   searchQuery,
   currentPreview,
-  thumbnailMode,
-  outfitThumbnailMode,
-  homeThumbnailMode,
+  thumbnailMode: effectivePhotoThumbnailMode,
+  outfitThumbnailMode: effectiveOutfitThumbnailMode,
+  homeThumbnailMode: effectiveHomeThumbnailMode,
   directoryState,
   language,
   locale,
@@ -377,7 +384,7 @@ function changeMobileFilter(key: string) {
   else sidebarMode.value = key as 'date' | 'action'
 }
 watch(activeView, () => { mobileFiltersOpen.value = false; topBarRef.value?.closeMenus() })
-watch(compactLayout, () => { mobileFiltersOpen.value = false })
+watch(compactLayout, compact => { mobileFiltersOpen.value = false; if (compact) isOutfitGuideVisible.value = false })
 
 const currentPreviewIndex = computed(() => currentPreview.value ? previewPhotos.value.findIndex((photo) => photo.id === currentPreview.value?.id) : -1)
 const hasPreviousPreview = computed(() => currentPreviewIndex.value > 0)
@@ -883,8 +890,9 @@ async function refreshAlbum(manual: boolean) {
   }
 }
 
-/** 切换缩略图尺寸。参数：mode 为目标模式。 */
+/** 切换缩略图尺寸；固定布局页面拒绝比例修改，手机拒绝半尺寸。 */
 function changeThumbnailMode(mode: ThumbnailMode) {
+  if (isThumbnailModeDisabled.value || (compactLayout.value && mode === 'half')) return
   if (activeView.value === 'home') {
     homeThumbnailMode.value = mode
     if (!suppressLocalPersistence) writeLocalStorage(HOME_THUMBNAIL_STORAGE_KEY, mode)
@@ -1049,7 +1057,7 @@ async function updateOutfitLibrary(announce = true, promptSharedAccess = announc
   }
 }
 
-/** 切换相册视图并清空上个视图的选中状态（重复点击当前视图不清空）。参数：view 为目标视图；进入搭配码时按用户偏好显示操作指南。 */
+/** 切换相册视图并清空上个视图的选中状态（重复点击当前视图不清空）。参数：view 为目标视图；电脑端进入搭配码时按用户偏好显示操作指南。 */
 function changeAlbumView(view: AlbumView) {
   const isViewChanged = view !== activeView.value
   const isEnteringOutfits = view === 'outfits' && isViewChanged
@@ -1066,7 +1074,7 @@ function changeAlbumView(view: AlbumView) {
   activeOutfitFilter.value = 'all'
   if (view === 'trash') void refreshAlbum(false)
   if (view === 'outfits') void updateOutfitLibrary(false, true)
-  isOutfitGuideVisible.value = isEnteringOutfits && !isOutfitGuideDismissed.value
+  isOutfitGuideVisible.value = isEnteringOutfits && !compactLayout.value && !isOutfitGuideDismissed.value
 }
 
 /** 关闭搭配码操作指南。参数：dontShowAgain 表示后续进入模块时是否不再显示；同时同步本地偏好。 */
@@ -1869,6 +1877,7 @@ onBeforeUnmount(() => {
   <div ref="appShellRef" class="app-shell">
     <TopBar
       ref="topBarRef"
+      :active-view="activeView"
       :view-messages="locale.viewNav"
       :directory-supported="directorySupported"
       @change-view="changeAlbumView"
@@ -1880,6 +1889,7 @@ onBeforeUnmount(() => {
       :has-album-directory="Boolean(albumDirectoryHandle)"
       :has-x6-game-authorization="hasX6GameAuthorization"
       :thumbnail-mode="displayedThumbnailMode"
+      :thumbnail-mode-disabled="isThumbnailModeDisabled"
       :thumbnail-mode-options="thumbnailModeOptions"
       :theme-mode="themeMode"
       :language="language"
@@ -1924,7 +1934,7 @@ onBeforeUnmount(() => {
           @change-view="changeAlbumView"
         />
 
-        <AdaptiveFilterPanel :compact="compactLayout" :open="mobileFiltersOpen" :tag-picker="mobileTagPicker" :title="mobileTagPicker ? mobileText('选择标签', 'Select tag') : mobileText('筛选与分类管理', 'Filters and categories')" :close-label="mobileText('关闭筛选', 'Close filters')" :apply-label="mobileText(`查看 ${mobileFilterCount} 项结果`, `Show ${mobileFilterCount} items`)" @close="mobileFiltersOpen = false">
+        <AdaptiveFilterPanel :compact="compactLayout" :open="mobileFiltersOpen" :tag-picker="mobileCollectionPicker" :title="activeView === 'resonance' ? mobileText('共鸣筛选', 'Resonance filters') : mobileCollectionPicker ? mobileText('选择标签', 'Select tag') : mobileText('筛选与分类管理', 'Filters and categories')" :close-label="mobileText('关闭筛选', 'Close filters')" :apply-label="mobileText(`查看 ${mobileFilterCount} 项结果`, `Show ${mobileFilterCount} items`)" @close="mobileFiltersOpen = false">
         <div id="album-sidebar-column">
         <OutfitSidebar
           :language="language"
@@ -1950,6 +1960,7 @@ onBeforeUnmount(() => {
           :rarity-filter="resonanceRarityFilter"
           @change-banner-order="resonanceBannerOrder = $event"
           @change-rarity-filter="resonanceRarityFilter = $event"
+          @filter-selected="mobileFiltersOpen = false"
           @jump-to-record="scrollToResonanceRecord"
         />
         <DateSidebar
@@ -1971,10 +1982,10 @@ onBeforeUnmount(() => {
       </div>
 
       <section class="album-content" :aria-label="locale.app.albumContentAria">
-        <CollectionFilterBar v-if="activeView !== 'outfits' && activeView !== 'home' && activeView !== 'trash' && !isCameraFavoritesView" :entries="mobileFilterEntries" :active="String(mobileActiveFilter)" :count="mobileFilterCount" :language="language" :disabled="isAnyFileOperationBusy" @change="changeMobileFilter" @clear="changeMobileFilter(mobileFilterEntries[0]?.key ?? 'all')" @open="mobileFiltersOpen = true" />
+        <CollectionFilterBar v-if="activeView !== 'outfits' && activeView !== 'home' && activeView !== 'resonance' && activeView !== 'trash' && !isCameraFavoritesView" :entries="mobileFilterEntries" :active="String(mobileActiveFilter)" :count="mobileFilterCount" :language="language" :disabled="isAnyFileOperationBusy" @change="changeMobileFilter" @clear="changeMobileFilter(mobileFilterEntries[0]?.key ?? 'all')" @open="mobileFiltersOpen = true" />
         <!-- 收藏夹：标签页与当前页操作按钮共用一行，移除重复标题。 -->
-        <div v-if="activeView === 'favorites'" class="favorites-toolbar">
-        <nav class="favorites-tabs" :aria-label="locale.viewNav.favorites">
+        <div v-if="activeView === 'favorites'" v-show="!compactLayout" class="favorites-toolbar">
+        <nav v-if="!compactLayout" class="favorites-tabs" :aria-label="locale.viewNav.favorites">
           <button type="button" :aria-pressed="favoriteTab === 'camera'" @click="changeFavoriteTab('camera')">{{ language === 'zh' ? '相机参数' : 'Camera parameters' }} <small>{{ cameraFavoriteCodes.length }}</small></button>
           <button type="button" :aria-pressed="favoriteTab === 'photos'" @click="changeFavoriteTab('photos')">{{ language === 'zh' ? '照片收藏' : 'Photo favorites' }} <small>{{ favoriteCount }}</small></button>
         </nav>
@@ -2011,7 +2022,7 @@ onBeforeUnmount(() => {
             <p class="eyebrow">{{ activeView === 'trash' ? 'TRASH' : activeView === 'outfits' ? outfitLocale.eyebrow : 'ALBUM' }}</p>
             <div v-if="activeView === 'outfits'" class="outfit-title-row">
               <h2>{{ viewTitle }}</h2>
-              <button class="outfit-guide-open" type="button" :title="outfitLocale.guideOpen" :aria-label="outfitLocale.guideOpen" @click="isOutfitGuideVisible = true">
+              <button v-if="!compactLayout" class="outfit-guide-open" type="button" :title="outfitLocale.guideOpen" :aria-label="outfitLocale.guideOpen" @click="isOutfitGuideVisible = true">
                 <CircleHelp :size="17" aria-hidden="true" />
               </button>
             </div>
@@ -2021,8 +2032,8 @@ onBeforeUnmount(() => {
               </button>
             </h2>
           </div>
-          <CollectionActions v-if="activeView === 'outfits'" class="outfit-header-actions" :label="mobileText('页面操作', 'Page actions')"><button class="primary-button" type="button" :disabled="isAnyFileOperationBusy" @click="openOutfitEditor()">
-              <Plus :size="16" aria-hidden="true" />{{ outfitLocale.addOutfit }}
+          <CollectionActions v-if="activeView === 'outfits'" mobile-target="#outfit-tag-actions" class="outfit-header-actions" :label="mobileText('页面操作', 'Page actions')"><button class="primary-button" type="button" :aria-label="outfitLocale.addOutfit" :title="outfitLocale.addOutfit" :disabled="isAnyFileOperationBusy" @click="openOutfitEditor()">
+              <Plus :size="16" aria-hidden="true" /><span class="collection-action-label">{{ outfitLocale.addOutfit }}</span>
             </button><template #secondary>
             <button type="button" :disabled="isAnyFileOperationBusy" @click="chooseOutfitBackup">
               <Download :size="16" aria-hidden="true" />{{ isImportingOutfits ? outfitLocale.importing : outfitLocale.importData }}
@@ -2050,7 +2061,7 @@ onBeforeUnmount(() => {
           <p v-else-if="activeView !== 'outfits'">{{ locale.viewNav.count(visibleCount) }}</p>
         </header>
 
-        <CollectionFilterBar v-if="activeView === 'outfits'" tag-picker :entries="mobileFilterEntries" :active="String(mobileActiveFilter)" :count="mobileFilterCount" :language="language" :disabled="isAnyFileOperationBusy" @clear="changeMobileFilter('all')" @open="mobileFiltersOpen = true" />
+        <CollectionFilterBar v-if="activeView === 'outfits' || activeView === 'resonance'" tag-picker :actions-id="activeView === 'resonance' ? 'resonance-filter-actions' : 'outfit-tag-actions'" :all-label="activeView === 'resonance' ? mobileText('全部星级', 'All rarities') : undefined" :select-label="activeView === 'resonance' ? mobileText('筛选共鸣：', 'Filter resonance: ') : undefined" :entries="mobileFilterEntries" :active="String(mobileActiveFilter)" :count="mobileFilterCount" :language="language" :disabled="isAnyFileOperationBusy" @clear="changeMobileFilter('all')" @open="mobileFiltersOpen = true" />
 
         <HomeSchemeWorkspace
           :language="language"
@@ -2075,6 +2086,7 @@ onBeforeUnmount(() => {
         />
         <ResonanceRecords
           ref="resonanceRecordsRef"
+          mobile-actions-target="#resonance-filter-actions"
           :disabled="activeOperation === 'all-data-backup'"
           @busy-change="moduleOperations.resonance = $event"
           v-else-if="activeView === 'resonance'"
@@ -2089,7 +2101,7 @@ onBeforeUnmount(() => {
           v-else-if="albumDirectoryHandle && activeView === 'trash'"
           :photos="recentlyDeleted"
           :selected-ids="trashSelectedIds"
-          :thumbnail-mode="thumbnailMode"
+          :thumbnail-mode="effectivePhotoThumbnailMode"
           :language="language"
           :messages="locale.trash"
           @toggle-photo="toggleTrashPhoto"
@@ -2101,7 +2113,7 @@ onBeforeUnmount(() => {
           v-else-if="activeView === 'outfits'"
           :outfits="visibleOutfits"
           :selected-ids="selectedOutfitIds"
-          :thumbnail-mode="outfitThumbnailMode"
+          :thumbnail-mode="effectiveOutfitThumbnailMode"
           :messages="outfitLocale"
           :disabled="isAnyFileOperationBusy"
           @copy="copyOutfitCode"
@@ -2118,7 +2130,7 @@ onBeforeUnmount(() => {
           :grouping-mode="sidebarMode"
           :selected-ids="selectedIds"
           :favorite-ids="favoriteIds"
-          :thumbnail-mode="thumbnailMode"
+          :thumbnail-mode="effectivePhotoThumbnailMode"
           :is-favorites-view="activeView === 'favorites'"
           :messages="locale.grid"
           @toggle-photo="togglePhoto"
@@ -2131,7 +2143,7 @@ onBeforeUnmount(() => {
         />
       </section>
     </main>
-    <MobileNavigation :active-view="activeView" :disabled="allBackupDisabled" :messages="locale.viewNav" :outfit-label="outfitLocale.viewName" @change-view="changeAlbumView" />
+    <MobileNavigation :active-view="activeView" :disabled="allBackupDisabled" :messages="locale.viewNav" :outfit-label="outfitLocale.viewName" :camera-label="mobileText('相机参数', 'Camera parameters')" @change-view="changeAlbumView" />
 
     <SelectionBar
       v-if="activeView !== 'home' && activeView !== 'resonance' && !isCameraFavoritesView"
@@ -2275,6 +2287,7 @@ onBeforeUnmount(() => {
 
     <HelpAboutDialog
       :visible="isHelpAboutVisible"
+      :compact="compactLayout"
       :messages="locale.helpAbout"
       @close="closeHelpAbout"
     />

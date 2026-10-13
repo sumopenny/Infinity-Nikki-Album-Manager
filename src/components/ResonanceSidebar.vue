@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 import type { Language } from '../i18n/types'
 import { messages } from '../i18n'
+import { useCompactLayout } from '../composables/useCompactLayout'
 import { sortResonanceRecords, type ResonanceBannerOrder, type ResonanceRarityFilter } from '../utils/resonance/resonanceCatalog'
 import type { ResonanceLocalizedName, ResonanceRecord } from '../utils/resonance/resonanceTypes'
 
@@ -17,9 +18,11 @@ const emit = defineEmits<{
   jumpToRecord: [recordId: string]
   changeBannerOrder: [order: ResonanceBannerOrder]
   changeRarityFilter: [rarity: ResonanceRarityFilter]
+  filterSelected: []
 }>()
 
 const sortMenuOpen = ref(false)
+const compact = useCompactLayout()
 const sortMenuWrapRef = ref<HTMLDivElement | null>(null)
 const sortButtonRef = ref<HTMLButtonElement | null>(null)
 const sortedRecords = computed(() => sortResonanceRecords(props.records, props.bannerOrder, props.rarityFilter))
@@ -29,16 +32,19 @@ const selectedOptionLabel = computed(() => {
   return props.rarityFilter === 'all' ? order : `${t.value.rarity(props.rarityFilter)} · ${order}`
 })
 
+/** 手机选择直接作用于记录并返回列表；桌面保留原排序菜单行为。 */
 function selectBannerOrder(order: ResonanceBannerOrder) {
   sortMenuOpen.value = false
   sortButtonRef.value?.focus()
   if (order !== props.bannerOrder) emit('changeBannerOrder', order)
+  if (compact.value) emit('filterSelected')
 }
 
 function selectRarityFilter(rarity: ResonanceRarityFilter) {
   sortMenuOpen.value = false
   sortButtonRef.value?.focus()
   if (rarity !== props.rarityFilter) emit('changeRarityFilter', rarity)
+  if (compact.value) emit('filterSelected')
 }
 
 function handleSortKeydown(event: KeyboardEvent) {
@@ -65,9 +71,13 @@ function hideBrokenImage(event: Event) {
 </script>
 
 <template>
-  <aside v-if="records.length" class="date-sidebar resonance-sidebar" :aria-label="t.title">
-    <div class="sidebar-section-title">{{ t.title }}</div>
-    <div ref="sortMenuWrapRef" class="action-sort-select-wrap resonance-sort-control" @keydown="handleSortKeydown">
+  <aside v-if="records.length || compact" class="date-sidebar resonance-sidebar" :aria-label="t.title">
+    <div v-if="compact" class="resonance-picker-controls">
+      <div role="group" :aria-label="t.bannerOrder"><p>{{ t.bannerOrder }}</p><div class="resonance-picker-options"><button v-for="order in (['newest', 'oldest'] as ResonanceBannerOrder[])" :key="order" type="button" :aria-pressed="bannerOrder === order" @click="selectBannerOrder(order)">{{ order === 'newest' ? t.newestFirst : t.oldestFirst }}</button></div></div>
+      <div role="group" :aria-label="t.rarityFilter"><p>{{ t.rarityFilter }}</p><div class="resonance-picker-options"><button v-for="rarity in (['all', 5, 4] as ResonanceRarityFilter[])" :key="rarity" type="button" :aria-pressed="rarityFilter === rarity" @click="selectRarityFilter(rarity)">{{ rarity === 'all' ? t.allRarities : rarity === 5 ? t.onlyFiveStar : t.onlyFourStar }}</button></div></div>
+    </div>
+    <div v-if="!compact" class="sidebar-section-title">{{ t.title }}</div>
+    <div v-if="!compact" ref="sortMenuWrapRef" class="action-sort-select-wrap resonance-sort-control" @keydown="handleSortKeydown">
       <button
         ref="sortButtonRef"
         type="button"
@@ -109,7 +119,7 @@ function hideBrokenImage(event: Event) {
         </div>
       </div>
     </div>
-    <p v-if="!sortedRecords.length" class="resonance-filter-empty">{{ t.noMatchingRarity }}</p>
+    <p v-if="!sortedRecords.length" class="resonance-filter-empty">{{ records.length ? t.noMatchingRarity : t.emptyTitle }}</p>
     <button
       v-for="record in sortedRecords"
       :key="record.id"

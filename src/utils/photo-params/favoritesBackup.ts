@@ -1,6 +1,6 @@
 import { unzip, strFromU8 } from 'fflate'
 import { CAMERA_BACKUP_LIMITS, planBackupParts, backupPartName, backupPartBlob } from '../backup/zipBackup'
-import { cameraFavoriteTags, coverMetadata, validateFavorite, type FavoriteLibrary } from './favorites'
+import { cameraFavoriteTags, coverMetadata, LEGACY_CAMERA_FAVORITE_TAG_LENGTH, validateFavorite, type FavoriteLibrary } from './favorites'
 
 export async function* exportCameraBackup(library: FavoriteLibrary): AsyncGenerator<{ fileName: string; blob: Blob }> {
   const validRecords = library.records.map(validateFavorite)
@@ -50,7 +50,7 @@ export async function readCameraBackup(file: Blob): Promise<FavoriteLibrary> {
   }
   const records = manifest.records.map(validateFavorite)
   if (!Array.isArray(manifest.tags) || manifest.tags.length > 10040
-    || !manifest.tags.every((tag: unknown) => typeof tag === 'string' && !!tag.trim() && tag.length <= 60)
+    || !manifest.tags.every((tag: unknown) => typeof tag === 'string' && !!tag.trim() && tag.length <= LEGACY_CAMERA_FAVORITE_TAG_LENGTH)
     || new Set(manifest.tags).size !== manifest.tags.length) throw new Error('备份标签列表损坏')
   const tags = cameraFavoriteTags({ records, tags: manifest.tags })
   const ids = new Set<string>()

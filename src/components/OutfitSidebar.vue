@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { ArrowDown, ArrowUp, Check, GripVertical, Plus, Search, Settings2, X } from 'lucide-vue-next'
+import { Check, GripVertical, Plus, Search, Settings2, X } from 'lucide-vue-next'
 import { useCompactLayout } from '../composables/useCompactLayout'
 import type { OutfitMessages } from '../i18n'
 import { MAX_OUTFIT_TAG_LENGTH, MAX_OUTFIT_TAGS, type OutfitItem } from '../utils/outfit/outfitTypes'
@@ -153,17 +153,6 @@ function cancelTagDrag() {
 }
 
 /** 从指定标签的手柄开始指针拖拽。参数：event 为指针按下事件，tag 为被拖拽标签。 */
-/** 上下移动为触屏和键盘提供拖动之外的稳定排序入口。 */
-function moveTag(tag: string, offset: number) {
-  if (props.disabled) return
-  const next = [...displayedTags.value]
-  const index = next.indexOf(tag), destination = index + offset
-  if (index < 0 || destination < 0 || destination >= next.length) return
-  next.splice(destination, 0, ...next.splice(index, 1))
-  displayedTags.value = next
-  emit('reorderTags', next)
-}
-
 function startTagDrag(event: PointerEvent, tag: string) {
   if (props.disabled || event.button !== 0) return
   event.preventDefault()
@@ -202,9 +191,11 @@ onBeforeUnmount(() => {
 
 <template>
   <aside ref="sidebarRef" class="date-sidebar outfit-sidebar" :class="{ 'is-managing-tags': managingTags }" :aria-label="messages.tagsTitle">
-    <div class="outfit-sidebar-heading">
-      <div class="sidebar-section-title">{{ messages.tagsTitle }}</div>
-      <button v-if="!compact || managingTags"
+    <div v-if="!compact || !managingTags" class="outfit-sidebar-heading">
+      <div v-if="!compact" class="sidebar-section-title">{{ messages.tagsTitle }}</div>
+      <!-- 手机选择模式提供搜索和添加；管理模式移除整行，仅保留排序和删除。 -->
+      <label v-if="compact" class="tag-picker-search"><Search :size="18" aria-hidden="true" /><input v-model="tagSearch" type="search" :disabled="disabled" :placeholder="language === 'zh' ? '搜索标签' : 'Search tags'" :aria-label="language === 'zh' ? '搜索标签' : 'Search tags'" /></label>
+      <button
         ref="toggleRef"
         class="icon-button outfit-add-tag-toggle"
         type="button"
@@ -225,7 +216,6 @@ onBeforeUnmount(() => {
       </Teleport>
     </div>
 
-    <label v-if="compact && !managingTags" class="tag-picker-search"><Search :size="18" aria-hidden="true" /><input v-model="tagSearch" type="search" :disabled="disabled" :placeholder="language === 'zh' ? '搜索标签' : 'Search tags'" :aria-label="language === 'zh' ? '搜索标签' : 'Search tags'" /></label>
     <div class="outfit-filter-list">
       <slot name="filters" :select-filter="selectFilter">
       <button
@@ -276,7 +266,6 @@ onBeforeUnmount(() => {
         >
           <span>{{ tag }}</span><Check v-if="compact && activeFilter === `tag:${tag}`" :size="16" aria-hidden="true" /><small>{{ countFor(`tag:${tag}`) }}</small>
         </button>
-        <div v-if="compact && managingTags" class="tag-order-buttons"><button type="button" :disabled="disabled || displayedTags[0] === tag" :aria-label="(language === 'zh' ? '上移标签: ' : 'Move tag up: ') + tag" @click="moveTag(tag, -1)"><ArrowUp :size="16" /></button><button type="button" :disabled="disabled || displayedTags.at(-1) === tag" :aria-label="(language === 'zh' ? '下移标签: ' : 'Move tag down: ') + tag" @click="moveTag(tag, 1)"><ArrowDown :size="16" /></button></div>
         <button
           v-if="!compact || managingTags"
           class="outfit-delete-tag"
@@ -290,7 +279,7 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </div>
-    <p v-if="compact && !managingTags && tagSearch.trim() && !visibleTags.length" class="tag-picker-empty">{{ language === 'zh' ? '没有匹配的标签' : 'No matching tags' }}</p>
-    <footer v-if="compact" class="tag-picker-footer"><span>{{ language === 'zh' ? (managingTags ? '添加、删除或调整标签顺序' : '点击标签后直接筛选') : (managingTags ? 'Add, delete or reorder tags' : 'Select a tag to filter immediately') }}</span><button class="tag-manage-toggle" type="button" :disabled="disabled" :aria-pressed="managingTags" @click="managingTags = !managingTags; tagSearch = ''; closeTagInput()"><Settings2 :size="16" aria-hidden="true" />{{ language === 'zh' ? (managingTags ? '完成管理' : '管理标签') : (managingTags ? 'Done' : 'Manage tags') }}</button></footer>
+    <p v-if="compact && tagSearch.trim() && !visibleTags.length" class="tag-picker-empty">{{ language === 'zh' ? '没有匹配的标签' : 'No matching tags' }}</p>
+    <footer v-if="compact" class="tag-picker-footer"><span>{{ language === 'zh' ? (managingTags ? '删除或调整标签顺序' : '点击标签后直接筛选') : (managingTags ? 'Delete or reorder tags' : 'Select a tag to filter immediately') }}</span><button class="tag-manage-toggle" type="button" :disabled="disabled" :aria-pressed="managingTags" @click="managingTags = !managingTags; tagSearch = ''; closeTagInput()"><Settings2 :size="16" aria-hidden="true" />{{ language === 'zh' ? (managingTags ? '完成管理' : '管理标签') : (managingTags ? 'Done' : 'Manage tags') }}</button></footer>
   </aside>
 </template>

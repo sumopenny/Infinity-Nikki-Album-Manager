@@ -13,7 +13,7 @@ import { loadResonanceRecords, saveResonanceRecords } from '../utils/resonance/r
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { ResonanceLocalizedName, ResonanceRecord } from '../utils/resonance/resonanceTypes'
 
-const props = withDefaults(defineProps<{ language?: Language; bannerOrder?: ResonanceBannerOrder; rarityFilter?: ResonanceRarityFilter; disabled?: boolean }>(), { language: 'zh', bannerOrder: 'newest', rarityFilter: 'all' })
+const props = withDefaults(defineProps<{ language?: Language; bannerOrder?: ResonanceBannerOrder; rarityFilter?: ResonanceRarityFilter; disabled?: boolean; mobileActionsTarget?: string }>(), { language: 'zh', bannerOrder: 'newest', rarityFilter: 'all' })
 const t = computed(() => messages[props.language].resonance)
 const emit = defineEmits<{
   busyChange: [busy: boolean]
@@ -322,7 +322,7 @@ defineExpose({ reload })
         <p class="eyebrow">RESONANCE</p>
         <h2 id="resonance-title">{{ t.title }}</h2>
       </div>
-      <CollectionActions class="resonance-actions" :label="language === 'zh' ? '共鸣操作' : 'Resonance actions'"><button class="primary-button" type="button" :disabled="disabled" @click="openDialog"><Plus :size="16" aria-hidden="true" />{{ t.addData }}</button><template #secondary>
+      <CollectionActions :mobile-target="mobileActionsTarget" class="resonance-actions" :label="language === 'zh' ? '共鸣操作' : 'Resonance actions'"><button class="primary-button" type="button" :aria-label="t.addData" :title="t.addData" :disabled="disabled" @click="openDialog"><Plus :size="16" aria-hidden="true" /><span class="collection-action-label">{{ t.addData }}</span></button><template #secondary>
         <button class="resonance-cloud-sync-placeholder" type="button" disabled><Cloud :size="16" aria-hidden="true" />{{ t.cloudSyncComingSoon }}</button>
         <button type="button" :disabled="disabled || !records.length || clearing" @click="requestClearRecords"><Trash2 :size="16" aria-hidden="true" />{{ t.clearRecords }}</button>
         <button type="button" :disabled="disabled || !records.length" @click="exportRecords"><Upload :size="16" aria-hidden="true" />{{ t.exportData }}</button>
@@ -333,7 +333,7 @@ defineExpose({ reload })
     <div v-if="!records.length" class="resonance-empty">
       <h3>{{ t.emptyTitle }}</h3>
       <p>{{ t.emptyDescription }}</p>
-      <button class="primary-button" type="button" :disabled="disabled" @click="openDialog"><Plus :size="16" aria-hidden="true" />{{ t.addData }}</button>
+      <button class="primary-button desktop-only" type="button" :disabled="disabled" @click="openDialog"><Plus :size="16" aria-hidden="true" />{{ t.addData }}</button>
     </div>
 
     <div v-else-if="!sortedRecords.length" class="resonance-empty">
@@ -343,11 +343,11 @@ defineExpose({ reload })
     <div v-else class="resonance-list">
       <article v-for="record in sortedRecords" :id="`resonance-record-${record.id}`" :key="record.id" class="resonance-record">
         <div class="resonance-record-heading">
-          <div>
-            <h3>{{ displayName(record.outfitName) }} {{ t.rarity(record.rarity) }}</h3>
-            <p>{{ totalPullsLabel(record) }} <span aria-hidden="true">|</span> {{ t.average(outfitPulls(record).average.toFixed(1)) }}</p>
+          <div class="resonance-record-title-row">
+            <h3 :title="`${displayName(record.outfitName)} ${t.rarity(record.rarity)}`">{{ displayName(record.outfitName) }} {{ t.rarity(record.rarity) }}</h3>
+            <span class="resonance-banner-name" :title="displayName(record.bannerName)">{{ displayName(record.bannerName) }}</span>
           </div>
-          <span class="resonance-banner-name">{{ displayName(record.bannerName) }}</span>
+          <p>{{ totalPullsLabel(record) }} <span aria-hidden="true">|</span> {{ t.average(outfitPulls(record).average.toFixed(1)) }}</p>
         </div>
         <div class="resonance-record-body">
           <div class="resonance-outfit-image"><img :src="record.outfitImageUrl" :alt="displayName(record.outfitName)" referrerpolicy="no-referrer" @error="hideBrokenImage" /></div>
@@ -519,12 +519,13 @@ defineExpose({ reload })
 .resonance-empty { display: grid; min-height: 280px; place-items: center; align-content: center; gap: 10px; padding: 32px; border: 1px dashed var(--line); border-radius: var(--ui-radius); color: var(--muted); text-align: center; }
 .resonance-empty h3, .resonance-empty p { margin: 0; }
 .resonance-record { scroll-margin-top: calc(var(--sidebar-sticky-top) + 12px); margin-bottom: 16px; padding: 18px; border: 1px solid var(--line); border-radius: var(--ui-radius); background: var(--surface); }
-.resonance-record-heading, .resonance-record-body { display: flex; gap: 18px; }
-.resonance-record-heading { align-items: flex-start; justify-content: space-between; }
+/* 标题独占一行；两侧允许收缩并省略长名称，窄屏仍保持卡池居右。 */
+.resonance-record-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.resonance-record-title-row h3 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .resonance-record-heading h3, .resonance-record-heading p { margin: 0; }
 .resonance-record-heading p { margin-top: 7px; color: var(--muted); font-size: 13px; }
-.resonance-banner-name { color: var(--muted); font-size: 13px; text-align: right; }
-.resonance-record-body { margin-top: 18px; align-items: flex-start; }
+.resonance-banner-name { max-width: 45%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 13px; text-align: right; }
+.resonance-record-body { display: flex; gap: 18px; margin-top: 18px; align-items: flex-start; }
 .resonance-outfit-image { width: min(180px, 28%); aspect-ratio: 448 / 656; overflow: hidden; border-radius: 8px; background: var(--frame-bg) url('../../img/back.png') center / cover no-repeat; }
 .resonance-outfit-image img, .resonance-part img { width: 100%; height: 100%; object-fit: cover; }
 .resonance-outfit-image img[hidden], .resonance-part img[hidden] { display: none; }
@@ -559,8 +560,6 @@ defineExpose({ reload })
 .resonance-import-footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; }
 @media (max-width: 600px) {
   .resonance-record { padding: 14px; }
-  .resonance-record-heading { display: grid; gap: 6px; }
-  .resonance-banner-name { text-align: left; }
   .resonance-record-body { gap: 12px; }
   .resonance-outfit-image { width: 35%; }
   .resonance-parts { grid-template-columns: repeat(3, minmax(52px, 1fr)); gap: 8px; }

@@ -51,11 +51,13 @@ const props = defineProps<{
   hasAlbumDirectory: boolean
   hasX6GameAuthorization: boolean
   thumbnailMode: ThumbnailMode
+  thumbnailModeDisabled?: boolean
   thumbnailModeOptions: Array<{ value: ThumbnailMode; label: string }>
   themeMode: ThemeMode
   language: Language
   messages: LocaleMessages['topBar']
   searchQuery?: string
+  activeView?: AlbumView
 }>()
 
 const emit = defineEmits<{
@@ -84,9 +86,15 @@ const FEEDBACK_URL = 'https://v.wjx.cn/vm/tUM7gga.aspx'
 
 const compact = useCompactLayout()
 const mobileSearchOpen = ref(false)
+const mobileSearchInput = ref<HTMLInputElement | null>(null)
+const mobileSearchTrigger = ref<HTMLButtonElement | null>(null)
+const mobileSearchStyle = ref({ top: '72px' })
+let restoreMobileSearchFocus = false
+let headerResizeObserver: ResizeObserver | null = null
 const openMenu = ref<OpenMenu>(null)
 const menuStyle = computed(() => compact.value ? {} : { top: `${menuPosition.value.top}px`, left: `${menuPosition.value.left}px` })
 watch(compact, () => closeMenus())
+watch(() => props.activeView, () => closeMenus())
 defineExpose({ closeMenus })
 const showDonate = ref(false)
 const showFeedback = ref(false)
@@ -103,6 +111,7 @@ const isBusy = computed(() => props.isLoading || props.isDeleting)
 
 /** 切换顶部菜单，并保证同一时间只展开一个菜单。参数：menu 为目标菜单。 */
 async function toggleMenu(menu: Exclude<OpenMenu, null>, event: MouseEvent) {
+  closeMobileSearch(false)
   if (openMenu.value === menu) {
     closeMenus()
     return
@@ -118,6 +127,7 @@ async function toggleMenu(menu: Exclude<OpenMenu, null>, event: MouseEvent) {
 
 /** 让菜单优先在触发项下方居中，并在临近屏幕边缘时保持完整可见。参数：无。 */
 async function alignOpenMenu() {
+  updateMobileSearchPosition()
   const dropdown = dropdownRef.value
   const trigger = menuTrigger.value
   if (!dropdown || !trigger || compact.value) return
@@ -145,8 +155,47 @@ async function alignOpenMenu() {
   } else dropdown.style.maxHeight = `${Math.max(48, availableBelow)}px`
 }
 
-/** 关闭全部顶部菜单。参数：无。 */
+/** 关闭手机搜索浮层；显式关闭后等待淡出结束再还原焦点，保留关键词。 */
+function closeMobileSearch(restoreFocus = true) {
+  // 菜单或外部操作可在淡出期间取消焦点恢复，避免抢走新窗口的焦点。
+  if (!restoreFocus) restoreMobileSearchFocus = false
+  if (!mobileSearchOpen.value) return
+  restoreMobileSearchFocus = restoreFocus
+  mobileSearchOpen.value = false
+}
+
+/** 淡出完成后恢复显式关闭的焦点；重新打开或切换菜单时不恢复。 */
+function finishMobileSearchClose() {
+  const shouldRestore = restoreMobileSearchFocus
+  restoreMobileSearchFocus = false
+  if (shouldRestore && compact.value && !mobileSearchOpen.value && !openMenu.value) mobileSearchTrigger.value?.focus()
+}
+
+/** 搜索独立浮于顶栏下方，与菜单互斥；挂载后聚焦输入框。 */
+async function toggleMobileSearch() {
+  if (mobileSearchOpen.value) { closeMobileSearch(); return }
+  closeMenus()
+  mobileSearchOpen.value = true
+  updateMobileSearchPosition()
+  await nextTick()
+  if (mobileSearchOpen.value) { mobileSearchInput.value?.focus(); updateMobileSearchPosition() }
+}
+
+/** 独立搜索层跟随顶栏实际底边，避开父级背景模糊的采样限制。 */
+function updateMobileSearchPosition() {
+  if (!mobileSearchOpen.value || !headerRef.value) return
+  mobileSearchStyle.value = { top: `${Math.round(headerRef.value.getBoundingClientRect().bottom + 8)}px` }
+}
+
+/** 清除关键词但保留搜索浮层及输入焦点。 */
+function clearMobileSearch() {
+  emit('updateSearch', '')
+  mobileSearchInput.value?.focus()
+}
+
+/** 关闭全部顶部菜单及搜索浮层，不抢占下一项操作的焦点。 */
 function closeMenus() {
+  closeMobileSearch(false)
   openMenu.value = null
   menuTrigger.value = null
 }
@@ -182,13 +231,17 @@ function handleFeedbackError() {
 function handleDocumentInteraction(event: MouseEvent | KeyboardEvent) {
   if (event instanceof KeyboardEvent) {
     if (event.key !== 'Escape') return
+    if (mobileSearchOpen.value) { closeMobileSearch(); return }
     if (showDonate.value) showDonate.value = false
     else if (showFeedback.value) showFeedback.value = false
     else closeMenus()
     return
   }
   const target = event.target as Node
-  if (!headerRef.value?.contains(target) && !dropdownRef.value?.contains(target) && !menuTrigger.value?.contains(target)) closeMenus()
+  // 关闭后元素引用会被清空，按原始路径识别浮层，避免取消尚未完成的焦点恢复。
+  const insideSearch = event.composedPath().some(node => node instanceof HTMLElement && node.id === 'mobile-search-popover')
+  if (mobileSearchOpen.value && !insideSearch && !mobileSearchTrigger.value?.contains(target)) closeMobileSearch(false)
+  if (!headerRef.value?.contains(target) && !insideSearch && !dropdownRef.value?.contains(target) && !menuTrigger.value?.contains(target)) closeMenus()
 }
 
 onMounted(() => {
@@ -196,6 +249,12 @@ onMounted(() => {
   document.addEventListener('keydown', handleDocumentInteraction)
   window.addEventListener('resize', alignOpenMenu)
   window.addEventListener('scroll', alignOpenMenu, true)
+  window.visualViewport?.addEventListener('resize', updateMobileSearchPosition)
+  window.visualViewport?.addEventListener('scroll', updateMobileSearchPosition)
+  if (typeof ResizeObserver !== 'undefined' && headerRef.value) {
+    headerResizeObserver = new ResizeObserver(updateMobileSearchPosition)
+    headerResizeObserver.observe(headerRef.value)
+  }
 })
 
 onBeforeUnmount(() => {
@@ -203,6 +262,9 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', handleDocumentInteraction)
   window.removeEventListener('resize', alignOpenMenu)
   window.removeEventListener('scroll', alignOpenMenu, true)
+  window.visualViewport?.removeEventListener('resize', updateMobileSearchPosition)
+  window.visualViewport?.removeEventListener('scroll', updateMobileSearchPosition)
+  headerResizeObserver?.disconnect()
 })
 </script>
 
@@ -220,11 +282,18 @@ onBeforeUnmount(() => {
     </div>
 
     <div v-if="compact" class="mobile-header-row">
-      <button type="button" :aria-label="language === 'zh' ? '搜索当前页面' : 'Search this page'" :aria-expanded="mobileSearchOpen" @click="mobileSearchOpen = !mobileSearchOpen"><Search :size="20" aria-hidden="true" /></button>
+      <button ref="mobileSearchTrigger" type="button" :class="{ 'has-search': searchQuery?.trim() }" :aria-label="language === 'zh' ? '搜索当前页面' : 'Search this page'" aria-controls="mobile-search-popover" :aria-expanded="mobileSearchOpen" @click="toggleMobileSearch"><Search :size="20" aria-hidden="true" /></button>
       <button type="button" :title="messages.view" :aria-label="messages.viewMenuAria" aria-haspopup="menu" :aria-expanded="openMenu === 'view'" @click.stop="toggleMenu('view', $event)"><Grid2X2 :size="20" aria-hidden="true" /></button>
       <button type="button" :aria-label="messages.moreMenuAria" :aria-expanded="openMenu === 'more'" @click.stop="toggleMenu('more', $event)"><MoreHorizontal :size="22" /></button>
     </div>
-    <div v-if="compact && (mobileSearchOpen || searchQuery)" class="mobile-header-search"><input type="search" :value="searchQuery" :placeholder="messages.searchPlaceholder" :aria-label="messages.searchPlaceholder" @input="emit('updateSearch', ($event.target as HTMLInputElement).value)" /><button type="button" :aria-label="language === 'zh' ? '清除搜索' : 'Clear search'" @click="emit('updateSearch', ''); mobileSearchOpen = false"><X :size="18" /></button></div>
+    <Teleport to="body"><Transition name="mobile-search-popover" @after-leave="finishMobileSearchClose">
+      <div v-if="compact && mobileSearchOpen" id="mobile-search-popover" class="mobile-header-search" :style="mobileSearchStyle" role="search" :aria-label="messages.searchPlaceholder">
+        <Search :size="18" aria-hidden="true" />
+        <input ref="mobileSearchInput" type="search" :value="searchQuery" :placeholder="messages.searchPlaceholder" :aria-label="messages.searchPlaceholder" @input="emit('updateSearch', ($event.target as HTMLInputElement).value)" />
+        <button v-if="searchQuery" type="button" :aria-label="language === 'zh' ? '清除搜索' : 'Clear search'" @click="clearMobileSearch"><Eraser :size="18" /></button>
+        <button type="button" :aria-label="language === 'zh' ? '关闭搜索' : 'Close search'" @click="closeMobileSearch()"><X :size="18" /></button>
+      </div>
+    </Transition></Teleport>
     <div v-show="!compact" class="header-actions">
       <span class="header-star-hint" :title="messages.starHint">{{ messages.starHint }}</span>
       <a
@@ -348,6 +417,7 @@ onBeforeUnmount(() => {
               :class="{ active: option.value === thumbnailMode }"
               type="button"
               role="menuitemradio"
+              :disabled="thumbnailModeDisabled || (compact && option.value === 'half')"
               :aria-checked="option.value === thumbnailMode"
               @click="runMenuAction(() => emit('changeThumbnailMode', option.value))"
             >

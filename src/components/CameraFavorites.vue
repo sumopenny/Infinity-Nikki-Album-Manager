@@ -4,10 +4,9 @@ import { Camera, Check, Copy, Download, Edit3, ImagePlus, Plus, ScanSearch, Tras
 import { messages as localeMessages, type Language } from '../i18n'
 import CollectionFilterBar from './CollectionFilterBar.vue'
 import CollectionActions from './CollectionActions.vue'
-import CardActions from './CardActions.vue'
 import SelectionBar from './SelectionBar.vue'
 import OutfitSidebar, { type OutfitFilter } from './OutfitSidebar.vue'
-import { deleteCameraFavoriteTag, saveCameraFavoriteTags } from '../utils/photo-params/favorites'
+import { deleteCameraFavoriteTag, isValidNewCameraFavoriteTag, MAX_CAMERA_FAVORITE_TAG_LENGTH, saveCameraFavoriteTags } from '../utils/photo-params/favorites'
 import { favoriteResources } from '../utils/photo-params/favoriteResources'
 import type { PhotoParamsMessages } from '../i18n/messages/photoParams'
 import type { PhotoParamsResult } from '../utils/photo-params/types'
@@ -57,7 +56,7 @@ const form = ref<HTMLElement | null>(null)
 const tagFilter = ref<OutfitFilter>('all')
 const tagOrder = ref<string[]>([])
 const sidebar = ref<InstanceType<typeof OutfitSidebar> | null>(null)
-const tagMessages = computed(() => ({ ...localeMessages[props.language].outfit, tagPlaceholder: t('输入标签（最多 60 字）', 'Tag name (up to 60 characters)') }))
+const tagMessages = computed(() => localeMessages[props.language].outfit)
 const isAddingTag = ref(false)
 const newTag = ref('')
 const tagToggle = ref<HTMLButtonElement | null>(null)
@@ -73,11 +72,12 @@ async function persistTags(next: string[]) {
     channel?.postMessage('changed')
   } finally { busy.value = false }
 }
+/** 新建相机标签与搭配、家园统一限制五字，已有标签的选择不受影响。 */
 async function addTag(raw: string, select = false) {
   if (busy.value) return
   const tag = raw.trim()
-  if (!tag || tag.length > 60 || /[,，]/.test(tag)) {
-    error.value = t('标签需为 1–60 字，不能包含逗号', 'Use 1–60 characters without commas')
+  if (!isValidNewCameraFavoriteTag(tag)) {
+    error.value = t('标签需为 1–5 字，不能包含逗号', 'Use 1–5 characters without commas')
     emit('status', error.value, 'warning'); return
   }
   if (!allTags.value.includes(tag) && allTags.value.length >= 40) {
@@ -457,7 +457,7 @@ defineExpose({ openFromResult, resetLibrary, reload })
 
 <template>
   <Teleport v-if="active" :to="sidebarTarget || 'body'" :disabled="!sidebarTarget">
-    <OutfitSidebar :language="language" ref="sidebar" :outfits="sidebarRecords" :tags="allTags" :active-filter="tagFilter" :picker-open="filtersOpen" :disabled="busy" :messages="tagMessages" :show-pending="false" :max-tag-length="60" @change-filter="tagFilter = $event" @filter-selected="$emit('closeFilters')" @add-tag="addTag($event)" @delete-tag="removeTag" @reorder-tags="reorderTags" />
+    <OutfitSidebar :language="language" ref="sidebar" :outfits="sidebarRecords" :tags="allTags" :active-filter="tagFilter" :picker-open="filtersOpen" :disabled="busy" :messages="tagMessages" :show-pending="false" :max-tag-length="MAX_CAMERA_FAVORITE_TAG_LENGTH" @change-filter="tagFilter = $event" @filter-selected="$emit('closeFilters')" @add-tag="addTag($event)" @delete-tag="removeTag" @reorder-tags="reorderTags" />
   </Teleport>
   <section v-show="active" class="camera-favorites">
     <div v-if="backupDownloads.length > 1" class="camera-backup-downloads">
@@ -467,14 +467,14 @@ defineExpose({ openFromResult, resetLibrary, reload })
     </div>
     <!-- 操作按钮移至收藏夹标签行，保持组件内的原有事件和状态。 -->
     <Teleport v-if="active" :to="actionsTarget || 'body'" :disabled="!actionsTarget">
-      <CollectionActions :label="t('收藏操作', 'Favorite actions')"><button class="primary-button" type="button" :disabled="busy" @click="openEditor()"><Plus :size="15" />{{ t('添加收藏', 'Add favorite') }}</button><template #secondary>
+      <CollectionActions mobile-target="#camera-tag-actions" :label="t('收藏操作', 'Favorite actions')"><button class="primary-button" type="button" :aria-label="t('添加收藏', 'Add favorite')" :title="t('添加收藏', 'Add favorite')" :disabled="busy" @click="openEditor()"><Plus :size="15" aria-hidden="true" /><span class="collection-action-label">{{ t('添加收藏', 'Add favorite') }}</span></button><template #secondary>
         <input ref="backupInput" type="file" accept=".zip,application/zip" hidden @change="importBackup" />
         <button type="button" :disabled="busy" @click="backupInput?.click()"><Download :size="15" />{{ t('导入', 'Import') }}</button>
         <button type="button" :disabled="busy || (!library.records.length && !allTags.length)" @click="exportBackup"><Upload :size="15" />{{ t('导出', 'Export') }}</button>
 
 </template></CollectionActions>
     </Teleport>
-    <CollectionFilterBar tag-picker :entries="[{ key: 'all', label: t('全部', 'All') }, { key: 'uncategorized', label: t('未分类', 'Uncategorized') }, ...allTags.map(tag => ({ key: 'tag:' + tag, label: tag }))]" :active="tagFilter" :count="visibleRecords.length" :language="language" :disabled="busy" @change="tagFilter = $event as OutfitFilter" @clear="tagFilter = 'all'" @open="$emit('openFilters')" />
+    <CollectionFilterBar tag-picker actions-id="camera-tag-actions" :entries="[{ key: 'all', label: t('全部', 'All') }, { key: 'uncategorized', label: t('未分类', 'Uncategorized') }, ...allTags.map(tag => ({ key: 'tag:' + tag, label: tag }))]" :active="tagFilter" :count="visibleRecords.length" :language="language" :disabled="busy" @change="tagFilter = $event as OutfitFilter" @clear="tagFilter = 'all'" @open="$emit('openFilters')" />
     <p v-if="loadError" role="alert">{{ loadError }} <button type="button" @click="reload">{{ t('重试', 'Retry') }}</button></p>
     <p v-if="!visibleRecords.length && !loadError" class="camera-empty">{{ t('暂无相机参数。添加参数码，或从照片参数窗口收藏。', 'No camera parameters yet. Add a code or save from photo parameters.') }}<button class="mobile-only empty-import-button" type="button" :disabled="busy" @click="backupInput?.click()">{{ t('导入备份', 'Import backup') }}</button></p>
     <div class="camera-favorite-grid">
@@ -493,18 +493,20 @@ defineExpose({ openFromResult, resetLibrary, reload })
           <Camera v-else :size="34" class="camera-placeholder" aria-hidden="true" />
           <!-- 标记常驻，通过公共选中样式切换，保留淡入与缩放动画。 -->
           <span class="selected-badge"><Check :size="15" aria-hidden="true" /></span>
-          <CardActions :label="t('收藏操作', 'Favorite actions')" :title="item.name" :close-label="t('关闭', 'Close')" :disabled="busy">          <button class="outfit-card-delete camera-card-delete" type="button" :title="t('删除', 'Delete')" :aria-label="t('删除', 'Delete')" :disabled="busy" @click.stop="remove(item)">
-            <Trash2 :size="16" aria-hidden="true" /><span class="mobile-only">{{ t('删除', 'Delete') }}</span>
-          </button><button class="mobile-only" type="button" :disabled="busy" @click.stop="openEditor(item)"><Edit3 :size="18" />{{ t('编辑', 'Edit') }}</button><button class="mobile-only" type="button" @click.stop="detail = item"><ScanSearch :size="18" />{{ t('详情', 'Details') }}</button></CardActions>
+          <button class="outfit-card-delete camera-card-delete desktop-only" type="button" :title="t('删除', 'Delete')" :aria-label="t('删除', 'Delete')" :disabled="busy" @click.stop="remove(item)"><Trash2 :size="16" aria-hidden="true" /></button>
         </div>
         <div class="camera-card-content">
-          <div class="camera-name-tags"><h3>{{ item.name }}</h3><div><span v-if="item.tag" :title="item.tag">{{ item.tag }}</span></div></div>
+          <div class="camera-name-tags"><h3>{{ item.name }}</h3><div class="desktop-only"><span v-if="item.tag" :title="item.tag">{{ item.tag }}</span></div></div>
           <code class="camera-code">{{ item.result.rawCameraParams }}</code>
         </div>
-        <footer><span>{{ item.source === 'manual' ? t('手动收藏', 'Manual') : t('照片解析', 'Photo parsing') }}</span><div class="outfit-card-actions">
+        <footer>
+          <!-- 手机来源与标签同排，来源靠左、标签靠右；电脑标签仍位于标题旁。 -->
+          <div class="camera-source-tag"><span class="camera-source-label">{{ item.source === 'manual' ? t('手动收藏', 'Manual') : t('照片解析', 'Photo parsing') }}</span><span v-if="item.tag" class="camera-card-tag mobile-only" :title="item.tag"><span>{{ item.tag }}</span></span></div>
+          <div class="outfit-card-actions" @click.stop @dblclick.stop>
           <button type="button" :title="t('复制', 'Copy')" :aria-label="t('复制', 'Copy')" :disabled="busy" @click.stop="copy(item.result.rawCameraParams)"><Copy :size="15" aria-hidden="true" /></button>
-          <button class="desktop-only" type="button" :title="t('编辑', 'Edit')" :aria-label="t('编辑', 'Edit')" :disabled="busy" @click.stop="openEditor(item)"><Edit3 :size="15" aria-hidden="true" /></button>
-          <button class="desktop-only" type="button" :title="t('详情', 'Details')" :aria-label="t('详情', 'Details')" :disabled="busy" @click.stop="detail = item"><ScanSearch :size="15" aria-hidden="true" /></button>
+          <button type="button" :title="t('编辑', 'Edit')" :aria-label="t('编辑', 'Edit')" :disabled="busy" @click.stop="openEditor(item)"><Edit3 :size="15" aria-hidden="true" /></button>
+          <button class="mobile-only" type="button" :title="t('删除', 'Delete')" :aria-label="t('删除', 'Delete')" :disabled="busy" @click.stop="remove(item)"><Trash2 :size="18" aria-hidden="true" /></button>
+          <button type="button" :title="t('详情', 'Details')" :aria-label="t('详情', 'Details')" :disabled="busy" @click.stop="detail = item"><ScanSearch :size="15" aria-hidden="true" /></button>
         </div></footer>
       </article>
     </div>
@@ -547,7 +549,7 @@ defineExpose({ openFromResult, resetLibrary, reload })
                 <p v-if="!editorTags.length">{{ tagMessages.noTag }}</p>
                 <Transition name="outfit-tag-editor">
                   <div v-if="isAddingTag" ref="tagPopover" class="outfit-tag-editor outfit-tag-editor-popover camera-tag-popover" :style="tagPosition" @keydown.enter.stop.prevent="addTag(newTag, true)">
-                    <input ref="tagInput" v-model="newTag" maxlength="60" :placeholder="tagMessages.tagPlaceholder" :aria-label="tagMessages.addTag" autocomplete="off" />
+                    <input ref="tagInput" v-model="newTag" :maxlength="MAX_CAMERA_FAVORITE_TAG_LENGTH" :placeholder="tagMessages.tagPlaceholder" :aria-label="tagMessages.addTag" autocomplete="off" />
                     <button type="button" @click="addTag(newTag, true)">{{ tagMessages.confirmAddTag }}</button>
                   </div>
                 </Transition>
@@ -568,10 +570,11 @@ defineExpose({ openFromResult, resetLibrary, reload })
 </template>
 
 <style scoped>
+.camera-source-tag{display:contents}
 .camera-backup-downloads { display: grid; gap: 8px; margin: 12px 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--ui-radius); }
 .camera-favorites{min-width:0}.camera-favorites h2 small{font-size:13px;color:var(--muted);margin-left:8px}.camera-tags-filter{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.camera-tags-filter button{border:1px solid var(--line);border-radius:16px;padding:6px 12px;background:var(--surface-strong);color:var(--text)}.camera-tags-filter button[aria-pressed=true]{border-color:var(--pink-deep);color:var(--pink-deep)}.camera-empty{padding:60px 20px;text-align:center;color:var(--muted)}.camera-favorite-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;padding:10px 0 100px}
 
-.camera-favorite-card{display:flex;flex-direction:column;min-width:0;padding:10px;border-radius:18px}.camera-cover{position:relative;aspect-ratio:16/9;border-radius:12px;background:color-mix(in srgb,var(--pink-deep) 7%,var(--surface-strong));display:grid;place-items:center}.camera-cover>img{width:100%;height:100%;object-fit:cover;border-radius:12px;position:absolute}.camera-placeholder{color:var(--muted);opacity:.5}.camera-resources{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:10px;box-sizing:border-box}.camera-resources>div{flex:1;min-width:0;display:flex;align-items:center;flex-direction:column;gap:7px;text-align:center}.camera-resources img{width:100%;max-width:84px;height:58px;object-fit:contain}.camera-resources small{font-size:10px;color:var(--muted)}.camera-resources strong{font-size:12px;overflow-wrap:anywhere;color:var(--heading);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.camera-card-delete{right:8px}.camera-card-content{padding:12px 2px}.camera-name-tags{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;min-height:28px}.camera-name-tags h3{margin:0;font-size:14px;color:var(--heading);overflow-wrap:anywhere;min-width:0}.camera-name-tags>div{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;max-width:50%;flex-shrink:0}.camera-name-tags span{padding:3px 7px;border-radius:7px;background:color-mix(in srgb,var(--pink-deep) 10%,var(--surface-strong));color:var(--pink-deep);font-size:10px;overflow-wrap:anywhere;max-width:100%}.camera-code{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;line-height:1.6;height:3.2em;font-size:11px;margin-top:9px;color:var(--muted)}.camera-favorite-card footer{margin-top:auto;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:6px;padding:10px 2px 0;font-size:11px;color:var(--muted)}.camera-editor-overlay{z-index:1600}.camera-editor{width:min(740px,calc(100vw - 28px));max-height:90dvh;overflow:auto;padding:24px;box-sizing:border-box;border-radius:20px;background:var(--surface-strong);color:var(--text)}.camera-editor header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}.camera-editor h2{font-size:21px;margin:0}.camera-editor button{border:1px solid var(--line);border-radius:9px;padding:9px 13px;background:var(--surface-strong);color:var(--text)}.camera-editor button.primary-button{background:var(--pink-deep);color:white;border-color:var(--pink-deep)}.camera-editor button:disabled{opacity:.5;cursor:not-allowed}.camera-editor fieldset{padding:0;border:0;min-width:0}.camera-editor label{display:block;font-size:12px;font-weight:700;margin:12px 0 8px}.camera-editor input,.camera-editor textarea,.camera-editor select{box-sizing:border-box;width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);font:inherit}.camera-editor textarea{resize:vertical;overflow-wrap:anywhere;font-size:12px}.camera-parse-status{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:8px}.camera-editor-fields{display:grid;grid-template-columns:1fr 1fr;gap:24px}.camera-editor-preview{width:100%;max-height:150px;object-fit:contain;border-radius:10px}.camera-editor input[type=file]{font-size:11px;margin-bottom:8px}.camera-editor footer{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--line);margin-top:24px;padding-top:18px}.camera-error{color:var(--notice-error,#b53d56);font-size:13px}.camera-parsed-summary{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--muted);margin-top:10px}.camera-conflict{display:flex!important;gap:16px;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)}.camera-conflict small{display:block;color:var(--muted);font-weight:normal;font-size:10px;margin-top:6px}.camera-conflict select{max-width:150px}button,summary{cursor:pointer}@media(max-width:560px){.camera-favorite-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.camera-editor{padding:18px}.camera-editor-fields{grid-template-columns:1fr;gap:6px}.camera-favorite-card{max-width:100%}}
+.camera-favorite-card{display:flex;flex-direction:column;min-width:0;padding:10px;border-radius:18px}.camera-cover{position:relative;aspect-ratio:16/9;border-radius:12px;background:color-mix(in srgb,var(--pink-deep) 7%,var(--surface-strong));display:grid;place-items:center}.camera-cover>img{width:100%;height:100%;object-fit:cover;border-radius:12px;position:absolute}.camera-placeholder{color:var(--muted);opacity:.5}.camera-resources{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:10px;box-sizing:border-box}.camera-resources>div{flex:1;min-width:0;display:flex;align-items:center;flex-direction:column;gap:7px;text-align:center}.camera-resources img{width:100%;max-width:84px;height:58px;object-fit:contain}.camera-resources small{font-size:10px;color:var(--muted)}.camera-resources strong{font-size:12px;overflow-wrap:anywhere;color:var(--heading);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.camera-card-delete{right:8px}.camera-card-content{padding:12px 2px}.camera-name-tags{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;min-height:28px}.camera-name-tags h3{margin:0;font-size:14px;color:var(--heading);overflow-wrap:anywhere;min-width:0}.camera-name-tags>div{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;max-width:50%;flex-shrink:0}.camera-name-tags span,.camera-card-tag{padding:3px 7px;border-radius:7px;background:color-mix(in srgb,var(--pink-deep) 10%,var(--surface-strong));color:var(--pink-deep);font-size:10px;overflow-wrap:anywhere;max-width:100%}.camera-code{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;line-height:1.6;height:3.2em;font-size:11px;margin-top:9px;color:var(--muted)}.camera-favorite-card footer{margin-top:auto;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:6px;padding:10px 2px 0;font-size:11px;color:var(--muted)}.camera-editor-overlay{z-index:1600}.camera-editor{width:min(740px,calc(100vw - 28px));max-height:90dvh;overflow:auto;padding:24px;box-sizing:border-box;border-radius:20px;background:var(--surface-strong);color:var(--text)}.camera-editor header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}.camera-editor h2{font-size:21px;margin:0}.camera-editor button{border:1px solid var(--line);border-radius:9px;padding:9px 13px;background:var(--surface-strong);color:var(--text)}.camera-editor button.primary-button{background:var(--pink-deep);color:white;border-color:var(--pink-deep)}.camera-editor button:disabled{opacity:.5;cursor:not-allowed}.camera-editor fieldset{padding:0;border:0;min-width:0}.camera-editor label{display:block;font-size:12px;font-weight:700;margin:12px 0 8px}.camera-editor input,.camera-editor textarea,.camera-editor select{box-sizing:border-box;width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);font:inherit}.camera-editor textarea{resize:vertical;overflow-wrap:anywhere;font-size:12px}.camera-parse-status{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:8px}.camera-editor-fields{display:grid;grid-template-columns:1fr 1fr;gap:24px}.camera-editor-preview{width:100%;max-height:150px;object-fit:contain;border-radius:10px}.camera-editor input[type=file]{font-size:11px;margin-bottom:8px}.camera-editor footer{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--line);margin-top:24px;padding-top:18px}.camera-error{color:var(--notice-error,#b53d56);font-size:13px}.camera-parsed-summary{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--muted);margin-top:10px}.camera-conflict{display:flex!important;gap:16px;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)}.camera-conflict small{display:block;color:var(--muted);font-weight:normal;font-size:10px;margin-top:6px}.camera-conflict select{max-width:150px}button,summary{cursor:pointer}@media(max-width:560px){.camera-favorite-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.camera-editor{padding:18px}.camera-editor-fields{grid-template-columns:1fr;gap:6px}.camera-favorite-card{max-width:100%}}
 
 .camera-favorite-editor-body{margin:0;min-width:0;border:0}
 .camera-cover-dropzone{aspect-ratio:16/9}

@@ -1,13 +1,15 @@
-import { flushPromises, mount } from '@vue/test-utils'
+import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { h } from 'vue'
+import { defineComponent, h } from 'vue'
 import { messages } from '../../src/i18n'
 import AlbumViewSwitcher from '../../src/components/AlbumViewSwitcher.vue'
 import TopBar from '../../src/components/TopBar.vue'
 import AdaptiveFilterPanel from '../../src/components/AdaptiveFilterPanel.vue'
 import CollectionFilterBar from '../../src/components/CollectionFilterBar.vue'
+import CollectionActions from '../../src/components/CollectionActions.vue'
 import OutfitSidebar from '../../src/components/OutfitSidebar.vue'
 import SelectionBar from '../../src/components/SelectionBar.vue'
+import ResonanceSidebar from '../../src/components/ResonanceSidebar.vue'
 
 const wrappers: { unmount: () => void }[] = []
 beforeEach(() => {
@@ -59,6 +61,111 @@ describe('mobile navigation and collection controls', () => {
     expect(document.querySelector('.view-dropdown')!.textContent).toContain(messages.zh.topBar.thumbnail)
   })
 
+  it.each([true, false])('disables only ratio choices in the view menu (compact=%s)', async compact => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: compact, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
+    const wrapper = mount(TopBar, { attachTo: document.body, props: { directoryName: '', isLoading: false,
+      isDeleting: false, hasAlbumDirectory: false, hasX6GameAuthorization: false, thumbnailMode: 'default',
+      thumbnailModeOptions: [{ value: 'default', label: '1:1' }, { value: 'wide', label: '16:9' }, { value: 'half', label: '半尺寸 1:1' }],
+      thumbnailModeDisabled: true, themeMode: 'light', language: 'zh', messages: messages.zh.topBar } })
+    wrappers.push(wrapper)
+    await wrapper.get(compact ? '.mobile-header-row button[aria-label="打开视图菜单"]' : '.view-menu-button').trigger('click')
+    await flushPromises()
+    const options = [...document.querySelectorAll<HTMLButtonElement>('.thumbnail-options button')]
+    expect(options).toHaveLength(3)
+    expect(options.every(button => button.disabled)).toBe(true)
+    options[1]!.click()
+    expect(wrapper.emitted('changeThumbnailMode')).toBeUndefined()
+    expect([...document.querySelectorAll<HTMLButtonElement>('.view-toggle-option')].every(button => !button.disabled)).toBe(true)
+    await wrapper.setProps({ thumbnailModeDisabled: false })
+    expect(options[0]!.disabled).toBe(false)
+    expect(options[1]!.disabled).toBe(false)
+    expect(options[2]!.disabled).toBe(compact)
+    if (compact) {
+      options[2]!.click()
+      expect(wrapper.emitted('changeThumbnailMode')).toBeUndefined()
+    }
+    options[1]!.click()
+    expect(wrapper.emitted('changeThumbnailMode')).toEqual([['wide']])
+  })
+
+  it('uses a separate search popover with clear, close and menu/view coordination', async () => {
+    let finishLeave = () => {}
+    const transitionStub = defineComponent({
+      props: { name: String }, emits: ['after-leave'],
+      setup(props, { emit, slots }) {
+        if (props.name === 'mobile-search-popover') finishLeave = () => emit('after-leave')
+        return () => slots.default?.()
+      }
+    })
+    const wrapper = mount(TopBar, { attachTo: document.body, props: { directoryName: '', isLoading: false,
+      isDeleting: false, hasAlbumDirectory: false, hasX6GameAuthorization: false, thumbnailMode: 'default',
+      thumbnailModeOptions: [], themeMode: 'light', language: 'zh', messages: messages.zh.topBar,
+      activeView: 'outfits', searchQuery: '' }, global: { stubs: {
+        transition: transitionStub
+      } } })
+    wrappers.push(wrapper)
+    const popup = () => new DOMWrapper(document.querySelector<HTMLElement>('.mobile-header-search')!)
+    const search = wrapper.get('.mobile-header-row button[aria-label="搜索当前页面"]')
+    await search.trigger('click')
+    await flushPromises()
+    expect(document.querySelector('.mobile-header-search')?.closest('.app-header')).toBeNull()
+    expect(document.activeElement).toBe(popup().get('input').element)
+    await popup().get('input').setValue('花')
+    expect(wrapper.emitted('updateSearch')).toEqual([['花']])
+    await wrapper.setProps({ searchQuery: '花' })
+    expect(search.classes()).toContain('has-search')
+    await popup().get('button[aria-label="关闭搜索"]').trigger('click')
+    expect(Boolean(document.querySelector('.mobile-header-search'))).toBe(false)
+    expect(document.activeElement).not.toBe(search.element)
+    finishLeave()
+    expect(document.activeElement).toBe(search.element)
+    expect(wrapper.emitted('updateSearch')).toHaveLength(1)
+    await search.trigger('click')
+    // 模拟清除按钮在事件冒泡前卸载，点击仍应被认作浮层内部操作。
+    const clearButton = popup().get('button[aria-label="清除搜索"]')
+    clearButton.element.addEventListener('click', () => clearButton.element.remove(), { once: true })
+    await clearButton.get('svg').trigger('click')
+    expect(wrapper.emitted('updateSearch')?.at(-1)).toEqual([''])
+    await wrapper.setProps({ searchQuery: '' })
+    expect(Boolean(document.querySelector('.mobile-header-search'))).toBe(true)
+    expect(document.activeElement).toBe(popup().get('input').element)
+    await wrapper.get('.mobile-header-row button[aria-label="打开视图菜单"]').trigger('click')
+    await flushPromises()
+    expect(Boolean(document.querySelector('.mobile-header-search'))).toBe(false)
+    expect(document.querySelector('.view-dropdown')).not.toBeNull()
+    const menuFocus = document.activeElement
+    finishLeave()
+    expect(document.activeElement).toBe(menuFocus)
+    await search.trigger('click')
+    await flushPromises()
+    expect(document.querySelector('.view-dropdown')).toBeNull()
+    expect(Boolean(document.querySelector('.mobile-header-search'))).toBe(true)
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+    expect(Boolean(document.querySelector('.mobile-header-search'))).toBe(false)
+    finishLeave()
+    expect(document.activeElement).toBe(search.element)
+    await search.trigger('click')
+    document.body.click()
+    await flushPromises()
+    expect(Boolean(document.querySelector('.mobile-header-search'))).toBe(false)
+    await search.trigger('click')
+    await wrapper.get('.brand-lockup').trigger('click')
+    expect(Boolean(document.querySelector('.mobile-header-search'))).toBe(false)
+    await search.trigger('click')
+    await wrapper.setProps({ activeView: 'home' })
+    expect(Boolean(document.querySelector('.mobile-header-search'))).toBe(false)
+    // 显式关闭尚未完成时切换菜单，旧动画不能将焦点抢回搜索按钮。
+    await search.trigger('click')
+    await popup().get('button[aria-label="关闭搜索"]').trigger('click')
+    await wrapper.get('.mobile-header-row button[aria-label="打开视图菜单"]').trigger('click')
+    await flushPromises()
+    const focusAfterSwitch = document.activeElement
+    finishLeave()
+    expect(document.activeElement).toBe(focusAfterSwitch)
+    expect(document.activeElement).not.toBe(search.element)
+  })
+
   it('keeps the full filter slot mounted when switching between the desktop and mobile presentations', async () => {
     const wrapper = mount(AdaptiveFilterPanel, { attachTo: document.body, props: { compact: false, open: false,
       title: '筛选', closeLabel: '关闭', applyLabel: '查看结果' }, slots: { default: '<input value="保留输入" data-filter-input />' } })
@@ -85,16 +192,46 @@ describe('mobile navigation and collection controls', () => {
     expect(wrapper.emitted('open')).toHaveLength(1)
   })
 
-  it('separates tag management from filtering and supports ordering without drag', async () => {
+  it('offers Add beside search before management and keeps drag sorting', async () => {
     const wrapper = mount(OutfitSidebar, { props: { outfits: [], tags: ['甜美', '帅气'], activeFilter: 'all', disabled: false, messages: messages.zh.outfit } })
     wrappers.push(wrapper)
     expect(wrapper.find('.outfit-delete-tag').exists()).toBe(false)
+    expect(wrapper.find('.outfit-tag-drag-handle').exists()).toBe(false)
+    expect(wrapper.find('.tag-order-buttons').exists()).toBe(false)
+    expect(wrapper.get('.outfit-sidebar-heading').find('.tag-picker-search').exists()).toBe(true)
+    await wrapper.get('.outfit-sidebar-heading .outfit-add-tag-toggle').trigger('click')
+    const form = document.querySelector<HTMLFormElement>('.outfit-tag-editor-popover')!
+    const input = form.querySelector('input')!
+    input.value = '清新'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await flushPromises()
+    expect(wrapper.emitted('addTag')).toEqual([['清新']])
     await wrapper.get('.tag-manage-toggle').trigger('click')
-    await wrapper.get('[aria-label="下移标签: 甜美"]').trigger('click')
-    expect(wrapper.emitted('reorderTags')).toEqual([[['帅气', '甜美']]])
-    expect(wrapper.get('[aria-label="上移标签: 帅气"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('.outfit-sidebar-heading').exists()).toBe(false)
+    expect(wrapper.find('.tag-picker-search').exists()).toBe(false)
+    expect(wrapper.find('.outfit-add-tag-toggle').exists()).toBe(false)
+    expect(document.querySelector('.outfit-tag-editor-popover')).toBeNull()
+    const rows = wrapper.findAll('[data-outfit-tag]')
+    const target = rows[1]!.element
+    const original = document.elementFromPoint
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => target })
+    try {
+      await rows[0]!.get('.outfit-tag-drag-handle').trigger('pointerdown', { button: 0 })
+      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 10, clientY: 10 }))
+      window.dispatchEvent(new MouseEvent('pointerup'))
+      await flushPromises()
+      expect(wrapper.emitted('reorderTags')).toEqual([[['帅气', '甜美']]])
+    } finally {
+      if (original) Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: original })
+      else Reflect.deleteProperty(document, 'elementFromPoint')
+    }
     await wrapper.setProps({ disabled: true })
-    expect(wrapper.get('[aria-label="下移标签: 帅气"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.findAll('.outfit-tag-drag-handle').every(button => button.attributes('disabled') !== undefined)).toBe(true)
+    await wrapper.setProps({ disabled: false })
+    await wrapper.get('.tag-manage-toggle').trigger('click')
+    await wrapper.setProps({ disabled: true })
+    expect(wrapper.get('.outfit-add-tag-toggle').attributes('disabled')).toBeDefined()
   })
 
   it('collects forty tags into one entry and shows the selected label and inline clear action', async () => {
@@ -106,8 +243,8 @@ describe('mobile navigation and collection controls', () => {
     expect(wrapper.get('.collection-tag-select').text()).toBe('全部标签')
     expect(wrapper.find('.collection-tag-clear').exists()).toBe(false)
     await wrapper.get('.collection-tag-select').trigger('click')
-    await wrapper.get('.collection-filter-open').trigger('click')
-    expect(wrapper.emitted('open')).toHaveLength(2)
+    expect(wrapper.find('.collection-filter-open').exists()).toBe(false)
+    expect(wrapper.emitted('open')).toHaveLength(1)
     await wrapper.setProps({ active: 'tag:39', count: 2 })
     expect(wrapper.get('.collection-tag-select').text()).toBe('标签39')
     expect(wrapper.get('.collection-tag-count').text()).toBe('2 项')
@@ -138,6 +275,67 @@ describe('mobile navigation and collection controls', () => {
     expect(wrapper.find('.outfit-delete-tag').exists()).toBe(false)
     expect((wrapper.get('.tag-picker-search input').element as HTMLInputElement).value).toBe('')
     expect(wrapper.emitted('reorderTags')).toBeUndefined()
+  })
+
+  it('moves existing collection actions into the tag row and keeps menu callbacks', async () => {
+    const added = vi.fn(), imported = vi.fn()
+    const wrapper = mount({ components: { CollectionActions, CollectionFilterBar }, template: `
+      <div><CollectionActions label="页面操作" mobile-target="#test-tag-actions">
+        <button aria-label="添加方案" @click="added">+</button>
+        <template #secondary><button @click="imported">导入</button></template>
+      </CollectionActions>
+      <CollectionFilterBar tag-picker actions-id="test-tag-actions" :entries="[{key:'all',label:'全部'}]" active="all" :count="0" language="zh" /></div>`,
+      setup: () => ({ added, imported }) }, { attachTo: document.body })
+    wrappers.push(wrapper)
+    await flushPromises()
+    const actions = document.querySelector('#test-tag-actions .collection-actions')!
+    expect(actions).not.toBeNull()
+    expect(document.querySelector('.tag-picker-bar .collection-filter-open')).toBeNull()
+    const add = actions.querySelector<HTMLButtonElement>('button[aria-label="添加方案"]')!
+    add.click()
+    expect(added).toHaveBeenCalledOnce()
+    const summary = actions.querySelector<HTMLElement>('summary')!
+    expect(summary.textContent).toBe('')
+    expect(summary.getAttribute('aria-label')).toBe('页面操作')
+    summary.click()
+    expect(actions.querySelector('details')!.open).toBe(true)
+    actions.querySelector<HTMLButtonElement>('.collection-action-options button')!.click()
+    expect(imported).toHaveBeenCalledOnce()
+    expect(actions.querySelector('details')!.open).toBe(false)
+  })
+
+  it('uses resonance labels in the shared row without a duplicate Filter entry', async () => {
+    const wrapper = mount(CollectionFilterBar, { props: { entries: [{ key: 'all', label: '全部' }, { key: '5', label: '五星' }, { key: '4', label: '四星' }], active: 'all', count: 2,
+      language: 'zh', tagPicker: true, allLabel: '全部星级', selectLabel: '筛选共鸣：', actionsId: 'resonance-filter-actions' } })
+    wrappers.push(wrapper)
+    expect(wrapper.get('.collection-tag-select').text()).toBe('全部星级')
+    expect(wrapper.get('.collection-tag-select').attributes('aria-label')).toBe('筛选共鸣：全部星级')
+    expect(wrapper.find('#resonance-filter-actions').exists()).toBe(true)
+    expect(wrapper.find('.collection-filter-open').exists()).toBe(false)
+    await wrapper.setProps({ active: '5', count: 1 })
+    expect(wrapper.get('.collection-tag-select').text()).toBe('五星')
+    await wrapper.get('.collection-tag-clear').trigger('click')
+    expect(wrapper.emitted('clear')).toHaveLength(1)
+  })
+
+  it('offers resonance rarity and ordering directly on phones even with no records', async () => {
+    const wrapper = mount(ResonanceSidebar, { props: { records: [], language: 'zh' } })
+    wrappers.push(wrapper)
+    expect(wrapper.find('.resonance-sort-control').exists()).toBe(false)
+    const buttons = wrapper.findAll('.resonance-picker-options button')
+    expect(buttons.map(button => button.text())).toEqual(['最新优先', '最早优先', '全部展示', '只展示五星', '只展示四星'])
+    await buttons[3]!.trigger('click')
+    expect(wrapper.emitted('changeRarityFilter')).toEqual([[5]])
+    expect(wrapper.emitted('filterSelected')).toHaveLength(1)
+    await buttons[1]!.trigger('click')
+    expect(wrapper.emitted('changeBannerOrder')).toEqual([['oldest']])
+    expect(wrapper.emitted('filterSelected')).toHaveLength(2)
+    await wrapper.setProps({ rarityFilter: 5, bannerOrder: 'oldest' })
+    expect(buttons[3]!.attributes('aria-pressed')).toBe('true')
+    expect(buttons[1]!.attributes('aria-pressed')).toBe('true')
+    await buttons[3]!.trigger('click')
+    expect(wrapper.emitted('changeRarityFilter')).toHaveLength(1)
+    expect(wrapper.emitted('filterSelected')).toHaveLength(3)
   })
 
   it('uses immediate selection for custom home categories and ignores disabled choices', async () => {

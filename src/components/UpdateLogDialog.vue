@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { CircleHelp, History, X } from 'lucide-vue-next'
+import { CircleHelp, X } from 'lucide-vue-next'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { LocaleMessages } from '../i18n'
 
@@ -37,7 +37,7 @@ watch(() => props.visible, (visible) => {
       <div v-if="visible" class="dialog-overlay update-log-dialog" role="dialog" aria-modal="true" :aria-label="messages.title" @click.self="closeDialog" @keydown="handleKeydown">
         <section ref="panelRef" class="dialog-panel update-log-panel" tabindex="-1">
           <header class="update-log-header">
-            <div><p class="update-log-eyebrow"><History :size="15" aria-hidden="true" /> RELEASE NOTES</p><div class="update-log-title-row"><h2>{{ messages.title }}</h2><button class="update-log-help-button" type="button" :title="messages.helpAbout" :aria-label="messages.helpAbout" @click="openHelp"><CircleHelp :size="14" aria-hidden="true" /><span>{{ messages.helpAbout }}</span></button></div></div>
+            <div class="update-log-title-row"><h2>{{ messages.title }}</h2><button class="update-log-help-button" type="button" :title="messages.helpAbout" :aria-label="messages.helpAbout" @click="openHelp"><CircleHelp :size="14" aria-hidden="true" /><span>{{ messages.helpAbout }}</span></button></div>
             <button class="update-log-close-button" type="button" :title="messages.closeAria" :aria-label="messages.closeAria" @click="closeDialog"><X :size="19" aria-hidden="true" /></button>
           </header>
           <div class="update-log-body">

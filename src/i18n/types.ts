@@ -8,6 +8,14 @@ export type Language = 'zh' | 'en'
 export type StatusPrefix = 'read' | 'restored'
 export type StatusSuffix = 'continued' | 'remembered'
 
+/** 按当前布局提供的帮助内容；操作分组分别承载电脑鼠标/键盘或手机触摸说明。 */
+export interface HelpAboutDeviceContent {
+  features: Array<{ icon: string; title: string; text: string }>
+  tutorialSections: Array<{ title: string; items: string[] }>
+  notes: string[]
+  operationSections: Array<{ icon: 'mouse' | 'keyboard' | 'touch'; title: string; items: string[] }>
+}
+
 export interface LocaleMessages {
   outfit: OutfitMessages
   photoParams: PhotoParamsMessages
@@ -196,15 +204,10 @@ export interface LocaleMessages {
     intro: string
     privacyNote: string
     featuresTitle: string
-    features: Array<{ icon: string; title: string; text: string }>
     tutorialTitle: string
-    tutorialSections: Array<{ title: string; items: string[] }>
     notesTitle: string
-    notes: string[]
-    mouseTitle: string
-    mouseItems: string[]
-    keyboardTitle: string
-    keyboardItems: string[]
+    desktop: HelpAboutDeviceContent
+    mobile: HelpAboutDeviceContent
     confirm: string
     closeAria: string
   }

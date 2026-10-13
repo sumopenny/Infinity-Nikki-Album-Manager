@@ -5,7 +5,6 @@ import type { OutfitMessages } from '../i18n'
 import type { ThumbnailMode } from '../types/thumbnail'
 import type { OutfitItem } from '../utils/outfit/outfitFileSystem'
 import { createPhotoLoadQueue } from '../utils/photoLoader'
-import CardActions from './CardActions.vue'
 import LazyPhotoImage from './LazyPhotoImage.vue'
 
 const props = defineProps<{
@@ -69,29 +68,26 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
             <span class="outfit-card-tag" :title="outfit.tags.join('、')"><span>{{ outfit.tags[0] || messages.uncategorized }}</span><small v-if="outfit.tags.length > 1" class="mobile-only">+{{ outfit.tags.length - 1 }}</small></span>
           </div>
           <span class="selected-badge"><Check :size="15" aria-hidden="true" /></span>
-          <CardActions :label="(language ?? 'zh') === 'zh' ? '搭配操作' : 'Outfit actions'" :title="outfit.note || outfit.code || messages.pending" :close-label="messages.cancel" :disabled="disabled">          <button
-            class="outfit-card-delete"
+          <button
+            class="outfit-card-delete desktop-only"
             type="button"
             :title="messages.delete"
             :aria-label="messages.delete"
             :disabled="disabled"
             @click.stop="$emit('delete', outfit)"
           >
-            <Trash2 :size="16" aria-hidden="true" /><span class="mobile-only">{{ messages.delete }}</span>
+            <Trash2 :size="16" aria-hidden="true" />
           </button>
           <button
-            class="outfit-card-parse"
+            class="outfit-card-parse desktop-only"
             type="button"
             :title="messages.parse"
             :aria-label="messages.parse"
             :disabled="disabled || !outfit.code"
             @click.stop="$emit('parse', outfit)"
           >
-            <ScanSearch :size="16" aria-hidden="true" /><span class="mobile-only">{{ messages.parse }}</span>
+            <ScanSearch :size="16" aria-hidden="true" />
           </button>
-<button type="button" class="mobile-only" :disabled="disabled" @click.stop="$emit('edit', outfit)"><Edit3 :size="18" />{{ messages.edit }}</button>
-<button type="button" class="mobile-only" :disabled="disabled" @click.stop="$emit('openPreview', outfit)">{{ (language ?? 'zh') === 'zh' ? '查看大图' : 'Preview' }}</button>
-          </CardActions>
         </div>
 
         <div class="outfit-card-footer">
@@ -106,7 +102,7 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
             {{ messages.pending }}
           </button>
           <span v-else class="outfit-code" :title="outfit.code">{{ outfit.code }}</span>
-          <div class="outfit-card-actions">
+          <div class="outfit-card-actions" @click.stop @dblclick.stop>
             <button
               type="button"
               :title="messages.copy"
@@ -116,9 +112,11 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
             >
               <Copy :size="15" aria-hidden="true" />
             </button>
-            <button class="desktop-only" type="button" :title="messages.edit" :aria-label="messages.edit" :disabled="disabled" @click.stop="$emit('edit', outfit)">
+            <button type="button" :title="messages.edit" :aria-label="messages.edit" :disabled="disabled" @click.stop="$emit('edit', outfit)">
               <Edit3 :size="15" aria-hidden="true" />
             </button>
+            <button class="mobile-only" type="button" :title="messages.delete" :aria-label="messages.delete" :disabled="disabled" @click.stop="$emit('delete', outfit)"><Trash2 :size="18" aria-hidden="true" /></button>
+            <button class="mobile-only" type="button" :title="messages.parse" :aria-label="messages.parse" :disabled="disabled || !outfit.code" @click.stop="$emit('parse', outfit)"><ScanSearch :size="18" aria-hidden="true" /></button>
           </div>
         </div>
       </article>

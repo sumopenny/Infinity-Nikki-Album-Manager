@@ -242,9 +242,9 @@ describe('complete camera backup', () => {
     vi.stubGlobal('localStorage', { getItem, removeItem })
     expect((await readCameraFavorites()).tags).toEqual([])
     await saveCameraFavorite(record(), null)
-    await saveCameraFavoriteTags(['unused', record().tag])
-    expect((await readCameraFavorites()).tags).toEqual(['unused', record().tag])
-    await deleteCameraFavoriteTag('unused')
+    await saveCameraFavoriteTags(['empty', record().tag])
+    expect((await readCameraFavorites()).tags).toEqual(['empty', record().tag])
+    await deleteCameraFavoriteTag('empty')
     const plan = planCameraImport(await readCameraFavorites(), { records: [], covers: new Map(), tags: ['imported'] })
     await applyCameraImport(plan, {})
     expect((await readCameraFavorites()).tags).toEqual(['imported', record().tag])
@@ -291,4 +291,30 @@ it('reads and edits directly stored favorites without losing covers or tag order
   expect(current.records).toEqual([edited])
   expect(current.tags).toEqual(['人像', '空标签'])
   expect(await current.covers.get(original.id)!.text()).toBe('existing-cover')
+})
+
+
+it('accepts five-character new tags and rejects six-character writes', async () => {
+  await saveCameraFavoriteTags(['一二三四五'])
+  await expect(saveCameraFavoriteTags(['一二三四五六'])).rejects.toThrow('最多5个字符')
+  await expect(saveCameraFavorite({ ...record(), tag: '123456' }, null)).rejects.toThrow('最多5个字符')
+  expect((await readCameraFavorites()).tags).toEqual(['一二三四五'])
+  expect((await readCameraFavorites()).records).toHaveLength(0)
+  await saveCameraFavorite({ ...record(), tag: '12345' }, null)
+  expect((await readCameraFavorites()).records[0].tag).toBe('12345')
+})
+
+it('imports and retains legacy long tags while rejecting newly added long tags', async () => {
+  const legacy = { ...record(), tag: '历史超长标签名称' }
+  const archive = await exportCameraBackup({ records: [legacy], covers: new Map(), tags: [legacy.tag, '历史独立长标签'] })
+  const incoming = await readCameraBackup(archive)
+  await applyCameraImport(planCameraImport(await readCameraFavorites(), incoming), {})
+  expect((await readCameraFavorites()).records[0].tag).toBe(legacy.tag)
+  await saveCameraFavoriteTags(['历史独立长标签', legacy.tag])
+  await saveCameraFavorite({ ...legacy, name: '保留原标签' }, null, legacy)
+  await saveCameraFavorite({ ...record('two', 'XYZ'), tag: legacy.tag }, null)
+  await expect(saveCameraFavoriteTags(['新建超长标签名称'])).rejects.toThrow('最多5个字符')
+  const current = await readCameraFavorites()
+  expect(current.tags).toEqual(['历史独立长标签', legacy.tag])
+  expect(current.records.every(item => item.tag === legacy.tag)).toBe(true)
 })

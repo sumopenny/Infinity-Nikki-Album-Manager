@@ -3,6 +3,15 @@ import type { PhotoParamsResult } from './types'
 import { sha256Hex } from '../sha256'
 
 export type FavoriteSource = 'album' | 'tool' | 'manual'
+export const MAX_CAMERA_FAVORITE_TAG_LENGTH = 5
+// 仅供历史记录读取和旧备份格式校验，不能用于新增标签。
+export const LEGACY_CAMERA_FAVORITE_TAG_LENGTH = 60
+
+/** 新增标签按字符计数限制为五字；历史记录及备份仍沿用原有兼容校验。 */
+export function isValidNewCameraFavoriteTag(tag: string): boolean {
+  return typeof tag === 'string' && tag === tag.trim() && [...tag].length > 0
+    && [...tag].length <= MAX_CAMERA_FAVORITE_TAG_LENGTH && !/[,，]/.test(tag)
+}
 export interface CameraFavorite {
   id: string
   version: 1
@@ -42,7 +51,7 @@ async function transact<T>(mode: IDBTransactionMode, action: (records: IDBObject
 
 export function cameraFavoriteTags(library: Pick<FavoriteLibrary, 'records' | 'tags'>): string[] {
   return [...new Set([...(library.tags ?? []), ...library.records.map(record => record.tag)])]
-    .filter(tag => typeof tag === 'string' && !!tag.trim() && tag.length <= 60)
+    .filter(tag => typeof tag === 'string' && !!tag.trim() && tag.length <= LEGACY_CAMERA_FAVORITE_TAG_LENGTH)
 }
 export async function readCameraFavorites(): Promise<FavoriteLibrary> {
   return transact<FavoriteLibrary>('readonly', (records, covers, done, tags) => {
@@ -61,6 +70,11 @@ export async function readCameraFavorites(): Promise<FavoriteLibrary> {
   })
 }
 export async function saveCameraFavoriteTags(next: string[]): Promise<string[]> {
+  // 排序时允许保留已有长标签，新增的超长标签不得写入。
+  if (next.some(tag => !isValidNewCameraFavoriteTag(tag))) {
+    const existing = new Set((await readCameraFavorites()).tags)
+    if (next.some(tag => !isValidNewCameraFavoriteTag(tag) && !existing.has(tag))) throw new Error('新增标签最多5个字符，不能包含逗号')
+  }
   return transact('readwrite', (records, _covers, done, tags) => {
     const list = records.getAll()
     const current = tags.get('order')
@@ -81,6 +95,9 @@ export async function saveCameraFavorite(record: CameraFavorite, cover: Blob | n
   clean.code = normalizeCameraCode(clean.result.rawCameraParams)
   if (!clean.code || !clean.name.trim()) throw new Error('请填写名称并解析参数')
   validateFavorite(clean)
+  // 已有长标签可继续选用或编辑，手工写入新标签仍须遵守五字限制。
+  if (clean.tag && !isValidNewCameraFavoriteTag(clean.tag) && !(await readCameraFavorites()).tags?.includes(clean.tag))
+    throw new Error('新增标签最多5个字符，不能包含逗号')
   if (Boolean(clean.cover) !== Boolean(cover)) throw new Error('封面不完整')
   await transact<void>('readwrite', (records, covers, done, tags) => {
     const request = records.get(clean.id)
@@ -110,7 +127,7 @@ export function validateFavorite(value: unknown): CameraFavorite {
   const fields = (v: unknown) => Array.isArray(v) && v.length <= 100 && v.every((f) => f && string(f.label) && string(f.value) && (f.position === undefined || typeof f.position === 'number' && Number.isFinite(f.position)))
   if (r.version !== 1 || !string(r.id) || !/^[a-zA-Z0-9-]{1,100}$/.test(r.id)
     || !string(r.name) || !r.name.trim() || r.name.length > 200
-    || !string(r.tag) || r.tag.length > 60 || r.tag !== r.tag.trim() || /[,，]/.test(r.tag)
+    || !string(r.tag) || r.tag.length > LEGACY_CAMERA_FAVORITE_TAG_LENGTH || r.tag !== r.tag.trim() || /[,，]/.test(r.tag)
     || !['album', 'tool', 'manual'].includes(r.source)
     || !string(r.createdAt) || !Number.isFinite(Date.parse(r.createdAt))
     || !string(r.updatedAt) || !Number.isFinite(Date.parse(r.updatedAt))

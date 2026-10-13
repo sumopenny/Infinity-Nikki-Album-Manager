@@ -84,7 +84,6 @@ watch(
         <section ref="panelRef" class="outfit-guide-panel">
           <header>
             <div>
-              <p>{{ messages.eyebrow }}</p>
               <h2>{{ messages.guideTitle }}</h2>
             </div>
             <button ref="closeButtonRef" type="button" :title="messages.guideClose" :aria-label="messages.guideClose" @click="closeGuide">
