@@ -66,7 +66,7 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
         <div class="photo-frame">
           <LazyPhotoImage :photo="outfit" :load-photo="photoLoadQueue.load" :failure-text="messages.imageLoadFailed" />
           <div class="photo-overlay outfit-overlay">
-            <span>{{ outfit.tags[0] || messages.uncategorized }}</span>
+            <span class="outfit-card-tag" :title="outfit.tags.join('、')"><span>{{ outfit.tags[0] || messages.uncategorized }}</span><small v-if="outfit.tags.length > 1" class="mobile-only">+{{ outfit.tags.length - 1 }}</small></span>
           </div>
           <span class="selected-badge"><Check :size="15" aria-hidden="true" /></span>
           <CardActions :label="(language ?? 'zh') === 'zh' ? '搭配操作' : 'Outfit actions'" :title="outfit.note || outfit.code || messages.pending" :close-label="messages.cancel" :disabled="disabled">          <button

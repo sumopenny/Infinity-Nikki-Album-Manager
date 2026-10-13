@@ -48,9 +48,11 @@ const props = defineProps<{
   lightboxMessages: LocaleMessages['lightbox']
   dateMessages: LocaleMessages['date']
   thumbnailMode: ThumbnailMode
+  filtersOpen?: boolean
 }>()
 const emit = defineEmits<{
   openFilters: []
+  closeFilters: []
   visibleCountChange: [count: number]
   busyChange: [busy: boolean]
   status: [message: string, tone: 'success' | 'warning' | 'error' | 'info']
@@ -593,15 +595,15 @@ onBeforeUnmount(() => {
 <template>
   <section class="home-scheme-workspace">
     <Teleport to="#album-sidebar-column">
-      <OutfitSidebar ref="homeSidebarRef" :language="language" :outfits="schemes" :tags="tags" :active-filter="filter" :disabled="isBusy" :messages="localeMessages[language ?? 'zh'].outfit" :show-pending="false" @change-filter="changeSchemeFilter($event as typeof filter)" @add-tag="tagInput = $event; addTag()" @delete-tag="removeTag" @reorder-tags="reorderTags">
-        <template #filters><button v-for="item in [{ key: 'all', label: messages.all, count: schemes.length }, { key: 'home', label: messages.homeType, count: schemes.filter(s => s.schemeType === 'home').length }, { key: 'combo', label: messages.comboType, count: schemes.filter(s => s.schemeType === 'combo').length }, { key: 'uncategorized', label: messages.uncategorized, count: schemes.filter(s => !s.tags.length).length }]" :key="item.key" type="button" class="outfit-filter-button" :class="{ active: filter === item.key }" :disabled="isBusy" @click="changeSchemeFilter(item.key as typeof filter)"><span>{{ item.label }}</span><small>{{ item.count }}</small></button></template>
+      <OutfitSidebar ref="homeSidebarRef" :language="language" :outfits="schemes" :tags="tags" :active-filter="filter" :picker-open="filtersOpen" :disabled="isBusy" :messages="localeMessages[language ?? 'zh'].outfit" :show-pending="false" @change-filter="changeSchemeFilter($event as typeof filter)" @filter-selected="$emit('closeFilters')" @add-tag="tagInput = $event; addTag()" @delete-tag="removeTag" @reorder-tags="reorderTags">
+        <template #filters="{ selectFilter }"><button v-for="item in [{ key: 'all', label: messages.all, count: schemes.length }, { key: 'home', label: messages.homeType, count: schemes.filter(s => s.schemeType === 'home').length }, { key: 'combo', label: messages.comboType, count: schemes.filter(s => s.schemeType === 'combo').length }, { key: 'uncategorized', label: messages.uncategorized, count: schemes.filter(s => !s.tags.length).length }]" :key="item.key" type="button" class="outfit-filter-button" :class="{ active: filter === item.key }" :disabled="isBusy" @click="selectFilter(item.key)"><span>{{ item.label }}</span><small>{{ item.count }}</small></button></template>
       </OutfitSidebar>
     </Teleport>
 
 <Teleport to="body"><Transition name="outfit-tag-editor"><form v-if="tagInputVisible" ref="tagEditorRef" class="outfit-tag-editor outfit-tag-editor-popover" :style="tagEditorPosition" @submit.prevent="addTag"><input ref="tagInputRef" v-model="tagInput" :maxlength="MAX_HOME_SCHEME_TAG_LENGTH" :placeholder="messages.tagPlaceholder" :disabled="isBusy" autocomplete="off" /><button type="submit" :disabled="isBusy">{{ messages.addTagConfirm }}</button></form></Transition></Teleport>
     <div class="home-scheme-main">
-      <CollectionFilterBar :entries="[{ key: 'all', label: messages.all }, { key: 'home', label: messages.homeType }, { key: 'combo', label: messages.comboType }, { key: 'uncategorized', label: messages.uncategorized }, ...tags.map(tag => ({ key: 'tag:' + tag, label: tag }))]" :active="filter" :count="visibleSchemes.length" :language="language ?? 'zh'" :disabled="isBusy" @change="changeSchemeFilter($event as typeof filter)" @clear="changeSchemeFilter('all')" @open="$emit('openFilters')" />
       <header class="gallery-header is-outfit-header home-scheme-header"><div class="home-scheme-heading"><p class="eyebrow">HOME SCHEMES</p><div class="home-scheme-title-row"><h2>{{ messages.title }}</h2><strong class="home-scheme-count">{{ visibleSchemes.length }} / {{ schemes.length }}</strong></div></div><CollectionActions class="home-scheme-header-actions" :label="(language ?? 'zh') === 'zh' ? '家园操作' : 'Home actions'"><button class="primary-button" type="button" :disabled="isBusy" @click="resetEditor(null)"><Plus :size="15" aria-hidden="true" />{{ messages.add }}</button><template #secondary><input ref="backupInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importBackup" /><button type="button" :disabled="isBusy" @click="backupInput?.click()"><Download :size="15" aria-hidden="true" />{{ busy ? messages.importing : messages.importData }}</button><button type="button" :disabled="isBusy || (!schemes.length && !tags.length)" @click="exportBackup"><Upload :size="15" aria-hidden="true" />{{ busy ? messages.exporting : messages.exportData }}</button></template></CollectionActions></header>
+      <CollectionFilterBar tag-picker :entries="[{ key: 'all', label: messages.all }, { key: 'home', label: messages.homeType }, { key: 'combo', label: messages.comboType }, { key: 'uncategorized', label: messages.uncategorized }, ...tags.map(tag => ({ key: 'tag:' + tag, label: tag }))]" :active="filter" :count="visibleSchemes.length" :language="language ?? 'zh'" :disabled="isBusy" @change="changeSchemeFilter($event as typeof filter)" @clear="changeSchemeFilter('all')" @open="$emit('openFilters')" />
       <div v-if="!visibleSchemes.length" class="empty-album inline-empty home-scheme-empty"><ImagePlus :size="30" aria-hidden="true" /><h2>{{ messages.emptyTitle }}</h2><p>{{ messages.emptyDescription }}</p><button class="mobile-only empty-import-button" type="button" :disabled="isBusy" @click="backupInput?.click()">{{ messages.importData }}</button></div>
       <div v-else class="photo-grid-wrap outfit-grid-wrap home-scheme-grid-wrap" :class="`mode-${thumbnailMode}`">
         <div class="photo-grid outfit-grid">
@@ -627,7 +629,7 @@ onBeforeUnmount(() => {
           <div class="home-scheme-card-details">
             <div class="home-scheme-name-tag">
               <h3>{{ item.schemeType === 'home' ? messages.homeType : messages.comboType }}-{{ item.name || messages.untitled }}</h3>
-              <span v-if="item.tags[0]" class="home-scheme-card-tag">{{ item.tags[0] }}</span>
+              <span v-if="item.tags[0]" class="home-scheme-card-tag" :title="item.tags.join('、')"><span>{{ item.tags[0] }}</span><small v-if="item.tags.length > 1" class="mobile-only">+{{ item.tags.length - 1 }}</small></span>
             </div>
             <div class="home-scheme-card-meta"><span v-if="item.metadata.furnitureCount !== null">{{ item.metadata.furnitureCount }} {{ messages.furnitureCount }}</span><span v-if="item.note">{{ item.note }}</span></div>
           </div>

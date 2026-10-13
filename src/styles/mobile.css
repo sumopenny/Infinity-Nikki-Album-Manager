@@ -57,6 +57,41 @@
   .collection-filter-open { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
   .collection-filter-summary { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 24px; color: var(--muted); font-size: 12px; }
   .collection-filter-summary button { display: flex; align-items: center; gap: 4px; min-height: 44px; padding: 4px 8px; border: 0; background: transparent; }
+  /* 标签筛选只占一行，长名称省略但保持完整的触摸入口。 */
+  .collection-filter-bar.tag-picker-bar { flex-wrap: nowrap; align-items: center; gap: 8px; }
+  .tag-picker-bar .collection-tag-select { display: flex; align-items: center; justify-content: space-between; flex: 1; min-width: 0; gap: 8px; }
+  .collection-tag-select span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .collection-tag-select svg { flex-shrink: 0; }
+  .tag-picker-bar .collection-tag-select.is-filtered { border-color: var(--pink-deep); background: var(--soft-accent); color: var(--heading); }
+  .tag-picker-bar .collection-tag-clear { display: grid; place-items: center; flex: 0 0 44px; width: 44px; padding: 0; border: 0; border-radius: 50%; background: var(--soft-accent); color: var(--pink-deep); }
+  .collection-tag-count { flex-shrink: 0; color: var(--muted); font-size: 12px; white-space: nowrap; }
+  /* 完整标签沿用原侧栏与管理逻辑，在居中窗口中搜索及选择。 */
+  .mobile-filter-overlay.mobile-tag-picker { align-items: center; justify-content: center; }
+  .mobile-tag-picker .mobile-filter-panel { width: min(520px,100%); }
+  .mobile-tag-picker .mobile-filter-panel > header { flex-shrink: 0; }
+  .mobile-tag-picker h2 { margin: 0; color: var(--heading); font-size: 20px; }
+  .mobile-tag-picker header button { border-radius: 50%; background: color-mix(in srgb,var(--heading) 8%,transparent); }
+  .mobile-tag-picker .outfit-sidebar:not(.is-managing-tags) > .outfit-sidebar-heading { display: none; }
+  .tag-picker-search { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--muted); }
+  .tag-picker-search input { width: 100%; min-width: 0; min-height: 44px; padding: 8px 0; border: 0; outline: none; background: transparent; color: var(--text); font: inherit; font-size: 16px; }
+  .tag-picker-search:focus-within { border-color: var(--pink-deep); }
+  .mobile-tag-picker .outfit-sidebar:not(.is-managing-tags) .outfit-filter-list { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+  .mobile-tag-picker .outfit-sidebar:not(.is-managing-tags) .outfit-filter-row { min-width: 0; }
+  .mobile-tag-picker .outfit-sidebar:not(.is-managing-tags) .outfit-filter-button { min-width: 0; height: 100%; padding: 10px 12px; border-color: var(--line); background: var(--surface); }
+  .mobile-tag-picker .outfit-filter-button span { min-width: 0; overflow-wrap: anywhere; }
+  .mobile-tag-picker .outfit-filter-button small, .mobile-tag-picker .outfit-filter-button svg { flex-shrink: 0; }
+  .mobile-tag-picker .outfit-sidebar .outfit-filter-button.active { border-color: var(--pink-deep); background: var(--soft-accent); color: var(--pink-deep); }
+  .mobile-tag-picker .outfit-filter-button::before { display: none; }
+  .tag-picker-empty { padding: 12px 0; color: var(--muted); font-size: 13px; }
+  .tag-picker-footer { position: sticky; bottom: -12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 16px -16px -12px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--surface-strong); }
+  .tag-picker-footer > span { min-width: 0; color: var(--muted); font-size: 12px; }
+  .tag-picker-footer button { display: flex; flex-shrink: 0; align-items: center; gap: 6px; min-height: 44px; }
+  .outfit-card-tag, .home-scheme-card-tag { display: flex; min-width: 0; align-items: center; gap: 4px; }
+  .outfit-card-tag > span, .home-scheme-card-tag > span, .camera-name-tags span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .outfit-card-tag > span, .home-scheme-card-tag > span { min-width: 0; }
+  .outfit-card-tag small, .home-scheme-card-tag small { flex-shrink: 0; }
+  .camera-name-tags { flex-direction: column; gap: 6px; }
+  .camera-name-tags > div { max-width: 100%; }
   .empty-import-button { justify-content: center; min-height: 44px; margin: 12px auto; padding: 8px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-strong); color: var(--heading); }
   .mobile-navigation { position: fixed; z-index: 54; left: 0; right: 0; bottom: 0; height: var(--mobile-nav-height); padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); background: var(--surface-strong); }
   .mobile-navigation button { display: flex; flex: 1; min-width: 0; align-items: center; justify-content: center; flex-direction: column; gap: 3px; padding: 4px 2px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); font-size: 11px; }
@@ -129,6 +164,11 @@
   .update-log-panel, .help-about-panel { height: min(720px,var(--mobile-dialog-space)); max-height: min(100%,var(--mobile-dialog-space)); }
   .fortune-time-panel, .resonance-import-panel { height: min(820px,var(--mobile-dialog-space)); max-height: min(100%,var(--mobile-dialog-space)); }
   .lightbox-panel { border-radius: var(--mobile-dialog-radius); }
+}
+
+@media (max-width: 360px) {
+  .tag-picker-bar .collection-filter-open span { display: none; }
+  .tag-picker-bar .collection-filter-open { justify-content: center; width: 44px; padding: 0; }
 }
 
 @media (min-width: 600px) and (max-width: 899px) {

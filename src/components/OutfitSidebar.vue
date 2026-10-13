@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { ArrowDown, ArrowUp, GripVertical, Plus, X } from 'lucide-vue-next'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { ArrowDown, ArrowUp, Check, GripVertical, Plus, Search, Settings2, X } from 'lucide-vue-next'
 import { useCompactLayout } from '../composables/useCompactLayout'
 import type { OutfitMessages } from '../i18n'
 import { MAX_OUTFIT_TAG_LENGTH, MAX_OUTFIT_TAGS, type OutfitItem } from '../utils/outfit/outfitTypes'
@@ -16,17 +16,20 @@ const props = withDefaults(defineProps<{
   messages: OutfitMessages
   showPending?: boolean
   maxTagLength?: number
-}>(), { language: 'zh', showPending: true, maxTagLength: MAX_OUTFIT_TAG_LENGTH })
+  pickerOpen?: boolean
+}>(), { language: 'zh', showPending: true, maxTagLength: MAX_OUTFIT_TAG_LENGTH, pickerOpen: true })
 
 const emit = defineEmits<{
   changeFilter: [filter: OutfitFilter]
   addTag: [tag: string]
   deleteTag: [tag: string]
   reorderTags: [tags: string[]]
+  filterSelected: []
 }>()
 
 const compact = useCompactLayout()
 const managingTags = ref(false)
+const tagSearch = ref('')
 const sidebarRef = ref<HTMLElement | null>(null)
 const isAdding = ref(false)
 const tagInput = ref('')
@@ -37,6 +40,27 @@ const editorPosition = ref({ top: '0px', left: '0px' })
 const displayedTags = ref([...props.tags])
 const draggedTag = ref<string | null>(null)
 const dropTarget = ref<{ tag: string; position: 'before' | 'after' } | null>(null)
+const visibleTags = computed(() => {
+  const query = tagSearch.value.trim().toLocaleLowerCase()
+  return compact.value && !managingTags.value && query
+    ? displayedTags.value.filter(tag => tag.toLocaleLowerCase().includes(query)) : displayedTags.value
+})
+
+/** 普通选择立即返回列表；管理模式保留窗口，继续使用既有标签操作。 */
+function selectFilter(filter: string) {
+  if (props.disabled) return
+  emit('changeFilter', filter as OutfitFilter)
+  if (compact.value && !managingTags.value) emit('filterSelected')
+}
+
+/** 关闭选择窗口时清理临时搜索和管理状态，不改变已经选中的筛选条件。 */
+watch(() => props.pickerOpen, open => {
+  if (open || !compact.value) return
+  tagSearch.value = ''
+  managingTags.value = false
+  closeTagInput()
+  cancelTagDrag()
+})
 
 watch(() => props.tags, (tags) => {
   displayedTags.value = [...tags]
@@ -177,10 +201,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <aside ref="sidebarRef" class="date-sidebar outfit-sidebar" :aria-label="messages.tagsTitle">
+  <aside ref="sidebarRef" class="date-sidebar outfit-sidebar" :class="{ 'is-managing-tags': managingTags }" :aria-label="messages.tagsTitle">
     <div class="outfit-sidebar-heading">
       <div class="sidebar-section-title">{{ messages.tagsTitle }}</div>
-      <button v-if="compact" class="tag-manage-toggle" type="button" :aria-pressed="managingTags" @click="managingTags = !managingTags; closeTagInput()">{{ language === 'zh' ? (managingTags ? '完成管理' : '管理标签') : (managingTags ? 'Done' : 'Manage tags') }}</button>
       <button v-if="!compact || managingTags"
         ref="toggleRef"
         class="icon-button outfit-add-tag-toggle"
@@ -202,8 +225,9 @@ onBeforeUnmount(() => {
       </Teleport>
     </div>
 
+    <label v-if="compact && !managingTags" class="tag-picker-search"><Search :size="18" aria-hidden="true" /><input v-model="tagSearch" type="search" :disabled="disabled" :placeholder="language === 'zh' ? '搜索标签' : 'Search tags'" :aria-label="language === 'zh' ? '搜索标签' : 'Search tags'" /></label>
     <div class="outfit-filter-list">
-      <slot name="filters">
+      <slot name="filters" :select-filter="selectFilter">
       <button
         v-for="item in [
           { filter: 'all' as const, label: messages.all },
@@ -215,14 +239,14 @@ onBeforeUnmount(() => {
         :class="{ active: activeFilter === item.filter }"
         type="button"
         :disabled="disabled"
-        @click="$emit('changeFilter', item.filter)"
+        @click="selectFilter(item.filter)"
       >
         <span>{{ item.label }}</span><small>{{ countFor(item.filter) }}</small>
       </button>
 
       </slot>
       <div
-        v-for="tag in displayedTags"
+        v-for="tag in visibleTags"
         :key="tag"
         class="outfit-filter-row"
         :class="{
@@ -248,9 +272,9 @@ onBeforeUnmount(() => {
           :class="{ active: activeFilter === `tag:${tag}` }"
           type="button"
           :disabled="disabled"
-          @click="$emit('changeFilter', `tag:${tag}`)"
+          @click="selectFilter(`tag:${tag}`)"
         >
-          <span>{{ tag }}</span><small>{{ countFor(`tag:${tag}`) }}</small>
+          <span>{{ tag }}</span><Check v-if="compact && activeFilter === `tag:${tag}`" :size="16" aria-hidden="true" /><small>{{ countFor(`tag:${tag}`) }}</small>
         </button>
         <div v-if="compact && managingTags" class="tag-order-buttons"><button type="button" :disabled="disabled || displayedTags[0] === tag" :aria-label="(language === 'zh' ? '上移标签: ' : 'Move tag up: ') + tag" @click="moveTag(tag, -1)"><ArrowUp :size="16" /></button><button type="button" :disabled="disabled || displayedTags.at(-1) === tag" :aria-label="(language === 'zh' ? '下移标签: ' : 'Move tag down: ') + tag" @click="moveTag(tag, 1)"><ArrowDown :size="16" /></button></div>
         <button
@@ -266,5 +290,7 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </div>
+    <p v-if="compact && !managingTags && tagSearch.trim() && !visibleTags.length" class="tag-picker-empty">{{ language === 'zh' ? '没有匹配的标签' : 'No matching tags' }}</p>
+    <footer v-if="compact" class="tag-picker-footer"><span>{{ language === 'zh' ? (managingTags ? '添加、删除或调整标签顺序' : '点击标签后直接筛选') : (managingTags ? 'Add, delete or reorder tags' : 'Select a tag to filter immediately') }}</span><button class="tag-manage-toggle" type="button" :disabled="disabled" :aria-pressed="managingTags" @click="managingTags = !managingTags; tagSearch = ''; closeTagInput()"><Settings2 :size="16" aria-hidden="true" />{{ language === 'zh' ? (managingTags ? '完成管理' : '管理标签') : (managingTags ? 'Done' : 'Manage tags') }}</button></footer>
   </aside>
 </template>

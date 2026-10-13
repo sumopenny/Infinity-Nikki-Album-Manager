@@ -211,6 +211,7 @@ const compactLayout = useCompactLayout()
 useVisualViewport()
 const directorySupported = supportsDirectoryAuthorization()
 const mobileFiltersOpen = ref(false)
+const mobileTagPicker = computed(() => activeView.value === 'outfits' || activeView.value === 'home' || isCameraFavoritesView.value)
 const topBarRef = ref<InstanceType<typeof TopBar> | null>(null)
 const homeVisibleCount = ref(0)
 const cameraVisibleCount = ref(0)
@@ -1923,7 +1924,7 @@ onBeforeUnmount(() => {
           @change-view="changeAlbumView"
         />
 
-        <AdaptiveFilterPanel :compact="compactLayout" :open="mobileFiltersOpen" :title="mobileText('筛选与分类管理', 'Filters and categories')" :close-label="mobileText('关闭筛选', 'Close filters')" :apply-label="mobileText(`查看 ${mobileFilterCount} 项结果`, `Show ${mobileFilterCount} items`)" @close="mobileFiltersOpen = false">
+        <AdaptiveFilterPanel :compact="compactLayout" :open="mobileFiltersOpen" :tag-picker="mobileTagPicker" :title="mobileTagPicker ? mobileText('选择标签', 'Select tag') : mobileText('筛选与分类管理', 'Filters and categories')" :close-label="mobileText('关闭筛选', 'Close filters')" :apply-label="mobileText(`查看 ${mobileFilterCount} 项结果`, `Show ${mobileFilterCount} items`)" @close="mobileFiltersOpen = false">
         <div id="album-sidebar-column">
         <OutfitSidebar
           :language="language"
@@ -1932,9 +1933,11 @@ onBeforeUnmount(() => {
           :outfits="outfits"
           :tags="outfitTags"
           :active-filter="activeOutfitFilter"
+          :picker-open="mobileFiltersOpen"
           :disabled="isAnyFileOperationBusy"
           :messages="outfitLocale"
           @change-filter="changeOutfitFilter"
+          @filter-selected="mobileFiltersOpen = false"
           @add-tag="addOutfitTag"
           @delete-tag="removeOutfitTag"
           @reorder-tags="reorderOutfitTags"
@@ -1968,7 +1971,7 @@ onBeforeUnmount(() => {
       </div>
 
       <section class="album-content" :aria-label="locale.app.albumContentAria">
-        <CollectionFilterBar v-if="activeView !== 'home' && activeView !== 'trash' && !isCameraFavoritesView" :entries="mobileFilterEntries" :active="String(mobileActiveFilter)" :count="mobileFilterCount" :language="language" :disabled="isAnyFileOperationBusy" @change="changeMobileFilter" @clear="changeMobileFilter(mobileFilterEntries[0]?.key ?? 'all')" @open="mobileFiltersOpen = true" />
+        <CollectionFilterBar v-if="activeView !== 'outfits' && activeView !== 'home' && activeView !== 'trash' && !isCameraFavoritesView" :entries="mobileFilterEntries" :active="String(mobileActiveFilter)" :count="mobileFilterCount" :language="language" :disabled="isAnyFileOperationBusy" @change="changeMobileFilter" @clear="changeMobileFilter(mobileFilterEntries[0]?.key ?? 'all')" @open="mobileFiltersOpen = true" />
         <!-- 收藏夹：标签页与当前页操作按钮共用一行，移除重复标题。 -->
         <div v-if="activeView === 'favorites'" class="favorites-toolbar">
         <nav class="favorites-tabs" :aria-label="locale.viewNav.favorites">
@@ -1991,7 +1994,7 @@ onBeforeUnmount(() => {
           </template></CollectionActions>
           <div id="favorites-camera-actions" v-show="isCameraFavoritesView" class="favorites-toolbar-actions"></div>
         </div>
-        <CameraFavorites @open-filters="mobileFiltersOpen = true" @visible-count-change="cameraVisibleCount = $event" :disabled="activeOperation === 'all-data-backup'" @busy-change="moduleOperations.camera = $event" ref="cameraFavoritesRef" sidebar-target="#album-sidebar-column" actions-target="#favorites-camera-actions" :active="isCameraFavoritesView" :language="language" :messages="photoParamsMessages" :search-query="searchQuery" :confirm-action="confirmHomeSchemeAction" @codes-change="cameraFavoriteCodes = $event" @modal-change="cameraFavoriteModal = $event" @status="handleHomeSchemeStatus" />
+        <CameraFavorites @open-filters="mobileFiltersOpen = true" @close-filters="mobileFiltersOpen = false" :filters-open="mobileFiltersOpen" @visible-count-change="cameraVisibleCount = $event" :disabled="activeOperation === 'all-data-backup'" @busy-change="moduleOperations.camera = $event" ref="cameraFavoritesRef" sidebar-target="#album-sidebar-column" actions-target="#favorites-camera-actions" :active="isCameraFavoritesView" :language="language" :messages="photoParamsMessages" :search-query="searchQuery" :confirm-action="confirmHomeSchemeAction" @codes-change="cameraFavoriteCodes = $event" @modal-change="cameraFavoriteModal = $event" @status="handleHomeSchemeStatus" />
         <div v-if="!albumDirectoryHandle && activeView !== 'outfits' && activeView !== 'home' && activeView !== 'resonance' && !isCameraFavoritesView" class="empty-album-start">
           <div class="empty-start-mark" aria-hidden="true"></div>
           <h2>{{ locale.grid.emptyTitle }}</h2>
@@ -2047,9 +2050,13 @@ onBeforeUnmount(() => {
           <p v-else-if="activeView !== 'outfits'">{{ locale.viewNav.count(visibleCount) }}</p>
         </header>
 
+        <CollectionFilterBar v-if="activeView === 'outfits'" tag-picker :entries="mobileFilterEntries" :active="String(mobileActiveFilter)" :count="mobileFilterCount" :language="language" :disabled="isAnyFileOperationBusy" @clear="changeMobileFilter('all')" @open="mobileFiltersOpen = true" />
+
         <HomeSchemeWorkspace
           :language="language"
           @open-filters="mobileFiltersOpen = true"
+          @close-filters="mobileFiltersOpen = false"
+          :filters-open="mobileFiltersOpen"
           @visible-count-change="homeVisibleCount = $event"
           @busy-change="moduleOperations.home = $event"
           v-if="activeView === 'home'"

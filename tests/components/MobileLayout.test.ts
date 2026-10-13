@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { h } from 'vue'
 import { messages } from '../../src/i18n'
 import AlbumViewSwitcher from '../../src/components/AlbumViewSwitcher.vue'
 import TopBar from '../../src/components/TopBar.vue'
@@ -94,6 +95,76 @@ describe('mobile navigation and collection controls', () => {
     expect(wrapper.get('[aria-label="上移标签: 帅气"]').attributes('disabled')).toBeDefined()
     await wrapper.setProps({ disabled: true })
     expect(wrapper.get('[aria-label="下移标签: 帅气"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('collects forty tags into one entry and shows the selected label and inline clear action', async () => {
+    const entries = [{ key: 'all', label: '全部' }, ...Array.from({ length: 40 }, (_, i) => ({ key: `tag:${i}`, label: `标签${i}` }))]
+    const wrapper = mount(CollectionFilterBar, { props: { entries, active: 'all', count: 40, language: 'zh', tagPicker: true } })
+    wrappers.push(wrapper)
+    expect(wrapper.find('.collection-filter-chips').exists()).toBe(false)
+    expect(wrapper.find('.collection-filter-summary').exists()).toBe(false)
+    expect(wrapper.get('.collection-tag-select').text()).toBe('全部标签')
+    expect(wrapper.find('.collection-tag-clear').exists()).toBe(false)
+    await wrapper.get('.collection-tag-select').trigger('click')
+    await wrapper.get('.collection-filter-open').trigger('click')
+    expect(wrapper.emitted('open')).toHaveLength(2)
+    await wrapper.setProps({ active: 'tag:39', count: 2 })
+    expect(wrapper.get('.collection-tag-select').text()).toBe('标签39')
+    expect(wrapper.get('.collection-tag-count').text()).toBe('2 项')
+    await wrapper.get('.collection-tag-clear').trigger('click')
+    expect(wrapper.emitted('clear')).toHaveLength(1)
+    await wrapper.setProps({ disabled: true, language: 'en', active: 'all' })
+    expect(wrapper.get('.collection-tag-select').text()).toBe('All tags')
+    expect(wrapper.findAll('button').every(button => button.attributes('disabled') !== undefined)).toBe(true)
+  })
+
+  it('searches tags without mutating their order and closes only after ordinary selection', async () => {
+    const wrapper = mount(OutfitSidebar, { props: { outfits: [], tags: ['甜美', '帅气', 'Warm'], activeFilter: 'all', disabled: false, messages: messages.zh.outfit, pickerOpen: true } })
+    wrappers.push(wrapper)
+    await wrapper.get('.tag-picker-search input').setValue('warm')
+    expect(wrapper.findAll('[data-outfit-tag]').map(row => row.attributes('data-outfit-tag'))).toEqual(['Warm'])
+    await wrapper.get('[data-outfit-tag="Warm"] .outfit-filter-button').trigger('click')
+    expect(wrapper.emitted('changeFilter')).toEqual([['tag:Warm']])
+    expect(wrapper.emitted('filterSelected')).toHaveLength(1)
+    await wrapper.get('.tag-picker-search input').setValue('不存在')
+    expect(wrapper.get('.tag-picker-empty').text()).toBe('没有匹配的标签')
+    expect(wrapper.findAll('.outfit-filter-list > button')).toHaveLength(3)
+    await wrapper.get('.tag-manage-toggle').trigger('click')
+    expect(wrapper.findAll('[data-outfit-tag]')).toHaveLength(3)
+    expect(wrapper.find('.tag-picker-search').exists()).toBe(false)
+    await wrapper.get('[data-outfit-tag="甜美"] .outfit-filter-button').trigger('click')
+    expect(wrapper.emitted('filterSelected')).toHaveLength(1)
+    await wrapper.setProps({ pickerOpen: false })
+    expect(wrapper.find('.outfit-delete-tag').exists()).toBe(false)
+    expect((wrapper.get('.tag-picker-search input').element as HTMLInputElement).value).toBe('')
+    expect(wrapper.emitted('reorderTags')).toBeUndefined()
+  })
+
+  it('uses immediate selection for custom home categories and ignores disabled choices', async () => {
+    const wrapper = mount(OutfitSidebar, { props: { outfits: [], tags: [], activeFilter: 'all', disabled: false, messages: messages.zh.outfit }, slots: {
+      filters: ({ selectFilter }: { selectFilter: (filter: string) => void }) => h('button', { onClick: () => selectFilter('home') }, '家园码')
+    } })
+    wrappers.push(wrapper)
+    await wrapper.get('.outfit-filter-list button').trigger('click')
+    expect(wrapper.emitted('changeFilter')).toEqual([['home']])
+    expect(wrapper.emitted('filterSelected')).toHaveLength(1)
+    await wrapper.setProps({ disabled: true })
+    await wrapper.get('.outfit-filter-list button').trigger('click')
+    expect(wrapper.emitted('changeFilter')).toHaveLength(1)
+  })
+
+  it('presents tag selection without an Apply button and keeps the slot mounted', async () => {
+    const wrapper = mount(AdaptiveFilterPanel, { attachTo: document.body, props: { compact: true, open: true, tagPicker: true,
+      title: '选择标签', closeLabel: '关闭筛选', applyLabel: '查看结果' }, slots: { default: '<input data-tag-picker />' } })
+    wrappers.push(wrapper)
+    expect(document.querySelector('.mobile-tag-picker header h2')!.textContent).toBe('选择标签')
+    expect(document.querySelector('.mobile-tag-picker footer')).toBeNull()
+    const input = document.querySelector('[data-tag-picker]')
+    document.querySelector<HTMLButtonElement>('.mobile-tag-picker header button')!.click()
+    await flushPromises()
+    expect(wrapper.emitted('close')).toHaveLength(1)
+    await wrapper.setProps({ compact: false, open: false })
+    expect(document.querySelector('[data-tag-picker]')).toBe(input)
   })
 
   it('offers batch actions directly and keeps busy and selection behavior', async () => {
