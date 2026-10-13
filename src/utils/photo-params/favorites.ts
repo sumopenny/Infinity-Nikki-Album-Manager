@@ -1,5 +1,6 @@
 import { openDb, CAMERA_FAVORITES_STORE as RECORDS, CAMERA_COVERS_STORE as COVERS, CAMERA_TAGS_STORE as TAGS } from '../file-system/database'
 import type { PhotoParamsResult } from './types'
+import { sha256Hex } from '../sha256'
 
 export type FavoriteSource = 'album' | 'tool' | 'manual'
 export interface CameraFavorite {
@@ -72,8 +73,7 @@ export async function saveCameraFavoriteTags(next: string[]): Promise<string[]> 
 }
 
 export async function coverMetadata(file: Blob, name = 'cover'): Promise<NonNullable<CameraFavorite['cover']>> {
-  const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer())
-  return { name, type: file.type, size: file.size, sha256: Array.from(new Uint8Array(hash), (x) => x.toString(16).padStart(2, '0')).join('') }
+  return { name, type: file.type, size: file.size, sha256: await sha256Hex(await file.arrayBuffer()) }
 }
 
 export async function saveCameraFavorite(record: CameraFavorite, cover: Blob | null, expected?: CameraFavorite): Promise<void> {

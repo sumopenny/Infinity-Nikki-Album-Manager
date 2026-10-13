@@ -1,0 +1,143 @@
+/* 移动端独立收纳层：断点与 useCompactLayout 一致，覆盖历史模块规则。 */
+.mobile-only { display: none; }
+.desktop-only { display: inline-flex; }
+.header-dropdown { overflow-y: auto; overscroll-behavior: contain; }
+.more-menu-content { display: contents; }
+.desktop-card-actions { display: contents; }
+.collection-action-menu { position: relative; }
+.collection-action-menu summary { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 12px; list-style: none; cursor: pointer; }
+.collection-action-menu summary::-webkit-details-marker { display: none; }
+.collection-action-options { position: absolute; z-index: 35; top: calc(100% + 4px); right: 0; display: grid; gap: 4px; width: min(240px, 75vw); padding: 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-strong); box-shadow: var(--dialog-shadow); }
+.collection-actions .collection-action-options > button { width: 100%; justify-content: flex-start; white-space: normal; }
+.card-menu-trigger { position: absolute; z-index: 5; top: 6px; right: 6px; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-strong); color: var(--text); }
+.mobile-filter-overlay, .card-action-overlay, .mobile-menu-backdrop { position: fixed; z-index: 90; inset: 0; background: var(--overlay-bg, rgba(24,21,21,.4)); }
+.mobile-filter-overlay, .card-action-overlay { display: flex; align-items: flex-end; }
+.mobile-filter-panel, .card-action-panel { display: flex; flex-direction: column; width: 100%; max-height: 85dvh; border-radius: 20px 20px 0 0; background: var(--surface-strong); color: var(--text); box-shadow: var(--dialog-shadow); }
+.mobile-filter-panel > header, .card-action-panel > header { display: flex; gap: 12px; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.mobile-filter-panel header button, .card-action-panel header button { min-width: 44px; min-height: 44px; border: 0; border-radius: 12px; background: var(--surface-soft); color: var(--text); }
+.mobile-filter-body { overflow-y: auto; min-height: 0; padding: 12px 16px; overscroll-behavior: contain; }
+.mobile-filter-panel > footer { flex-shrink: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); }
+.mobile-filter-panel > footer button { width: 100%; }
+.card-action-panel > div { display: grid; gap: 8px; overflow-y: auto; padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
+.card-action-panel button:not(header button) { position: static; display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; min-height: 48px; margin: 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft); color: var(--text); opacity: 1; font-size: 15px; }
+.tag-order-buttons { display: flex; gap: 2px; }
+.tag-order-buttons button { min-width: 44px; min-height: 44px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); }
+.tag-manage-toggle { border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; background: var(--surface); color: var(--text); }
+
+@media (max-width: 899px) {
+  :root { --mobile-nav-height: calc(64px + env(safe-area-inset-bottom, 0px)); --mobile-dialog-gap: 12px; --mobile-dialog-radius: 20px; --mobile-dialog-space: calc(var(--visible-height,100dvh) - max(var(--mobile-dialog-gap),env(safe-area-inset-top,0px)) - max(var(--mobile-dialog-gap),env(safe-area-inset-bottom,0px))); }
+  .mobile-only { display: flex; }
+  .desktop-only { display: none !important; }
+  .desktop-navigation { display: none; }
+  .app-shell { min-height: 100dvh; padding-bottom: var(--mobile-nav-height); }
+  .app-header { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: max(6px, env(safe-area-inset-top, 0px)) 12px 6px; background: var(--surface-strong); }
+  /* 手机复用桌面品牌，右侧保留两个固定触摸目标，搜索展开后独占下一行。 */
+  .app-header .brand-lockup { flex: 1; min-width: 0; }
+  .mobile-header-row { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; min-height: 44px; }
+  .mobile-header-row button, .mobile-header-search button { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: var(--text); }
+  .mobile-header-search { display: flex; flex: 0 0 100%; min-width: 0; align-items: center; margin-top: 6px; border: 1px solid var(--line); border-radius: 12px; }
+  .mobile-header-search input { width: 100%; min-width: 0; min-height: 44px; padding: 8px 12px; border: 0; border-radius: inherit; background: var(--surface); color: var(--text); font-size: 16px; }
+  .album-layout, .album-layout.without-album { display: block; min-height: 0; padding: 0 12px 24px; }
+  .album-layout::before { display: none; }
+  .sidebar-column { position: static; width: 100%; height: auto; min-height: 0; margin: 0; padding: 0; border: 0; }
+  .album-content, .without-album .album-content { min-height: 0; padding: 12px 0 24px; }
+  .mobile-filter-body .date-sidebar { width: 100%; margin: 0; padding: 0; overflow: visible; }
+  .mobile-filter-body .timeline-year { max-width: none; }
+  .mobile-filter-body .outfit-filter-list { margin-top: 8px; }
+  .mobile-filter-body .sidebar-mode-switch button, .mobile-filter-body .action-link, .mobile-filter-body .timeline-toggle, .mobile-filter-body .date-link, .mobile-filter-body .outfit-filter-button { min-height: 44px; font-size: 14px; }
+  .mobile-filter-body .outfit-filter-row { display: flex; align-items: center; }
+  .mobile-filter-body .outfit-filter-row .outfit-filter-button { flex: 1; min-width: 0; padding-left: 8px; padding-right: 8px; }
+  .mobile-filter-body .outfit-delete-tag, .mobile-filter-body .outfit-tag-drag-handle { position: static; width: 44px; height: 44px; flex-shrink: 0; opacity: 1; }
+  .mobile-filter-body .outfit-add-tag-toggle { width: 44px; height: 44px; }
+  .collection-filter-bar { flex-wrap: wrap; gap: 6px; margin-bottom: 12px; min-width: 0; }
+  .collection-filter-chips { display: flex; flex: 1; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .collection-filter-chips button { flex-shrink: 0; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .collection-filter-bar button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); font-size: 13px; }
+  .collection-filter-chips button[aria-pressed='true'] { border-color: var(--pink-deep); background: var(--soft-accent); color: var(--heading); }
+  .collection-filter-open { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+  .collection-filter-summary { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 24px; color: var(--muted); font-size: 12px; }
+  .collection-filter-summary button { display: flex; align-items: center; gap: 4px; min-height: 44px; padding: 4px 8px; border: 0; background: transparent; }
+  .empty-import-button { justify-content: center; min-height: 44px; margin: 12px auto; padding: 8px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-strong); color: var(--heading); }
+  .mobile-navigation { position: fixed; z-index: 54; left: 0; right: 0; bottom: 0; height: var(--mobile-nav-height); padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); background: var(--surface-strong); }
+  .mobile-navigation button { display: flex; flex: 1; min-width: 0; align-items: center; justify-content: center; flex-direction: column; gap: 3px; padding: 4px 2px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); font-size: 11px; }
+  .mobile-navigation button[aria-current='page'] { background: var(--soft-accent); color: var(--heading); font-weight: 700; }
+  .mobile-navigation button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-import-start { display: flex; align-items: center; gap: 12px; margin: 10px 12px 0; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+  .mobile-import-start p { flex: 1; margin: 0; min-width: 0; font-size: 12px; color: var(--muted); }
+  .mobile-import-start button { flex-shrink: 0; max-width: 45%; min-height: 44px; padding: 8px; border: 0; border-radius: 10px; background: var(--soft-accent); color: var(--heading); }
+  .mobile-menu-sheet.header-dropdown { z-index: 91; top: auto; right: max(var(--mobile-dialog-gap),env(safe-area-inset-right,0px)); bottom: calc(max(0px,calc(100dvh - var(--visible-height,100dvh) - var(--visible-top,0px))) + max(var(--mobile-dialog-gap),env(safe-area-inset-bottom,0px))); left: max(var(--mobile-dialog-gap),env(safe-area-inset-left,0px)); width: auto; min-width: 0; max-width: none; max-height: min(85dvh, var(--mobile-dialog-space)); margin: 0; padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)); border-radius: var(--mobile-dialog-radius); transform: none; animation: none; background: var(--surface-strong); }
+  /* 更多窗口沿用编辑器的可视高度及安全区留白，仅下方菜单内容滚动。 */
+  .mobile-menu-sheet.more-menu-panel { top: calc(var(--visible-top,0px) + max(var(--mobile-dialog-gap),env(safe-area-inset-top,0px))); bottom: auto; height: var(--mobile-dialog-space); max-height: var(--mobile-dialog-space); display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+  .mobile-menu-heading { display: flex; flex-shrink: 0; min-height: 58px; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .mobile-menu-heading h2 { margin: 0; color: var(--heading); font-size: 20px; }
+  /* 视图保持内容高度，在当前可视区域居中；标题抵消面板内边距。 */
+  .mobile-menu-sheet.view-dropdown { top: calc(var(--visible-top,0px) + var(--visible-height,100dvh) / 2); bottom: auto; transform: translateY(-50%); }
+  .mobile-menu-sheet.view-dropdown > .mobile-menu-heading { position: sticky; top: -12px; z-index: 2; margin: -12px -12px 12px; background: var(--surface-strong); }
+  .header-dropdown .mobile-menu-heading button { flex-shrink: 0; width: 44px; height: 44px; min-height: 44px; padding: 0; justify-content: center; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--heading) 8%, transparent); }
+  .header-dropdown .mobile-menu-heading button:hover { background: color-mix(in srgb, var(--heading) 16%, transparent); }
+  .mobile-menu-sheet .more-menu-content { display: block; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .mobile-capability-note { margin: 8px; padding: 12px; border-radius: 12px; background: var(--surface-soft); color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .gallery-header { flex-wrap: wrap; gap: 8px; padding-bottom: 12px; margin-bottom: 12px; }
+  .gallery-header .eyebrow { display: none; }
+  .gallery-header h2 { font-size: 18px; }
+  .gallery-header h2:not(.trash-header-title) { display: none; }
+  .gallery-header.is-outfit-header { flex-direction: row; align-items: center; }
+  .outfit-header-actions.collection-actions { display: flex; width: auto; overflow: visible; padding: 0; margin-left: auto; align-items: center; gap: 8px; }
+  .collection-actions > button { min-height: 44px; padding: 8px 12px; }
+  .favorites-toolbar { flex-wrap: wrap; gap: 8px; }
+  .favorites-tabs { display: flex; width: 100%; }
+  .favorites-tabs button { flex: 1; min-height: 44px; }
+  .favorites-toolbar-actions { margin-left: auto; }
+  .outfit-grid-wrap .outfit-grid, .camera-favorite-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+  .outfit-card-actions > button { width: 44px; height: 44px; }
+  .outfit-card-footer { flex-direction: column; align-items: stretch; gap: 6px; }
+  .outfit-card-actions { justify-content: flex-end; }
+  .outfit-card-note { margin: 0; color: var(--heading); font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
+  .outfit-grid .outfit-overlay { opacity: 1; min-height: 0; padding: 6px; }
+  .outfit-code { flex: none; min-width: 0; overflow-wrap: anywhere; }
+  .outfit-card-footer .outfit-pending-code { min-height: 36px; }
+  .selection-bar { z-index: 55; left: 8px; right: 8px; bottom: calc(var(--mobile-nav-height) + 8px); width: auto; max-width: none; margin: 0; padding: 8px; flex-wrap: wrap; overflow: visible; justify-content: space-between; }
+  .selection-bar > strong { flex: 1; }
+  .selection-bar .selection-divider { display: none; }
+  .selection-bar > button { min-height: 44px; }
+  .selection-bar .selection-close { width: 44px; }
+  .dialog-overlay, .outfit-editor, .camera-editor-overlay, .outfit-detail-overlay, .note-dialog { top: var(--visible-top,0px); bottom: auto; height: var(--visible-height,100dvh); padding: max(var(--mobile-dialog-gap),env(safe-area-inset-top,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-right,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-bottom,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-left,0px)); }
+  .dialog-panel, .outfit-editor-panel, .camera-editor, .outfit-detail-panel, .note-dialog-panel { width: 100%; max-width: 100%; max-height: min(100%,var(--mobile-dialog-space)); border-radius: var(--mobile-dialog-radius); }
+  .outfit-editor-panel, .camera-editor { height: min(100%,var(--mobile-dialog-space)); display: flex; flex-direction: column; overflow: hidden; }
+  .outfit-editor-panel > header, .camera-editor > header, .outfit-editor-panel > footer, .camera-editor > footer { flex-shrink: 0; margin: 0; padding: 12px 16px; }
+  .outfit-editor-content, .camera-editor fieldset { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px; }
+  .outfit-editor-panel > footer, .camera-editor > footer { padding-bottom: max(12px,env(safe-area-inset-bottom,0px)); }
+  .outfit-editor input, .outfit-editor textarea, .camera-editor input, .camera-editor textarea, .dialog-panel input, .dialog-panel textarea, .note-dialog input { font-size: 16px; }
+  .outfit-tag-editor input { font-size: 16px; min-height: 44px; }
+  .dialog-panel > header { position: sticky; z-index: 2; top: 0; background: var(--surface-strong); }
+  .dialog-panel > footer { position: sticky; z-index: 2; bottom: 0; background: var(--surface-strong); padding-bottom: max(12px,env(safe-area-inset-bottom,0px)); }
+  .dialog-panel header button, .outfit-editor header button, .camera-editor header button, .outfit-guide-open, .photo-note-edit, .photo-params-parse, .favorite-heart { min-width: 44px; min-height: 44px; }
+  .photo-note-edit, .photo-params-parse, .favorite-heart { opacity: 1; }
+  .photo-params-parse { right: 60px; }
+  .photo-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .lightbox { top: var(--visible-top,0px); bottom: auto; height: var(--visible-height,100dvh); padding: max(8px,env(safe-area-inset-top,0px)) 8px max(8px,env(safe-area-inset-bottom,0px)); }
+  .lightbox-panel { max-height: 100%; }
+  .lightbox-toolbar button, .lightbox-zoom-controls button, .lightbox-close, .lightbox-nav-button { min-width: 44px; min-height: 44px; }
+  .app-shell:has(.selection-bar) { padding-bottom: calc(var(--mobile-nav-height) + 160px); }
+  .mobile-filter-overlay, .card-action-overlay, .mobile-menu-backdrop { top: var(--visible-top,0px); bottom: auto; height: var(--visible-height,100dvh); }
+  /* 保留遮罩点击关闭区域；底部面板四角完整，内容滚动不把背景涂到圆角外。 */
+  .mobile-filter-overlay, .card-action-overlay { padding: max(var(--mobile-dialog-gap),env(safe-area-inset-top,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-right,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-bottom,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-left,0px)); }
+  .mobile-filter-panel, .card-action-panel { max-height: min(100%,var(--mobile-dialog-space)); border-radius: var(--mobile-dialog-radius); overflow: hidden; }
+  .dialog-panel, .note-dialog-panel { isolation: isolate; }
+  .outfit-guide { top: var(--visible-top,0px); bottom: auto; height: var(--visible-height,100dvh); padding: var(--mobile-dialog-gap); }
+  .outfit-guide-panel { max-width: 100%; max-height: var(--mobile-dialog-space); border-radius: var(--mobile-dialog-radius); }
+  .update-log-panel, .help-about-panel { height: min(720px,var(--mobile-dialog-space)); max-height: min(100%,var(--mobile-dialog-space)); }
+  .fortune-time-panel, .resonance-import-panel { height: min(820px,var(--mobile-dialog-space)); max-height: min(100%,var(--mobile-dialog-space)); }
+  .lightbox-panel { border-radius: var(--mobile-dialog-radius); }
+}
+
+@media (min-width: 600px) and (max-width: 899px) {
+  .outfit-grid-wrap .outfit-grid, .camera-favorite-grid, .photo-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+}
+
+/* 超窄屏容纳搜索、视图、更多三个 44px 触摸目标，品牌文字保持一行。 */
+@media (max-width: 360px) {
+  .app-header .brand-lockup { gap: 6px; }
+  .app-header .brand-icon { width: 34px; height: 34px; flex-basis: 34px; }
+  .app-header .brand-title-row { gap: 6px; }
+}

@@ -1,4 +1,5 @@
 import type { PhotoDisplayItem } from '../photoGrouping'
+import { createUuid } from '../uuid'
 
 export const DEFAULT_OUTFIT_TAGS = ['甜美', '性感', '帅气', '典雅', '清新', '古典']
 export const MAX_OUTFIT_TAGS = 40
@@ -52,7 +53,7 @@ export class DuplicateOutfitCodeError extends Error {
   constructor() { super('outfit_code_duplicate'); this.name = 'DuplicateOutfitCodeError' }
 }
 
-export function createOutfitId(): string { return crypto.randomUUID() }
+export function createOutfitId(): string { return createUuid() }
 export function isSafeOutfitId(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 128 && value !== '.' && value !== '..' && !/[\\/\0]/.test(value)
 }

@@ -1406,5 +1406,37 @@
         "end": "2026-11-26"
       }
     ]
+  },
+  {
+    "bannerId": 78,
+    "bannerType": 3,
+    "name": "不灭的幽旅",
+    "outfit4StarId": [
+      "10431"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.10.2",
+        "start": "2026-10-11",
+        "end": "2026-10-29"
+      }
+    ]
+  },
+  {
+    "bannerId": 79,
+    "bannerType": 3,
+    "name": "以长夜为誓",
+    "outfit4StarId": [
+      "10455"
+    ],
+    "outfit5StarId": [],
+    "runs": [
+      {
+        "version": "2.10.2",
+        "start": "2026-10-11",
+        "end": "2026-10-29"
+      }
+    ]
   }
 ]

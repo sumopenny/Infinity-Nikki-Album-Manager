@@ -1,5 +1,6 @@
 import { openDb, runStoreRequest, HOME_SCHEMES_STORE, HOME_IMAGES_STORE, HOME_TAGS_STORE } from '../file-system/database'
 import { convertImageToWebp, validateImageBlob, MAX_IMAGE_BYTES } from '../image'
+import { sha256Hex } from '../sha256'
 import { createHomeSchemeId, normalizeHomeSchemeRecord, isValidHomeSchemeTag, normalizeHomeSchemeTag,
   MAX_HOME_SCHEME_TAGS, type HomeSchemeItem, type HomeSchemeRecord, type SaveHomeSchemeInput } from './homeSchemeTypes'
 
@@ -43,8 +44,7 @@ export async function prepareHomeSchemeImage(blob: Blob, id: string): Promise<Ho
   if (String.fromCharCode(...signature.slice(0, 4)) !== 'RIFF' ||
       String.fromCharCode(...signature.slice(8, 12)) !== 'WEBP') throw new Error('home_scheme_image_invalid')
   await validateImageBlob(blob)
-  const digest = await crypto.subtle.digest('SHA-256', bytes)
-  const sha256 = [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('')
+  const sha256 = await sha256Hex(bytes)
   return { id, blob: new Blob([bytes], { type: 'image/webp' }), size: bytes.byteLength, sha256 }
 }
 

@@ -5,9 +5,11 @@ import type { OutfitMessages } from '../i18n'
 import type { ThumbnailMode } from '../types/thumbnail'
 import type { OutfitItem } from '../utils/outfit/outfitFileSystem'
 import { createPhotoLoadQueue } from '../utils/photoLoader'
+import CardActions from './CardActions.vue'
 import LazyPhotoImage from './LazyPhotoImage.vue'
 
 const props = defineProps<{
+  language?: 'zh' | 'en'
   outfits: OutfitItem[]
   selectedIds: Set<string>
   thumbnailMode: ThumbnailMode
@@ -21,6 +23,7 @@ const emit = defineEmits<{
   delete: [outfit: OutfitItem]
   parse: [outfit: OutfitItem]
   openPreview: [outfit: OutfitItem]
+  importBackup: []
   toggleOutfit: [outfitId: string]
 }>()
 
@@ -43,7 +46,7 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
     <div v-if="!outfits.length" class="empty-album inline-empty">
       <Shirt :size="30" aria-hidden="true" />
       <h2>{{ messages.emptyTitle }}</h2>
-      <p>{{ messages.emptyDescription }}</p>
+      <p>{{ messages.emptyDescription }}</p><button class="mobile-only empty-import-button" type="button" :disabled="disabled" @click="$emit('importBackup')">{{ messages.importData }}</button>
     </div>
 
     <div v-else class="photo-grid outfit-grid">
@@ -66,7 +69,7 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
             <span>{{ outfit.tags[0] || messages.uncategorized }}</span>
           </div>
           <span class="selected-badge"><Check :size="15" aria-hidden="true" /></span>
-          <button
+          <CardActions :label="(language ?? 'zh') === 'zh' ? '搭配操作' : 'Outfit actions'" :title="outfit.note || outfit.code || messages.pending" :close-label="messages.cancel" :disabled="disabled">          <button
             class="outfit-card-delete"
             type="button"
             :title="messages.delete"
@@ -74,7 +77,7 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
             :disabled="disabled"
             @click.stop="$emit('delete', outfit)"
           >
-            <Trash2 :size="16" aria-hidden="true" />
+            <Trash2 :size="16" aria-hidden="true" /><span class="mobile-only">{{ messages.delete }}</span>
           </button>
           <button
             class="outfit-card-parse"
@@ -84,11 +87,15 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
             :disabled="disabled || !outfit.code"
             @click.stop="$emit('parse', outfit)"
           >
-            <ScanSearch :size="16" aria-hidden="true" />
+            <ScanSearch :size="16" aria-hidden="true" /><span class="mobile-only">{{ messages.parse }}</span>
           </button>
+<button type="button" class="mobile-only" :disabled="disabled" @click.stop="$emit('edit', outfit)"><Edit3 :size="18" />{{ messages.edit }}</button>
+<button type="button" class="mobile-only" :disabled="disabled" @click.stop="$emit('openPreview', outfit)">{{ (language ?? 'zh') === 'zh' ? '查看大图' : 'Preview' }}</button>
+          </CardActions>
         </div>
 
         <div class="outfit-card-footer">
+          <p v-if="outfit.note" class="outfit-card-note">{{ outfit.note }}</p>
           <button
             v-if="!outfit.code"
             class="outfit-pending-code"
@@ -109,7 +116,7 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
             >
               <Copy :size="15" aria-hidden="true" />
             </button>
-            <button type="button" :title="messages.edit" :aria-label="messages.edit" :disabled="disabled" @click.stop="$emit('edit', outfit)">
+            <button class="desktop-only" type="button" :title="messages.edit" :aria-label="messages.edit" :disabled="disabled" @click.stop="$emit('edit', outfit)">
               <Edit3 :size="15" aria-hidden="true" />
             </button>
           </div>

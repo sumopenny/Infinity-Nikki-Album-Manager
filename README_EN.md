@@ -39,7 +39,18 @@
   <p><sub>Left · Main interface: photo timeline grouped by year / month / day ｜ Right · Large preview: 50%–300% zoom, pan, and keyboard paging</sub></p>
 </div>
 
-### Outfit codes
+### Phones and compact windows
+
+- Below 900px, the header keeps the desktop brand presentation, and bottom navigation provides only Outfits, Home schemes, Favorites and Resonance. Phones start with Outfits. Album directory access and targeted cleanup require a supported desktop browser.
+- The top-right controls are Search (magnifying glass), View and More, in that order. Search applies to the current module; View opens thumbnail, theme and language settings directly, in a window centered in the visible viewport, with a fixed title and close button at the top. More contains parsing tools, fortune time, full data backups and help. The More window matches the scheme editor's size and position. Its title and close button stay fixed at the top while the menu below scrolls independently.
+- The page shows a few quick categories, the active filter and result count. Filter opens all tags, date/action indexes or resonance indexes. Manage tags separates adding, deleting and ordering from browsing, with both drag handles and move up/down buttons. Closing the sheet preserves the filter.
+- Cards use two columns on phones and three at 600–899px. Copy remains directly available; edit, delete, parse and preview/details are in the card menu. Page menus contain import/export, and empty lists also provide an import entry.
+- Batch actions appear above bottom navigation, with select-all, export and related-image cleanup directly available. Existing deletion confirmations remain in place.
+- Large previews support horizontal swipes, pinch zoom and panning after zooming. Ending a pinch does not turn the page. Mobile dialogs keep at least 12px of horizontal spacing and 20px corners. Editors keep headers and save actions fixed, scroll the form and adapt to the visible viewport when the keyboard opens.
+- To transfer between devices, export a full data ZIP from More on your computer and import it from More on your phone. The empty outfit list also provides a full-data import entry.
+- Full-data import/export also works when a phone uses a Network HTTP address shown by the local server. SHA-256 verification automatically uses a fallback implementation without changing the backup format.
+
+## Outfit codes
 
 <div align="center">
   <img src="img/9.webp" alt="Outfit codes: plans, tags, and pending plans" width="49%">

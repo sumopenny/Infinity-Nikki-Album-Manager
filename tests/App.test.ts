@@ -200,7 +200,6 @@ describe('App lifecycle coordination', () => {
     expect(wrapper.findComponent({ name: 'OutfitGuideDialog' }).props('visible')).toBe(false)
 
     await wrapper.findAll('.album-view-button')[3].trigger('click')
-    await wrapper.get('.resonance-nav-menu [role="menuitem"]').trigger('click')
     expect(wrapper.find('.resonance-workspace-stub').exists()).toBe(true)
     expect(wrapper.find('.empty-album-start').exists()).toBe(false)
     expect(wrapper.get('.album-layout').classes()).not.toContain('without-album')

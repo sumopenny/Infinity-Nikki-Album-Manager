@@ -27,6 +27,11 @@ import ResonanceSidebar from './components/ResonanceSidebar.vue'
 import PhotoGrid from './components/PhotoGrid.vue'
 import RecentlyDeletedGrid from './components/RecentlyDeletedGrid.vue'
 import SelectionBar from './components/SelectionBar.vue'
+import AdaptiveFilterPanel from './components/AdaptiveFilterPanel.vue'
+import CollectionFilterBar from './components/CollectionFilterBar.vue'
+import CollectionActions from './components/CollectionActions.vue'
+import MobileNavigation from './components/MobileNavigation.vue'
+import { useCompactLayout, useVisualViewport } from './composables/useCompactLayout'
 import TopBar from './components/TopBar.vue'
 import PhotoTransferProgressDialog from './components/PhotoTransferProgressDialog.vue'
 import PhotoParamsDialog from './components/PhotoParamsDialog.vue'
@@ -202,7 +207,14 @@ const favoriteIds = ref<Set<string>>(readStoredFavoriteIds())
 const searchQuery = ref('')
 const noteDialogPhoto = ref<PhotoItem | null>(null)
 const isNoteDialogVisible = ref(false)
-const activeView = ref<AlbumView>('all')
+const compactLayout = useCompactLayout()
+useVisualViewport()
+const directorySupported = supportsDirectoryAuthorization()
+const mobileFiltersOpen = ref(false)
+const topBarRef = ref<InstanceType<typeof TopBar> | null>(null)
+const homeVisibleCount = ref(0)
+const cameraVisibleCount = ref(0)
+const activeView = ref<AlbumView>(compactLayout.value && !directorySupported ? 'outfits' : 'all')
 const sidebarMode = ref<'date' | 'action'>('date')
 const actionSort = ref<ActionSort>('id')
 const autoParseActionsEnabled = ref(storedAutoParseActions === 'true')
@@ -350,6 +362,22 @@ const {
   actionInfo,
   actionSort
 })
+const mobileText = (zh: string, en: string) => language.value === 'zh' ? zh : en
+const mobileFilterCount = computed(() => activeView.value === 'home' ? homeVisibleCount.value : isCameraFavoritesView.value ? cameraVisibleCount.value : activeView.value === 'outfits' ? visibleOutfits.value.length : activeView.value === 'resonance' ? resonanceRecords.value.filter(record => resonanceRarityFilter.value === 'all' || record.rarity === Number(resonanceRarityFilter.value)).length : visibleCount.value)
+const mobileFilterEntries = computed(() => activeView.value === 'outfits'
+  ? [{ key: 'all', label: outfitLocale.value.all }, { key: 'pending', label: outfitLocale.value.pending }, { key: 'uncategorized', label: outfitLocale.value.uncategorized }, ...outfitTags.value.map(tag => ({ key: `tag:${tag}`, label: tag }))]
+  : activeView.value === 'resonance'
+    ? [{ key: 'all', label: mobileText('全部', 'All') }, { key: '5', label: mobileText('五星', '5-star') }, { key: '4', label: mobileText('四星', '4-star') }]
+    : [{ key: 'date', label: locale.value.sidebar.title }, { key: 'action', label: locale.value.sidebar.actionsTitle }])
+const mobileActiveFilter = computed(() => activeView.value === 'outfits' ? activeOutfitFilter.value : activeView.value === 'resonance' ? resonanceRarityFilter.value : sidebarMode.value)
+function changeMobileFilter(key: string) {
+  if (activeView.value === 'outfits') changeOutfitFilter(key as OutfitFilter)
+  else if (activeView.value === 'resonance') resonanceRarityFilter.value = key === 'all' ? 'all' : Number(key) as ResonanceRarityFilter
+  else sidebarMode.value = key as 'date' | 'action'
+}
+watch(activeView, () => { mobileFiltersOpen.value = false; topBarRef.value?.closeMenus() })
+watch(compactLayout, () => { mobileFiltersOpen.value = false })
+
 const currentPreviewIndex = computed(() => currentPreview.value ? previewPhotos.value.findIndex((photo) => photo.id === currentPreview.value?.id) : -1)
 const hasPreviousPreview = computed(() => currentPreviewIndex.value > 0)
 const hasNextPreview = computed(() => currentPreviewIndex.value >= 0 && currentPreviewIndex.value < previewPhotos.value.length - 1)
@@ -1736,15 +1764,18 @@ async function permanentlyDeleteCurrentTrashPreview() {
 
 /** 跳转到指定日期。参数：dateKey 为日期键。 */
 function scrollToDate(dateKey: string) {
+  mobileFiltersOpen.value = false
   document.getElementById(`date-${dateKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function scrollToAction(actionKey: string) {
+  mobileFiltersOpen.value = false
   document.getElementById(`action-${actionKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 /** 将侧栏中选中的套装定位到对应共鸣记录卡片。 */
 function scrollToResonanceRecord(recordId: string) {
+  mobileFiltersOpen.value = false
   document.getElementById(`resonance-record-${recordId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
@@ -1836,6 +1867,10 @@ onBeforeUnmount(() => {
 <template>
   <div ref="appShellRef" class="app-shell">
     <TopBar
+      ref="topBarRef"
+      :view-messages="locale.viewNav"
+      :directory-supported="directorySupported"
+      @change-view="changeAlbumView"
       :directory-name="directoryName"
       :is-loading="isLoading || activeOperation === 'all-data-backup'"
       :backup-disabled="allBackupDisabled"
@@ -1868,11 +1903,12 @@ onBeforeUnmount(() => {
       @update-search="searchQuery = $event"
     />
 
+    <div v-if="compactLayout && !directorySupported && activeView === 'outfits' && !outfits.length" class="mobile-import-start"><p>{{ mobileText('从电脑迁移数据，或直接添加你的第一套搭配。', 'Import your desktop collection or add your first outfit.') }}</p><button type="button" :disabled="allBackupDisabled" @click="topBarRef?.closeMenus(); allDataBackupRef?.chooseImport()">{{ locale.topBar.importAllData }}</button></div>
     <AllDataBackup ref="allDataBackupRef" :language="language" :disabled="allBackupDisabled" @availability="hasBackupData = $event" @busy="handleAllBackupBusy" @changed="refreshAfterAllImport" @status="(message, tone, loading) => showStatus({ message, tone, loading })" />
 
     <main class="album-layout" :class="{ 'without-album': !albumDirectoryHandle && activeView !== 'outfits' && activeView !== 'home' && activeView !== 'resonance' && !isCameraFavoritesView }">
-      <div id="album-sidebar-column" class="sidebar-column">
-        <AlbumViewSwitcher
+      <div class="sidebar-column">
+        <AlbumViewSwitcher class="desktop-navigation"
           :active-view="activeView"
           :all-count="photos.length"
           :outfits-count="outfits.length"
@@ -1887,7 +1923,10 @@ onBeforeUnmount(() => {
           @change-view="changeAlbumView"
         />
 
+        <AdaptiveFilterPanel :compact="compactLayout" :open="mobileFiltersOpen" :title="mobileText('筛选与分类管理', 'Filters and categories')" :close-label="mobileText('关闭筛选', 'Close filters')" :apply-label="mobileText(`查看 ${mobileFilterCount} 项结果`, `Show ${mobileFilterCount} items`)" @close="mobileFiltersOpen = false">
+        <div id="album-sidebar-column">
         <OutfitSidebar
+          :language="language"
           v-if="activeView === 'outfits'"
           ref="outfitSidebarRef"
           :outfits="outfits"
@@ -1924,32 +1963,35 @@ onBeforeUnmount(() => {
           @change-mode="sidebarMode = $event"
           @change-action-sort="actionSort = $event"
         />
+        </div>
+        </AdaptiveFilterPanel>
       </div>
 
       <section class="album-content" :aria-label="locale.app.albumContentAria">
+        <CollectionFilterBar v-if="activeView !== 'home' && activeView !== 'trash' && !isCameraFavoritesView" :entries="mobileFilterEntries" :active="String(mobileActiveFilter)" :count="mobileFilterCount" :language="language" :disabled="isAnyFileOperationBusy" @change="changeMobileFilter" @clear="changeMobileFilter(mobileFilterEntries[0]?.key ?? 'all')" @open="mobileFiltersOpen = true" />
         <!-- 收藏夹：标签页与当前页操作按钮共用一行，移除重复标题。 -->
         <div v-if="activeView === 'favorites'" class="favorites-toolbar">
         <nav class="favorites-tabs" :aria-label="locale.viewNav.favorites">
           <button type="button" :aria-pressed="favoriteTab === 'camera'" @click="changeFavoriteTab('camera')">{{ language === 'zh' ? '相机参数' : 'Camera parameters' }} <small>{{ cameraFavoriteCodes.length }}</small></button>
           <button type="button" :aria-pressed="favoriteTab === 'photos'" @click="changeFavoriteTab('photos')">{{ language === 'zh' ? '照片收藏' : 'Photo favorites' }} <small>{{ favoriteCount }}</small></button>
         </nav>
-          <div v-if="favoriteTab === 'photos' && albumDirectoryHandle" class="outfit-header-actions photo-header-actions">
+          <CollectionActions v-if="favoriteTab === 'photos' && albumDirectoryHandle" class="outfit-header-actions photo-header-actions" :label="mobileText('页面操作', 'Page actions')"><button type="button" :disabled="isAnyFileOperationBusy" @click="openPhotoImportPicker">
+              <Download :size="16" aria-hidden="true" />{{ isImportingPhotos ? locale.topBar.importingPhotos : locale.topBar.importPhotos }}
+            </button><template #secondary>
             <label class="auto-parse-actions-toggle" :data-tooltip="locale.grid.autoParseActionsHint">
               <input v-model="autoParseActionsEnabled" type="checkbox" :aria-label="locale.grid.autoParseActions" />
               <span class="auto-parse-actions-checkbox" :class="{ checked: autoParseActionsEnabled }" aria-hidden="true"></span>
               <span>{{ locale.grid.autoParseActions }}</span>
               <span class="auto-parse-actions-help" aria-hidden="true">?</span>
             </label>
-            <button type="button" :disabled="isAnyFileOperationBusy" @click="openPhotoImportPicker">
-              <Download :size="16" aria-hidden="true" />{{ isImportingPhotos ? locale.topBar.importingPhotos : locale.topBar.importPhotos }}
-            </button>
+
             <button type="button" :disabled="isAnyFileOperationBusy || !photos.length" @click="exportAlbumPhotos([], true)">
               <Upload :size="16" aria-hidden="true" />{{ isExportingPhotos ? locale.topBar.exportingPhotos : locale.topBar.exportAllPhotos }}
             </button>
-          </div>
+          </template></CollectionActions>
           <div id="favorites-camera-actions" v-show="isCameraFavoritesView" class="favorites-toolbar-actions"></div>
         </div>
-        <CameraFavorites :disabled="activeOperation === 'all-data-backup'" @busy-change="moduleOperations.camera = $event" ref="cameraFavoritesRef" sidebar-target="#album-sidebar-column" actions-target="#favorites-camera-actions" :active="isCameraFavoritesView" :language="language" :messages="photoParamsMessages" :search-query="searchQuery" :confirm-action="confirmHomeSchemeAction" @codes-change="cameraFavoriteCodes = $event" @modal-change="cameraFavoriteModal = $event" @status="handleHomeSchemeStatus" />
+        <CameraFavorites @open-filters="mobileFiltersOpen = true" @visible-count-change="cameraVisibleCount = $event" :disabled="activeOperation === 'all-data-backup'" @busy-change="moduleOperations.camera = $event" ref="cameraFavoritesRef" sidebar-target="#album-sidebar-column" actions-target="#favorites-camera-actions" :active="isCameraFavoritesView" :language="language" :messages="photoParamsMessages" :search-query="searchQuery" :confirm-action="confirmHomeSchemeAction" @codes-change="cameraFavoriteCodes = $event" @modal-change="cameraFavoriteModal = $event" @status="handleHomeSchemeStatus" />
         <div v-if="!albumDirectoryHandle && activeView !== 'outfits' && activeView !== 'home' && activeView !== 'resonance' && !isCameraFavoritesView" class="empty-album-start">
           <div class="empty-start-mark" aria-hidden="true"></div>
           <h2>{{ locale.grid.emptyTitle }}</h2>
@@ -1976,36 +2018,39 @@ onBeforeUnmount(() => {
               </button>
             </h2>
           </div>
-          <div v-if="activeView === 'outfits'" class="outfit-header-actions">
+          <CollectionActions v-if="activeView === 'outfits'" class="outfit-header-actions" :label="mobileText('页面操作', 'Page actions')"><button class="primary-button" type="button" :disabled="isAnyFileOperationBusy" @click="openOutfitEditor()">
+              <Plus :size="16" aria-hidden="true" />{{ outfitLocale.addOutfit }}
+            </button><template #secondary>
             <button type="button" :disabled="isAnyFileOperationBusy" @click="chooseOutfitBackup">
               <Download :size="16" aria-hidden="true" />{{ isImportingOutfits ? outfitLocale.importing : outfitLocale.importData }}
             </button>
             <button type="button" :disabled="isAnyFileOperationBusy || (!outfits.length && !outfitTags.length)" @click="exportOutfits">
               <Upload :size="16" aria-hidden="true" />{{ isExportingOutfits ? outfitLocale.exporting : outfitLocale.exportData }}
             </button>
-            <button class="primary-button" type="button" :disabled="isAnyFileOperationBusy" @click="openOutfitEditor()">
-              <Plus :size="16" aria-hidden="true" />{{ outfitLocale.addOutfit }}
-            </button>
-          </div>
-          <div v-else-if="activeView !== 'trash'" class="outfit-header-actions photo-header-actions">
+
+          </template></CollectionActions>
+          <CollectionActions v-else-if="activeView !== 'trash'" class="outfit-header-actions photo-header-actions" :label="mobileText('页面操作', 'Page actions')"><button type="button" :disabled="isAnyFileOperationBusy" @click="openPhotoImportPicker">
+              <Download :size="16" aria-hidden="true" />{{ isImportingPhotos ? locale.topBar.importingPhotos : locale.topBar.importPhotos }}
+            </button><template #secondary>
             <label class="auto-parse-actions-toggle" :data-tooltip="locale.grid.autoParseActionsHint">
               <input v-model="autoParseActionsEnabled" type="checkbox" :aria-label="locale.grid.autoParseActions" />
               <span class="auto-parse-actions-checkbox" :class="{ checked: autoParseActionsEnabled }" aria-hidden="true"></span>
               <span>{{ locale.grid.autoParseActions }}</span>
               <span class="auto-parse-actions-help" aria-hidden="true">?</span>
             </label>
-            <button type="button" :disabled="isAnyFileOperationBusy" @click="openPhotoImportPicker">
-              <Download :size="16" aria-hidden="true" />{{ isImportingPhotos ? locale.topBar.importingPhotos : locale.topBar.importPhotos }}
-            </button>
+
             <button type="button" :disabled="isAnyFileOperationBusy || !photos.length" @click="exportAlbumPhotos([], true)">
               <Upload :size="16" aria-hidden="true" />{{ isExportingPhotos ? locale.topBar.exportingPhotos : locale.topBar.exportAllPhotos }}
             </button>
-          </div>
+          </template></CollectionActions>
           <p v-if="activeView === 'trash'">{{ locale.trash.totalSummary(recentlyDeleted.length, trashTotalSizeText) }}</p>
           <p v-else-if="activeView !== 'outfits'">{{ locale.viewNav.count(visibleCount) }}</p>
         </header>
 
         <HomeSchemeWorkspace
+          :language="language"
+          @open-filters="mobileFiltersOpen = true"
+          @visible-count-change="homeVisibleCount = $event"
           @busy-change="moduleOperations.home = $event"
           v-if="activeView === 'home'"
           :library-revision="homeLibraryRevision"
@@ -2044,6 +2089,8 @@ onBeforeUnmount(() => {
           @open-preview="openPreview"
         />
         <OutfitGrid
+          :language="language"
+          @import-backup="chooseOutfitBackup"
           v-else-if="activeView === 'outfits'"
           :outfits="visibleOutfits"
           :selected-ids="selectedOutfitIds"
@@ -2077,6 +2124,7 @@ onBeforeUnmount(() => {
         />
       </section>
     </main>
+    <MobileNavigation :active-view="activeView" :disabled="allBackupDisabled" :messages="locale.viewNav" :outfit-label="outfitLocale.viewName" @change-view="changeAlbumView" />
 
     <SelectionBar
       v-if="activeView !== 'home' && activeView !== 'resonance' && !isCameraFavoritesView"

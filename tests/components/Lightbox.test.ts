@@ -223,3 +223,49 @@ describe('Lightbox preview navigation', () => {
   })
 })
 
+
+// 通过完整指针序列验证手势互斥，避免双指缩放结束后误触翻页。
+describe('Lightbox touch gestures', () => {
+  async function createTouchPreview() {
+    loadPhotoMock.mockResolvedValue('blob:touch')
+    const wrapper = mount(Lightbox, { props: { photo: createPhoto('touch.jpeg'), hasPrevious: true,
+      hasNext: true, isDeleting: false, isFavorite: false, keyboardEnabled: true, mode: 'album',
+      messages: messages.zh.lightbox, dateMessages: messages.zh.date }, global: { stubs: { Teleport: true } } })
+    await flushPromises()
+    return wrapper
+  }
+  it('pages on a horizontal swipe but not on vertical movement or cancellation', async () => {
+    const wrapper = await createTouchPreview()
+    try {
+      const stage = wrapper.get('.lightbox-stage')
+      await stage.trigger('pointerdown', { pointerType: 'touch', pointerId: 1, clientX: 200, clientY: 100 })
+      await stage.trigger('pointerup', { pointerType: 'touch', pointerId: 1, clientX: 110, clientY: 105 })
+      expect(wrapper.emitted('next')).toHaveLength(1)
+      await stage.trigger('pointerdown', { pointerType: 'touch', pointerId: 1, clientX: 200, clientY: 100 })
+      await stage.trigger('pointerup', { pointerType: 'touch', pointerId: 1, clientX: 110, clientY: 220 })
+      await stage.trigger('pointerdown', { pointerType: 'touch', pointerId: 1, clientX: 200, clientY: 100 })
+      await stage.trigger('pointercancel', { pointerType: 'touch', pointerId: 1, clientX: 110, clientY: 100 })
+      expect(wrapper.emitted('next')).toHaveLength(1)
+    } finally { wrapper.unmount() }
+  })
+  it('pinches, clamps the zoom, and pans without paging until a new photo resets it', async () => {
+    const wrapper = await createTouchPreview()
+    try {
+      const stage = wrapper.get('.lightbox-stage')
+      await stage.trigger('pointerdown', { pointerType: 'touch', pointerId: 1, clientX: 100, clientY: 100 })
+      await stage.trigger('pointerdown', { pointerType: 'touch', pointerId: 2, clientX: 200, clientY: 100 })
+      await stage.trigger('pointermove', { pointerType: 'touch', pointerId: 2, clientX: 300, clientY: 100 })
+      expect(wrapper.findAll('.lightbox-zoom-controls button')[1]!.text()).toBe('200%')
+      await stage.trigger('pointermove', { pointerType: 'touch', pointerId: 2, clientX: 600, clientY: 100 })
+      expect(wrapper.findAll('.lightbox-zoom-controls button')[1]!.text()).toBe('300%')
+      await stage.trigger('pointerup', { pointerType: 'touch', pointerId: 2, clientX: 600, clientY: 100 })
+      await stage.trigger('pointermove', { pointerType: 'touch', pointerId: 1, clientX: 160, clientY: 130 })
+      expect(wrapper.get('.lightbox-stage > img').attributes('style')).toContain('translate3d')
+      await stage.trigger('pointerup', { pointerType: 'touch', pointerId: 1, clientX: 160, clientY: 130 })
+      expect(wrapper.emitted('previous')).toBeUndefined()
+      expect(wrapper.emitted('next')).toBeUndefined()
+      await wrapper.setProps({ photo: createPhoto('next.jpeg') })
+      expect(wrapper.findAll('.lightbox-zoom-controls button')[1]!.text()).toBe('100%')
+    } finally { wrapper.unmount() }
+  })
+})

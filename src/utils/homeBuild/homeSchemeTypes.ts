@@ -1,3 +1,5 @@
+import { createUuid } from '../uuid'
+
 export const MAX_HOME_SCHEME_TAGS = 40
 export const MAX_HOME_SCHEME_TAG_LENGTH = 5
 export const MAX_HOME_SCHEME_NOTE_LENGTH = 15
@@ -42,7 +44,7 @@ export function normalizeHomeSchemeMetadata(value: unknown): HomeSchemeMetadata 
   }
 }
 
-export function createHomeSchemeId(): string { return crypto.randomUUID() }
+export function createHomeSchemeId(): string { return createUuid() }
 
 export function isSafeHomeSchemeId(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 128 && value !== '.' && value !== '..' && !/[\\/\0]/.test(value)

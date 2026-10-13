@@ -46,7 +46,7 @@ describe('album view controls', () => {
     const resonanceItem = wrapper.findAll('.album-view-item')[3]
     const arrow = resonanceItem.find('.resonance-nav-arrow')
     expect(arrow.classes()).not.toContain('is-open')
-    await resonanceItem.trigger('mouseenter')
+    await resonanceItem.trigger('pointerenter', { pointerType: 'mouse' })
     expect(arrow.classes()).toContain('is-open')
     expect(resonanceItem.find('.album-view-button').attributes('aria-expanded')).toBe('true')
     expect(resonanceItem.find('[role="menu"]').exists()).toBe(true)

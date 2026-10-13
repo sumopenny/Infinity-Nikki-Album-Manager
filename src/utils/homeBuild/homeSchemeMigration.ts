@@ -2,6 +2,7 @@ import { HOME_SCHEMES_STORE, HOME_IMAGES_STORE, HOME_TAGS_STORE, HOME_MIGRATION_
   HOME_MIGRATION_ENTRIES_STORE, runStoreRequest } from '../file-system/database'
 import { homeRequest, homeTransaction, normalizeHomeSchemeTags, prepareHomeSchemeImage, type HomeSchemeImage } from './homeSchemeStorage'
 import { createHomeSchemeId, normalizeHomeSchemeRecord, MAX_HOME_SCHEME_TAGS, type HomeSchemeRecord } from './homeSchemeTypes'
+import { sha256Hex } from '../sha256'
 
 interface MigrationSource { id: string; directory: FileSystemDirectoryHandle; processedTags: string[] }
 export interface HomeSchemeMigrationResult {
@@ -19,8 +20,7 @@ function sameRecord(left: HomeSchemeRecord, right: HomeSchemeRecord): boolean {
 }
 
 async function homeFileFingerprint(file: Blob): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer())
-  return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('')
+  return sha256Hex(await file.arrayBuffer())
 }
 
 interface DirectorySnapshotEntry { kind: FileSystemHandleKind; fingerprint: string }

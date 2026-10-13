@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   BookHeart,
   Download,
@@ -20,10 +20,14 @@ import {
   Wrench,
   RotateCcw,
   ScanSearch,
+  Search,
   Sun,
   Trash2,
   X
 } from 'lucide-vue-next'
+import { useCompactLayout } from '../composables/useCompactLayout'
+import { useModalFocus } from '../composables/useModalFocus'
+import type { AlbumView } from './AlbumViewSwitcher.vue'
 import LikeCounter from './LikeCounter.vue'
 // 收款码图片，通过 Vite 打包以保证构建后路径正确
 import wxQrCode from '../../img/wx.jpg'
@@ -37,6 +41,8 @@ import brandIcon from '../../img/wxnn.ico'
 type OpenMenu = 'album' | 'view' | 'tools' | 'more' | null
 
 const props = defineProps<{
+  viewMessages?: LocaleMessages['viewNav']
+  directorySupported?: boolean
   directoryName: string
   isLoading: boolean
   backupDisabled?: boolean
@@ -53,6 +59,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  changeView: [view: AlbumView]
   chooseDirectory: []
   clearDirectory: []
   authorizeX6Game: []
@@ -75,15 +82,21 @@ const emit = defineEmits<{
 // 问题反馈问卷地址：发布问卷星/腾讯问卷后，把链接替换到这里即可
 const FEEDBACK_URL = 'https://v.wjx.cn/vm/tUM7gga.aspx'
 
+const compact = useCompactLayout()
+const mobileSearchOpen = ref(false)
 const openMenu = ref<OpenMenu>(null)
+const menuStyle = computed(() => compact.value ? {} : { top: `${menuPosition.value.top}px`, left: `${menuPosition.value.left}px` })
+watch(compact, () => closeMenus())
+defineExpose({ closeMenus })
 const showDonate = ref(false)
 const showFeedback = ref(false)
-useBodyScrollLock(computed(() => showDonate.value || showFeedback.value))
+useBodyScrollLock(computed(() => showDonate.value || showFeedback.value || (compact.value && openMenu.value !== null)))
 // iframe 懒加载：首次打开弹窗时才设置 src，避免启动时请求第三方页面
 const feedbackLoaded = ref(false)
 const feedbackLoadFailed = ref(false)
 const headerRef = ref<HTMLElement | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
+useModalFocus(computed(() => compact.value && openMenu.value !== null), dropdownRef, closeMenus)
 const menuTrigger = ref<HTMLElement | null>(null)
 const menuPosition = ref({ top: 0, left: 0 })
 const isBusy = computed(() => props.isLoading || props.isDeleting)
@@ -100,13 +113,14 @@ async function toggleMenu(menu: Exclude<OpenMenu, null>, event: MouseEvent) {
   if (menu === 'more') emit('refreshBackupAvailability')
   await nextTick()
   await alignOpenMenu()
+  if (compact.value) dropdownRef.value?.focus()
 }
 
 /** 让菜单优先在触发项下方居中，并在临近屏幕边缘时保持完整可见。参数：无。 */
 async function alignOpenMenu() {
   const dropdown = dropdownRef.value
   const trigger = menuTrigger.value
-  if (!dropdown || !trigger) return
+  if (!dropdown || !trigger || compact.value) return
 
   const triggerRect = trigger.getBoundingClientRect()
   menuPosition.value = { top: triggerRect.bottom + 7, left: triggerRect.left + triggerRect.width / 2 }
@@ -121,6 +135,14 @@ async function alignOpenMenu() {
       ? viewportWidth - safeInset - rect.right
       : 0
   dropdown.style.setProperty('--menu-shift', `${shift}px`)
+  // 横向对齐之外也约束可视高度，短窗口下菜单内部滚动。
+  const viewportBottom = (window.visualViewport?.offsetTop ?? 0) + (window.visualViewport?.height ?? window.innerHeight)
+  const availableBelow = viewportBottom - triggerRect.bottom - 19
+  const availableAbove = triggerRect.top - 19
+  if (availableBelow < Math.min(dropdown.scrollHeight, 240) && availableAbove > availableBelow) {
+    dropdown.style.maxHeight = `${Math.max(48, availableAbove)}px`
+    menuPosition.value.top = Math.max(12, triggerRect.top - Math.min(dropdown.scrollHeight, availableAbove) - 7)
+  } else dropdown.style.maxHeight = `${Math.max(48, availableBelow)}px`
 }
 
 /** 关闭全部顶部菜单。参数：无。 */
@@ -166,19 +188,21 @@ function handleDocumentInteraction(event: MouseEvent | KeyboardEvent) {
     return
   }
   const target = event.target as Node
-  if (!headerRef.value?.contains(target) && !dropdownRef.value?.contains(target)) closeMenus()
+  if (!headerRef.value?.contains(target) && !dropdownRef.value?.contains(target) && !menuTrigger.value?.contains(target)) closeMenus()
 }
 
 onMounted(() => {
   document.addEventListener('click', handleDocumentInteraction)
   document.addEventListener('keydown', handleDocumentInteraction)
   window.addEventListener('resize', alignOpenMenu)
+  window.addEventListener('scroll', alignOpenMenu, true)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleDocumentInteraction)
   document.removeEventListener('keydown', handleDocumentInteraction)
   window.removeEventListener('resize', alignOpenMenu)
+  window.removeEventListener('scroll', alignOpenMenu, true)
 })
 </script>
 
@@ -195,7 +219,13 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="header-actions">
+    <div v-if="compact" class="mobile-header-row">
+      <button type="button" :aria-label="language === 'zh' ? '搜索当前页面' : 'Search this page'" :aria-expanded="mobileSearchOpen" @click="mobileSearchOpen = !mobileSearchOpen"><Search :size="20" aria-hidden="true" /></button>
+      <button type="button" :title="messages.view" :aria-label="messages.viewMenuAria" aria-haspopup="menu" :aria-expanded="openMenu === 'view'" @click.stop="toggleMenu('view', $event)"><Grid2X2 :size="20" aria-hidden="true" /></button>
+      <button type="button" :aria-label="messages.moreMenuAria" :aria-expanded="openMenu === 'more'" @click.stop="toggleMenu('more', $event)"><MoreHorizontal :size="22" /></button>
+    </div>
+    <div v-if="compact && (mobileSearchOpen || searchQuery)" class="mobile-header-search"><input type="search" :value="searchQuery" :placeholder="messages.searchPlaceholder" :aria-label="messages.searchPlaceholder" @input="emit('updateSearch', ($event.target as HTMLInputElement).value)" /><button type="button" :aria-label="language === 'zh' ? '清除搜索' : 'Clear search'" @click="emit('updateSearch', ''); mobileSearchOpen = false"><X :size="18" /></button></div>
+    <div v-show="!compact" class="header-actions">
       <span class="header-star-hint" :title="messages.starHint">{{ messages.starHint }}</span>
       <a
         class="official-site-link"
@@ -230,7 +260,7 @@ onBeforeUnmount(() => {
           <ChevronLeft class="header-menu-chevron" :class="{ 'is-open': openMenu === 'album' }" :size="14" aria-hidden="true" />
         </button>
         <Teleport to="body">
-          <div v-if="openMenu === 'album'" ref="dropdownRef" class="header-dropdown" :style="{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }" role="menu">
+          <div v-if="openMenu === 'album'" ref="dropdownRef" tabindex="-1" :aria-label="messages.more" class="header-dropdown" :class="{ 'mobile-menu-sheet': compact }" :style="menuStyle" role="menu">
           <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('chooseDirectory'))">
             <FolderOpen :size="16" />
             <span>{{ messages.chooseDirectory }}</span>
@@ -261,7 +291,8 @@ onBeforeUnmount(() => {
           <ChevronLeft class="header-menu-chevron" :class="{ 'is-open': openMenu === 'view' }" :size="14" aria-hidden="true" />
         </button>
         <Teleport to="body">
-          <div v-if="openMenu === 'view'" ref="dropdownRef" class="header-dropdown view-dropdown" :style="{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }" role="menu">
+          <div v-if="openMenu === 'view'" ref="dropdownRef" tabindex="-1" :aria-label="messages.more" class="header-dropdown view-dropdown" :class="{ 'mobile-menu-sheet': compact }" :style="menuStyle" role="menu">
+          <header v-if="compact" class="mobile-menu-heading"><h2>{{ messages.view }}</h2><button type="button" :aria-label="language === 'zh' ? '关闭菜单' : 'Close menu'" @click="closeMenus"><X :size="20" /></button></header>
           <div class="view-toggle-row">
             <div class="view-toggle-pill" role="group" :aria-label="messages.themeToggleAria">
               <button
@@ -335,7 +366,7 @@ onBeforeUnmount(() => {
           <ChevronLeft class="header-menu-chevron" :class="{ 'is-open': openMenu === 'tools' }" :size="14" aria-hidden="true" />
         </button>
         <Teleport to="body">
-          <div v-if="openMenu === 'tools'" ref="dropdownRef" class="header-dropdown" :style="{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }" role="menu">
+          <div v-if="openMenu === 'tools'" ref="dropdownRef" tabindex="-1" :aria-label="messages.more" class="header-dropdown" :class="{ 'mobile-menu-sheet': compact }" :style="menuStyle" role="menu">
             <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('openCleanup'))"><Eraser :size="16" /><span>{{ messages.specialCleanup }}</span></button>
             <button type="button" role="menuitem" @click="runMenuAction(() => emit('openFortuneTime'))"><span class="menu-symbol" aria-hidden="true">✦</span><span>{{ messages.fortuneTime }}</span></button>
             <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('openParseTools'))"><ScanSearch :size="16" /><span>{{ messages.parseTools }}</span></button>
@@ -358,7 +389,22 @@ onBeforeUnmount(() => {
           <ChevronLeft class="header-menu-chevron" :class="{ 'is-open': openMenu === 'more' }" :size="14" aria-hidden="true" />
         </button>
         <Teleport to="body">
-          <div v-if="openMenu === 'more'" ref="dropdownRef" class="header-dropdown header-dropdown-right" :style="{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }" role="menu">
+          <div v-if="openMenu === 'more'" ref="dropdownRef" tabindex="-1" :aria-label="messages.more" class="header-dropdown header-dropdown-right more-menu-panel" :class="{ 'mobile-menu-sheet': compact }" :style="menuStyle" role="menu">
+          <header v-if="compact" class="mobile-menu-heading"><h2>{{ messages.more }}</h2><button type="button" :aria-label="language === 'zh' ? '关闭菜单' : 'Close menu'" @click="closeMenus"><X :size="20" /></button></header>
+          <div class="more-menu-content">
+          <template v-if="compact">
+            <button type="button" role="menuitem" @click="runMenuAction(() => emit('openParseTools'))"><ScanSearch :size="18" />{{ messages.parseTools }}</button>
+            <button type="button" role="menuitem" @click="runMenuAction(() => emit('openFortuneTime'))">✦ {{ messages.fortuneTime }}</button>
+            <template v-if="directorySupported !== false">
+              <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('changeView', 'all'))">{{ viewMessages?.allPhotos }}</button>
+              <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('changeView', 'trash'))">{{ viewMessages?.recentlyDeleted }}</button>
+              <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('chooseDirectory'))"><FolderOpen :size="18" />{{ messages.chooseDirectory }}</button>
+              <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('openCleanup'))">{{ messages.specialCleanup }}</button>
+            </template>
+            <p v-else class="mobile-capability-note">{{ language === 'zh' ? '相册与专项清理需在支持目录授权的电脑浏览器使用；手机可使用搭配、家园、相机参数和共鸣，并导入电脑备份。' : 'Album access and cleanup require a supported desktop browser. Use outfits, home schemes, camera parameters and resonance here, or import a desktop backup.' }}</p>
+            <a class="mobile-official-link" href="https://nikki3.pages.dev/" target="_blank" rel="noopener noreferrer"><Globe :size="18" />{{ messages.officialSite }}</a>
+            <div class="menu-separator"></div>
+          </template>
           <button type="button" role="menuitem" :disabled="isBusy || backupDisabled || !hasBackupData" @click="runMenuAction(() => emit('exportAllData'))"><Upload :size="16" /><span>{{ messages.exportAllData }}</span></button>
           <button type="button" role="menuitem" :disabled="isBusy || backupDisabled" @click="runMenuAction(() => emit('importAllData'))"><Download :size="16" /><span>{{ messages.importAllData }}</span></button>
           <div class="menu-separator"></div>
@@ -407,9 +453,11 @@ onBeforeUnmount(() => {
             </a>
           </div>
           </div>
+          </div>
         </Teleport>
       </div>
     </div>
+    <Teleport to="body"><div v-if="compact && openMenu" class="mobile-menu-backdrop" @click="closeMenus"></div></Teleport>
   </header>
 
   <Teleport to="body">
@@ -421,7 +469,8 @@ onBeforeUnmount(() => {
             <button type="button" :aria-label="messages.closeDonate" :title="messages.closeDonate" @click="showDonate = false">
               <X :size="19" />
             </button>
-          </header>
+            <Teleport to="body"><div v-if="compact && openMenu" class="mobile-menu-backdrop" @click="closeMenus"></div></Teleport>
+  </header>
           <div class="donate-dialog-body">
             <p class="donate-description">{{ messages.donateDescription }}</p>
             <div class="donate-qrcodes">
@@ -449,7 +498,8 @@ onBeforeUnmount(() => {
             <button type="button" :aria-label="messages.feedbackClose" :title="messages.feedbackClose" @click="showFeedback = false">
               <X :size="19" />
             </button>
-          </header>
+            <Teleport to="body"><div v-if="compact && openMenu" class="mobile-menu-backdrop" @click="closeMenus"></div></Teleport>
+  </header>
           <div class="feedback-dialog-body">
             <iframe
               v-if="feedbackLoaded"

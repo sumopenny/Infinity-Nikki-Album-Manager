@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@assemblyscript/loader": "0.28.20",
+    "@noble/hashes": "2.4.0",
     "fflate": "^0.8.3",
     "lucide-vue-next": "^0.577.0",
     "snappyjs": "^0.7.0",

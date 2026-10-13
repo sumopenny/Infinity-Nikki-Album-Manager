@@ -45,7 +45,7 @@ async function repack(file: File, mutate: (files: Record<string, Uint8Array>) =>
   }
   return new File([zipSync(files)], 'changed.zip')
 }
-it('round-trips all four modules, covers, tags and ignores without portable directory authorization', async () => {
+it.each([false, true])('round-trips all four modules, covers, tags and ignores without portable directory authorization (network HTTP: %s)', async networkHttp => {
   expect(await hasAllBackupData()).toBe(false)
   await seed()
   await runStoreRequest('album-handles', 'readwrite', store => store.put({ secret: 'authorization' }, 'current'))
@@ -54,6 +54,7 @@ it('round-trips all four modules, covers, tags and ignores without portable dire
   const names = Object.keys(unzipSync(new Uint8Array(await file.arrayBuffer())))
   expect(names.sort()).toEqual(['backup.json', 'camera/1.zip', 'home/1.zip', 'outfits/1.zip', 'resonance/1.json'])
   await resetOutfitDatabase()
+  if (networkHttp) vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
   const plan = await prepareAllDataBackup(file)
   expect(await runStoreRequest('outfits', 'readonly', store => store.count())).toBe(0)
   const result = await applyAllDataBackup(plan, async () => ({}))
@@ -65,9 +66,29 @@ it('round-trips all four modules, covers, tags and ignores without portable dire
   expect(await (await readCameraFavorites()).covers.get('camera-one')!.text()).toBe(await webp('cover.webp').text())
   expect((await loadResonanceRecords()).length).toBe(1)
   expect(await runStoreRequest('album-handles', 'readonly', store => store.count())).toBe(0)
+  if (networkHttp) expect((await prepareAllDataBackup(await exported())).camera.records).toHaveLength(1)
 })
-it('validates checksums and every nested module before any restoration writes', async () => {
+it('regenerates colliding outfit and home IDs on network HTTP', async () => {
+  await seed()
+  const file = await exported()
+  const oldOutfit = (await readOutfitSnapshot()).records[0]
+  const oldHome = (await readHomeSchemeSnapshot()).records[0]
+  // 保留原 ID 并修改本地分享码，触发导入时的 ID 冲突重建。
+  await runStoreRequest('outfits', 'readwrite', store => store.put({ ...oldOutfit, code: 'LOCAL', codeKey: 'LOCAL' }))
+  await runStoreRequest('home-schemes', 'readwrite', store => store.put({ ...oldHome, code: 'LOCAL' }))
+  vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
+  const results = await applyAllDataBackup(await prepareAllDataBackup(file), async () => ({}))
+  expect(results?.find(item => item.module === 'outfits')).toMatchObject({ saved: 1, failed: 0 })
+  expect(results?.find(item => item.module === 'home')).toMatchObject({ saved: 1, failed: 0 })
+  const outfits = (await readOutfitSnapshot()).records
+  const homes = (await readHomeSchemeSnapshot()).records
+  expect(outfits).toHaveLength(2); expect(homes).toHaveLength(2)
+  expect(outfits.find(record => record.code === 'OUTFIT')!.id).not.toBe(oldOutfit.id)
+  expect(homes.find(record => record.code === 'HOME')!.id).not.toBe(oldHome.id)
+})
+it.each([false, true])('validates checksums and every nested module before any restoration writes (network HTTP: %s)', async networkHttp => {
   await seed(); const file = await exported(); await resetOutfitDatabase()
+  if (networkHttp) vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
   const badChecksum = await repack(file, files => { files['resonance/1.json'] = strToU8('{}') })
   await expect(prepareAllDataBackup(badChecksum)).rejects.toThrow('校验失败')
   const badNested = await repack(file, files => { files['home/1.zip'] = zipSync({ 'manifest.json': strToU8('{}') }) }, true)

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CollectionActions from './CollectionActions.vue'
 import { computed, onMounted, ref, toRaw, watch } from 'vue'
 import { Bookmark, Cloud, Copy, ExternalLink, FileUp, Plus, Terminal, Trash2, Upload, X } from 'lucide-vue-next'
 import ConfirmDialog from './ConfirmDialog.vue'
@@ -321,12 +322,12 @@ defineExpose({ reload })
         <p class="eyebrow">RESONANCE</p>
         <h2 id="resonance-title">{{ t.title }}</h2>
       </div>
-      <div class="outfit-header-actions resonance-actions">
+      <CollectionActions class="resonance-actions" :label="language === 'zh' ? '共鸣操作' : 'Resonance actions'"><button class="primary-button" type="button" :disabled="disabled" @click="openDialog"><Plus :size="16" aria-hidden="true" />{{ t.addData }}</button><template #secondary>
         <button class="resonance-cloud-sync-placeholder" type="button" disabled><Cloud :size="16" aria-hidden="true" />{{ t.cloudSyncComingSoon }}</button>
         <button type="button" :disabled="disabled || !records.length || clearing" @click="requestClearRecords"><Trash2 :size="16" aria-hidden="true" />{{ t.clearRecords }}</button>
         <button type="button" :disabled="disabled || !records.length" @click="exportRecords"><Upload :size="16" aria-hidden="true" />{{ t.exportData }}</button>
-        <button class="primary-button" type="button" :disabled="disabled" @click="openDialog"><Plus :size="16" aria-hidden="true" />{{ t.addData }}</button>
-      </div>
+
+</template></CollectionActions>
     </header>
 
     <div v-if="!records.length" class="resonance-empty">

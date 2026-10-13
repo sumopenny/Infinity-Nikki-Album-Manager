@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { Check, Copy, Download, Edit3, GripVertical, ImagePlus, Plus, Trash2, Upload, X } from 'lucide-vue-next'
-import type { LocaleMessages } from '../i18n'
+import { Check, Copy, Download, Edit3, ImagePlus, Plus, Trash2, Upload, X } from 'lucide-vue-next'
+import { messages as localeMessages, type LocaleMessages } from '../i18n'
+import OutfitSidebar from './OutfitSidebar.vue'
+import CollectionFilterBar from './CollectionFilterBar.vue'
+import CollectionActions from './CollectionActions.vue'
+import CardActions from './CardActions.vue'
+
 import type { HomeSchemeMessages } from '../i18n/messages/homeScheme'
 import { copyTextToClipboard } from '../utils/clipboard'
 import { importHomeSchemeBackup, exportHomeSchemeBackup } from '../utils/homeBuild/homeSchemeBackup'
@@ -32,6 +37,7 @@ import SelectionBar from './SelectionBar.vue'
 import type { ThumbnailMode } from '../types/thumbnail'
 
 const props = defineProps<{
+  language?: 'zh' | 'en'
   libraryRevision: number
   messages: HomeSchemeMessages
   copyMessages?: { copySucceeded: string; copyFailed: (value: string) => string }
@@ -44,6 +50,8 @@ const props = defineProps<{
   thumbnailMode: ThumbnailMode
 }>()
 const emit = defineEmits<{
+  openFilters: []
+  visibleCountChange: [count: number]
   busyChange: [busy: boolean]
   status: [message: string, tone: 'success' | 'warning' | 'error' | 'info']
   countChange: [count: number]
@@ -75,13 +83,12 @@ const parsing = ref(false)
 const parsedCode = ref('')
 const tagInputVisible = ref(false)
 const tagInput = ref('')
+const homeSidebarRef = ref<InstanceType<typeof OutfitSidebar> | null>(null)
 const tagInputRef = ref<HTMLInputElement | null>(null)
-const tagToggleRef = ref<HTMLButtonElement | null>(null)
 const editorTagToggleRef = ref<HTMLButtonElement | null>(null)
-const tagInputOwner = ref<'sidebar' | 'editor' | null>(null)
+const tagInputOwner = ref<'editor' | null>(null)
 const tagEditorRef = ref<HTMLFormElement | null>(null)
 const tagEditorPosition = ref({ top: '0px', left: '0px' })
-const draggedTag = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 const backupInput = ref<HTMLInputElement | null>(null)
 let parseTimer: number | undefined
@@ -104,6 +111,8 @@ const visibleSchemes = computed(() => {
 const previewUrl = computed(() => localImageUrl.value ?? (removeLocalImage.value ? null : coverImageUrl.value))
 watch(busy, value => emit('busyChange', value))
 const isBusy = computed(() => props.disabled || busy.value)
+watch(visibleSchemes, value => emit('visibleCountChange', value.length), { immediate: true })
+
 const selectedSchemeCount = computed(() => visibleSchemes.value.filter((item) => selectedSchemeIds.value.has(item.id)).length)
 const allSchemesSelected = computed(() => visibleSchemes.value.length > 0 && visibleSchemes.value.every((item) => selectedSchemeIds.value.has(item.id)))
 const previewIndex = computed(() => previewScheme.value ? visibleSchemes.value.findIndex((item) => item.id === previewScheme.value?.id) : -1)
@@ -465,34 +474,29 @@ async function addTag() {
   busy.value = true
   try {
     tags.value = await saveHomeSchemeTags([tag, ...tags.value])
+    homeSidebarRef.value?.closeTagInput()
     if (owner === 'editor') selectedTag.value = tag
     closeTagInput()
   } catch (error) { emit('status', operationError(error), 'error') }
   finally { busy.value = false }
 }
 
-function updateTagEditorPosition(toggleRef: typeof tagToggleRef = tagToggleRef) {
-  const toggle = toggleRef.value
+function updateTagEditorPosition() {
+  const toggle = editorTagToggleRef.value
   if (!toggle) return
   const rect = toggle.getBoundingClientRect()
   const width = Math.min(520, window.innerWidth - 24)
   tagEditorPosition.value = {
-    top: `${Math.max(12, rect.top - 3)}px`,
+    top: `${Math.max((window.visualViewport?.offsetTop ?? 0) + 12, Math.min(rect.top - 3, (window.visualViewport?.offsetTop ?? 0) + (window.visualViewport?.height ?? window.innerHeight) - 70))}px`,
     left: `${Math.max(12, Math.min(rect.right + 8, window.innerWidth - width - 12))}px`
   }
 }
-const handleTagEditorViewportChange = () => updateTagEditorPosition(tagInputVisible.value && editorTagToggleRef.value ? editorTagToggleRef : tagToggleRef)
-
-function toggleTagInput() {
-  tagInputOwner.value = 'sidebar'
-  tagInputVisible.value = !tagInputVisible.value
-  if (tagInputVisible.value) void nextTick(() => { updateTagEditorPosition(); tagInputRef.value?.focus() })
-}
+const handleTagEditorViewportChange = () => updateTagEditorPosition()
 
 function toggleEditorTagInput() {
   tagInputOwner.value = 'editor'
   tagInputVisible.value = !tagInputVisible.value
-  if (tagInputVisible.value) void nextTick(() => { updateTagEditorPosition(editorTagToggleRef); tagInputRef.value?.focus() })
+  if (tagInputVisible.value) void nextTick(() => { updateTagEditorPosition(); tagInputRef.value?.focus() })
 }
 
 function closeTagInput() {
@@ -503,7 +507,7 @@ function closeTagInput() {
 
 function handleTagPointerDown(event: PointerEvent) {
   if (!tagInputVisible.value || !(event.target instanceof Node)) return
-  if (tagToggleRef.value?.contains(event.target) || editorTagToggleRef.value?.contains(event.target) || tagEditorRef.value?.contains(event.target)) return
+  if (editorTagToggleRef.value?.contains(event.target) || tagEditorRef.value?.contains(event.target)) return
   closeTagInput()
 }
 
@@ -529,21 +533,9 @@ async function removeTag(tag: string) {
   finally { busy.value = false }
 }
 
-function startTagDrag(event: DragEvent, tag: string) {
-  draggedTag.value = tag
-  event.dataTransfer?.setData('text/plain', tag)
-  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
-}
-
-async function dropTag(event: DragEvent, target: string) {
-  event.preventDefault()
-  const source = draggedTag.value || event.dataTransfer?.getData('text/plain') || ''
-  draggedTag.value = ''
-  if (!source || source === target) return
-  const next = [...tags.value]
-  const from = next.indexOf(source), to = next.indexOf(target)
-  if (from < 0 || to < 0) return
-  next.splice(to, 0, ...next.splice(from, 1))
+/** 家园与搭配、相机收藏共用触摸排序组件，只在存储层应用新顺序。 */
+async function reorderTags(next: string[]) {
+  if (isBusy.value) return
   try { tags.value = await reorderHomeSchemeTags(tags.value, next) }
   catch (error) { emit('status', operationError(error), 'error') }
 }
@@ -593,6 +585,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
   document.removeEventListener('pointerdown', handleTagPointerDown)
   window.removeEventListener('resize', handleTagEditorViewportChange)
+  window.visualViewport?.removeEventListener('resize', handleTagEditorViewportChange)
   window.removeEventListener('scroll', handleTagEditorViewportChange, true)
 })
 </script>
@@ -600,23 +593,16 @@ onBeforeUnmount(() => {
 <template>
   <section class="home-scheme-workspace">
     <Teleport to="#album-sidebar-column">
-      <aside class="date-sidebar outfit-sidebar home-scheme-sidebar" :aria-label="messages.tagsTitle">
-      <div class="outfit-sidebar-heading"><div class="sidebar-section-title">{{ messages.tagsTitle }}</div><button ref="tagToggleRef" class="icon-button outfit-add-tag-toggle" type="button" :title="messages.addTag" :aria-label="messages.addTag" :disabled="isBusy || tags.length >= MAX_HOME_SCHEME_TAGS" @click="tagInputVisible ? closeTagInput() : toggleTagInput()"><Plus class="tag-toggle-icon" :class="{ 'is-open': tagInputOwner === 'sidebar' }" :size="15" aria-hidden="true" /></button></div>
-      <Teleport to="body"><Transition name="outfit-tag-editor"><form v-if="tagInputVisible" ref="tagEditorRef" class="outfit-tag-editor outfit-tag-editor-popover" :style="tagEditorPosition" @submit.prevent="addTag"><input ref="tagInputRef" v-model="tagInput" :maxlength="MAX_HOME_SCHEME_TAG_LENGTH" :placeholder="messages.tagPlaceholder" :disabled="isBusy" autocomplete="off" /><button type="submit" :disabled="isBusy">{{ messages.addTagConfirm }}</button></form></Transition></Teleport>
-       <div class="outfit-filter-list">
-         <button v-for="item in [{ key: 'all', label: messages.all, count: schemes.length }, { key: 'home', label: messages.homeType, count: schemes.filter((scheme) => scheme.schemeType === 'home').length }, { key: 'combo', label: messages.comboType, count: schemes.filter((scheme) => scheme.schemeType === 'combo').length }, { key: 'uncategorized', label: messages.uncategorized, count: schemes.filter((scheme) => scheme.tags.length === 0).length }]" :key="item.key" class="outfit-filter-button" :class="{ active: filter === item.key }" type="button" :disabled="isBusy" @click="changeSchemeFilter(item.key as typeof filter)"><span>{{ item.label }}</span><small>{{ item.count }}</small></button>
-        <div v-for="tag in tags" :key="tag" class="outfit-filter-row" :class="{ 'is-dragging': draggedTag === tag }" draggable="true" @dragstart="startTagDrag($event, tag)" @dragover.prevent @drop="dropTag($event, tag)">
-          <button class="outfit-tag-drag-handle" type="button" :aria-label="`${messages.reorderTag}: ${tag}`" :data-tooltip="messages.reorderTag" :disabled="isBusy"><GripVertical :size="14" aria-hidden="true" /></button>
-           <button class="outfit-filter-button" :class="{ active: filter === `tag:${tag}` }" type="button" :disabled="isBusy" @click="changeSchemeFilter(`tag:${tag}`)"><span>{{ tag }}</span><small>{{ schemes.filter((scheme) => scheme.tags.includes(tag)).length }}</small></button>
-          <button class="outfit-delete-tag" type="button" :title="messages.deleteTag + ': ' + tag" :aria-label="messages.deleteTag + ': ' + tag" :disabled="isBusy" @click="removeTag(tag)"><X :size="13" aria-hidden="true" /></button>
-        </div>
-      </div>
-      </aside>
+      <OutfitSidebar ref="homeSidebarRef" :language="language" :outfits="schemes" :tags="tags" :active-filter="filter" :disabled="isBusy" :messages="localeMessages[language ?? 'zh'].outfit" :show-pending="false" @change-filter="changeSchemeFilter($event as typeof filter)" @add-tag="tagInput = $event; addTag()" @delete-tag="removeTag" @reorder-tags="reorderTags">
+        <template #filters><button v-for="item in [{ key: 'all', label: messages.all, count: schemes.length }, { key: 'home', label: messages.homeType, count: schemes.filter(s => s.schemeType === 'home').length }, { key: 'combo', label: messages.comboType, count: schemes.filter(s => s.schemeType === 'combo').length }, { key: 'uncategorized', label: messages.uncategorized, count: schemes.filter(s => !s.tags.length).length }]" :key="item.key" type="button" class="outfit-filter-button" :class="{ active: filter === item.key }" :disabled="isBusy" @click="changeSchemeFilter(item.key as typeof filter)"><span>{{ item.label }}</span><small>{{ item.count }}</small></button></template>
+      </OutfitSidebar>
     </Teleport>
 
+<Teleport to="body"><Transition name="outfit-tag-editor"><form v-if="tagInputVisible" ref="tagEditorRef" class="outfit-tag-editor outfit-tag-editor-popover" :style="tagEditorPosition" @submit.prevent="addTag"><input ref="tagInputRef" v-model="tagInput" :maxlength="MAX_HOME_SCHEME_TAG_LENGTH" :placeholder="messages.tagPlaceholder" :disabled="isBusy" autocomplete="off" /><button type="submit" :disabled="isBusy">{{ messages.addTagConfirm }}</button></form></Transition></Teleport>
     <div class="home-scheme-main">
-      <header class="gallery-header is-outfit-header home-scheme-header"><div class="home-scheme-heading"><p class="eyebrow">HOME SCHEMES</p><div class="home-scheme-title-row"><h2>{{ messages.title }}</h2><strong class="home-scheme-count">{{ visibleSchemes.length }} / {{ schemes.length }}</strong></div></div><div class="outfit-header-actions home-scheme-header-actions"><input ref="backupInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importBackup" /><button type="button" :disabled="isBusy" @click="backupInput?.click()"><Download :size="15" aria-hidden="true" />{{ busy ? messages.importing : messages.importData }}</button><button type="button" :disabled="isBusy || (!schemes.length && !tags.length)" @click="exportBackup"><Upload :size="15" aria-hidden="true" />{{ busy ? messages.exporting : messages.exportData }}</button><button class="primary-button" type="button" :disabled="isBusy" @click="resetEditor(null)"><Plus :size="15" aria-hidden="true" />{{ messages.add }}</button></div></header>
-      <div v-if="!visibleSchemes.length" class="empty-album inline-empty home-scheme-empty"><ImagePlus :size="30" aria-hidden="true" /><h2>{{ messages.emptyTitle }}</h2><p>{{ messages.emptyDescription }}</p></div>
+      <CollectionFilterBar :entries="[{ key: 'all', label: messages.all }, { key: 'home', label: messages.homeType }, { key: 'combo', label: messages.comboType }, { key: 'uncategorized', label: messages.uncategorized }, ...tags.map(tag => ({ key: 'tag:' + tag, label: tag }))]" :active="filter" :count="visibleSchemes.length" :language="language ?? 'zh'" :disabled="isBusy" @change="changeSchemeFilter($event as typeof filter)" @clear="changeSchemeFilter('all')" @open="$emit('openFilters')" />
+      <header class="gallery-header is-outfit-header home-scheme-header"><div class="home-scheme-heading"><p class="eyebrow">HOME SCHEMES</p><div class="home-scheme-title-row"><h2>{{ messages.title }}</h2><strong class="home-scheme-count">{{ visibleSchemes.length }} / {{ schemes.length }}</strong></div></div><CollectionActions class="home-scheme-header-actions" :label="(language ?? 'zh') === 'zh' ? '家园操作' : 'Home actions'"><button class="primary-button" type="button" :disabled="isBusy" @click="resetEditor(null)"><Plus :size="15" aria-hidden="true" />{{ messages.add }}</button><template #secondary><input ref="backupInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="importBackup" /><button type="button" :disabled="isBusy" @click="backupInput?.click()"><Download :size="15" aria-hidden="true" />{{ busy ? messages.importing : messages.importData }}</button><button type="button" :disabled="isBusy || (!schemes.length && !tags.length)" @click="exportBackup"><Upload :size="15" aria-hidden="true" />{{ busy ? messages.exporting : messages.exportData }}</button></template></CollectionActions></header>
+      <div v-if="!visibleSchemes.length" class="empty-album inline-empty home-scheme-empty"><ImagePlus :size="30" aria-hidden="true" /><h2>{{ messages.emptyTitle }}</h2><p>{{ messages.emptyDescription }}</p><button class="mobile-only empty-import-button" type="button" :disabled="isBusy" @click="backupInput?.click()">{{ messages.importData }}</button></div>
       <div v-else class="photo-grid-wrap outfit-grid-wrap home-scheme-grid-wrap" :class="`mode-${thumbnailMode}`">
         <div class="photo-grid outfit-grid">
         <article
@@ -636,7 +622,7 @@ onBeforeUnmount(() => {
             <img v-if="item.imageUrl" :src="item.imageUrl" alt="" loading="lazy" />
             <div v-else class="home-scheme-card-no-image"><ImagePlus :size="22" aria-hidden="true" /></div>
             <span class="selected-badge"><Check :size="15" aria-hidden="true" /></span>
-            <button class="outfit-card-delete home-scheme-card-delete" type="button" :title="messages.delete" :aria-label="messages.delete" :disabled="isBusy" @click.stop="removeScheme(item)"><Trash2 :size="16" aria-hidden="true" /></button>
+            <CardActions :label="messages.edit" :title="item.name || item.code" :close-label="messages.cancel" :disabled="isBusy"><button class="outfit-card-delete home-scheme-card-delete" type="button" :title="messages.delete" :aria-label="messages.delete" :disabled="isBusy" @click.stop="removeScheme(item)"><Trash2 :size="16" aria-hidden="true" /><span class="mobile-only">{{ messages.delete }}</span></button><button type="button" class="mobile-only" :disabled="isBusy" @click.stop="resetEditor(item)"><Edit3 :size="18" />{{ messages.edit }}</button><button type="button" class="mobile-only" @click.stop="openPreview(item)">{{ (language ?? 'zh') === 'zh' ? '查看大图' : 'Preview' }}</button></CardActions>
           </div>
           <div class="home-scheme-card-details">
             <div class="home-scheme-name-tag">
@@ -649,7 +635,7 @@ onBeforeUnmount(() => {
             <span class="outfit-code" :title="item.code">{{ item.code }}</span>
             <div class="outfit-card-actions">
               <button type="button" :title="messages.copy" :aria-label="messages.copy" :disabled="isBusy" @click.stop="copyCode(item)"><Copy :size="15" aria-hidden="true" /></button>
-              <button type="button" :title="messages.edit" :aria-label="messages.edit" :disabled="isBusy" @click.stop="resetEditor(item)"><Edit3 :size="15" aria-hidden="true" /></button>
+              <button class="desktop-only" type="button" :title="messages.edit" :aria-label="messages.edit" :disabled="isBusy" @click.stop="resetEditor(item)"><Edit3 :size="15" aria-hidden="true" /></button>
             </div>
           </div>
         </article>

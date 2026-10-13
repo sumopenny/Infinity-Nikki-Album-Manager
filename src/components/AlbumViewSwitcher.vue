@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ChevronLeft } from 'lucide-vue-next'
-import { ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
+import { useCompactLayout } from '../composables/useCompactLayout'
 import type { LocaleMessages } from '../i18n'
 
 export type AlbumView = 'all' | 'outfits' | 'home' | 'resonance' | 'favorites' | 'trash'
@@ -20,6 +21,7 @@ defineProps<{
 }>()
 
 const resonanceMenuOpen = ref(false)
+const compact = useCompactLayout()
 let closeTimer: ReturnType<typeof setTimeout> | null = null
 
 function openResonanceMenu() {
@@ -31,9 +33,11 @@ function closeResonanceMenu() {
   closeTimer = setTimeout(() => { resonanceMenuOpen.value = false }, 120)
 }
 
-function toggleResonanceMenu() {
-  resonanceMenuOpen.value = !resonanceMenuOpen.value
+// 触屏的兼容鼠标事件不能参与悬停；点击导航始终直接进入模块。
+function handlePointerEnter(event: PointerEvent) {
+  if (event.pointerType === 'mouse' && !compact.value) openResonanceMenu()
 }
+onBeforeUnmount(() => { if (closeTimer) clearTimeout(closeTimer) })
 
 defineEmits<{
   changeView: [view: AlbumView]
@@ -53,8 +57,8 @@ defineEmits<{
       ]"
       :key="item.view"
       class="album-view-item"
-      @mouseenter="item.view === 'resonance' ? openResonanceMenu() : undefined"
-      @mouseleave="item.view === 'resonance' ? closeResonanceMenu() : undefined"
+      @pointerenter="item.view === 'resonance' ? handlePointerEnter($event) : undefined"
+      @pointerleave="item.view === 'resonance' && $event.pointerType === 'mouse' ? closeResonanceMenu() : undefined"
     >
       <button
         class="album-view-button"
@@ -64,7 +68,7 @@ defineEmits<{
         :aria-pressed="activeView === item.view"
         :aria-haspopup="item.view === 'resonance' ? 'menu' : undefined"
         :aria-expanded="item.view === 'resonance' ? resonanceMenuOpen : undefined"
-        @click="item.view === 'resonance' ? toggleResonanceMenu() : $emit('changeView', item.view)"
+        @click="resonanceMenuOpen = false; $emit('changeView', item.view)"
       >
         <span>{{ item.label }}</span>
         <small v-if="item.view !== 'resonance'">{{ item.countText ?? messages.count(item.count) }}</small>
@@ -74,8 +78,8 @@ defineEmits<{
         v-if="item.view === 'resonance' && resonanceMenuOpen && !disabled"
         class="resonance-nav-menu"
         role="menu"
-        @mouseenter="openResonanceMenu"
-        @mouseleave="closeResonanceMenu"
+        @pointerenter="handlePointerEnter"
+        @pointerleave="$event.pointerType === 'mouse' && closeResonanceMenu()"
       >
         <button type="button" role="menuitem" :class="{ active: activeView === 'resonance' }" @click.stop="$emit('changeView', 'resonance')">共鸣记录</button>
         <button type="button" role="menuitem" disabled @click.stop>其余模块开发中</button>

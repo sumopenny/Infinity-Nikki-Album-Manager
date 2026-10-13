@@ -500,7 +500,7 @@
   white-space: nowrap;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 899px) {
   .app-header {
     position: static;
     flex-wrap: wrap;

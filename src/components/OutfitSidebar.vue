@@ -1,20 +1,22 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { GripVertical, Plus, X } from 'lucide-vue-next'
+import { ArrowDown, ArrowUp, GripVertical, Plus, X } from 'lucide-vue-next'
+import { useCompactLayout } from '../composables/useCompactLayout'
 import type { OutfitMessages } from '../i18n'
 import { MAX_OUTFIT_TAG_LENGTH, MAX_OUTFIT_TAGS, type OutfitItem } from '../utils/outfit/outfitTypes'
 
 export type OutfitFilter = 'all' | 'pending' | 'uncategorized' | `tag:${string}`
 
 const props = withDefaults(defineProps<{
+  language?: 'zh' | 'en'
   outfits: Pick<OutfitItem, 'code' | 'tags'>[]
   tags: string[]
-  activeFilter: OutfitFilter
+  activeFilter: string
   disabled: boolean
   messages: OutfitMessages
   showPending?: boolean
   maxTagLength?: number
-}>(), { showPending: true, maxTagLength: MAX_OUTFIT_TAG_LENGTH })
+}>(), { language: 'zh', showPending: true, maxTagLength: MAX_OUTFIT_TAG_LENGTH })
 
 const emit = defineEmits<{
   changeFilter: [filter: OutfitFilter]
@@ -23,6 +25,9 @@ const emit = defineEmits<{
   reorderTags: [tags: string[]]
 }>()
 
+const compact = useCompactLayout()
+const managingTags = ref(false)
+const sidebarRef = ref<HTMLElement | null>(null)
 const isAdding = ref(false)
 const tagInput = ref('')
 const inputRef = ref<HTMLInputElement | null>(null)
@@ -51,7 +56,7 @@ function updateEditorPosition() {
   const rect = toggle.getBoundingClientRect()
   const width = Math.min(260, window.innerWidth - 24)
   editorPosition.value = {
-    top: `${Math.max(12, rect.top - 3)}px`,
+    top: `${Math.max((window.visualViewport?.offsetTop ?? 0) + 12, Math.min(rect.top - 3, (window.visualViewport?.offsetTop ?? 0) + (window.visualViewport?.height ?? window.innerHeight) - 70))}px`,
     left: `${Math.max(12, Math.min(rect.right + 8, window.innerWidth - width - 12))}px`
   }
 }
@@ -89,7 +94,7 @@ function reorderedTags(): string[] {
 function updateDropTarget(event: PointerEvent) {
   const row = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-outfit-tag]')
   const tag = row?.dataset.outfitTag
-  if (!row || !tag || tag === draggedTag.value) {
+  if (!row || !sidebarRef.value?.contains(row) || !tag || tag === draggedTag.value) {
     dropTarget.value = null
     return
   }
@@ -124,6 +129,17 @@ function cancelTagDrag() {
 }
 
 /** 从指定标签的手柄开始指针拖拽。参数：event 为指针按下事件，tag 为被拖拽标签。 */
+/** 上下移动为触屏和键盘提供拖动之外的稳定排序入口。 */
+function moveTag(tag: string, offset: number) {
+  if (props.disabled) return
+  const next = [...displayedTags.value]
+  const index = next.indexOf(tag), destination = index + offset
+  if (index < 0 || destination < 0 || destination >= next.length) return
+  next.splice(destination, 0, ...next.splice(index, 1))
+  displayedTags.value = next
+  emit('reorderTags', next)
+}
+
 function startTagDrag(event: PointerEvent, tag: string) {
   if (props.disabled || event.button !== 0) return
   event.preventDefault()
@@ -147,6 +163,7 @@ defineExpose({ closeTagInput })
 onMounted(() => {
   document.addEventListener('pointerdown', handleDocumentPointerDown)
   window.addEventListener('resize', updateEditorPosition)
+  window.visualViewport?.addEventListener('resize', updateEditorPosition)
   window.addEventListener('scroll', updateEditorPosition, true)
 })
 
@@ -154,15 +171,17 @@ onBeforeUnmount(() => {
   cancelTagDrag()
   document.removeEventListener('pointerdown', handleDocumentPointerDown)
   window.removeEventListener('resize', updateEditorPosition)
+  window.visualViewport?.removeEventListener('resize', updateEditorPosition)
   window.removeEventListener('scroll', updateEditorPosition, true)
 })
 </script>
 
 <template>
-  <aside class="date-sidebar outfit-sidebar" :aria-label="messages.tagsTitle">
+  <aside ref="sidebarRef" class="date-sidebar outfit-sidebar" :aria-label="messages.tagsTitle">
     <div class="outfit-sidebar-heading">
       <div class="sidebar-section-title">{{ messages.tagsTitle }}</div>
-      <button
+      <button v-if="compact" class="tag-manage-toggle" type="button" :aria-pressed="managingTags" @click="managingTags = !managingTags; closeTagInput()">{{ language === 'zh' ? (managingTags ? '完成管理' : '管理标签') : (managingTags ? 'Done' : 'Manage tags') }}</button>
+      <button v-if="!compact || managingTags"
         ref="toggleRef"
         class="icon-button outfit-add-tag-toggle"
         type="button"
@@ -184,6 +203,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="outfit-filter-list">
+      <slot name="filters">
       <button
         v-for="item in [
           { filter: 'all' as const, label: messages.all },
@@ -200,6 +220,7 @@ onBeforeUnmount(() => {
         <span>{{ item.label }}</span><small>{{ countFor(item.filter) }}</small>
       </button>
 
+      </slot>
       <div
         v-for="tag in displayedTags"
         :key="tag"
@@ -212,6 +233,7 @@ onBeforeUnmount(() => {
         :data-outfit-tag="tag"
       >
         <button
+          v-if="!compact || managingTags"
           class="outfit-tag-drag-handle"
           type="button"
           :aria-label="`${messages.reorderTag}: ${tag}`"
@@ -230,7 +252,9 @@ onBeforeUnmount(() => {
         >
           <span>{{ tag }}</span><small>{{ countFor(`tag:${tag}`) }}</small>
         </button>
+        <div v-if="compact && managingTags" class="tag-order-buttons"><button type="button" :disabled="disabled || displayedTags[0] === tag" :aria-label="(language === 'zh' ? '上移标签: ' : 'Move tag up: ') + tag" @click="moveTag(tag, -1)"><ArrowUp :size="16" /></button><button type="button" :disabled="disabled || displayedTags.at(-1) === tag" :aria-label="(language === 'zh' ? '下移标签: ' : 'Move tag down: ') + tag" @click="moveTag(tag, 1)"><ArrowDown :size="16" /></button></div>
         <button
+          v-if="!compact || managingTags"
           class="outfit-delete-tag"
           type="button"
           :title="`${messages.deleteTag}: ${tag}`"

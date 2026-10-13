@@ -1,6 +1,7 @@
 import { openDb, runStoreRequest, OUTFITS_STORE, OUTFIT_IMAGES_STORE, OUTFIT_TAGS_STORE, OUTFIT_IGNORED_CODES_STORE } from '../file-system/database'
 import { convertImageToWebp, MAX_IMAGE_BYTES, validateImageBlob } from '../image'
 import { displayOutfit } from './outfitImageLoader'
+import { sha256Hex } from '../sha256'
 import { createOutfitId, DEFAULT_OUTFIT_TAGS, DuplicateOutfitCodeError, normalizeOutfitCode, normalizeOutfitRecord,
   normalizeOutfitTagList, type OutfitRecord, type OutfitItem, type SaveOutfitInput, type OutfitDeleteResult } from './outfitTypes'
 
@@ -25,8 +26,7 @@ export async function outfitTransaction<T>(stores: string[], mode: IDBTransactio
   })
 }
 export async function hashOutfitBlob(blob: Blob): Promise<string> {
-  const hash = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer())
-  return [...new Uint8Array(hash)].map(n => n.toString(16).padStart(2, '0')).join('')
+  return sha256Hex(await blob.arrayBuffer())
 }
 export async function prepareOutfitImage(blob: Blob, id: string, decode = true): Promise<OutfitImage> {
   if (!blob.size || blob.size > MAX_IMAGE_BYTES) throw new Error('outfit_image_invalid')
