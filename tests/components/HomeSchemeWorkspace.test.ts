@@ -3,6 +3,8 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { messages } from '../../src/i18n'
 import HomeSchemeWorkspace from '../../src/components/HomeSchemeWorkspace.vue'
+import SelectionBar from '../../src/components/SelectionBar.vue'
+import * as homeStorage from '../../src/utils/homeBuild/homeSchemeStorage'
 import { parseHomeScheme } from '../../src/utils/homeBuild/homeSchemeParser'
 import { homeSchemeMessages } from '../../src/i18n/messages/homeScheme'
 import { DB_NAME } from '../../src/utils/file-system/database'
@@ -18,10 +20,74 @@ beforeEach(() => {
   vi.clearAllMocks()
   document.body.innerHTML = '<div id="album-sidebar-column"></div>'
 })
+
+it('confirms and deletes only visible selected schemes, keeping the confirmed target when filters change', async () => {
+  for (const name of ['Alpha', 'Beta']) {
+    await saveHomeScheme({ code: name.toUpperCase(), name, schemeType: 'home', tags: [], note: '', metadata: createEmptyHomeSchemeMetadata() })
+  }
+  let confirm!: (answer: boolean) => void
+  const confirmAction = vi.fn(() => new Promise<boolean>(resolve => { confirm = resolve }))
+  const wrapper = mount(HomeSchemeWorkspace, { props: { ...props, confirmAction }, attachTo: document.body })
+  try {
+    await vi.waitFor(() => expect(wrapper.findAll('.home-scheme-card')).toHaveLength(2))
+    for (const card of wrapper.findAll('.home-scheme-card')) await card.trigger('click')
+    await wrapper.setProps({ searchQuery: 'Alpha' })
+    expect(wrapper.findComponent(SelectionBar).props('selectedCount')).toBe(1)
+    wrapper.findComponent(SelectionBar).vm.$emit('delete')
+    await flushPromises()
+    expect(confirmAction).toHaveBeenCalledWith(homeSchemeMessages.zh.deleteSelectedConfirm(1))
+    await wrapper.setProps({ searchQuery: 'Beta' })
+    confirm(true)
+    await vi.waitFor(async () => expect((await readHomeSchemeSnapshot()).records.map(record => record.name)).toEqual(['Beta']))
+    expect(wrapper.findComponent(SelectionBar).props('selectedCount')).toBe(1)
+  } finally { wrapper.unmount() }
+})
 afterEach(async () => {
+  vi.restoreAllMocks()
   vi.useRealTimers()
   document.body.innerHTML = ''
   await new Promise<void>((resolve, reject) => { const r = indexedDB.deleteDatabase(DB_NAME); r.onsuccess = () => resolve(); r.onerror = () => reject(r.error) })
+})
+
+it.each([false, true])('keeps the library consistent after cancellation or partial deletion failure (%s)', async partialFailure => {
+  for (const name of ['Alpha', 'Beta']) {
+    await saveHomeScheme({ code: name.toUpperCase(), name, schemeType: 'home', tags: [], note: '', metadata: createEmptyHomeSchemeMetadata() })
+  }
+  const originalDelete = homeStorage.deleteHomeScheme
+  const deletion = vi.spyOn(homeStorage, 'deleteHomeScheme')
+  if (partialFailure) deletion.mockImplementationOnce(originalDelete).mockRejectedValueOnce(new Error('delete failed'))
+  const wrapper = mount(HomeSchemeWorkspace, { props: { ...props, confirmAction: async () => partialFailure }, attachTo: document.body })
+  try {
+    await vi.waitFor(() => expect(wrapper.findAll('.home-scheme-card')).toHaveLength(2))
+    for (const card of wrapper.findAll('.home-scheme-card')) await card.trigger('click')
+    wrapper.findComponent(SelectionBar).vm.$emit('delete')
+    await flushPromises()
+    const count = partialFailure ? 1 : 2
+    await vi.waitFor(() => expect(wrapper.findAll('.home-scheme-card')).toHaveLength(count))
+    expect((await readHomeSchemeSnapshot()).records).toHaveLength(count)
+    expect(wrapper.findComponent(SelectionBar).props('selectedCount')).toBe(count)
+    expect(deletion).toHaveBeenCalledTimes(partialFailure ? 2 : 0)
+  } finally { wrapper.unmount() }
+})
+
+it('keeps stale editor input and reloads the latest record when the editor closes', async () => {
+  const base = { code: 'ALPHA', name: 'Alpha', schemeType: 'home' as const, tags: [], note: '', metadata: createEmptyHomeSchemeMetadata() }
+  const saved = await saveHomeScheme(base)
+  const wrapper = mount(HomeSchemeWorkspace, { props, attachTo: document.body })
+  try {
+    await vi.waitFor(() => expect(wrapper.findAll('.home-scheme-card')).toHaveLength(1))
+    await wrapper.get(`.home-scheme-card button[aria-label="${homeSchemeMessages.zh.edit}"]`).trigger('click')
+    const name = document.querySelector<HTMLInputElement>('#home-scheme-name')!
+    name.value = '未保存输入'; name.dispatchEvent(new Event('input', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+    await saveHomeScheme({ ...base, item: saved, name: '另一窗口保存' })
+    document.querySelector<HTMLButtonElement>('.home-scheme-editor .confirm-dialog-button.primary')!.click()
+    await vi.waitFor(() => expect(wrapper.emitted('status')?.at(-1)).toEqual([homeSchemeMessages.zh.recordChanged, 'warning']))
+    expect(name.value).toBe('未保存输入')
+    expect((await readHomeSchemeSnapshot()).records[0]?.name).toBe('另一窗口保存')
+    document.querySelector<HTMLButtonElement>('.home-scheme-editor .confirm-dialog-button.ghost')!.click()
+    await vi.waitFor(() => expect(wrapper.get('.home-scheme-card').text()).toContain('另一窗口保存'))
+  } finally { wrapper.unmount() }
 })
 
 it('adds and persists a parsed scheme without any album directory', async () => {

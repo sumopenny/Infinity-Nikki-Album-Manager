@@ -6,8 +6,7 @@
 .header-dropdown { overflow-y: auto; overscroll-behavior: contain; }
 .more-menu-content { display: contents; }
 .collection-action-menu { position: relative; }
-.collection-action-menu summary { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 12px; list-style: none; cursor: pointer; }
-.collection-action-menu summary::-webkit-details-marker { display: none; }
+.collection-action-trigger { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); cursor: pointer; }
 .collection-action-options { position: absolute; z-index: 35; top: calc(100% + 4px); right: 0; display: grid; gap: 4px; width: min(240px, 75vw); padding: 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-strong); box-shadow: var(--dialog-shadow); }
 .collection-actions .collection-action-options > button { width: 100%; justify-content: flex-start; white-space: normal; }
 .mobile-filter-overlay, .mobile-menu-backdrop { position: fixed; z-index: 90; inset: 0; background: var(--overlay-bg, rgba(24,21,21,.4)); }
@@ -36,6 +35,9 @@
     --mobile-dialog-gap: 12px;
     --mobile-dialog-radius: 20px;
     --mobile-dialog-space: calc(var(--visible-height,100dvh) - max(var(--mobile-dialog-gap),env(safe-area-inset-top,0px)) - max(var(--mobile-dialog-gap),env(safe-area-inset-bottom,0px)));
+    --mobile-motion-enter: 220ms;
+    --mobile-motion-leave: 160ms;
+    --mobile-motion-press: 100ms;
   }
   .mobile-only { display: flex; }
   .desktop-only { display: none !important; }
@@ -92,8 +94,8 @@
   .collection-filter-actions { display: flex; flex-shrink: 0; }
   .tag-picker-bar .collection-actions { margin: 0; flex-wrap: nowrap; gap: 6px; }
   .tag-picker-bar .collection-icon-actions > button { display: grid; place-items: center; flex: 0 0 var(--mobile-compact-control-size); width: var(--mobile-compact-control-size); height: var(--mobile-compact-control-size); min-height: var(--mobile-compact-control-size); padding: 0; border-radius: 10px; }
-  .tag-picker-bar .collection-action-menu summary { width: var(--mobile-compact-control-size); height: var(--mobile-compact-control-size); border-radius: 10px; }
-  .tag-picker-bar .collection-action-menu summary svg { width: var(--mobile-icon-size); height: var(--mobile-icon-size); }
+  .tag-picker-bar .collection-action-trigger { width: var(--mobile-compact-control-size); height: var(--mobile-compact-control-size); min-height: var(--mobile-compact-control-size); padding: 0; border-radius: 10px; }
+  .tag-picker-bar .collection-action-trigger svg { width: var(--mobile-icon-size); height: var(--mobile-icon-size); }
   .tag-picker-bar .collection-icon-actions > .primary-button { background: var(--pink-deep); border-color: var(--pink-deep); color: white; }
   .collection-icon-actions .collection-action-label { display: none; }
   /* 共鸣内容区补齐顶部间距，避免记录卡片紧贴手机筛选栏。 */
@@ -204,16 +206,16 @@
   .mobile-filter-overlay, .mobile-menu-backdrop, .lightbox, .outfit-guide { top: var(--visible-top,0px); bottom: auto; height: var(--visible-height,100dvh); }
   .dialog-overlay, .outfit-editor, .camera-editor-overlay, .outfit-detail-overlay, .note-dialog,
   .mobile-filter-overlay { padding: max(var(--mobile-dialog-gap),env(safe-area-inset-top,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-right,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-bottom,0px)) max(var(--mobile-dialog-gap),env(safe-area-inset-left,0px)); }
-  .dialog-panel, .outfit-editor-panel, .camera-editor, .outfit-detail-panel, .note-dialog-panel { width: 100%; max-width: 100%; max-height: min(100%,var(--mobile-dialog-space)); border-radius: var(--mobile-dialog-radius); }
-  .outfit-editor-panel, .camera-editor { height: min(100%,var(--mobile-dialog-space)); display: flex; flex-direction: column; overflow: hidden; }
-  .outfit-editor-panel > header, .camera-editor > header, .outfit-editor-panel > footer, .camera-editor > footer { flex-shrink: 0; margin: 0; padding: 12px 16px; }
-  .outfit-editor-content, .camera-editor fieldset { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px; }
-  .outfit-editor-panel > footer, .camera-editor > footer { padding-bottom: max(12px,env(safe-area-inset-bottom,0px)); }
-  .outfit-editor input, .outfit-editor textarea, .camera-editor input, .camera-editor textarea, .dialog-panel input, .dialog-panel textarea, .note-dialog input { font-size: var(--mobile-input-font-size); }
+  .dialog-panel, .outfit-editor-panel, .outfit-detail-panel, .note-dialog-panel { width: 100%; max-width: 100%; max-height: min(100%,var(--mobile-dialog-space)); border-radius: var(--mobile-dialog-radius); }
+  .outfit-editor-panel { height: min(100%,var(--mobile-dialog-space)); display: flex; flex-direction: column; overflow: hidden; }
+  .outfit-editor-panel > header, .outfit-editor-panel > footer { flex-shrink: 0; margin: 0; padding: 12px 16px; }
+  .outfit-editor-content { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px; }
+  .outfit-editor-panel > footer { padding-bottom: max(12px,env(safe-area-inset-bottom,0px)); }
+  .outfit-editor input, .outfit-editor textarea, .dialog-panel input, .dialog-panel textarea, .note-dialog input { font-size: var(--mobile-input-font-size); }
   .outfit-tag-editor input { font-size: var(--mobile-input-font-size); min-height: var(--mobile-control-size); }
   .dialog-panel > header { position: sticky; z-index: 2; top: 0; background: var(--surface-strong); }
   .dialog-panel > footer { position: sticky; z-index: 2; bottom: 0; background: var(--surface-strong); padding-bottom: max(12px,env(safe-area-inset-bottom,0px)); }
-  .dialog-panel header button, .outfit-editor header button, .camera-editor header button, .outfit-guide-open, .photo-note-edit, .photo-params-parse, .favorite-heart { min-width: var(--mobile-control-size); min-height: var(--mobile-control-size); }
+  .dialog-panel header button, .outfit-editor header button, .outfit-guide-open, .photo-note-edit, .photo-params-parse, .favorite-heart { min-width: var(--mobile-control-size); min-height: var(--mobile-control-size); }
   .photo-note-edit, .photo-params-parse, .favorite-heart { opacity: 1; }
   .photo-params-parse { right: 60px; }
   .photo-grid { grid-template-columns: var(--mobile-collection-columns); }
@@ -224,7 +226,7 @@
   .lightbox-toolbar { flex: 0 1 auto; min-width: 0; max-width: 100%; border-radius: var(--mobile-dialog-radius); }
   .lightbox-toolbar button, .lightbox-zoom-controls button, .lightbox-close, .lightbox-nav-button { min-width: var(--mobile-control-size); min-height: var(--mobile-control-size); }
   /* 仅收紧手机窗口的关闭入口，保留标题栏其他操作和原有小按钮尺寸。 */
-  :is(.dialog-panel, .outfit-editor-panel, .camera-editor) > header button:has(> svg.lucide-x),
+  :is(.dialog-panel, .outfit-editor-panel) > header button:has(> svg.lucide-x),
   .mobile-filter-panel > header button:has(> svg.lucide-x),
   .header-dropdown .mobile-menu-heading button:has(> svg.lucide-x),
   .lightbox .lightbox-close,
@@ -236,7 +238,7 @@
     min-height: var(--mobile-compact-control-size);
     padding: 0;
   }
-  :is(.dialog-panel, .outfit-editor-panel, .camera-editor) > header button > svg.lucide-x,
+  :is(.dialog-panel, .outfit-editor-panel) > header button > svg.lucide-x,
   .mobile-filter-panel > header button > svg.lucide-x,
   .header-dropdown .mobile-menu-heading button > svg.lucide-x,
   .lightbox .lightbox-close > svg,
@@ -249,6 +251,57 @@
   .outfit-guide-panel { max-width: 100%; max-height: var(--mobile-dialog-space); border-radius: var(--mobile-dialog-radius); }
   .update-log-panel, .help-about-panel { height: min(720px,var(--mobile-dialog-space)); max-height: min(100%,var(--mobile-dialog-space)); }
   .fortune-time-panel, .resonance-import-panel { height: min(820px,var(--mobile-dialog-space)); max-height: min(100%,var(--mobile-dialog-space)); }
+
+  /* 遮罩和面板同周期结束，避免父层先卸载而截断子层退场。 */
+  .mobile-modal-enter-active, .mobile-backdrop-enter-active, .confirm-dialog-enter-active { transition: opacity var(--mobile-motion-enter) ease; }
+  .mobile-modal-leave-active, .mobile-backdrop-leave-active, .confirm-dialog-leave-active { transition: opacity var(--mobile-motion-leave) ease; }
+  .mobile-modal-enter-from, .mobile-modal-leave-to, .mobile-backdrop-enter-from, .mobile-backdrop-leave-to { opacity: 0; }
+  .mobile-modal-enter-active .mobile-filter-panel {
+    transition: opacity var(--mobile-motion-enter) ease, transform var(--mobile-motion-enter) var(--ease-spring);
+  }
+  .mobile-modal-leave-active .mobile-filter-panel {
+    transition: opacity var(--mobile-motion-leave) ease, transform var(--mobile-motion-leave) ease-in;
+  }
+  .mobile-modal-enter-from .mobile-filter-panel, .mobile-modal-leave-to .mobile-filter-panel {
+    opacity: 0; transform: translateY(8px) scale(.99);
+  }
+  .confirm-dialog-enter-active :is(.dialog-panel, .confirm-dialog-panel, .outfit-editor-panel, .outfit-detail-panel, .note-dialog-panel, .outfit-guide-panel) {
+    transition: opacity var(--mobile-motion-enter) ease, transform var(--mobile-motion-enter) var(--ease-spring);
+  }
+  .confirm-dialog-leave-active :is(.dialog-panel, .confirm-dialog-panel, .outfit-editor-panel, .outfit-detail-panel, .note-dialog-panel, .outfit-guide-panel) {
+    transition: opacity var(--mobile-motion-leave) ease, transform var(--mobile-motion-leave) ease-in;
+  }
+  .confirm-dialog-enter-from :is(.dialog-panel, .confirm-dialog-panel, .outfit-editor-panel, .outfit-detail-panel, .note-dialog-panel, .outfit-guide-panel),
+  .confirm-dialog-leave-to :is(.dialog-panel, .confirm-dialog-panel, .outfit-editor-panel, .outfit-detail-panel, .note-dialog-panel, .outfit-guide-panel) {
+    opacity: 0; transform: translateY(8px) scale(.99);
+  }
+  /* 全高编辑器仅轻移；居中菜单显式保留定位用的 -50%，避免入场跳位。 */
+  .confirm-dialog-enter-from .outfit-editor-panel, .confirm-dialog-leave-to .outfit-editor-panel { transform: translateY(8px); }
+  .mobile-menu-sheet.mobile-menu-enter-active { transition: opacity var(--mobile-motion-enter) ease, transform var(--mobile-motion-enter) var(--ease-spring); }
+  .mobile-menu-sheet.mobile-menu-leave-active { transition: opacity var(--mobile-motion-leave) ease, transform var(--mobile-motion-leave) ease-in; }
+  .mobile-menu-sheet.mobile-menu-enter-from, .mobile-menu-sheet.mobile-menu-leave-to { opacity: 0; transform: translateY(8px); }
+  .mobile-menu-sheet.view-dropdown.mobile-menu-enter-from, .mobile-menu-sheet.view-dropdown.mobile-menu-leave-to { transform: translateY(calc(-50% + 8px)) scale(.99); }
+  .collection-action-options { transform-origin: top right; }
+  .mobile-action-menu-enter-active { transition: opacity 160ms ease, transform 160ms var(--ease-spring); }
+  .mobile-action-menu-leave-active { transition: opacity 120ms ease, transform 120ms ease-in; }
+  .mobile-action-menu-enter-from, .mobile-action-menu-leave-to { opacity: 0; transform: translateY(-4px) scale(.98); }
+  .mobile-menu-leave-active, .mobile-action-menu-leave-active { pointer-events: none; }
+  .mobile-modal-leave-active > *, .confirm-dialog-leave-active > * { pointer-events: none; }
+
+  /* 手机控件共用轻量按压反馈；不改变定位 transform，禁用项也不参与缩放。 */
+  :is(.mobile-header-row, .mobile-header-search, .mobile-navigation, .collection-filter-bar, .mobile-filter-panel, .mobile-menu-sheet, .photo-card .outfit-card-actions) button,
+  .collection-action-trigger {
+    transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease, border-color var(--motion-fast) ease, scale var(--motion-fast) var(--ease-spring);
+  }
+  :is(.mobile-header-row, .mobile-header-search, .mobile-navigation, .collection-filter-bar, .mobile-filter-panel, .mobile-menu-sheet, .photo-card .outfit-card-actions) button:active:not(:disabled),
+  .collection-action-trigger:active:not(:disabled) { scale: .97; transition-duration: var(--mobile-motion-press); }
+  .collection-filter-bar .primary-button:active:not(:disabled) { transform: none; }
+  :is(.mobile-header-row, .mobile-header-search, .mobile-navigation, .photo-card .outfit-card-actions) button:active:not(:disabled),
+  .collection-action-trigger:active:not(:disabled) { background: var(--soft-accent); color: var(--heading); }
+  @media (prefers-reduced-motion: reduce) {
+    :is(.mobile-header-row, .mobile-header-search, .mobile-navigation, .collection-filter-bar, .mobile-filter-panel, .mobile-menu-sheet, .photo-card .outfit-card-actions) button:active:not(:disabled),
+    .collection-action-trigger:active:not(:disabled) { scale: 1; }
+  }
 }
 
 @media (min-width: 600px) and (max-width: 899px) {

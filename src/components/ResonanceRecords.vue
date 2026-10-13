@@ -9,7 +9,7 @@ import { importFromPearpal, PEARPAL_AUTH_FAILED, PEARPAL_NO_RECORDS, PEARPAL_UID
 import { createResonanceExport, parseResonanceFile, RESONANCE_FILE_EMPTY, RESONANCE_FILE_INVALID } from '../utils/resonance/resonanceFile'
 import { getResonancePartIconUrl, sortResonanceParts, sortResonanceRecords, type ResonanceBannerOrder, type ResonanceRarityFilter } from '../utils/resonance/resonanceCatalog'
 import { parseResonanceCookie, resonanceBookmarkScript, resonanceConsoleScript } from '../utils/resonance/resonanceScripts'
-import { loadResonanceRecords, saveResonanceRecords } from '../utils/resonance/resonanceStorage'
+import { loadResonanceRecords, mergeResonanceRecords, saveResonanceRecords } from '../utils/resonance/resonanceStorage'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { ResonanceLocalizedName, ResonanceRecord } from '../utils/resonance/resonanceTypes'
 
@@ -256,13 +256,11 @@ async function confirmImport() {
   confirming.value = true
   clearNotice()
   try {
-    const merged = new Map(records.value.map((record) => [record.id, record]))
-    for (const record of preview.value) merged.set(record.id, record)
-    const mergedRecords = [...merged.values()].map((record) => toRaw(record))
+    const importedRecords = preview.value.map((record) => toRaw(record))
     const importedCount = preview.value.length
     const skippedCount = skippedPools.value
-    await saveResonanceRecords(mergedRecords)
-    records.value = mergedRecords
+    // 合并以事务内的最新数据为准，不能回写页面加载时的旧记录列表。
+    records.value = await mergeResonanceRecords(importedRecords)
     confirming.value = false
     closeDialog()
     notify('import-success', skippedCount ? t.value.partialImport(skippedCount) : t.value.importSuccess(importedCount), skippedCount ? 'warning' : 'success')

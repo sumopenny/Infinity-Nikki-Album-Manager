@@ -14,7 +14,6 @@ const baseProps = {
   canCancel: true,
   cancelLabel: '取消导出',
   closeLabel: '关闭',
-  completedLabel: '已完成',
   failedLabel: '失败',
   cancelledLabel: '已取消',
   closeActionLabel: '关闭结果'

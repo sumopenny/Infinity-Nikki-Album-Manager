@@ -59,7 +59,6 @@ export interface LocaleMessages {
     exportTargetInvalid: string
     transferClose: string
     transferCancel: string
-    transferCompleted: string
     transferFailed: string
     transferCancelled: string
     dialogCloseAria: string
@@ -294,6 +293,7 @@ export interface LocaleMessages {
     editNote: string
     notePrompt: string
     noteSaved: string
+    noteSaveErrors: Record<'invalid' | 'changed' | 'lockUnavailable' | 'verificationFailed', string>
     noteLabel: string
     noteTitle: string
     notePlaceholder: string

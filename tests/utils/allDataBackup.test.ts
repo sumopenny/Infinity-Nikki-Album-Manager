@@ -8,11 +8,25 @@ import { saveOutfit, deleteOutfit, readOutfitSnapshot, hashOutfitBlob } from '..
 import { saveHomeScheme, saveHomeSchemeTags, readHomeSchemeSnapshot, releaseHomeSchemeUrls } from '../../src/utils/homeBuild/homeSchemeStorage'
 import { saveCameraFavorite, coverMetadata, readCameraFavorites, type CameraFavorite } from '../../src/utils/photo-params/favorites'
 import { parseResonanceFile } from '../../src/utils/resonance/resonanceFile'
-import { loadResonanceRecords, saveResonanceRecords } from '../../src/utils/resonance/resonanceStorage'
+import { loadResonanceRecords, saveResonanceRecords, mergeResonanceRecords } from '../../src/utils/resonance/resonanceStorage'
 import { runStoreRequest } from '../../src/utils/file-system/database'
 import { CAMERA_BACKUP_LIMITS, OUTFIT_BACKUP_LIMITS } from '../../src/utils/backup/zipBackup'
 import * as homeBackup from '../../src/utils/homeBuild/homeSchemeBackup'
 setupOutfitDatabaseTests()
+
+it('preserves a concurrent resonance import while restoring a full backup', async () => {
+  await seed()
+  const plan = await prepareAllDataBackup(await exported())
+  await resetOutfitDatabase()
+  const incoming = { ...plan.resonance[0]!, id: 'other-window:outfit', bannerId: 'other-window' }
+  let concurrent: Promise<unknown> = Promise.resolve()
+  const result = await applyAllDataBackup(plan, async () => ({}), module => {
+    if (module === 'resonance') concurrent = mergeResonanceRecords([incoming])
+  })
+  await concurrent
+  expect(result?.find(item => item.module === 'resonance')).toMatchObject({ saved: 1, failed: 0 })
+  expect((await loadResonanceRecords()).map(record => record.id).sort()).toEqual([incoming.id, plan.resonance[0]!.id].sort())
+})
 const camera = (id = 'camera-one', code = 'CAMERA'): CameraFavorite => ({
   id, code, version: 1, name: '参数', tag: '人像', source: 'manual', cover: null,
   createdAt: '2026-10-12T00:00:00.000Z', updatedAt: '2026-10-12T00:00:00.000Z',

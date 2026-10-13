@@ -293,10 +293,14 @@ describe('ResonanceRecords', () => {
     expect(panel.querySelector('.resonance-preview tbody')?.textContent).toContain('17')
     expect(panel.textContent).not.toContain('第二套')
 
+    // 预览期间另一窗口替换了本地数据：旧页面不能恢复已删除的阁，也不能丢失新阁。
+    const latestOnly = { ...localOnly, id: 'latest-only:outfit', bannerId: 'latest-only' }
+    await saveResonanceRecords([latestOnly])
     ;(panel.querySelector('.resonance-import-footer button:last-child') as HTMLButtonElement).click()
     await vi.waitFor(async () => expect(await loadResonanceRecords()).toHaveLength(2))
     const stored = await loadResonanceRecords()
-    expect(stored.map((record) => record.id)).toEqual(expect.arrayContaining(['local-only:outfit', '77:10347']))
+    expect(stored.map((record) => record.id)).toEqual(expect.arrayContaining(['latest-only:outfit', '77:10347']))
+    expect(stored.some(record => record.id === localOnly.id)).toBe(false)
     expect(stored.find((record) => record.id === '77:10347')?.sets[0].totalPulls).toBe(17)
     expect(wrapper.find('.resonance-record-heading p').text()).toContain('总抽数：17')
     expect(document.body.querySelector('.resonance-import-panel')).toBeNull()
@@ -336,7 +340,7 @@ describe('ResonanceRecords', () => {
 it('blocks import after a storage read failure without overwriting existing records', async () => {
   await saveResonanceRecords([savedRecord])
   vi.spyOn(resonanceStorage, 'loadResonanceRecords').mockRejectedValueOnce(new Error('read failed'))
-  const save = vi.spyOn(resonanceStorage, 'saveResonanceRecords')
+  const save = vi.spyOn(resonanceStorage, 'mergeResonanceRecords')
   const { wrapper, panel } = await openDialog()
   panel.querySelectorAll<HTMLButtonElement>('.resonance-choice-row:first-child button')[1]!.click()
   await flushPromises()

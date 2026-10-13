@@ -40,12 +40,36 @@ it('keeps images independent of source files and deletes tags without losing sch
   const time = saved.createdAt
   expect(await deleteHomeSchemeTag('庭院')).toEqual({ tags: [], updatedCount: 1 })
   expect((await readHomeSchemeSnapshot()).images.get(saved.id)?.blob.size).toBe(image().size)
-  const changed = await saveHomeScheme({ ...input(), tags: [], item: saved, removeImage: true })
+  await expect(saveHomeScheme({ ...input(), tags: [], item: saved, removeImage: true })).rejects.toThrow('home_scheme_record_changed')
+  const latest = (await readHomeSchemeSnapshot()).records[0]!
+  const changed = await saveHomeScheme({ ...input(), tags: [], item: { ...latest, imageUrl: null }, removeImage: true })
   expect(changed.createdAt).toBe(time)
   expect(changed.image).toBeNull()
   expect((await readHomeSchemeSnapshot()).images.size).toBe(0)
   await deleteHomeScheme(changed)
   expect((await readHomeSchemeSnapshot()).records).toHaveLength(0)
+})
+
+it('rejects a stale editor and advances the baseline even for writes in the same millisecond', async () => {
+  vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-13T00:00:00.000Z'))
+  const saved = await saveHomeScheme({ ...input(), tags: [] })
+  const results = await Promise.allSettled([
+    saveHomeScheme({ ...input(), tags: [], item: saved, name: '最新名称', note: '最新备注' }),
+    saveHomeScheme({ ...input(), tags: [], item: saved, name: '旧窗口名称' })
+  ])
+  expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1)
+  expect((results.find(result => result.status === 'rejected') as PromiseRejectedResult).reason.message).toBe('home_scheme_record_changed')
+  const latest = (await readHomeSchemeSnapshot()).records[0]!
+  expect(latest).toMatchObject({ name: '最新名称', note: '最新备注' })
+  expect(Date.parse(latest.updatedAt)).toBeGreaterThan(Date.parse(saved.updatedAt))
+  await expect(saveHomeScheme({ ...input(), tags: [], item: { ...latest, imageUrl: null }, name: '重新编辑' })).resolves.toMatchObject({ name: '重新编辑' })
+})
+
+it('does not recreate a record deleted by another window', async () => {
+  const saved = await saveHomeScheme({ ...input(), tags: [] })
+  await deleteHomeScheme(saved)
+  await expect(saveHomeScheme({ ...input(), tags: [], item: saved })).rejects.toThrow('home_scheme_record_missing')
+  expect((await readHomeSchemeSnapshot()).records).toEqual([])
 })
 
 it('rolls record and image writes back when a successful request is followed by transaction abort', async () => {

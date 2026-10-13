@@ -95,6 +95,7 @@ export function releaseHomeSchemeUrls(schemes: HomeSchemeItem[]): void {
   for (const scheme of schemes) if (scheme.image && scheme.imageUrl?.startsWith('blob:')) URL.revokeObjectURL(scheme.imageUrl)
 }
 
+/** 在写入事务中核对编辑基线，防止旧窗口覆盖已保存的记录或标签变更。 */
 export async function saveHomeScheme(input: SaveHomeSchemeInput): Promise<HomeSchemeItem> {
   const prepared = input.imageFile && !input.removeImage
     ? await prepareHomeSchemeImage(await convertImageToWebp(input.imageFile), input.item?.id ?? input.id ?? createHomeSchemeId()) : null
@@ -103,6 +104,9 @@ export async function saveHomeScheme(input: SaveHomeSchemeInput): Promise<HomeSc
     const tags = normalizeHomeSchemeTags(await homeRequest(tx.objectStore(HOME_TAGS_STORE).get('default')) ?? [])
     const previous = input.item ? await homeRequest(records.get(input.item.id)) as HomeSchemeRecord | undefined : undefined
     if (input.item && !previous) throw new Error('home_scheme_record_missing')
+    if (input.item && JSON.stringify(normalizeHomeSchemeRecord(previous)) !== JSON.stringify(normalizeHomeSchemeRecord(input.item))) {
+      throw new Error('home_scheme_record_changed')
+    }
     let id = previous?.id ?? input.id ?? prepared?.id ?? createHomeSchemeId()
     if (!previous && await homeRequest(records.get(id))) id = createHomeSchemeId()
     const record = normalizeHomeSchemeRecord({ version: 1, id,
@@ -110,7 +114,9 @@ export async function saveHomeScheme(input: SaveHomeSchemeInput): Promise<HomeSc
       code: input.code, name: input.name, schemeType: input.schemeType, metadata: input.metadata,
       tags: input.tags.map(normalizeHomeSchemeTag).filter(tag => tags.includes(tag)).slice(0, 1),
       note: input.note.trim(), createdAt: input.createdAt ?? previous?.createdAt ?? new Date().toISOString(),
-      updatedAt: input.updatedAt ?? new Date().toISOString() })
+      // 即使同一毫秒内只更换图片，也必须推进版本时间以识别旧编辑。
+      updatedAt: previous ? new Date(Math.max(Date.now(), Date.parse(previous.updatedAt) + 1)).toISOString()
+        : input.updatedAt ?? new Date().toISOString() })
     const duplicate = await homeRequest(records.index('code').get(record.code)) as HomeSchemeRecord | undefined
     if (duplicate && duplicate.id !== id) throw new Error('home_scheme_code_duplicate')
     let image = record.image ? prepared ? { ...prepared, id } : await homeRequest(images.get(id)) as HomeSchemeImage | undefined : undefined

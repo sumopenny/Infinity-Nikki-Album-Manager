@@ -41,6 +41,7 @@
 
 ### Phones and compact windows
 
+- View, More, tag filters and ellipsis action menus use subtle entrance and exit animations on phones, with consistent dialog timing. Header, bottom navigation and card actions provide press feedback and respect the system's reduced-motion preference. Header menus and filter dialogs keep background scrolling locked until their exit completes and avoid taking focus away from a newly opened dialog.
 - Below 900px, the header keeps the desktop brand presentation, and bottom navigation provides only Outfits, Home schemes, Camera parameters and Resonance. Camera parameters opens the saved parameter collection directly, without the Photo favorites/Camera parameters tabs; desktop keeps the original Favorites tabs. Phones start with Outfits. Album directory access and targeted cleanup require a supported desktop browser.
 - The top-right controls are Search (magnifying glass), View and More, in that order. Search applies to the current module through a popover below the header, without changing header height. Clear removes the query; Close keeps the filter, indicated by the themed magnifying glass. Opening View/More or switching modules dismisses the popover; View opens thumbnail, theme and language settings directly, in a window centered in the visible viewport, with a fixed title and close button at the top. Half-size 1:1 is disabled across all modules on phones. Saved half-size preferences display as regular 1:1 on phones while desktop preferences are preserved. Camera parameter favorites and Resonance records use fixed layouts, so all ratio choices are disabled on phones and desktop while theme and language remain available. More contains parsing tools, fortune time, full data backups and help. The More window matches the scheme editor's size and position. Its title and close button stay fixed at the top while the menu below scrolls independently.
 - Outfits, Home schemes and Camera favorites combine tags, the result count, Add and backup actions in one row. Add shows only a plus icon; the actions menu shows only an ellipsis icon and contains Import and Export. An active filter can be cleared with one tap. All tags or the current category opens a centered tag picker, without a duplicate Filter button. Search and the two-column list support immediate selection and return to the collection. Manage tags at the bottom provides deletion and sorting through the handle before each tag, without move up/down buttons. The tag picker shows Search and Add tag on the same top row immediately, with Add on the right; management mode hides that entire row and keeps only drag sorting, deletion and Done. Closing the picker keeps the selected filter and resets temporary search and management state. Photo date/action indexes retain their existing filter panels.
@@ -83,6 +84,8 @@
 
 Browse photos grouped by year, month, and date, with thumbnail ratios, a large preview, Favorites, Recently Deleted, batch import/export, and notes and search for photos and outfit plans.
 
+Photo note saves coordinate concurrent writes across windows on the same site and check whether the note changed during editing. Conflicts preserve your input; copy any text you need, then close and reopen the editor. Damaged or unsupported `album-metadata.json` files are not overwritten; back up and repair the file first. Saving requires Web Locks in a secure context. Unsupported browsers show an error and stop the write.
+
 ### Outfit codes and parameter parsing
 
 - Store outfit images, codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export; decoded results are cached in the browser by normalized code.
@@ -90,9 +93,13 @@ Browse photos grouped by year, month, and date, with thumbnail ratios, a large p
 - Decode a photo or a CameraParams string to view camera, environment, scene, pose, lighting, and filter parameters, and import the camera parameters into the game in one click; files are read locally in the browser and never uploaded.
 - Home schemes: enter a home or combo code to auto-parse the scheme info, with notes, tags, covers, and ZIP backup import/export.
 
+Home scheme batch deletion only affects selected schemes in the current filtered results, with the actual count shown in the confirmation. Changing filters during confirmation cannot expand the target list. If another window modifies or deletes a scheme during editing, saving is blocked and your input is kept; copy any text you need, then close and reopen the editor.
+
 ### Resonance records
 
 Import resonance records from the Mainland China Whim-Log or a local JSON file, preview first, then save. View outfit sets and the first/second-set piece pull counts, total pulls and averages per banner, with sorting, rarity filtering, and JSON export.
+
+Resonance imports and full backup restoration merge with the latest database records, replacing only matching imported record IDs. They preserve other records added by another window and do not restore deleted records from an old page snapshot.
 
 On phones and desktop, each card shows the outfit and banner names on the same row, with the banner on the right and pull statistics on the next row. Names that exceed the available width use an ellipsis; hover to view the full name.
 

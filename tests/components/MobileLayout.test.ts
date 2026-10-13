@@ -38,7 +38,7 @@ describe('mobile navigation and collection controls', () => {
     const wrapper = mount(TopBar, { attachTo: document.body, props: { directoryName: '', isLoading: false,
       isDeleting: false, hasAlbumDirectory: false, hasX6GameAuthorization: false, thumbnailMode: 'default',
       thumbnailModeOptions: [], themeMode: 'light', language: 'zh', messages: messages.zh.topBar,
-      viewMessages: messages.zh.viewNav, directorySupported: false } })
+      viewMessages: messages.zh.viewNav, directorySupported: false }, global: { stubs: { transition: false } } })
     wrappers.push(wrapper)
     await wrapper.get('.mobile-header-row button[aria-label="打开更多菜单"]').trigger('click')
     await flushPromises()
@@ -52,8 +52,8 @@ describe('mobile navigation and collection controls', () => {
     expect(document.body.style.overflow).toBe('hidden')
     wrapper.vm.closeMenus()
     await flushPromises()
-    expect(document.querySelector('.mobile-menu-sheet')).toBeNull()
-    expect(document.body.style.overflow).not.toBe('hidden')
+    await vi.waitFor(() => expect(document.querySelector('.mobile-menu-sheet')).toBeNull())
+    await vi.waitFor(() => expect(document.body.style.overflow).not.toBe('hidden'))
     await wrapper.get('.mobile-header-row button[aria-label="打开视图菜单"]').trigger('click')
     await flushPromises()
     expect(document.querySelector('.view-dropdown')).not.toBeNull()
@@ -91,7 +91,7 @@ describe('mobile navigation and collection controls', () => {
   it('uses a separate search popover with clear, close and menu/view coordination', async () => {
     let finishLeave = () => {}
     const transitionStub = defineComponent({
-      props: { name: String }, emits: ['after-leave'],
+      props: { name: String, css: Boolean }, emits: ['after-leave', 'before-enter', 'before-leave'],
       setup(props, { emit, slots }) {
         if (props.name === 'mobile-search-popover') finishLeave = () => emit('after-leave')
         return () => slots.default?.()
@@ -294,14 +294,17 @@ describe('mobile navigation and collection controls', () => {
     const add = actions.querySelector<HTMLButtonElement>('button[aria-label="添加方案"]')!
     add.click()
     expect(added).toHaveBeenCalledOnce()
-    const summary = actions.querySelector<HTMLElement>('summary')!
-    expect(summary.textContent).toBe('')
-    expect(summary.getAttribute('aria-label')).toBe('页面操作')
-    summary.click()
-    expect(actions.querySelector('details')!.open).toBe(true)
+    const trigger = actions.querySelector<HTMLButtonElement>('.collection-action-trigger')!
+    expect(trigger.textContent).toBe('')
+    expect(trigger.getAttribute('aria-label')).toBe('页面操作')
+    trigger.click()
+    await flushPromises()
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
     actions.querySelector<HTMLButtonElement>('.collection-action-options button')!.click()
     expect(imported).toHaveBeenCalledOnce()
-    expect(actions.querySelector('details')!.open).toBe(false)
+    await flushPromises()
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    expect(actions.querySelector('.collection-action-options')).toBeNull()
   })
 
   it('uses resonance labels in the shared row without a duplicate Filter entry', async () => {

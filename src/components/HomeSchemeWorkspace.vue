@@ -114,7 +114,8 @@ watch(busy, value => emit('busyChange', value))
 const isBusy = computed(() => props.disabled || busy.value)
 watch(visibleSchemes, value => emit('visibleCountChange', value.length), { immediate: true })
 
-const selectedSchemeCount = computed(() => visibleSchemes.value.filter((item) => selectedSchemeIds.value.has(item.id)).length)
+const selectedSchemes = computed(() => visibleSchemes.value.filter((item) => selectedSchemeIds.value.has(item.id)))
+const selectedSchemeCount = computed(() => selectedSchemes.value.length)
 const allSchemesSelected = computed(() => visibleSchemes.value.length > 0 && visibleSchemes.value.every((item) => selectedSchemeIds.value.has(item.id)))
 const previewIndex = computed(() => previewScheme.value ? visibleSchemes.value.findIndex((item) => item.id === previewScheme.value?.id) : -1)
 const hasPreviousPreview = computed(() => previewIndex.value > 0)
@@ -371,7 +372,10 @@ async function save() {
     emit('status', props.messages.saveSucceeded, 'success')
   } catch (error) {
     const duplicate = error instanceof Error && error.message === 'home_scheme_code_duplicate'
-    emit('status', duplicate ? props.messages.duplicateCode : operationError(error), duplicate ? 'warning' : 'error')
+    const conflict = error instanceof Error && ['home_scheme_record_changed', 'home_scheme_record_missing'].includes(error.message)
+    // 保留当前输入，关闭编辑器后再刷新，避免冲突提示本身丢掉用户尚未保存的修改。
+    if (conflict) pendingLibraryReload = true
+    emit('status', conflict ? props.messages.recordChanged : duplicate ? props.messages.duplicateCode : operationError(error), duplicate || conflict ? 'warning' : 'error')
   } finally { busy.value = false }
 }
 
@@ -447,25 +451,31 @@ function editPreviewScheme() {
   if (item) resetEditor(item)
 }
 
+/** 固定当前可见的已选记录，确认期间筛选变化不能扩大删除范围。 */
 async function deleteSelectedSchemes() {
   if (isBusy.value || !selectedSchemeCount.value) return
-  if (!await props.confirmAction(props.messages.deleteConfirm)) return
-  const selected = schemes.value.filter((item) => selectedSchemeIds.value.has(item.id))
+  const selected = [...selectedSchemes.value]
   busy.value = true
   const deletedIds = new Set<string>()
   try {
+    if (!await props.confirmAction(props.messages.deleteSelectedConfirm(selected.length))) return
     for (const item of selected) {
       await deleteHomeScheme(item)
       releaseHomeSchemeUrls([item])
       deletedIds.add(item.id)
     }
-    schemes.value = schemes.value.filter((item) => !deletedIds.has(item.id))
-    selectedSchemeIds.value = new Set()
-    if (previewScheme.value && deletedIds.has(previewScheme.value.id)) closePreview()
-    emit('countChange', schemes.value.length)
     emit('status', props.messages.deleteSucceeded, 'success')
   } catch (error) { emit('status', operationError(error), 'error') }
-  finally { busy.value = false }
+  finally {
+    // 部分删除失败时也同步已成功的记录，避免页面继续展示已不存在的数据。
+    if (deletedIds.size) {
+      schemes.value = schemes.value.filter((item) => !deletedIds.has(item.id))
+      selectedSchemeIds.value = new Set([...selectedSchemeIds.value].filter(id => !deletedIds.has(id)))
+      if (previewScheme.value && deletedIds.has(previewScheme.value.id)) closePreview()
+      emit('countChange', schemes.value.length)
+    }
+    busy.value = false
+  }
 }
 
 async function addTag() {

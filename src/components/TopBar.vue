@@ -27,6 +27,7 @@ import {
 } from 'lucide-vue-next'
 import { useCompactLayout } from '../composables/useCompactLayout'
 import { useModalFocus } from '../composables/useModalFocus'
+import { useModalPresence } from '../composables/useModalPresence'
 import type { AlbumView } from './AlbumViewSwitcher.vue'
 import LikeCounter from './LikeCounter.vue'
 // 收款码图片，通过 Vite 打包以保证构建后路径正确
@@ -92,20 +93,21 @@ const mobileSearchStyle = ref({ top: '72px' })
 let restoreMobileSearchFocus = false
 let headerResizeObserver: ResizeObserver | null = null
 const openMenu = ref<OpenMenu>(null)
+const menuMotion = useModalPresence(computed(() => compact.value && openMenu.value !== null), compact)
 const menuStyle = computed(() => compact.value ? {} : { top: `${menuPosition.value.top}px`, left: `${menuPosition.value.left}px` })
 watch(compact, () => closeMenus())
 watch(() => props.activeView, () => closeMenus())
 defineExpose({ closeMenus })
 const showDonate = ref(false)
 const showFeedback = ref(false)
-useBodyScrollLock(computed(() => showDonate.value || showFeedback.value || (compact.value && openMenu.value !== null)))
+useBodyScrollLock(computed(() => showDonate.value || showFeedback.value || menuMotion.present.value))
 // iframe 懒加载：首次打开弹窗时才设置 src，避免启动时请求第三方页面
 const feedbackLoaded = ref(false)
 const feedbackLoadFailed = ref(false)
 const headerRef = ref<HTMLElement | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
-useModalFocus(computed(() => compact.value && openMenu.value !== null), dropdownRef, closeMenus)
 const menuTrigger = ref<HTMLElement | null>(null)
+useModalFocus(menuMotion.present, dropdownRef, closeMenus, menuTrigger)
 const menuPosition = ref({ top: 0, left: 0 })
 const isBusy = computed(() => props.isLoading || props.isDeleting)
 
@@ -197,7 +199,6 @@ function clearMobileSearch() {
 function closeMenus() {
   closeMobileSearch(false)
   openMenu.value = null
-  menuTrigger.value = null
 }
 
 /** 执行菜单动作后收起菜单。参数：action 为父组件提供的动作。 */
@@ -329,6 +330,7 @@ onBeforeUnmount(() => {
           <ChevronLeft class="header-menu-chevron" :class="{ 'is-open': openMenu === 'album' }" :size="14" aria-hidden="true" />
         </button>
         <Teleport to="body">
+          <Transition name="mobile-menu" :css="compact" @before-enter="menuMotion.beforeEnter" @before-leave="menuMotion.beforeLeave" @after-leave="menuMotion.afterLeave">
           <div v-if="openMenu === 'album'" ref="dropdownRef" tabindex="-1" :aria-label="messages.more" class="header-dropdown" :class="{ 'mobile-menu-sheet': compact }" :style="menuStyle" role="menu">
           <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('chooseDirectory'))">
             <FolderOpen :size="16" />
@@ -343,6 +345,7 @@ onBeforeUnmount(() => {
             <span>{{ hasX6GameAuthorization ? messages.reauthorizeX6Game : messages.authorizeX6Game }}</span>
           </button>
           </div>
+          </Transition>
         </Teleport>
       </div>
 
@@ -360,6 +363,7 @@ onBeforeUnmount(() => {
           <ChevronLeft class="header-menu-chevron" :class="{ 'is-open': openMenu === 'view' }" :size="14" aria-hidden="true" />
         </button>
         <Teleport to="body">
+          <Transition name="mobile-menu" :css="compact" @before-enter="menuMotion.beforeEnter" @before-leave="menuMotion.beforeLeave" @after-leave="menuMotion.afterLeave">
           <div v-if="openMenu === 'view'" ref="dropdownRef" tabindex="-1" :aria-label="messages.more" class="header-dropdown view-dropdown" :class="{ 'mobile-menu-sheet': compact }" :style="menuStyle" role="menu">
           <header v-if="compact" class="mobile-menu-heading"><h2>{{ messages.view }}</h2><button type="button" :aria-label="language === 'zh' ? '关闭菜单' : 'Close menu'" @click="closeMenus"><X :size="20" /></button></header>
           <div class="view-toggle-row">
@@ -426,6 +430,7 @@ onBeforeUnmount(() => {
             </button>
           </div>
           </div>
+          </Transition>
         </Teleport>
       </div>
 
@@ -436,11 +441,13 @@ onBeforeUnmount(() => {
           <ChevronLeft class="header-menu-chevron" :class="{ 'is-open': openMenu === 'tools' }" :size="14" aria-hidden="true" />
         </button>
         <Teleport to="body">
+          <Transition name="mobile-menu" :css="compact" @before-enter="menuMotion.beforeEnter" @before-leave="menuMotion.beforeLeave" @after-leave="menuMotion.afterLeave">
           <div v-if="openMenu === 'tools'" ref="dropdownRef" tabindex="-1" :aria-label="messages.more" class="header-dropdown" :class="{ 'mobile-menu-sheet': compact }" :style="menuStyle" role="menu">
             <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('openCleanup'))"><Eraser :size="16" /><span>{{ messages.specialCleanup }}</span></button>
             <button type="button" role="menuitem" @click="runMenuAction(() => emit('openFortuneTime'))"><span class="menu-symbol" aria-hidden="true">✦</span><span>{{ messages.fortuneTime }}</span></button>
             <button type="button" role="menuitem" :disabled="isBusy" @click="runMenuAction(() => emit('openParseTools'))"><ScanSearch :size="16" /><span>{{ messages.parseTools }}</span></button>
           </div>
+          </Transition>
         </Teleport>
       </div>
 
@@ -459,6 +466,7 @@ onBeforeUnmount(() => {
           <ChevronLeft class="header-menu-chevron" :class="{ 'is-open': openMenu === 'more' }" :size="14" aria-hidden="true" />
         </button>
         <Teleport to="body">
+          <Transition name="mobile-menu" :css="compact" @before-enter="menuMotion.beforeEnter" @before-leave="menuMotion.beforeLeave" @after-leave="menuMotion.afterLeave">
           <div v-if="openMenu === 'more'" ref="dropdownRef" tabindex="-1" :aria-label="messages.more" class="header-dropdown header-dropdown-right more-menu-panel" :class="{ 'mobile-menu-sheet': compact }" :style="menuStyle" role="menu">
           <header v-if="compact" class="mobile-menu-heading"><h2>{{ messages.more }}</h2><button type="button" :aria-label="language === 'zh' ? '关闭菜单' : 'Close menu'" @click="closeMenus"><X :size="20" /></button></header>
           <div class="more-menu-content">
@@ -524,10 +532,11 @@ onBeforeUnmount(() => {
           </div>
           </div>
           </div>
+          </Transition>
         </Teleport>
       </div>
     </div>
-    <Teleport to="body"><div v-if="compact && openMenu" class="mobile-menu-backdrop" @click="closeMenus"></div></Teleport>
+    <Teleport to="body"><Transition name="mobile-backdrop"><div v-if="compact && openMenu" class="mobile-menu-backdrop" @click="closeMenus"></div></Transition></Teleport>
   </header>
 
   <Teleport to="body">
@@ -539,8 +548,7 @@ onBeforeUnmount(() => {
             <button type="button" :aria-label="messages.closeDonate" :title="messages.closeDonate" @click="showDonate = false">
               <X :size="19" />
             </button>
-            <Teleport to="body"><div v-if="compact && openMenu" class="mobile-menu-backdrop" @click="closeMenus"></div></Teleport>
-  </header>
+          </header>
           <div class="donate-dialog-body">
             <p class="donate-description">{{ messages.donateDescription }}</p>
             <div class="donate-qrcodes">
@@ -568,8 +576,7 @@ onBeforeUnmount(() => {
             <button type="button" :aria-label="messages.feedbackClose" :title="messages.feedbackClose" @click="showFeedback = false">
               <X :size="19" />
             </button>
-            <Teleport to="body"><div v-if="compact && openMenu" class="mobile-menu-backdrop" @click="closeMenus"></div></Teleport>
-  </header>
+          </header>
           <div class="feedback-dialog-body">
             <iframe
               v-if="feedbackLoaded"

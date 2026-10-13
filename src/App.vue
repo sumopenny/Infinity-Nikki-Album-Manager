@@ -59,7 +59,7 @@ import { clearRecentlyDeleted, listRecentlyDeleted, movePhotosToRecentlyDeleted,
 import { getX6GameDirectoryForAlbum, isProtectedAlbumDirectory, listGamePlayPhotoAccounts, pickStandaloneX6GameDirectory, resolveX6GameAccountDirectory, supportsDirectoryAuthorization } from './utils/file-system/directoryAccess'
 import { clearSavedPhotoActionCache, getSavedCameraParamUids, getSavedX6GameDirectoryHandle } from './utils/file-system/directoryStorage'
 import { executeMatchingPhotoCleanup, executeSpecialCleanup, prepareMatchingPhotoCleanup, prepareSpecialCleanup, type SpecialCleanupItem } from './utils/file-system/cleanupFileSystem'
-import { savePhotoNote } from './utils/file-system/photoMetadata'
+import { PhotoMetadataError, readAlbumMetadata, savePhotoNote } from './utils/file-system/photoMetadata'
 import { releasePhotoUrl, releasePhotoUrls } from './utils/file-system/photoUrl'
 import { preparePhotoTransfer, runPhotoTransfer } from './utils/file-system/photoTransfer'
 import {
@@ -1182,8 +1182,17 @@ function parseToolsOutfitCode(code: string) {
 async function editPhotoNote(photo: PhotoDisplayItem | null) {
   const directory = albumDirectoryHandle.value
   if (!directory || !photo || !('fileHandle' in photo) || isAnyFileOperationBusy.value) return
-  noteDialogPhoto.value = photo as PhotoItem
-  isNoteDialogVisible.value = true
+  try {
+    // 每次打开都读取最新备注作为编辑基线；冲突后重开即可看到其他窗口的保存结果。
+    const metadata = await readAlbumMetadata(directory)
+    if (albumDirectoryHandle.value !== directory) return
+    photo.note = metadata.photos[photo.name]?.note ?? ''
+    noteDialogPhoto.value = photo as PhotoItem
+    isNoteDialogVisible.value = true
+  } catch (error) {
+    if (error instanceof PhotoMetadataError) showStatus({ message: locale.value.grid.noteSaveErrors[error.code], tone: 'error' })
+    else statusState.value = createErrorStatus(error, { type: 'readFailed' })
+  }
 }
 
 function openPhotoParams(photo: PhotoDisplayItem) {
@@ -1225,12 +1234,14 @@ async function saveNoteDialog(value: string) {
   const photo = noteDialogPhoto.value
   if (!directory || !photo || isAnyFileOperationBusy.value) return
   try {
-    photo.note = await savePhotoNote(directory, photo.name, value)
+    // 保存时核对打开编辑器时的备注；冲突不关闭窗口，保留用户输入。
+    photo.note = await savePhotoNote(directory, photo.name, value, photo.note ?? '')
     isNoteDialogVisible.value = false
     noteDialogPhoto.value = null
     showOutfitStatus(locale.value.grid.noteSaved)
   } catch (error) {
-    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+    if (error instanceof PhotoMetadataError) showStatus({ message: locale.value.grid.noteSaveErrors[error.code], tone: 'error' })
+    else statusState.value = createErrorStatus(error, { type: 'readFailed' })
   }
 }
 
@@ -2327,7 +2338,6 @@ onBeforeUnmount(() => {
       :can-cancel="photoTransfer.kind === 'export'"
       :cancel-label="locale.app.transferCancel"
       :close-label="locale.app.dialogCloseAria"
-      :completed-label="locale.app.transferCompleted"
       :failed-label="locale.app.transferFailed"
       :cancelled-label="locale.app.transferCancelled"
       :close-action-label="locale.app.transferClose"

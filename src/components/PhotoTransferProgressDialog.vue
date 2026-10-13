@@ -15,7 +15,6 @@ const props = defineProps<{
   canCancel: boolean
   cancelLabel: string
   closeLabel: string
-  completedLabel: string
   failedLabel: string
   cancelledLabel: string
   closeActionLabel: string

@@ -7,7 +7,7 @@ import { releaseHomeSchemeUrls } from '../homeBuild/homeSchemeStorage'
 import { exportCameraBackup, readCameraBackup } from '../photo-params/favoritesBackup'
 import { readCameraFavorites, planCameraImport, applyCameraImport, type ImportPlan, type FavoriteLibrary } from '../photo-params/favorites'
 import { createResonanceExport, parseResonanceFile } from '../resonance/resonanceFile'
-import { loadResonanceRecords, saveResonanceRecords } from '../resonance/resonanceStorage'
+import { loadResonanceRecords, mergeResonanceRecords } from '../resonance/resonanceStorage'
 import type { ResonanceRecord } from '../resonance/resonanceTypes'
 import { releasePhotoUrls } from '../file-system/photoUrl'
 import { runStoreRequest, OUTFITS_STORE, OUTFIT_TAGS_STORE, OUTFIT_IGNORED_CODES_STORE,
@@ -166,9 +166,8 @@ export async function applyAllDataBackup(plan: AllDataPlan, resolveConflict: Res
         result.saved = await applyCameraImport(cameraPlan, choices)
         result.skipped = cameraPlan.incoming.records.length + cameraPlan.skipped - result.saved
       } else {
-        const current = await loadResonanceRecords(), records = new Map(current.map(record => [record.id, record]))
-        for (const record of plan.resonance) records.set(record.id, record)
-        if (plan.resonance.length) await saveResonanceRecords([...records.values()])
+        // 与普通导入共用事务合并，保留恢复期间其他窗口新增的共鸣记录。
+        if (plan.resonance.length) await mergeResonanceRecords(plan.resonance)
         result.saved = plan.resonance.length
       }
     } catch (error) { result.error = error instanceof Error ? error.message : String(error) }

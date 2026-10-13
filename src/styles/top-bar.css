@@ -146,29 +146,6 @@
   box-shadow: 0 22px 70px rgba(54, 39, 39, 0.2);
 }
 
-/* 与“关于网站”窗口共用同一关闭按钮结构和视觉规格。 */
-.note-dialog-panel .about-dialog-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 2;
-  display: grid;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  place-items: center;
-  border: 0;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--heading) 8%, transparent);
-  color: var(--text);
-  cursor: pointer;
-  transition: background 0.18s ease, transform 0.18s ease;
-}
-
-.note-dialog-panel .about-dialog-close:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--heading) 16%, transparent);
-}
-
 .note-dialog-panel > header,
 .note-dialog-panel > footer {
   display: flex;
