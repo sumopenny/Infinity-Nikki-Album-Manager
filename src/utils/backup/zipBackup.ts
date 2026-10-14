@@ -1,5 +1,4 @@
 import { strToU8, Zip, ZipDeflate, ZipPassThrough } from 'fflate'
-import { fileExists } from '../file-system/fileIO'
 
 export interface BackupLimits { bytes: number; entries: number; records: number; manifest: number; image: number }
 export const HOME_BACKUP_LIMITS: BackupLimits = { bytes: 128 * 1024 ** 2, entries: 500, records: 10000, manifest: 4 * 1024 ** 2, image: 64 * 1024 ** 2 }
@@ -93,46 +92,6 @@ export async function streamBackupPart(part: BackupPart, manifestName: string, l
   } catch (error) {
     archive.terminate()
     await pending.catch(() => undefined)
-    throw error
-  }
-}
-
-export async function writeBackupParts(directory: FileSystemDirectoryHandle, base: string, parts: BackupPart[], manifestName: string, limits: BackupLimits): Promise<string[]> {
-  let suffix = 0
-  let names: string[]
-  do {
-    names = parts.map((_, i) => backupPartName(base + (suffix ? '_' + suffix : ''), i, parts.length))
-    if (!(await Promise.all(names.map(name => fileExists(directory, name)))).some(Boolean)) break
-    suffix++
-  } while (true)
-  const created: Array<{ name: string; handle: FileSystemFileHandle; expected: File }> = []
-  try {
-    for (let i = 0; i < parts.length; i++) {
-      if (await fileExists(directory, names[i])) throw new Error('备份目标文件已存在 / Backup destination already exists')
-      const handle = await directory.getFileHandle(names[i], { create: true })
-      const empty = await handle.getFile()
-      if (empty.size) throw new Error('备份目标文件已改变 / Backup destination changed')
-      const owned = { name: names[i], handle, expected: empty }
-      created.push(owned)
-      const writable = await handle.createWritable()
-      try {
-        await streamBackupPart(parts[i], manifestName, limits, bytes => writable.write(bytes))
-        await writable.close()
-        owned.expected = await handle.getFile()
-      } catch (error) {
-        await writable.abort(error).catch(() => undefined)
-        throw error
-      }
-    }
-    return names
-  } catch (error) {
-    for (const item of created) {
-      try {
-        const current = await directory.getFileHandle(item.name)
-        const file = await current.getFile()
-        if (await current.isSameEntry(item.handle) && file.size === item.expected.size && file.lastModified === item.expected.lastModified) await directory.removeEntry(item.name)
-      } catch { /* Preserve external replacements and the original failure. */ }
-    }
     throw error
   }
 }

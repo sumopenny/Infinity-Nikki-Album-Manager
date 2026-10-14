@@ -72,6 +72,7 @@ export interface ResonanceMessages {
   processBanner: (current: number, total: number) => string
   import: string
   previewTitle: string
+  replaceAllNotice: string
   previewBanner: string
   previewOutfit: string
   previewRarity: string
@@ -165,6 +166,7 @@ export const resonanceZh: ResonanceMessages = {
   processBanner: (current, total) => `正在处理第 ${current} 个卡池，共 ${total} 个`,
   import: '获取预览',
   previewTitle: '导入预览',
+  replaceAllNotice: '确认导入后，本次预览将替换全部本地共鸣记录；未包含的旧记录将被删除。',
   previewBanner: '卡池',
   previewOutfit: '套装',
   previewRarity: '稀有度',
@@ -173,7 +175,7 @@ export const resonanceZh: ResonanceMessages = {
   importing: '正在获取共鸣数据，请稍候…',
   saving: '正在保存…',
   importSuccess: (count) => `已导入 ${count} 套记录`,
-  partialImport: (count) => `${count} 个卡池未能解析；这些卡池的本地记录会保留。`,
+  partialImport: (count) => `${count} 个卡池未能解析；确认导入只保存成功解析的记录，这些卡池的旧记录也将被删除。`,
   importError: '导入失败，请重试。',
   saveError: '保存失败，请检查浏览器存储空间和 IndexedDB 状态后重试。',
   noRecords: '奇想手账中没有找到可识别的卡池抽卡记录。',
@@ -258,6 +260,7 @@ export const resonanceEn: ResonanceMessages = {
   processBanner: (current, total) => `Processing banner ${current} of ${total}`,
   import: 'Preview import',
   previewTitle: 'Import preview',
+  replaceAllNotice: 'Confirming this import replaces all local resonance records with this preview. Previous records missing from the preview will be deleted.',
   previewBanner: 'Banner',
   previewOutfit: 'Outfit',
   previewRarity: 'Rarity',
@@ -266,7 +269,7 @@ export const resonanceEn: ResonanceMessages = {
   importing: 'Fetching resonance data, please wait…',
   saving: 'Saving…',
   importSuccess: (count) => `Imported ${count} outfit records`,
-  partialImport: (count) => `${count} banners could not be parsed; their local records will be kept.`,
+  partialImport: (count) => `${count} banners could not be parsed. Confirming saves only parsed records and also deletes previous records for these banners.`,
   importError: 'Import failed. Try again.',
   saveError: 'Save failed. Check browser storage and IndexedDB, then try again.',
   noRecords: 'No supported banner pull records were found in Whim-Log.',

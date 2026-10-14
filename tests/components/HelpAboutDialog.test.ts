@@ -101,7 +101,7 @@ describe('device-specific help', () => {
     expect(phoneCopy).not.toContain('上下移动')
     expect(phoneCopy).not.toContain('卡片右上角菜单')
     expect(phoneCopy).toContain('清除数据')
-    expect(phoneCopy).toContain('保留已保存的方案、共鸣记录和收藏')
+    expect(phoneCopy).toContain('永久删除当前浏览器中的全部方案')
     expect(phoneCopy).toContain('相机参数页的图片比例固定')
   })
 })

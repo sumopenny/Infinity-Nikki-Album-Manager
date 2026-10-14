@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, toRef, watch } from 'vue'
+import { useBodyScrollLock } from '../utils/bodyScrollLock'
+import { useModalFocus } from '../composables/useModalFocus'
 import { Bookmark, Copy, ScanSearch, X } from 'lucide-vue-next'
 import type { PhotoItem } from '../utils/photoGrouping'
 import type { PhotoParamsProgress, PhotoParamsResult } from '../utils/photo-params/types'
@@ -18,6 +20,10 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ close: []; copy: []; favorite: []; submitUid: [uid: string] }>()
+const panel = ref<HTMLElement | null>(null)
+// 参数窗口可从照片卡片独立打开，需自行管理滚动锁和焦点生命周期。
+useBodyScrollLock(toRef(props, 'visible'))
+useModalFocus(toRef(props, 'visible'), panel, () => emit('close'))
 const uidInput = ref('')
 const failedImages = ref<Set<string>>(new Set())
 watch(() => props.visible, (visible) => { if (!visible) uidInput.value = ''; failedImages.value = new Set() })
@@ -28,7 +34,7 @@ function markImageFailed(title: string, name: string) { failedImages.value = new
 <template>
   <Teleport to="body">
     <div v-if="visible" class="dialog-overlay fortune-time-dialog photo-params-overlay" role="dialog" aria-modal="true" :aria-label="messages.title">
-      <section class="dialog-panel fortune-time-panel photo-params-dialog">
+      <section ref="panel" tabindex="-1" class="dialog-panel fortune-time-panel photo-params-dialog">
         <header class="fortune-time-header photo-params-header">
           <div class="photo-params-header-content">
             <div class="photo-params-title-row">

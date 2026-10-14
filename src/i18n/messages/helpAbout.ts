@@ -3,13 +3,13 @@ import type { HelpAboutDeviceContent, LocaleMessages } from '../types'
 
 const sharedNotesZh = [
   '方案、相机参数收藏、共鸣记录和设置保存在当前浏览器中。关闭网页会保留数据，换浏览器、换设备或清理浏览器站点数据前请先导出备份。',
-  '“清除缓存”清理解析缓存；“清除数据”重置偏好和目录授权，保留已保存的方案、共鸣记录和收藏。两项操作都不会删除电脑中的原始照片。',
+  '“清除缓存”只清理解析缓存；“清除数据”永久删除当前浏览器中的全部方案、图片、标签、共鸣记录、收藏、UID、目录授权、迁移记录和设置，并重新加载回到初始状态。清除数据前请导出备份；两项操作都不会删除电脑中的原始照片、游戏文件和已导出的备份。',
   '删除方案或参数收藏前会要求确认；已删除的记录不能直接恢复，请用备份恢复需要保留的数据。',
   '共鸣导入凭据包含敏感信息，请勿分享。凭据失效时，按导入窗口提示重新获取。'
 ]
 const sharedNotesEn = [
   'Schemes, camera favorites, resonance records and settings are stored in the current browser. Closing the page keeps them. Export a backup before changing browsers or devices, or clearing browser site data.',
-  'Clear cache removes parse caches. Clear data resets preferences and directory authorization while keeping saved schemes, resonance records and favorites. Neither action deletes original photos on your computer.',
+  'Clear cache only removes parse caches. Clear data permanently deletes all schemes, images, tags, resonance records, favorites, UIDs, directory authorizations, migration records and settings in this browser, then reloads to the initial state. Export a backup first. Neither action deletes original photos, game files or exported backups on your computer.',
   'Deleting a scheme or camera favorite requires confirmation. Deleted records cannot be restored directly; use a backup to recover data you need to keep.',
   'Resonance import credentials contain sensitive information. Do not share them; obtain fresh credentials as prompted when they expire.'
 ]

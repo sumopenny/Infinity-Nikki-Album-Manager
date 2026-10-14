@@ -220,11 +220,9 @@ async function updateDisplayedPhoto(nextPhoto: PhotoItem | PreviewPhoto): Promis
   previewAbortController = new AbortController()
 
   try {
-    const { width, height } = props.mode === 'home'
-      ? await loadImageUrlWithSize(nextPhoto.url ?? '', previewAbortController.signal)
-      : 'fileHandle' in nextPhoto || nextPhoto.loadImageBlob
-        ? await loadPhotoWithRetryAndSize(nextPhoto, previewAbortController.signal)
-        : await loadImageUrlWithSize(nextPhoto.url ?? '', previewAbortController.signal)
+    const { width, height } = 'fileHandle' in nextPhoto || nextPhoto.loadImageBlob
+      ? await loadPhotoWithRetryAndSize(nextPhoto, previewAbortController.signal)
+      : await loadImageUrlWithSize(nextPhoto.url ?? '', previewAbortController.signal)
     if (currentToken !== previewLoadToken) return
     if (width && height) imageAspectRatio.value = width / height
     displayedPhoto.value = nextPhoto

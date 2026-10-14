@@ -6,9 +6,9 @@ import { zh } from '../../src/i18n'
 import type { CameraFavorite } from '../../src/utils/photo-params/favorites'
 import type { PhotoParamsResult } from '../../src/utils/photo-params/types'
 
-const mocks = vi.hoisted(() => ({ read: vi.fn(), saveTags: vi.fn(), save: vi.fn(), copy: vi.fn(), cover: vi.fn(), parse: vi.fn(), webp: vi.fn() }))
+const mocks = vi.hoisted(() => ({ read: vi.fn(), readCover: vi.fn(), saveTags: vi.fn(), save: vi.fn(), copy: vi.fn(), cover: vi.fn(), parse: vi.fn(), webp: vi.fn() }))
 vi.mock('../../src/utils/photo-params/favorites', async (original) => ({
-  ...await original<object>(), readCameraFavorites: mocks.read, saveCameraFavoriteTags: mocks.saveTags, saveCameraFavorite: mocks.save, coverMetadata: mocks.cover
+  ...await original<object>(), readCameraFavorites: mocks.read, readCameraFavoriteCover: mocks.readCover, saveCameraFavoriteTags: mocks.saveTags, saveCameraFavorite: mocks.save, coverMetadata: mocks.cover
 }))
 vi.mock('../../src/utils/image', () => ({ convertImageToWebp: mocks.webp }))
 vi.mock('../../src/utils/clipboard', () => ({ copyTextToClipboard: mocks.copy }))
@@ -38,6 +38,7 @@ beforeEach(() => {
   localStorage.clear()
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   vi.clearAllMocks()
+  mocks.readCover.mockImplementation(async (id: string) => (await mocks.read()).covers.get(id))
   mocks.parse.mockReset()
   mocks.webp.mockReset().mockResolvedValue(new Blob(['webp'], { type: 'image/webp' }))
   mocks.read.mockResolvedValue({ records: [], covers: new Map() })

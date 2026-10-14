@@ -318,3 +318,18 @@ it('imports and retains legacy long tags while rejecting newly added long tags',
   expect(current.tags).toEqual(['历史独立长标签', legacy.tag])
   expect(current.records.every(item => item.tag === legacy.tag)).toBe(true)
 })
+
+
+it('reads metadata alone for the list and retrieves one cover on demand', async () => {
+  const { readCameraFavoriteCover } = await import('../../src/utils/photo-params/favorites')
+  const blob = new Blob(['cover'], { type: 'image/webp' })
+  await saveCameraFavorite({ ...record(), cover: await coverMetadata(blob, 'cover.webp') }, blob)
+  const reads = vi.spyOn(IDBObjectStore.prototype, 'getAll')
+  const list = await readCameraFavorites(false)
+  expect(list.records).toHaveLength(1)
+  expect(list.covers.size).toBe(0)
+  expect(reads.mock.contexts.map(store => (store as IDBObjectStore).name)).toEqual(['camera-favorites'])
+  expect((await readCameraFavoriteCover('one')).size).toBe(blob.size)
+  expect((await readCameraFavorites()).covers.get('one')?.size).toBe(blob.size)
+  reads.mockRestore()
+})

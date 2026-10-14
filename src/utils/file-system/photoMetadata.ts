@@ -56,6 +56,58 @@ export async function readAlbumMetadata(directory: FileSystemDirectoryHandle): P
     .filter(([, value]) => value.note)) }
 }
 
+/** 写入并回读校验元数据；失败时保留原始异常，供移动流程决定是否保留副本。 */
+async function writeMetadata(directory: FileSystemDirectoryHandle, metadata: AlbumMetadata): Promise<void> {
+  const handle = await directory.getFileHandle(ALBUM_METADATA_FILE_NAME, { create: true })
+  const writable = await handle.createWritable()
+  try {
+    await writable.write(`${JSON.stringify(metadata, null, 2)}\n`)
+    await writable.close()
+    if (JSON.stringify(await readMetadataFile(directory)) !== JSON.stringify(metadata)) throw new PhotoMetadataError('verificationFailed')
+  } catch (error) {
+    await writable.abort(error).catch(() => undefined)
+    throw error
+  }
+}
+
+/** 在共享写锁内迁移备注，再删除源文件；失败恢复元数据，恢复失败则要求调用方保留目标副本。 */
+export async function transferPhotoNote(
+  directory: FileSystemDirectoryHandle, from: string | string[], to: string | null,
+  fallback: string, removeSource: () => Promise<void>
+): Promise<string> {
+  const transfer = async () => {
+    const original = await readMetadataFile(directory)
+    const keys = Array.isArray(from) ? from : [from]
+    const note = normalizePhotoNote(original.photos[keys[0]]?.note ?? fallback)
+    const next: AlbumMetadata = { version: 1, photos: { ...original.photos } }
+    for (const key of keys) delete next.photos[key]
+    if (to) {
+      delete next.photos[to]
+      // 空备注也保留回收键，区分新回收记录与旧版按原名保存的备注。
+      if (note || to.startsWith('trash/')) next.photos[to] = { note }
+    }
+    const changed = JSON.stringify(next) !== JSON.stringify(original)
+    if (changed && !navigator.locks?.request) throw new PhotoMetadataError('lockUnavailable')
+    try {
+      if (changed) await writeMetadata(directory, next)
+      await removeSource()
+    } catch (error) {
+      if (changed) {
+        try { await writeMetadata(directory, original) }
+        catch { throw Object.assign(new PhotoMetadataError('verificationFailed'), { preserveTarget: true }) }
+      }
+      throw error
+    }
+    return note
+  }
+  return navigator.locks?.request ? navigator.locks.request(METADATA_WRITE_LOCK, transfer) : transfer()
+}
+
+/** 回收站须保留空备注键，以识别已迁移的新记录。 */
+export async function readTrashNotes(directory: FileSystemDirectoryHandle): Promise<Record<string, { note: string }>> {
+  return (await readMetadataFile(directory)).photos
+}
+
 /** 同站点窗口共用写锁；不同目录也短暂串行，避免同名或不同句柄导致锁身份冲突。 */
 export async function savePhotoNote(directory: FileSystemDirectoryHandle, photoName: string, note: string, expectedNote?: string): Promise<string> {
   // 不用仅限当前页面的队列冒充跨窗口保护；缺少锁能力时停止写入。
@@ -70,17 +122,7 @@ export async function savePhotoNote(directory: FileSystemDirectoryHandle, photoN
     // 保留其他照片的原始备注，只修改本次目标，避免顺手清洗造成数据损失。
     metadata.photos = { ...metadata.photos, [photoName]: { note: normalized } }
     if (!normalized) delete metadata.photos[photoName]
-    const handle = await directory.getFileHandle(ALBUM_METADATA_FILE_NAME, { create: true })
-    const writable = await handle.createWritable()
-    try {
-      await writable.write(`${JSON.stringify(metadata, null, 2)}\n`)
-      await writable.close()
-      const saved = await readMetadataFile(directory)
-      if (JSON.stringify(saved) !== JSON.stringify(metadata)) throw new PhotoMetadataError('verificationFailed')
-      return normalized
-    } catch (error) {
-      await writable.abort(error).catch(() => undefined)
-      throw error
-    }
+    await writeMetadata(directory, metadata)
+    return normalized
   })
 }

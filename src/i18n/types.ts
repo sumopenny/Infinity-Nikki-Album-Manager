@@ -42,7 +42,6 @@ export interface LocaleMessages {
     x6GameAuthorizationCancelledStatus: string
     clearDataDialogTitle: string
     clearDataFirstConfirmMessage: string
-    clearDataSecondConfirmMessage: string
     clearDataStatus: string
     languageUpdated: string
     themeUpdated: string
@@ -134,10 +133,6 @@ export interface LocaleMessages {
     importAllData: string
     clearCache: string
     clearData: string
-    helpMouseTitle: string
-    helpMouseItems: string[]
-    helpKeyboardTitle: string
-    helpKeyboardItems: string[]
     author: string
     xiaohongshu: string
     xiaohongshuAuthor: string

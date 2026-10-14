@@ -1,7 +1,7 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto'
-import { afterEach, expect, it } from 'vitest'
-import { DB_NAME, openDb, runStoreRequest, clearBrowserSessionData } from '../../src/utils/file-system/database'
+import { afterEach, expect, it, vi } from 'vitest'
+import { DB_NAME, openDb, runStoreRequest, clearAllBrowserData } from '../../src/utils/file-system/database'
 import { getSavedPhotoActionCaches, savePhotoActionCache, clearSavedHomeSchemeParseResults, clearSavedOutfitParseResults, clearSavedPhotoActionCache } from '../../src/utils/file-system/directoryStorage'
 import { loadResonanceRecords, saveResonanceRecords } from '../../src/utils/resonance/resonanceStorage'
 afterEach(async () => {
@@ -24,20 +24,18 @@ it('propagates failed or malformed resonance reads instead of returning an empty
   await runStoreRequest('resonance-records', 'readwrite', store => store.put({ damaged: true }, 'current-profile'))
   await expect(loadResonanceRecords()).rejects.toThrow('Invalid resonance storage')
 })
-it('clears session data while preserving every user collection store', async () => {
+it('clears every store including collections, images and saved source handles', async () => {
   const db = await openDb()
   const names = [...db.objectStoreNames]
   db.close()
-  const originals = new Map<string, unknown[]>()
   for (const name of names) {
     await runStoreRequest(name, 'readwrite', store => {
       if (Array.isArray(store.keyPath)) return store.put(Object.fromEntries(store.keyPath.map(key => [key, 'one'])))
       return store.keyPath ? store.put({ [store.keyPath]: 'one' }) : store.put('data', 'one')
     })
-    originals.set(name, await runStoreRequest(name, 'readonly', store => store.getAll()))
   }
-  await clearBrowserSessionData()
-  for (const name of names) expect(await runStoreRequest(name, 'readonly', store => store.getAll())).toEqual(name === 'album-handles' ? [] : originals.get(name))
+  await clearAllBrowserData()
+  for (const name of names) expect(await runStoreRequest(name, 'readonly', store => store.getAll())).toEqual([])
 })
 it('cache clearing preserves UID, directory authorization, favorites and resonance records', async () => {
   const entries = [
@@ -63,4 +61,19 @@ it('loads one album cache in a single transaction with encoded names', async () 
   const result = await getSavedPhotoActionCaches('album:中文')
   expect([...result.keys()]).toEqual(['a:b.jpg', 'c.jpg'])
   expect(result.get('a:b.jpg')).toEqual(entry)
+})
+
+it('rolls back all cleared stores if one store cannot be cleared', async () => {
+  await runStoreRequest('album-handles', 'readwrite', store => store.put('saved', 'one'))
+  await runStoreRequest('resonance-records', 'readwrite', store => store.put('saved', 'one'))
+  const original = IDBObjectStore.prototype.clear
+  const failure = vi.spyOn(IDBObjectStore.prototype, 'clear').mockImplementation(function(this: IDBObjectStore) {
+    if (this.name === 'resonance-records') throw new Error('reset failed')
+    return original.call(this)
+  })
+  try {
+    await expect(clearAllBrowserData()).rejects.toThrow('reset failed')
+  } finally { failure.mockRestore() }
+  expect(await runStoreRequest('album-handles', 'readonly', store => store.get('one'))).toBe('saved')
+  expect(await runStoreRequest('resonance-records', 'readonly', store => store.get('one'))).toBe('saved')
 })

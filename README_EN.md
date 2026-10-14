@@ -86,6 +86,10 @@ Browse photos grouped by year, month, and date, with thumbnail ratios, a large p
 
 Photo note saves coordinate concurrent writes across windows on the same site and check whether the note changed during editing. Conflicts preserve your input; copy any text you need, then close and reopen the editor. Damaged or unsupported `album-metadata.json` files are not overwritten; back up and repair the file first. Saving requires Web Locks in a secure context. Unsupported browsers show an error and stop the write.
 
+Refreshing the album reloads notes even when the image is unchanged. Newly trashed photos keep independent notes across page reloads and restoration under a different name when a filename is occupied. Moving and restoring also require Web Locks. Older trash records only try the original-name note when that name is unoccupied; previously lost content cannot be recovered.
+
+Local covers in Home schemes and Camera favorites load near the visible area and release temporary image URLs after leaving it. Editing and previewing load individual images as needed; full backups still include all images. Parameter details support Escape to close, a Tab focus loop, focus restoration on close, and background scroll locking while open.
+
 ### Outfit codes and parameter parsing
 
 - Store outfit images, codes, and tags locally, with pending plans, automatic image intake, and ZIP import/export; decoded results are cached in the browser by normalized code.
@@ -99,7 +103,7 @@ Home scheme batch deletion only affects selected schemes in the current filtered
 
 Import resonance records from the Mainland China Whim-Log or a local JSON file, preview first, then save. View outfit sets and the first/second-set piece pull counts, total pulls and averages per banner, with sorting, rarity filtering, and JSON export.
 
-Resonance imports and full backup restoration merge with the latest database records, replacing only matching imported record IDs. They preserve other records added by another window and do not restore deleted records from an old page snapshot.
+After confirmation, both Whim-Log and JSON resonance imports replace all local resonance records with the current preview. Previous records missing from the preview, including banners that could not be parsed, are deleted without comparing pull counts. No replacement occurs when there are no valid records or reading or saving fails; the page updates only after saving succeeds. Full backup restoration still merges with the latest database records, replacing only matching record IDs in the backup.
 
 On phones and desktop, each card shows the outfit and banner names on the same row, with the banner on the right and pull statistics on the next row. Names that exceed the available width use an ellipsis; hover to view the full name.
 
@@ -139,7 +143,7 @@ On desktop, entering Outfit codes opens a standalone guide according to your sav
   <img src="img/自动更新步骤.webp" alt="In-game steps for auto-updating outfit codes" width="70%">
 </div>
 
-- Export data generates a ZIP file in the currently selected album folder and preserves outfit codes, tags, notes, and creation times. Import data validates and merges the ZIP without replacing existing plans; duplicate or invalid content is skipped. Imports validate the complete backup first, then extract and write images in bounded batches to reduce browser memory use with large backups. <span style="color: red;">Deleting an outfit plan is permanent and does not go to Recently Deleted.</span>
+- Export data downloads ZIP backups through the browser, using its download settings without requiring an album folder. Large backups produce multiple ZIP files; allow multiple downloads. Backups preserve outfit codes, tags, notes, and creation times. Import data validates and merges the ZIP without replacing existing plans; duplicate or invalid content is skipped. Imports validate the complete backup first, then extract and write images in bounded batches to reduce browser memory use with large backups. <span style="color: red;">Deleting an outfit plan is permanent and does not go to Recently Deleted.</span>
 - JPG, PNG, and WebP sources are decoded for validation only once before saving. JPG and PNG files are still converted locally to WebP, and images are never uploaded.
 - The album supports batch image import through the file picker. The gallery header exports all photos, while the selection bar exports only selected photos. After a successful export, you can choose to move successfully exported source photos to Recently Deleted. Cancelling keeps completed target files and all source photos.
 - Single-click outfit plans to select multiple items and show the bottom toolbar. <span style="color: red;">Deleted outfit plans cannot be restored, so check the plan information before confirming.</span>
@@ -216,7 +220,7 @@ Browsers block web pages from accessing system folders. Please select `NikkiPhot
 
 - Photos are read locally in your browser.
 - Photo-tail extraction, account-key derivation, AES decryption, and CameraParams parsing run locally inside WASM; photos and parsed results are not uploaded.
-- Album folder authorization, Favorites, and outfit-code, home-scheme-code, and photo-action parse results are stored locally in the current browser. Clear cache in More clears these three parse caches without affecting other authorizations, settings, saved schemes or tags. After confirmation, Clear data resets preferences and directory authorization while preserving saved schemes, resonance records and favorites. Clearing site data in the browser itself may delete local records; back them up first.
+- Album folder authorization, Favorites, and outfit-code, home-scheme-code, and photo-action parse results are stored locally in the current browser. Clear cache in More clears these three parse caches without affecting other authorizations, settings, saved schemes or tags. After confirmation, Clear data permanently deletes all schemes, images, tags, resonance records, favorites, parse caches, UIDs, saved directory handles, game sources and migration records in this browser. It also clears local and session settings, then reloads to the initial state for the current device. This cannot be undone; export a backup first. Clearing site data in the browser itself may also delete local records.
 - Browser security policies may require folder authorization again.
 - Delete and Special Cleanup modify real files on your computer; Clear cache and Clear data do not delete real photos, `clothe`, `trash`, or other files on your computer.
 

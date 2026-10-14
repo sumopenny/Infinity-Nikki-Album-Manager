@@ -177,6 +177,8 @@ describe('ResonanceRecords', () => {
   })
 
   it('previews a JSON file and saves it only after confirmation', async () => {
+    const oldRecord = { ...savedRecord, id: '76:10347', bannerId: '76' }
+    await saveResonanceRecords([oldRecord, savedRecord])
     const { wrapper, panel } = await openDialog()
     const methods = panel.querySelectorAll<HTMLButtonElement>('.resonance-choice-row:first-child button')
     methods[1]!.click()
@@ -191,7 +193,8 @@ describe('ResonanceRecords', () => {
     await flushPromises()
     expect(panel.textContent).toContain('导入预览 (1)')
     expect(panel.querySelectorAll('.resonance-import-footer button')).toHaveLength(1)
-    expect(await loadResonanceRecords()).toEqual([])
+    expect(panel.textContent).toContain('替换全部本地共鸣记录')
+    expect(await loadResonanceRecords()).toEqual([oldRecord, savedRecord])
     panel.querySelector<HTMLButtonElement>('.resonance-import-footer .primary-button')!.click()
     await flushPromises()
     expect((await loadResonanceRecords()).map((record) => record.id)).toEqual(['77:10347'])
@@ -266,7 +269,7 @@ describe('ResonanceRecords', () => {
     expect(panel.querySelector('.resonance-preview')).toBeNull()
   })
 
-  it('previews a Pearpal snapshot and merges imported records without dropping local pools', async () => {
+  it('previews a Pearpal snapshot and replaces all local pools after confirmation', async () => {
     const localOnly: ResonanceRecord = {
       ...savedRecord,
       id: 'local-only:outfit', bannerId: 'local-only', outfitId: 'outfit-local',
@@ -294,13 +297,13 @@ describe('ResonanceRecords', () => {
     expect(panel.querySelector('.resonance-preview tbody')?.textContent).toContain('17')
     expect(panel.textContent).not.toContain('第二套')
 
-    // 预览期间另一窗口替换了本地数据：旧页面不能恢复已删除的阁，也不能丢失新阁。
+    // 整批替换以本次预览为准，其他窗口在预览期间新增的阁也不保留。
     const latestOnly = { ...localOnly, id: 'latest-only:outfit', bannerId: 'latest-only' }
     await saveResonanceRecords([latestOnly])
     ;(panel.querySelector('.resonance-import-footer button:last-child') as HTMLButtonElement).click()
-    await vi.waitFor(async () => expect(await loadResonanceRecords()).toHaveLength(2))
+    await vi.waitFor(async () => expect(await loadResonanceRecords()).toHaveLength(1))
     const stored = await loadResonanceRecords()
-    expect(stored.map((record) => record.id)).toEqual(expect.arrayContaining(['latest-only:outfit', '77:10347']))
+    expect(stored.map((record) => record.id)).toEqual(['77:10347'])
     expect(stored.some(record => record.id === localOnly.id)).toBe(false)
     expect(stored.find((record) => record.id === '77:10347')?.sets[0].totalPulls).toBe(17)
     expect(wrapper.find('.resonance-record-heading p').text()).toContain('总抽数：17')
@@ -338,10 +341,33 @@ describe('ResonanceRecords', () => {
   })
 })
 
+it.each([false, true])('handles partial replacement with save failure=%s', async failSaving => {
+  const oldRecord = { ...savedRecord, id: '76:10347', bannerId: '76' }
+  await saveResonanceRecords([oldRecord])
+  vi.spyOn(resonanceImport, 'importFromPearpal').mockResolvedValueOnce({ records: [savedRecord], skippedPools: 1 })
+  const { wrapper, panel } = await openDialog()
+  await pasteCredentials(panel)
+  panel.querySelector<HTMLButtonElement>('.resonance-import-footer .primary-button')!.click()
+  await vi.waitFor(() => expect(panel.querySelector('.resonance-preview')).not.toBeNull())
+  expect(panel.textContent).toContain('旧记录也将被删除')
+  if (failSaving) vi.spyOn(resonanceStorage, 'saveResonanceRecords').mockRejectedValueOnce(new Error('save failed'))
+  panel.querySelector<HTMLButtonElement>('.resonance-import-footer .primary-button')!.click()
+  await flushPromises()
+  expect(await loadResonanceRecords()).toEqual(failSaving ? [oldRecord] : [savedRecord])
+  if (failSaving) {
+    expect(document.body.querySelector('.resonance-preview')).not.toBeNull()
+    expect(wrapper.emitted('recordsChange')?.at(-1)?.[0]).toEqual([oldRecord])
+    expect(latestNotice(wrapper)?.tone).toBe('error')
+  } else {
+    expect(document.body.querySelector('.resonance-import-panel')).toBeNull()
+    expect(latestNotice(wrapper)?.tone).toBe('warning')
+  }
+})
+
 it('blocks import after a storage read failure without overwriting existing records', async () => {
   await saveResonanceRecords([savedRecord])
   vi.spyOn(resonanceStorage, 'loadResonanceRecords').mockRejectedValueOnce(new Error('read failed'))
-  const save = vi.spyOn(resonanceStorage, 'mergeResonanceRecords')
+  const save = vi.spyOn(resonanceStorage, 'saveResonanceRecords')
   const { wrapper, panel } = await openDialog()
   panel.querySelectorAll<HTMLButtonElement>('.resonance-choice-row:first-child button')[1]!.click()
   await flushPromises()

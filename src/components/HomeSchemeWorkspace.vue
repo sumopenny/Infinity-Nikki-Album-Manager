@@ -7,6 +7,8 @@ import { messages as localeMessages, type LocaleMessages } from '../i18n'
 import OutfitSidebar from './OutfitSidebar.vue'
 import CollectionFilterBar from './CollectionFilterBar.vue'
 import CollectionActions from './CollectionActions.vue'
+import StoredImage from './StoredImage.vue'
+import { releasePhotoUrl } from '../utils/file-system/photoUrl'
 
 import { describeHomeSchemeError } from '../utils/homeBuild/homeSchemeErrors'
 import type { HomeSchemeMessages } from '../i18n/messages/homeScheme'
@@ -16,6 +18,7 @@ import {
   deleteHomeScheme,
   deleteHomeSchemeTag,
   readHomeSchemeLibrary,
+  readHomeSchemeImage,
   releaseHomeSchemeUrls,
   reorderHomeSchemeTags,
   saveHomeScheme,
@@ -56,7 +59,6 @@ const emit = defineEmits<{
   openFilters: []
   closeFilters: []
   visibleCountChange: [count: number]
-  busyChange: [busy: boolean]
   status: [message: string, tone: 'success' | 'warning' | 'error' | 'info']
   countChange: [count: number]
 }>()
@@ -81,6 +83,7 @@ const selectedSchemeIds = ref<Set<string>>(new Set())
 const previewScheme = ref<HomeSchemeItem | null>(null)
 const imageFile = ref<File | null>(null)
 const localImageUrl = ref<string | null>(null)
+let editorImageGeneration = 0
 const removeLocalImage = ref(false)
 const isDragging = ref(false)
 const parsing = ref(false)
@@ -122,7 +125,6 @@ const visibleSchemes = computed(() => {
 const previewUrl = computed(
   () => localImageUrl.value ?? (removeLocalImage.value ? null : coverImageUrl.value)
 )
-watch(busy, (value) => emit('busyChange', value))
 const isBusy = computed(() => props.disabled || busy.value)
 watch(visibleSchemes, (value) => emit('visibleCountChange', value.length), { immediate: true })
 
@@ -155,9 +157,19 @@ const previewPhoto = computed<Omit<PhotoItem, 'fileHandle' | 'directoryHandle'> 
     id: item.id,
     name: item.name || item.code,
     url: item.imageUrl,
+    loadImageBlob: item.image ? () => readHomeSchemeImage(item.id) : undefined,
     fileSizeText: '--',
     note: item.note
   }
+})
+
+// 大图独立持有地址，翻页或关闭时释放，不与列表卡片共享生命周期。
+watch(previewPhoto, (_next, previous) => {
+  if (previous?.loadImageBlob) releasePhotoUrl(previous)
+})
+onBeforeUnmount(() => {
+  editorImageGeneration++
+  if (previewPhoto.value?.loadImageBlob) releasePhotoUrl(previewPhoto.value)
 })
 
 /** 统一映射操作错误并仅记录安全的诊断类别。 */
@@ -258,7 +270,9 @@ async function runParse(requestCode: string) {
   }
 }
 
+/** 初始化编辑器；本地封面单独读取，关闭或替换图片后丢弃晚到结果。 */
 function resetEditor(item: HomeSchemeItem | null) {
+  const imageRun = ++editorImageGeneration
   cancelParse()
   closeTagInput()
   editing.value = item
@@ -279,14 +293,34 @@ function resetEditor(item: HomeSchemeItem | null) {
   previousActiveElement =
     document.activeElement instanceof HTMLElement ? document.activeElement : null
   editorVisible.value = true
+  if (item?.image && !item.imageUrl) {
+    void readHomeSchemeImage(item.id)
+      .then((blob) => {
+        if (
+          imageRun === editorImageGeneration &&
+          editorVisible.value &&
+          editing.value === item &&
+          !imageFile.value &&
+          !removeLocalImage.value
+        ) {
+          localImageUrl.value = URL.createObjectURL(blob)
+        }
+      })
+      .catch((error) => {
+        if (imageRun === editorImageGeneration && editorVisible.value && editing.value === item)
+          emit('status', operationError(error, 'loadEditorImage'), 'error')
+      })
+  }
   void nextTick(() => {
     document.getElementById('home-scheme-code')?.focus()
   })
   if (!item) queueParse('')
 }
 
+/** 关闭时使未完成的封面读取失效，并释放编辑器临时地址。 */
 function closeEditor() {
   if (isBusy.value) return
+  editorImageGeneration++
   cancelParse()
   closeTagInput()
   isDragging.value = false
@@ -514,8 +548,9 @@ function changeSchemeFilter(nextFilter: typeof filter.value) {
   filter.value = nextFilter
 }
 
+/** 本地图片即使尚未读取，也允许进入按需加载的大图预览。 */
 function openPreview(item: HomeSchemeItem) {
-  if (isBusy.value || !item.imageUrl) return
+  if (isBusy.value || (!item.image && !item.imageUrl)) return
   previewScheme.value = item
 }
 
@@ -926,7 +961,13 @@ function handleAddTag(value: string) {
             @keydown="handleSchemeKeydown($event, item.id)"
           >
             <div class="photo-frame home-scheme-card-image">
-              <img v-if="item.imageUrl" :src="item.imageUrl" alt="" loading="lazy" />
+              <StoredImage
+                v-if="item.image"
+                :source-key="`${item.id}:${item.updatedAt}`"
+                :load="() => readHomeSchemeImage(item.id)"
+                :alt="item.name || item.code"
+              />
+              <img v-else-if="item.imageUrl" :src="item.imageUrl" alt="" loading="lazy" />
               <div v-else class="home-scheme-card-no-image"
                 ><ImagePlus :size="22" aria-hidden="true"
               /></div>
@@ -1220,19 +1261,9 @@ function handleAddTag(value: string) {
   min-width: 0;
   min-height: 100%;
 }
-.home-scheme-sidebar {
-  min-width: 0;
-  margin-top: 20px;
-  padding: 0 7px 20px 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
 .home-scheme-main {
   min-width: 0;
   padding: 0 0 28px;
-}
-.home-scheme-tag-form {
-  margin: 10px 0 0;
 }
 .home-scheme-heading {
   min-width: 0;
@@ -1249,11 +1280,6 @@ function handleAddTag(value: string) {
   font-size: 16px;
   line-height: 1;
   white-space: nowrap;
-}
-.home-scheme-header-actions input[type='search'] {
-  width: 180px;
-  min-width: 0;
-  height: 36px;
 }
 .home-scheme-empty {
   margin-top: 14px;
@@ -1311,21 +1337,6 @@ function handleAddTag(value: string) {
   min-height: 38px;
   padding-top: 5px;
 }
-.home-scheme-code {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  align-items: center;
-  gap: 5px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-}
-.home-scheme-code .outfit-code {
-  font-size: 11px;
-}
 .home-scheme-card-tag {
   flex-shrink: 0;
   max-width: 50%;
@@ -1377,20 +1388,11 @@ function handleAddTag(value: string) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.home-scheme-fields > .home-scheme-readonly {
-  min-height: 36px;
-  margin-bottom: 20px;
-  color: var(--text);
-  font-size: 13px;
-}
 .home-scheme-fields > small {
   display: block;
   margin: -15px 0 14px;
   color: var(--muted);
   font-size: 11px;
-}
-.home-scheme-fields > .home-scheme-parse-error {
-  color: var(--notice-error);
 }
 .home-scheme-fields fieldset {
   min-width: 0;
@@ -1437,12 +1439,6 @@ function handleAddTag(value: string) {
 @media (max-width: 850px) {
   .home-scheme-workspace {
     min-height: 0;
-  }
-  .home-scheme-sidebar {
-    margin-top: 14px;
-  }
-  .home-scheme-header-actions input[type='search'] {
-    flex: 1 1 140px;
   }
   .home-scheme-editor-body {
     grid-template-columns: 1fr;

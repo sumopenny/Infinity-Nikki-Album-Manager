@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { messages } from '../../src/i18n'
+import { readAlbumMetadata, savePhotoNote } from '../../src/utils/file-system/photoMetadata'
 import type { PhotoItem } from '../../src/utils/photoGrouping'
 import {
   pickAlbumDirectory,
@@ -11,6 +12,10 @@ import { executeMatchingPhotoCleanup, executeSpecialCleanup, prepareMatchingPhot
 import { listGamePlayPhotoAccounts, resolveX6GameAccountDirectory } from '../../src/utils/file-system/directoryAccess'
 
 beforeAll(() => {
+  let tail = Promise.resolve()
+  Object.defineProperty(navigator, 'locks', { configurable: true, value: { request: (_name: string, action: () => Promise<void>) => {
+    const next = tail.then(action); tail = next.catch(() => undefined); return next
+  } } })
   Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: () => undefined })
 })
 
@@ -31,7 +36,11 @@ class MemoryFileHandle {
 
   async getFile(): Promise<File> {
     if (this.failRead) throw new DOMException('Read failed', 'NotReadableError')
-    return new File([this.contents], this.name, { type: this.contents.type, lastModified: this.lastModified })
+    const file = new File([this.contents], this.name, { type: this.contents.type, lastModified: this.lastModified })
+    Object.defineProperty(file, 'text', { value: () => new Promise<string>((resolve, reject) => {
+      const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsText(this.contents)
+    }) })
+    return file
   }
 
   async createWritable(): Promise<FileSystemWritableFileStream> {
@@ -715,4 +724,67 @@ describe('album refresh and recently deleted filesystem operations', () => {
     expect(album.files.has(photo.name)).toBe(true)
     expect(album.files.has('2026_06_26_11_22_00_restored_1.jpeg')).toBe(true)
   })
+})
+
+
+it('refreshes changed and removed notes while retaining the original photo URL', async () => {
+  const directory = new MemoryDirectoryHandle('album')
+  createPhoto(directory, '2026-10-14_12-00-00.jpg')
+  const handle = directory as unknown as FileSystemDirectoryHandle
+  await savePhotoNote(handle, '2026-10-14_12-00-00.jpg', 'old')
+  const first = await readAlbumDirectory(handle, { messages: messages.zh.fileSystem })
+  first.photos[0].url = 'blob:kept'
+  await savePhotoNote(handle, first.photos[0].name, 'new')
+  const second = await refreshAlbumDirectory(handle, first.photos, { messages: messages.zh.fileSystem })
+  expect(second.photos[0]).toBe(first.photos[0])
+  expect(second.photos[0]).toMatchObject({ note: 'new', url: 'blob:kept' })
+  await savePhotoNote(handle, first.photos[0].name, '')
+  expect((await refreshAlbumDirectory(handle, second.photos, { messages: messages.zh.fileSystem })).photos[0].note).toBe('')
+})
+
+it('persists trash notes across reload and restores them under a conflict-free new name', async () => {
+  const directory = new MemoryDirectoryHandle('album')
+  const photo = createPhoto(directory, '2026-10-14_12-00-00.jpg')
+  const handle = directory as unknown as FileSystemDirectoryHandle
+  await savePhotoNote(handle, photo.name, 'original')
+  const moved = await movePhotosToRecentlyDeleted([photo], new Set())
+  expect(moved.movedPhotos[0].note).toBe('original')
+  expect((await readAlbumMetadata(handle)).photos[photo.name]).toBeUndefined()
+  const reloaded = await listRecentlyDeleted(handle)
+  expect(reloaded[0].note).toBe('original')
+  createPhoto(directory, photo.name)
+  await savePhotoNote(handle, photo.name, 'replacement')
+  const restored = await restoreRecentlyDeletedPhotos(reloaded, handle)
+  expect(restored.restoredPhotos[0].name).toContain('_restored_1')
+  const notes = (await readAlbumMetadata(handle)).photos
+  expect(notes[restored.restoredPhotos[0].name].note).toBe('original')
+  expect(notes[photo.name].note).toBe('replacement')
+  expect(notes[reloaded[0].noteKey!]).toBeUndefined()
+})
+
+it('keeps source notes and files when move or restore deletion fails', async () => {
+  const directory = new MemoryDirectoryHandle('album')
+  const photo = createPhoto(directory, '2026-10-14_12-00-00.jpg')
+  const handle = directory as unknown as FileSystemDirectoryHandle
+  await savePhotoNote(handle, photo.name, 'kept')
+  directory.failRemoveName = photo.name
+  expect((await movePhotosToRecentlyDeleted([photo], new Set())).failedNames).toEqual([photo.name])
+  expect((await readAlbumMetadata(handle)).photos).toEqual({ [photo.name]: { note: 'kept' } })
+  expect(directory.files.has(photo.name)).toBe(true)
+  directory.failRemoveName = null
+  const moved = await movePhotosToRecentlyDeleted([photo], new Set())
+  directory.directories.get('trash')!.failRemoveName = moved.movedPhotos[0].trashName
+  expect((await restoreRecentlyDeletedPhotos(moved.movedPhotos, handle)).failedNames).toEqual([photo.name])
+  expect(directory.files.has(photo.name)).toBe(false)
+  expect((await listRecentlyDeleted(handle))[0].note).toBe('kept')
+})
+
+it('does not resurrect a note removed after the album was loaded', async () => {
+  const directory = new MemoryDirectoryHandle('album')
+  const photo = createPhoto(directory, '2026-10-14_12-00-00.jpg')
+  photo.note = 'stale note'
+  const result = await movePhotosToRecentlyDeleted([photo], new Set())
+  expect(result.failedNames).toEqual([])
+  expect(result.movedPhotos[0].note).toBe('')
+  expect((await listRecentlyDeleted(directory as unknown as FileSystemDirectoryHandle))[0].note).toBe('')
 })

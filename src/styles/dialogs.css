@@ -446,7 +446,7 @@
     height: 16px;
     border: 2px solid var(--surface);
     border-radius: 50%;
-    background: var(--accent);
+    background: var(--pink-deep);
     box-shadow:
         0 0 0 1px color-mix(in srgb, var(--pink-deep) 42%, transparent),
         0 2px 6px color-mix(in srgb, var(--pink-deep) 52%, transparent);

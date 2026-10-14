@@ -18,6 +18,7 @@ import {
 import { messages as localeMessages, type Language } from '../i18n'
 import CollectionFilterBar from './CollectionFilterBar.vue'
 import CollectionActions from './CollectionActions.vue'
+import StoredImage from './StoredImage.vue'
 import SelectionBar from './SelectionBar.vue'
 import OutfitSidebar, { type OutfitFilter } from './OutfitSidebar.vue'
 import {
@@ -44,6 +45,7 @@ import {
   normalizeCameraCode,
   planCameraImport,
   readCameraFavorites,
+  readCameraFavoriteCover,
   saveCameraFavorite,
   type CameraFavorite,
   type FavoriteLibrary,
@@ -69,14 +71,12 @@ const emit = defineEmits<{
   openFilters: []
   closeFilters: []
   visibleCountChange: [count: number]
-  busyChange: [busy: boolean]
   codesChange: [codes: string[]]
   modalChange: [visible: boolean]
   status: [message: string, tone: 'success' | 'error' | 'warning' | 'info']
 }>()
 const t = (zh: string, en: string) => (props.language === 'zh' ? zh : en)
 const library = shallowRef<FavoriteLibrary>({ records: [], covers: new Map() })
-const urls = ref<Record<string, string>>({})
 const localBusy = ref(false)
 const busy = computed({
   get: () => Boolean(props.disabled) || localBusy.value,
@@ -84,7 +84,6 @@ const busy = computed({
     localBusy.value = value
   }
 })
-watch(localBusy, (value) => emit('busyChange', value))
 const loadError = ref('')
 const editor = ref(false)
 const editing = shallowRef<CameraFavorite | null>(null)
@@ -369,22 +368,13 @@ function report(caught: unknown) {
   error.value = caught instanceof DuplicateCameraCodeError ? '' : message
   emit('status', message, 'error')
 }
-function releaseUrls() {
-  Object.values(urls.value).forEach((url) => URL.revokeObjectURL(url))
-  urls.value = {}
-}
+/** 列表只读取收藏元数据，封面由可见卡片按需读取。 */
 async function reload() {
   return trackOperation(async () => {
     const run = ++loadGeneration
     try {
-      const next = await readCameraFavorites()
+      const next = await readCameraFavorites(false)
       if (disposed || run !== loadGeneration) return
-      const nextUrls: Record<string, string> = {}
-      next.covers.forEach((blob, id) => {
-        nextUrls[id] = URL.createObjectURL(blob)
-      })
-      releaseUrls()
-      urls.value = nextUrls
       tagOrder.value = next.tags ?? []
       library.value = next
       loadError.value = ''
@@ -411,6 +401,7 @@ function closeEditor() {
   closeTagInput()
   setCover(null)
 }
+/** 编辑已有收藏时先读取单张封面，读取失败则保留原记录。 */
 async function openEditor(
   item: CameraFavorite | null = null,
   result: PhotoParamsResult | null = null,
@@ -418,6 +409,20 @@ async function openEditor(
   file: File | null = null
 ) {
   if (busy.value) return
+  // 编辑封面按需读取；失败时保留原记录，不能把缺图误保存为删除封面。
+  let existingCover: Blob | null = null
+  if (item?.cover) {
+    busy.value = true
+    try {
+      existingCover = await trackOperation(() => readCameraFavoriteCover(item.id))
+    } catch (caught) {
+      report(caught)
+      return
+    } finally {
+      busy.value = false
+    }
+    if (disposed) return
+  }
   cancelAutoParse()
   editing.value = item ? cloneFavorite(item) : null
   source.value = item?.source ?? entry
@@ -430,10 +435,7 @@ async function openEditor(
   closeTagInput()
   sidebar.value?.closeTagInput()
   error.value = ''
-  setCover(
-    item ? (library.value.covers.get(item.id) ?? null) : file,
-    item?.cover?.name ?? file?.name ?? ''
-  )
+  setCover(item ? existingCover : file, item?.cover?.name ?? file?.name ?? '')
   editor.value = true
   await nextTick()
 }
@@ -726,7 +728,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', updateTagPosition)
   window.removeEventListener('scroll', updateTagPosition, true)
   window.removeEventListener('focus', focusRefresh)
-  releaseUrls()
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
 })
 defineExpose({ openFromResult, reload })
@@ -858,7 +859,12 @@ function handleImportChoices(value: typeof choices.value) {
         @keydown="cardKeydown($event, item.id)"
       >
         <div class="camera-cover">
-          <img v-if="urls[item.id]" :src="urls[item.id]" :alt="item.name" loading="lazy" />
+          <StoredImage
+            v-if="item.cover"
+            :source-key="`${item.id}:${item.updatedAt}`"
+            :load="() => readCameraFavoriteCover(item.id)"
+            :alt="item.name"
+          />
           <div v-else-if="resources(item.result).length" class="camera-resources">
             <div v-for="group in resources(item.result)" :key="group.kind">
               <img

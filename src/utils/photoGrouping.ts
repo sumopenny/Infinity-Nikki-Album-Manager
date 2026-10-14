@@ -87,6 +87,8 @@ export interface ActionGroup {
 }
 
 export interface RecentlyDeletedPhoto extends PhotoItem {
+  albumDirectoryHandle?: FileSystemDirectoryHandle
+  noteKey?: string
   trashName: string
   originalName: string
   deletedAt: number

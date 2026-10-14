@@ -203,8 +203,11 @@ describe('App lifecycle coordination', () => {
     }
   })
 
-  it('retains resonance and all favorites when clearing data through the application', async () => {
+  it('clears all website data and reloads only after the reset completes', async () => {
     getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+    const reload = vi.fn()
+    vi.stubGlobal('location', { reload })
+    sessionStorage.setItem('reset-session', 'saved')
     const favoriteKey = 'infinity-nikki-favorite-photo-ids'
     localStorage.setItem(favoriteKey, JSON.stringify(['original-album/photo.jpg']))
     localStorage.setItem('infinity-nikki-language', 'zh')
@@ -230,17 +233,66 @@ describe('App lifecycle coordination', () => {
       wrapper.findComponent({ name: 'TopBar' }).vm.$emit('clearData')
       await nextTick()
       const dialog = wrapper.findComponent({ name: 'ConfirmDialog' })
-      expect(dialog.props('message')).toContain('全部保留')
+      expect(dialog.props('message')).toContain('永久删除')
+      expect(dialog.props('message')).toContain('请先导出备份')
       dialog.vm.$emit('confirm')
       await vi.waitFor(() => expect(document.body.textContent).toContain(messages.zh.app.clearDataStatus))
-      expect(localStorage.getItem(favoriteKey)).toBe(JSON.stringify(['original-album/photo.jpg']))
+      expect(localStorage.length).toBe(0)
+      expect(sessionStorage.length).toBe(0)
+      expect(reload).toHaveBeenCalledOnce()
       expect(await runStoreRequest('album-handles', 'readonly', store => store.count())).toBe(0)
-      for (const [storeName, key, value] of preserved)
-        expect(await runStoreRequest(storeName, 'readonly', store => store.get(key ?? 'kept'))).toEqual(value)
+      for (const [storeName, key] of preserved)
+        expect(await runStoreRequest(storeName, 'readonly', store => store.get(key ?? 'kept'))).toBeUndefined()
     } finally {
       wrapper.unmount()
       for (const [storeName] of preserved)
         await runStoreRequest(storeName, 'readwrite', store => store.clear())
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('keeps data and does not reload when reset confirmation is cancelled', async () => {
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+    const reload = vi.fn()
+    vi.stubGlobal('location', { reload })
+    localStorage.setItem('reset-cancel', 'saved')
+    await runStoreRequest('album-handles', 'readwrite', store => store.put('saved', 'reset-cancel'))
+    const wrapper = mount(App, { attachTo: document.body, global: { stubs: { CameraFavorites: true } } })
+    try {
+      await flushPromises()
+      wrapper.getComponent({ name: 'TopBar' }).vm.$emit('clearData')
+      await nextTick()
+      wrapper.getComponent({ name: 'ConfirmDialog' }).vm.$emit('cancel')
+      await flushPromises()
+      expect(localStorage.getItem('reset-cancel')).toBe('saved')
+      expect(await runStoreRequest('album-handles', 'readonly', store => store.get('reset-cancel'))).toBe('saved')
+      expect(reload).not.toHaveBeenCalled()
+    } finally {
+      wrapper.unmount()
+      await runStoreRequest('album-handles', 'readwrite', store => store.delete('reset-cancel'))
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('reports storage reset failures without reloading or claiming success', async () => {
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+    const reload = vi.fn()
+    vi.stubGlobal('location', { reload })
+    const wrapper = mount(App, { attachTo: document.body, global: { stubs: { CameraFavorites: true } } })
+    let clear: ReturnType<typeof vi.spyOn> | undefined
+    try {
+      await flushPromises()
+      clear = vi.spyOn(Storage.prototype, 'clear').mockImplementation(() => { throw new Error('Storage unavailable') })
+      wrapper.getComponent({ name: 'TopBar' }).vm.$emit('clearData')
+      await nextTick()
+      wrapper.getComponent({ name: 'ConfirmDialog' }).vm.$emit('confirm')
+      await vi.waitFor(() => expect(document.body.textContent).toContain('Storage unavailable'))
+      expect(document.body.textContent).not.toContain(messages.zh.app.clearDataStatus)
+      expect(reload).not.toHaveBeenCalled()
+    } finally {
+      clear?.mockRestore()
+      wrapper.unmount()
+      vi.unstubAllGlobals()
     }
   })
 

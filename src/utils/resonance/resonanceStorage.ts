@@ -15,11 +15,13 @@ export async function loadResonanceRecords(): Promise<ResonanceRecord[]> {
   return value as ResonanceRecord[]
 }
 
+/** 整批替换全部共鸣记录，固定输入快照并等待事务提交；失败时原数据不变。 */
 export async function saveResonanceRecords(records: ResonanceRecord[]): Promise<void> {
-  await transact('readwrite', (store) => store.put(records, RECORDS_KEY))
+  const snapshot = structuredClone(records)
+  await transact('readwrite', (store) => store.put(snapshot, RECORDS_KEY))
 }
 
-/** 导入在同一读写事务内合并最新记录；只覆盖本次导入的 ID，不回写页面旧快照。 */
+/** 完整备份恢复在同一读写事务内合并最新记录；只覆盖备份中的 ID，不回写页面旧快照。 */
 export async function mergeResonanceRecords(incoming: ResonanceRecord[]): Promise<ResonanceRecord[]> {
   // 等待数据库连接前固定本次输入，避免调用方在等待期间改动导入内容。
   const imported = structuredClone(incoming)

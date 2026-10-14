@@ -56,6 +56,15 @@ describe('resonanceStorage', () => {
     await expect(loadResonanceRecords()).resolves.toEqual([])
   })
 
+  it('replaces all records and fixes the input snapshot before saving', async () => {
+    await saveResonanceRecords([record, { ...record, id: 'old-only' }])
+    const incoming = [{ ...record, outfitName: { zh: '新记录', en: 'New record' } }]
+    const saving = saveResonanceRecords(incoming)
+    incoming.length = 0
+    await saving
+    expect(await loadResonanceRecords()).toEqual([{ ...record, outfitName: { zh: '新记录', en: 'New record' } }])
+  })
+
   it('merges concurrent imports using the latest committed records', async () => {
     const first = { ...record, id: 'first' }, second = { ...record, id: 'second' }
     await Promise.all([mergeResonanceRecords([first]), mergeResonanceRecords([second])])
@@ -86,7 +95,7 @@ describe('resonanceStorage', () => {
       if (this.name === 'resonance-records') request.addEventListener('success', () => this.transaction.abort())
       return request
     })
-    await expect(mergeResonanceRecords([{ ...record, id: 'new' }])).rejects.toThrow()
+    await expect(saveResonanceRecords([{ ...record, id: 'new' }])).rejects.toThrow()
     expect(await loadResonanceRecords()).toEqual([record])
   })
 })

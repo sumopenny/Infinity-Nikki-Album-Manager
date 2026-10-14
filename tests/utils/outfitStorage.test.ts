@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { expect, it, vi } from 'vitest'
 import { setupOutfitDatabaseTests, webp } from '../helpers/outfitDatabase'
-import { DB_NAME, DB_VERSION, OUTFITS_STORE, OUTFIT_IMAGES_STORE, openDb, runStoreRequest, clearBrowserSessionData } from '../../src/utils/file-system/database'
+import { DB_NAME, DB_VERSION, OUTFITS_STORE, OUTFIT_IMAGES_STORE, openDb, runStoreRequest } from '../../src/utils/file-system/database'
 import { saveOutfit, saveOutfitTags, deleteOutfitTag, deleteOutfits, readOutfitCollection, readOutfitSnapshot, outfitTransaction } from '../../src/utils/outfit/outfitStorage'
 import { DuplicateOutfitCodeError } from '../../src/utils/outfit/outfitTypes'
 setupOutfitDatabaseTests()
@@ -44,10 +44,9 @@ it('retains creation order and notes when tags are removed, and rejects stale ed
   const saved = await saveOutfit({ outfit: current, code: 'FIRST', tag: null, note: '已修改' })
   expect(saved.createdAt).toBe(first.createdAt)
 })
-it('deletes records and images atomically, preserves ignores on clearing session data and lifts only manually restored codes', async () => {
+it('deletes records and images atomically and lifts only manually restored ignored codes', async () => {
   const first = await saveOutfit(input('FIRST')), second = await saveOutfit(input('SECOND'))
   expect((await deleteOutfits([first, second])).deleted).toHaveLength(2)
-  await clearBrowserSessionData()
   let snapshot = await readOutfitSnapshot()
   expect(snapshot.images.size).toBe(0); expect(snapshot.ignoredCodes.sort()).toEqual(['FIRST', 'SECOND'])
   await saveOutfit(input('FIRST'))

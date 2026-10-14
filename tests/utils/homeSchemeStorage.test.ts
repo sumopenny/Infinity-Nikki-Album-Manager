@@ -81,3 +81,19 @@ it('rolls record and image writes back when a successful request is followed by 
   expect(await runStoreRequest(HOME_IMAGES_STORE, 'readonly', store => store.count())).toBe(0)
   expect(await runStoreRequest(HOME_SCHEMES_STORE, 'readonly', store => store.count())).toBe(0)
 })
+
+
+it('loads list metadata without reading image blobs, but keeps full backup snapshots', async () => {
+  const { readHomeSchemeLibrary, readHomeSchemeImage } = await import('../../src/utils/homeBuild/homeSchemeStorage')
+  await saveHomeSchemeTags(['庭院'])
+  const saved = await saveHomeScheme({ ...input(), imageFile: image() })
+  const reads = vi.spyOn(IDBObjectStore.prototype, 'getAll')
+  const list = await readHomeSchemeLibrary()
+  expect(list.schemes[0]).toMatchObject({ id: saved.id, imageUrl: null })
+  expect(reads.mock.contexts.map(store => (store as IDBObjectStore).name)).not.toContain('home-scheme-images')
+  expect(reads.mock.contexts.map(store => (store as IDBObjectStore).name)).toEqual(['home-schemes'])
+  const blob = await readHomeSchemeImage(saved.id)
+  expect(blob.size).toBeGreaterThan(0)
+  expect((await readHomeSchemeSnapshot()).images.get(saved.id)?.blob.size).toBe(blob.size)
+  reads.mockRestore()
+})

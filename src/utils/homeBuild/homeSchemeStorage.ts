@@ -47,17 +47,30 @@ export async function readHomeSchemeSnapshot(): Promise<HomeSchemeSnapshot> {
   })
 }
 
-function displayHomeScheme(record: HomeSchemeRecord, image?: HomeSchemeImage): HomeSchemeItem {
-  return { ...record, imageUrl: record.image && image ? URL.createObjectURL(image.blob) : record.metadata.coverImageUrl }
+/** 列表只提供元数据，本地图片由可见卡片或编辑器按 ID 读取。 */
+function displayHomeScheme(record: HomeSchemeRecord): HomeSchemeItem {
+  return { ...record, imageUrl: record.image ? null : record.metadata.coverImageUrl }
 }
 
+/** 按需读取单张封面，保留缺图和大小校验。 */
+export async function readHomeSchemeImage(id: string): Promise<Blob> {
+  const image = await runStoreRequest<HomeSchemeImage | undefined>(HOME_IMAGES_STORE, 'readonly', store => store.get(id))
+  if (!image?.blob || !image.size || image.blob.size !== image.size) throw new Error('home_scheme_image_missing')
+  return image.blob
+}
+
+/** 列表读取不进入图片表；完整备份继续使用 readHomeSchemeSnapshot。 */
 export async function readHomeSchemeLibrary(): Promise<{ schemes: HomeSchemeItem[]; tags: string[] }> {
-  const snapshot = await readHomeSchemeSnapshot()
-  const schemes: HomeSchemeItem[] = []
-  try {
-    for (const record of snapshot.records) schemes.push(displayHomeScheme(record, snapshot.images.get(record.id)))
-    return { schemes, tags: snapshot.tags }
-  } catch (error) { releaseHomeSchemeUrls(schemes); throw error }
+  return homeTransaction([HOME_SCHEMES_STORE, HOME_TAGS_STORE], 'readonly', async tx => {
+    const [rawRecords, rawTags] = await Promise.all([
+      homeRequest(tx.objectStore(HOME_SCHEMES_STORE).getAll()),
+      homeRequest(tx.objectStore(HOME_TAGS_STORE).get('default'))
+    ])
+    const records = rawRecords.map(normalizeHomeSchemeRecord).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    const tags = normalizeHomeSchemeTags(rawTags ?? [])
+    if (records.some(record => record.tags.some(tag => !tags.includes(tag)))) throw new Error('home_scheme_tag_missing')
+    return { schemes: records.map(displayHomeScheme), tags }
+  })
 }
 
 export async function countHomeSchemes(): Promise<number> {
@@ -99,7 +112,7 @@ export async function saveHomeScheme(input: SaveHomeSchemeInput): Promise<HomeSc
     records.put(record)
     return { record, image }
   })
-  return displayHomeScheme(saved.record, saved.image)
+  return displayHomeScheme(saved.record)
 }
 
 export async function deleteHomeScheme(item: Pick<HomeSchemeItem, 'id'>): Promise<void> {

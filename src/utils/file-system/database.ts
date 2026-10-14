@@ -90,7 +90,22 @@ export async function runStoreRequest<T>(storeName: string, mode: IDBTransaction
   })
 }
 
-/** Clear authorization and parser state only; user collections and resonance records are retained. */
-export async function clearBrowserSessionData(): Promise<void> {
-  await runStoreRequest('album-handles', 'readwrite', store => store.clear())
+/** 在同一事务内清空全部存储表，包含收藏、图片、授权和迁移来源；失败时整体回滚。 */
+export async function clearAllBrowserData(): Promise<void> {
+  const db = await openDb()
+  return new Promise((resolve, reject) => {
+    let tx: IDBTransaction | undefined
+    try {
+      const names = [...db.objectStoreNames]
+      tx = db.transaction(names, 'readwrite')
+      tx.oncomplete = () => { db.close(); resolve() }
+      tx.onabort = () => { db.close(); reject(tx?.error ?? new Error('IndexedDB reset aborted')) }
+      tx.onerror = () => { /* onabort reports the final failure. */ }
+      for (const name of names) tx.objectStore(name).clear()
+    } catch (error) {
+      try { tx?.abort() } catch { /* Transaction may already be inactive. */ }
+      db.close()
+      reject(error)
+    }
+  })
 }

@@ -1,4 +1,4 @@
-import { openDb, CAMERA_FAVORITES_STORE as RECORDS, CAMERA_COVERS_STORE as COVERS, CAMERA_TAGS_STORE as TAGS } from '../file-system/database'
+import { openDb, runStoreRequest, CAMERA_FAVORITES_STORE as RECORDS, CAMERA_COVERS_STORE as COVERS, CAMERA_TAGS_STORE as TAGS } from '../file-system/database'
 import type { PhotoParamsResult } from './types'
 import { sha256Hex } from '../sha256'
 
@@ -53,26 +53,33 @@ export function cameraFavoriteTags(library: Pick<FavoriteLibrary, 'records' | 't
   return [...new Set([...(library.tags ?? []), ...library.records.map(record => record.tag)])]
     .filter(tag => typeof tag === 'string' && !!tag.trim() && tag.length <= LEGACY_CAMERA_FAVORITE_TAG_LENGTH)
 }
-export async function readCameraFavorites(): Promise<FavoriteLibrary> {
+/** 列表可跳过封面；导入导出仍按默认参数读取完整快照。 */
+export async function readCameraFavorites(includeCovers = true): Promise<FavoriteLibrary> {
   return transact<FavoriteLibrary>('readonly', (records, covers, done, tags) => {
     const list = records.getAll()
-    const images = covers.getAll()
-    const keys = covers.getAllKeys()
+    const images = includeCovers ? covers.getAll() : null
+    const keys = includeCovers ? covers.getAllKeys() : null
     const order = tags.get('order')
     order.onsuccess = () => {
       const orderedTags = cameraFavoriteTags({ records: list.result, tags: order.result ?? [] })
       done({
         records: (list.result as CameraFavorite[]).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-        covers: new Map(keys.result.map((key, i) => [String(key), images.result[i] as Blob])),
+        covers: new Map(keys && images ? keys.result.map((key, i) => [String(key), images.result[i] as Blob]) : []),
         tags: orderedTags
       })
     }
   })
 }
+/** 可见卡片和编辑器独立读取所需封面，不保留整库图片。 */
+export async function readCameraFavoriteCover(id: string): Promise<Blob> {
+  const blob = await runStoreRequest<Blob | undefined>(COVERS, 'readonly', store => store.get(id))
+  if (!blob?.size) throw new Error('Camera cover is missing')
+  return blob
+}
 export async function saveCameraFavoriteTags(next: string[]): Promise<string[]> {
   // 排序时允许保留已有长标签，新增的超长标签不得写入。
   if (next.some(tag => !isValidNewCameraFavoriteTag(tag))) {
-    const existing = new Set((await readCameraFavorites()).tags)
+    const existing = new Set((await readCameraFavorites(false)).tags)
     if (next.some(tag => !isValidNewCameraFavoriteTag(tag) && !existing.has(tag))) throw new Error('新增标签最多5个字符，不能包含逗号')
   }
   return transact('readwrite', (records, _covers, done, tags) => {
@@ -96,7 +103,7 @@ export async function saveCameraFavorite(record: CameraFavorite, cover: Blob | n
   if (!clean.code || !clean.name.trim()) throw new Error('请填写名称并解析参数')
   validateFavorite(clean)
   // 已有长标签可继续选用或编辑，手工写入新标签仍须遵守五字限制。
-  if (clean.tag && !isValidNewCameraFavoriteTag(clean.tag) && !(await readCameraFavorites()).tags?.includes(clean.tag))
+  if (clean.tag && !isValidNewCameraFavoriteTag(clean.tag) && !(await readCameraFavorites(false)).tags?.includes(clean.tag))
     throw new Error('新增标签最多5个字符，不能包含逗号')
   if (Boolean(clean.cover) !== Boolean(cover)) throw new Error('封面不完整')
   await transact<void>('readwrite', (records, covers, done, tags) => {

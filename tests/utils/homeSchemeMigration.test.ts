@@ -1,7 +1,7 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { DB_NAME, HOME_SCHEMES_STORE, HOME_MIGRATION_ENTRIES_STORE, runStoreRequest, clearBrowserSessionData } from '../../src/utils/file-system/database'
+import { DB_NAME, HOME_SCHEMES_STORE, HOME_MIGRATION_ENTRIES_STORE, runStoreRequest } from '../../src/utils/file-system/database'
 import { migrateHomeSchemeLibrary } from '../../src/utils/homeBuild/homeSchemeMigration'
 import { deleteHomeScheme, deleteHomeSchemeTag, readHomeSchemeSnapshot, saveHomeSchemeTags } from '../../src/utils/homeBuild/homeSchemeStorage'
 import { createEmptyHomeSchemeMetadata } from '../helpers/homeSchemeMetadata'
@@ -64,7 +64,6 @@ it('replaces the same code from a different identically named album, retains dat
   expect(snapshot.records).toHaveLength(1)
   expect(snapshot.records[0]).toMatchObject({ id: 'one', name: '新方案', image: null })
   expect(snapshot.images.size).toBe(0)
-  await clearBrowserSessionData()
   await deleteHomeScheme(snapshot.records[0])
   await migrateHomeSchemeLibrary(handle(first)); await migrateHomeSchemeLibrary(handle(second))
   expect((await readHomeSchemeSnapshot()).records).toHaveLength(0)

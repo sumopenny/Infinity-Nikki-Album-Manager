@@ -58,3 +58,28 @@ describe('PhotoParamsDialog', () => {
     wrapper.unmount()
   })
 })
+
+
+it('locks scrolling, cycles focus, closes with Escape and returns focus to its trigger', async () => {
+  const { nextTick } = await import('vue')
+  const trigger = document.createElement('button'); document.body.append(trigger); trigger.focus()
+  document.body.style.overflow = 'scroll'
+  const wrapper = mount(PhotoParamsDialog, { attachTo: document.body, props: {
+    visible: false, photo: null, uidRequired: true, progress: { stage: 'error', percent: 100, message: '' }, result: null, error: 'UID', messages
+  } })
+  await wrapper.setProps({ visible: true }); await nextTick()
+  const panel = document.querySelector<HTMLElement>('.photo-params-dialog')!
+  expect(document.activeElement).toBe(panel)
+  expect(document.body.style.overflow).toBe('hidden')
+  const buttons = [...panel.querySelectorAll<HTMLElement>('button:not(:disabled),input')]
+  for (const element of buttons) Object.defineProperty(element, 'getClientRects', { value: () => [{}] })
+  buttons.at(-1)!.focus()
+  buttons.at(-1)!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }))
+  expect(document.activeElement).toBe(buttons[0])
+  buttons[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+  expect(wrapper.emitted('close')).toHaveLength(1)
+  await wrapper.setProps({ visible: false }); await nextTick()
+  expect(document.activeElement).toBe(trigger)
+  expect(document.body.style.overflow).toBe('scroll')
+  wrapper.unmount(); trigger.remove(); document.body.style.overflow = ''
+})

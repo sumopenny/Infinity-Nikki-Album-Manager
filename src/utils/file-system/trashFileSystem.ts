@@ -2,6 +2,7 @@
 import { datePartsFromTimestamp, parsePhotoDate, type PhotoItem, type RecentlyDeletedPhoto } from '../photoGrouping'
 import { formatFileSize, releasePhotoUrl } from './photoUrl'
 import { runWithConcurrency } from '../concurrency'
+import { readTrashNotes, normalizePhotoNote, transferPhotoNote } from './photoMetadata'
 
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
 const TRASH_DIRECTORY_NAME = 'trash'
@@ -42,6 +43,7 @@ export async function listRecentlyDeleted(
     fileHandle: FileSystemFileHandle
     metadata: NonNullable<ReturnType<typeof parseTrashFileName>>
   }> = []
+  const notes = await readTrashNotes(albumDirectoryHandle)
   for await (const [trashName, handle] of trashDirectoryHandle.entries()) {
     if (handle.kind !== 'file' || !isImageFile(trashName)) continue
     const metadata = parseTrashFileName(trashName)
@@ -63,6 +65,16 @@ export async function listRecentlyDeleted(
       (lastModified === undefined ? null : datePartsFromTimestamp(lastModified))
     if (!parsed) return null
 
+    let noteKey = `trash/${trashName}`
+    // 旧版备注仍按原名保存；原名被新照片占用时不能把新照片的备注挪走。
+    if (!Object.hasOwn(notes, noteKey)) {
+      try { await albumDirectoryHandle.getFileHandle(metadata.originalName) }
+      catch (error) {
+        if (!isMissingDirectoryError(error)) throw error
+        noteKey = metadata.originalName
+      }
+    }
+
     return {
       id: `trash:${trashName}`,
       name: metadata.originalName,
@@ -76,7 +88,9 @@ export async function listRecentlyDeleted(
       fileHandle,
       directoryHandle: trashDirectoryHandle,
       lastModified,
-      note: '',
+      note: normalizePhotoNote(notes[noteKey]?.note),
+      noteKey,
+      albumDirectoryHandle,
       ...parsed
     } satisfies RecentlyDeletedPhoto
   }, { concurrency: 6 })
@@ -110,11 +124,13 @@ export async function movePhotosToRecentlyDeleted(
     try {
       const sourceFile = await photo.fileHandle.getFile()
       const targetHandle = await trashDirectoryHandle.getFileHandle(trashName, { create: true })
+      let note = photo.note ?? ''
       try {
         await copyFileToHandle(sourceFile, targetHandle)
-        await photo.directoryHandle.removeEntry(photo.name)
+        note = await transferPhotoNote(albumDirectoryHandle, photo.name, `trash/${trashName}`, '',
+          () => photo.directoryHandle.removeEntry(photo.name))
       } catch (error) {
-        await rollbackFile(trashDirectoryHandle, trashName)
+        if (!(error && typeof error === 'object' && 'preserveTarget' in error)) await rollbackFile(trashDirectoryHandle, trashName)
         throw error
       }
       releasePhotoUrl(photo)
@@ -122,6 +138,9 @@ export async function movePhotosToRecentlyDeleted(
         source: photo,
         moved: {
           ...photo,
+          note,
+          noteKey: `trash/${trashName}`,
+          albumDirectoryHandle,
           id: `trash:${trashName}`,
           url: null,
           fileSize: sourceFile.size,
@@ -204,11 +223,16 @@ export async function restoreRecentlyDeletedPhotos(
       restoreName = await findAvailableRestoreName(albumDirectoryHandle, photo.originalName, reservedNames)
       const sourceFile = await photo.fileHandle.getFile()
       const targetHandle = await albumDirectoryHandle.getFileHandle(restoreName, { create: true })
+      let note = photo.note ?? ''
       try {
         await copyFileToHandle(sourceFile, targetHandle)
-        await photo.directoryHandle.removeEntry(photo.trashName)
+        const noteKey = restoreName !== photo.originalName && photo.noteKey === photo.originalName
+          ? `trash/${photo.trashName}`
+          : photo.noteKey ?? (restoreName === photo.originalName ? photo.originalName : `trash/${photo.trashName}`)
+        note = await transferPhotoNote(albumDirectoryHandle, noteKey, restoreName, note,
+          () => photo.directoryHandle.removeEntry(photo.trashName))
       } catch (error) {
-        await rollbackFile(albumDirectoryHandle, restoreName)
+        if (!(error && typeof error === 'object' && 'preserveTarget' in error)) await rollbackFile(albumDirectoryHandle, restoreName)
         throw error
       }
 
@@ -230,7 +254,7 @@ export async function restoreRecentlyDeletedPhotos(
         lastModified: sourceFile.lastModified,
         fileHandle: targetHandle,
         directoryHandle: albumDirectoryHandle,
-        note: photo.note ?? ''
+        note
       }
       releasePhotoUrl(photo)
       return { source: photo, restored: restoredPhoto }
@@ -278,6 +302,15 @@ export async function permanentlyDeleteRecentlyDeleted(
     else failedNames.push(result.photo.originalName)
   }
 
+  // 文件仍按十并发删除；之后一次清理各相册的回收备注，不让写锁串行化文件 IO。
+  const albums = new Set(succeeded.map(photo => photo.albumDirectoryHandle).filter(Boolean))
+  for (const album of albums) {
+    const keys = succeeded.filter(photo => photo.albumDirectoryHandle === album)
+      .map(photo => photo.noteKey ?? `trash/${photo.trashName}`).filter(key => key.startsWith('trash/'))
+    try { await transferPhotoNote(album!, keys, null, '', async () => undefined) }
+    catch { console.warn('[trash]', { operation: 'cleanupNotes', category: 'metadataWriteFailed' }) }
+  }
+
   return { succeeded, failedNames }
 }
 
@@ -301,7 +334,11 @@ export async function clearRecentlyDeleted(
       if (handle.kind !== 'file' || !expectedNames.has(name)) containsUnknownEntry = true
     }
     if (!containsUnknownEntry && entryCount === expectedNames.size) {
-      await albumDirectoryHandle.removeEntry(TRASH_DIRECTORY_NAME, { recursive: true })
+      // 旧记录可能引用原名；原名后来被新照片占用时，不能清掉新照片的备注。
+      const noteKeys = photos.map(photo => photo.noteKey ?? `trash/${photo.trashName}`)
+        .filter(key => key.startsWith('trash/'))
+      await transferPhotoNote(albumDirectoryHandle, noteKeys, null, '',
+        () => albumDirectoryHandle.removeEntry(TRASH_DIRECTORY_NAME, { recursive: true }))
       for (const photo of photos) releasePhotoUrl(photo)
       return { succeeded: [...photos], failedNames: [] }
     }

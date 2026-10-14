@@ -126,7 +126,11 @@ export async function refreshAlbumPhotos(
         existing.lastModified !== undefined &&
         existing.fileSize === photo.fileSize &&
         existing.lastModified === photo.lastModified
-      ) return existing
+      ) {
+        // 原图未变时复用地址，但备注独立保存在元数据文件中，必须采用最新扫描值。
+        existing.note = photo.note
+        return existing
+      }
       if (existing) {
         replacedPhotos.push(existing)
         return photo

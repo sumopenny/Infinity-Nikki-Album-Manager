@@ -5,7 +5,7 @@ import { createOperationCoordinator, operationCoordinatorKey } from './composabl
 const operations = createOperationCoordinator()
 provide(operationCoordinatorKey, operations)
 import { invalidateCacheWrites } from './utils/cacheLifecycle'
-import { clearBrowserSessionData } from './utils/file-system/database'
+import { clearAllBrowserData } from './utils/file-system/database'
 import { clearOutfitDetailCache } from './utils/outfit/outfitDetails'
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { CircleHelp, Download, Plus, Trash2, Upload } from 'lucide-vue-next'
@@ -100,7 +100,6 @@ const FAVORITES_STORAGE_KEY = 'infinity-nikki-favorite-photo-ids'
 const AUTO_PARSE_ACTIONS_STORAGE_KEY = 'infinity-nikki-auto-parse-actions'
 const ABOUT_STATE_STORAGE_KEY = 'infinity-nikki-about-state'
 const CLEANUP_ACCOUNT_CHOICE_KEY = 'infinity-nikki-cleanup-account-choice'
-const WEBSITE_LOCAL_STORAGE_KEYS = [THUMBNAIL_STORAGE_KEY, OUTFIT_THUMBNAIL_STORAGE_KEY, HOME_THUMBNAIL_STORAGE_KEY, OUTFIT_GUIDE_DISMISSED_KEY, X6GAME_AUTO_PROMPT_DISMISSED_KEY, THEME_STORAGE_KEY, LANGUAGE_STORAGE_KEY, AUTO_PARSE_ACTIONS_STORAGE_KEY, ABOUT_STATE_STORAGE_KEY, CLEANUP_ACCOUNT_CHOICE_KEY]
 const currentAboutVersion = messages.zh.updateLog.currentVersion.replace(/^v/, '')
 
 function isLanguage(value: string | null): value is Language {
@@ -195,6 +194,7 @@ const trashSelectedIds = ref<Set<string>>(new Set())
 const favoriteIds = ref<Set<string>>(readStoredFavoriteIds())
 const searchQuery = ref('')
 const noteDialogPhoto = ref<PhotoItem | null>(null)
+const noteDialogBaseline = ref('')
 const isNoteDialogVisible = ref(false)
 const compactLayout = useCompactLayout()
 useVisualViewport()
@@ -687,11 +687,6 @@ async function clearDirectory() {
   statusState.value = { type: 'cleared' }
 }
 
-/** 移除浏览器保存的网站本地键值。参数：无。 */
-function clearWebsiteLocalStorage() {
-  for (const key of WEBSITE_LOCAL_STORAGE_KEYS) removeLocalStorage(key)
-}
-
 /** 标记搭配码界面不再自动弹出 X6Game 授权窗口。参数：无。 */
 function dismissX6GameAutoPrompt() {
   isX6GameAutoPromptDismissed.value = true
@@ -723,7 +718,7 @@ async function clearCache() {
   }
 }
 
-/** 清除缓存、设置和授权，保留共鸣记录及所有收藏。 */
+/** 完整重置本站数据；提交后重新加载，统一释放模块状态并恢复各端默认入口。 */
 async function clearData() {
   if (isAnyFileOperationBusy.value) return
   const confirmed = await openConfirmDialog({
@@ -733,45 +728,27 @@ async function clearData() {
     confirmLabel: locale.value.topBar.clearData,
     cancelLabel: locale.value.app.dialogCancel
   })
-  if (!confirmed) return
+  // 确认期间可能有其他模块开始读写，重置前再次核对忙碌状态。
+  if (!confirmed || isAnyFileOperationBusy.value) return
 
-  suppressLocalPersistence = true
-  try {
-    photoActionParsing.reset()
-    photoParams.close()
-    await invalidateCacheWrites()
-    clearOutfitDetailCache()
-    await clearOutfitCodeParseCache()
-    await clearBrowserSessionData()
-    cameraParamsInput.value = ''
-    autoParseActionsEnabled.value = false
-    homeThumbnailMode.value = 'wide'
-    favoriteTab.value = 'camera'
-    cleanupRememberedChoice.value = null
-    cleanupAccounts.value = []
-    isAboutDialogDismissed.value = false
-    clearWebsiteLocalStorage()
-    resetLoadedAlbumState()
-    cleanupX6GameHandle.value = null
-    hasX6GameAuthorization.value = false
-    activeOutfitFilter.value = 'all'
-    albumDirectoryHandle.value = null
-    activeView.value = 'all'
-    directoryState.value = { type: 'none' }
-    language.value = DEFAULT_LANGUAGE
-    thumbnailMode.value = 'default'
-    outfitThumbnailMode.value = 'portrait-standard'
-    themeMode.value = 'light'
-    isOutfitGuideDismissed.value = false
-    isX6GameAutoPromptDismissed.value = false
-    didCancelX6GameAutoPrompt.value = false
-    statusState.value = { type: 'custom', message: locale.value.app.clearDataStatus, tone: 'success' }
-    await nextTick()
-  } catch (error) {
-    statusState.value = createErrorStatus(error, { type: 'readFailed' })
-  } finally {
-    suppressLocalPersistence = false
-  }
+  await operations.run('website-reset', async () => {
+    suppressLocalPersistence = true
+    try {
+      photoActionParsing.reset()
+      photoParams.close()
+      await invalidateCacheWrites()
+      await clearAllBrowserData()
+      localStorage.clear()
+      sessionStorage.clear()
+      statusState.value = { type: 'custom', message: locale.value.app.clearDataStatus, tone: 'success' }
+      // 整页重新初始化，避免收藏、筛选、目录句柄和解析器继续使用旧的内存状态。
+      location.reload()
+    } catch (error) {
+      statusState.value = createErrorStatus(error, { type: 'readFailed' })
+    } finally {
+      suppressLocalPersistence = false
+    }
+  })
 }
 
 /**
@@ -1128,6 +1105,8 @@ async function editPhotoNote(photo: PhotoDisplayItem | null) {
     const metadata = await readAlbumMetadata(directory)
     if (albumDirectoryHandle.value !== directory) return
     photo.note = metadata.photos[photo.name]?.note ?? ''
+    // 相册刷新会更新照片对象，编辑基线需独立保存以维持跨窗口冲突检查。
+    noteDialogBaseline.value = photo.note
     noteDialogPhoto.value = photo as PhotoItem
     isNoteDialogVisible.value = true
   } catch (error) {
@@ -1176,7 +1155,7 @@ async function saveNoteDialog(value: string) {
   if (!directory || !photo || isAnyFileOperationBusy.value) return
   try {
     // 保存时核对打开编辑器时的备注；冲突不关闭窗口，保留用户输入。
-    photo.note = await savePhotoNote(directory, photo.name, value, photo.note ?? '')
+    photo.note = await savePhotoNote(directory, photo.name, value, noteDialogBaseline.value)
     isNoteDialogVisible.value = false
     noteDialogPhoto.value = null
     showOutfitStatus(locale.value.grid.noteSaved)

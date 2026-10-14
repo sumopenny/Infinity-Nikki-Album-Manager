@@ -45,7 +45,6 @@ import {
 } from '../utils/resonance/resonanceScripts'
 import {
   loadResonanceRecords,
-  mergeResonanceRecords,
   saveResonanceRecords
 } from '../utils/resonance/resonanceStorage'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
@@ -63,7 +62,6 @@ const props = withDefaults(
 )
 const t = computed(() => messages[props.language].resonance)
 const emit = defineEmits<{
-  busyChange: [busy: boolean]
   notice: [payload: { message: string; tone: 'success' | 'warning' | 'error'; source: 'resonance' }]
   clearNotice: []
   recordsChange: [records: ResonanceRecord[]]
@@ -88,10 +86,6 @@ function invalidatePreview() {
 }
 const confirming = ref(false)
 const clearing = ref(false)
-watch(
-  () => importing.value || confirming.value || clearing.value,
-  (value) => emit('busyChange', value)
-)
 const cookieMethod = ref<CookieMethod>('bookmark')
 const importMethod = ref<ImportMethod>('pearpal')
 const selectedFile = ref<File | null>(null)
@@ -404,8 +398,9 @@ async function confirmImport() {
       const importedRecords = preview.value.map((record) => toRaw(record))
       const importedCount = preview.value.length
       const skippedCount = skippedPools.value
-      // 合并以事务内的最新数据为准，不能回写页面加载时的旧记录列表。
-      records.value = await mergeResonanceRecords(importedRecords)
+      // 本次预览整批替换全部共鸣记录；事务提交成功后才更新页面。
+      await saveResonanceRecords(importedRecords)
+      records.value = importedRecords
       confirming.value = false
       closeDialog()
       notify(
@@ -624,6 +619,7 @@ defineExpose({ reload })
 
               <section v-if="preview.length" class="resonance-preview">
                 <h3>{{ t.previewTitle }} ({{ preview.length }})</h3>
+                <p class="resonance-status-line is-warning">{{ t.replaceAllNotice }}</p>
                 <div class="fortune-time-table-wrap resonance-preview-wrap">
                   <table class="fortune-time-table">
                     <thead>
