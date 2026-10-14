@@ -2,17 +2,17 @@
 import type { LocaleMessages } from '../types'
 
 export const updateLogZh: LocaleMessages['updateLog'] = {
-  title: '更新记录', helpAbout: '使用帮助', currentTitle: '当前版本', currentVersion: 'v2.0', currentDate: '2026.10.13 更新',
+  title: '更新记录', helpAbout: '使用帮助', currentTitle: '当前版本', currentVersion: 'v2.0.1', currentDate: '2026.10.14 更新',
   currentItems: [
-    '手机网页版正式上线，界面全面升级！现在可以直接用手机浏览器管理搭配码、家园方案、相机参数收藏和共鸣记录，随时查看、整理与分享你的游戏灵感。新增底部四模块导航，重新设计顶部工具栏、卡片与操作布局，让常用功能更适合手机浏览和触摸操作。',
-    '现有电脑端数据可迁移到手机：在电脑端“更多”中选择“导出全部数据”，将生成的 ZIP 文件传给手机，再用手机浏览器打开网站，在“更多”中选择“导入全部数据”，即可迁移搭配码、家园方案、相机参数收藏和共鸣记录。',
-    '优化手机搜索与筛选：顶部放大镜支持搜索当前模块；标签窗口支持搜索、添加和拖拽排序，共鸣筛选集中提供卡池排序、星级筛选与套装快速定位。',
-    '优化卡片与批量操作：常用操作统一放在卡片底部，方便复制、编辑、删除、解析。',
-    '优化大图与编辑体验：支持单指滑动翻页、双指缩放和放大后拖动；优化弹窗布局、输入区域与软键盘避让，统一过渡动画和按压反馈。',
-    '更新使用帮助与界面细节：手机和电脑分别展示对应的中英文帮助，优化排版、显示、视图设置及布局。'
+    '新增共鸣记录云同步：支持注册、登录账号，手动上传共鸣记录，并在电脑或手机登录同一账号下载，实现跨设备同步。每个账号保存一份云端存档；上传完整覆盖云端，下载完整覆盖本地，操作前可核对账号与记录数量。登录和本地修改不会自动同步。',
+    '支持管理云端存档：登录后可确认删除云端共鸣存档，保留账号、登录状态和本地记录。',
+    '调整共鸣导入方式：从奇美鸭梨或 JSON 文件导入时，确认后以本次预览结果替换全部本地共鸣记录。',
+    '“清除数据”支持完整重置网站：确认后清除当前浏览器中的方案、图片、标签、共鸣记录、收藏及设置，重新加载回到初始状态。操作不可撤销，请先导出备份；电脑原文件及云端存档保留。',
+    '优化使用逻辑和用户体验，并和大喵去吃了一顿大餐🍟🍔🍕🍝🍩'
   ],
   historyTitle: '历史版本记录',
   history: [
+    { version: 'v2.0', items: ['手机网页版正式上线，界面全面升级！现在可以直接用手机浏览器管理搭配码、家园方案、相机参数收藏和共鸣记录，随时查看、整理与分享你的游戏灵感。新增底部四模块导航，重新设计顶部工具栏、卡片与操作布局，让常用功能更适合手机浏览和触摸操作。', '现有电脑端数据可迁移到手机：在电脑端“更多”中选择“导出全部数据”，将生成的 ZIP 文件传给手机，再用手机浏览器打开网站，在“更多”中选择“导入全部数据”，即可迁移搭配码、家园方案、相机参数收藏和共鸣记录。', '优化手机搜索与筛选：顶部放大镜支持搜索当前模块；标签窗口支持搜索、添加和拖拽排序，共鸣筛选集中提供卡池排序、星级筛选与套装快速定位。', '优化卡片与批量操作：常用操作统一放在卡片底部，方便复制、编辑、删除、解析。', '优化大图与编辑体验：支持单指滑动翻页、双指缩放和放大后拖动；优化弹窗布局、输入区域与软键盘避让，统一过渡动画和按压反馈。', '更新使用帮助与界面细节：手机和电脑分别展示对应的中英文帮助，优化排版、显示、视图设置及布局。'] },
     { version: 'v1.8.2', items: ['搭配码与家园方案数据迁移至浏览器存储：搭配码、家园方案数据不再保存在所选相册文件夹中，改为存入浏览器并所有相册共用；进入对应页面后自动迁移旧数据，迁移成功自动清理旧文件夹。', '新增“导出全部数据 / 导入全部数据”：可在“更多”菜单中一键将搭配码、家园方案、相机参数收藏和共鸣记录打包到一个全部数据备份 ZIP 中。', '支持数据跨设备迁移：在电脑上导出全部数据，将 ZIP 并发送到手机，手机上打开网页即可导入数据并正常使用除相册外的其他模块。', '搭配码自动更新优化：无需先选择相册，授权 X6Game 文件夹即可使用自动更新。', '界面与体验优化：优化相关页面细节。'] },
     { version: 'v1.8.1', items: ['新增相机参数收藏：将收藏夹分为“相机参数”和“照片收藏”，支持从照片参数解析窗口直接收藏，或输入相机参数码自动解析后保存。', '支持自定义名称、单标签分类、标签排序与搜索，以及参数复制、编辑、详情查看和批量删除。', '支持上传或更换收藏封面，保存时自动转换为 WebP。', '支持相机参数收藏 ZIP 备份导入与导出。'] },
     { version: 'v1.8', items: ['新增共鸣记录模块：支持从美鸭梨导入共鸣记录，提供登录凭据获取指引，预览确认后保存。电脑获取登录凭据cookie后发送给手机，用手机端访问网页也可输入凭据查看共鸣记录', '支持共鸣数据导入导出：兼容暖暖共鸣录新旧版 JSON 文件，可导出本工具备份；导入时更新对应套装，保留其他本地记录。', '展示套装获取详情：支持查看第一套、第二套部件抽数，以及套装总抽数和平均抽数；部件按获取顺序展示，兼容文件中的手动补录标记。', '支持快速定位、排序与筛选：通过侧栏快速定位套装，可按卡池最新或最早排序，并筛选五星、四星记录。', '云端同步、衣柜数据等功能正在开发中，敬请期待'] },
@@ -44,17 +44,17 @@ export const updateLogZh: LocaleMessages['updateLog'] = {
 }
 
 export const updateLogEn: LocaleMessages['updateLog'] = {
-  title: 'Release history', helpAbout: 'Help', currentTitle: 'Current version', currentVersion: 'v2.0', currentDate: 'Updated 2026.10.13',
+  title: 'Release history', helpAbout: 'Help', currentTitle: 'Current version', currentVersion: 'v2.0.1', currentDate: 'Updated 2026.10.14',
   currentItems: [
-    'The mobile web version is officially live with a full interface upgrade! You can now manage outfit codes, home schemes, camera-parameter favorites, and resonance records directly in your mobile browser—view, organize, and share your game inspirations anytime. Added a bottom four-module navigation and redesigned the top toolbar, cards, and action layouts to better suit mobile browsing and touch use.',
-    'Existing desktop data can be transferred to your phone: on desktop, choose Export all data from the More menu, send the generated ZIP to your phone, open the site in your mobile browser, and choose Import all data from the More menu to migrate outfit codes, home schemes, camera-parameter favorites, and resonance records.',
-    'Improved mobile search and filtering: the magnifier at the top searches the current module; the tag window supports search, adding, and drag-to-reorder, and resonance filters consolidate banner sorting, star-rating filters, and quick outfit navigation.',
-    'Improved cards and batch operations: common actions are now placed at the bottom of each card for easy copy, edit, delete, and decode.',
-    'Improved preview and editing: support one-finger swipe paging, pinch-to-zoom, and panning while zoomed; improved dialog layouts, input areas, and on-screen keyboard avoidance, and unified transition animations and press feedback.',
-    'Updated help and interface details: mobile and desktop each show their corresponding Chinese/English help, with improved typography, display, view settings, and layout.'
+    'Added resonance cloud sync: register and sign in to an account, manually upload your resonance records, and download them on another computer or phone signed in to the same account for cross-device syncing. Each account keeps one cloud save; uploading fully overwrites the cloud copy and downloading fully overwrites the local copy, so check the account and record count before confirming. Sign-in and local changes do not sync automatically.',
+    'Manage cloud saves: after signing in, you can confirm the deletion of the cloud resonance save while keeping your account, sign-in status, and local records.',
+    'Adjusted resonance import: when importing from Pear-Pal or a JSON file, confirming replaces all local resonance records with the previewed results.',
+    '"Clear data" can now fully reset the site: after confirmation it clears schemes, photos, tags, resonance records, favorites, and settings in the current browser, then reloads to the initial state. This cannot be undone—export a backup first; original files on your computer and cloud saves are kept.',
+    'Polished the logic and experience, and took Momo out for a big meal 🍟🍔🍕🍝🍩'
   ],
   historyTitle: 'Previous releases',
   history: [
+    { version: 'v2.0', items: ['The mobile web version is officially live with a full interface upgrade! You can now manage outfit codes, home schemes, camera-parameter favorites, and resonance records directly in your mobile browser—view, organize, and share your game inspirations anytime. Added a bottom four-module navigation and redesigned the top toolbar, cards, and action layouts to better suit mobile browsing and touch use.', 'Existing desktop data can be transferred to your phone: on desktop, choose Export all data from the More menu, send the generated ZIP to your phone, open the site in your mobile browser, and choose Import all data from the More menu to migrate outfit codes, home schemes, camera-parameter favorites, and resonance records.', 'Improved mobile search and filtering: the magnifier at the top searches the current module; the tag window supports search, adding, and drag-to-reorder, and resonance filters consolidate banner sorting, star-rating filters, and quick outfit navigation.', 'Improved cards and batch operations: common actions are now placed at the bottom of each card for easy copy, edit, delete, and decode.', 'Improved preview and editing: support one-finger swipe paging, pinch-to-zoom, and panning while zoomed; improved dialog layouts, input areas, and on-screen keyboard avoidance, and unified transition animations and press feedback.', 'Updated help and interface details: mobile and desktop each show their corresponding Chinese/English help, with improved typography, display, view settings, and layout.'] },
     { version: 'v1.8.2', items: ['Outfit codes and home schemes are now stored in the browser and shared across all albums instead of the selected album folder. Old data is migrated automatically when you enter the page, and the old folder is removed after a successful migration.', 'Added Export all data / Import all data: from the More menu, bundle outfit codes, home schemes, camera favorites, and resonance records into a single all-data ZIP backup.', 'Supports cross-device transfer: export all data on your computer and send the ZIP to your phone, then open the site on your phone to import the data and use every module except the album normally.', 'Auto-update for outfit codes improved: authorize the X6Game folder to use auto-update without selecting an album first.', 'Interface and experience polish: refined related page details.'] },
     { version: 'v1.8.1', items: ['Added camera-parameter favorites: Favorites is now split into "Camera Parameters" and "Photo Favorites". Save directly from the photo-parameter decoding window, or enter a camera-parameter code to decode and save automatically.', 'Supports custom names, single-tag categories, tag sorting and search, plus parameter copying, editing, detail viewing, and batch deletion.', 'Supports uploading or replacing a favorite cover image, automatically converted to WebP on save.', 'Supports ZIP backup import and export for camera-parameter favorites.'] },
     { version: 'v1.8', items: ['Added Resonance Records: import resonance records from Pear-Pal, with instructions for obtaining sign-in credentials and a preview before saving. After obtaining the sign-in cookie credentials on a computer, send them to your phone and enter them on the website in your mobile browser to view resonance records.', 'Added resonance data import and export: supports old and new Resonance Recorder JSON files and exports backups for this app; importing updates matching outfit records while keeping other local records.', 'View outfit acquisition details: check piece pull counts for the first and second sets, plus total and average pulls for each outfit; pieces are displayed in acquisition order, with support for manual edit markers in imported files.', 'Added quick navigation, sorting, and filtering: use the sidebar to jump to an outfit, sort banners newest or oldest first, and filter 5-star or 4-star records.', 'Cloud sync, wardrobe data, and more features are in development. Stay tuned!'] },
