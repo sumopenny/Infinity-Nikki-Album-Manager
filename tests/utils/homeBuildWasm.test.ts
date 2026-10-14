@@ -3,9 +3,10 @@ import { resolve } from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   decodeHomeBuildShareCode,
-  parseHomeBuildDecodedJson,
   parseHomeBuildResponse
 } from '../../src/utils/homeBuild/homeBuildWasmClient'
+
+import { parseHomeBuildDecodedJson } from '../helpers/homeBuildLegacyParser'
 
 const wasmBytes = readFileSync(resolve(process.cwd(), 'src/assets/home-build-parser.wasm'))
 

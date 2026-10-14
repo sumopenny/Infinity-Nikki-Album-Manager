@@ -7,12 +7,16 @@
 
 .lightbox-enter-active .lightbox-panel,
 .lightbox-enter-active .lightbox-footer {
-  transition: opacity 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition:
+    opacity 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .lightbox-leave-active .lightbox-panel,
 .lightbox-leave-active .lightbox-footer {
-  transition: opacity 0.18s ease-in, transform 0.18s ease-in;
+  transition:
+    opacity 0.18s ease-in,
+    transform 0.18s ease-in;
 }
 
 .lightbox-leave-active {
@@ -151,7 +155,10 @@
   opacity: 0;
   pointer-events: none;
   transform: scale(0.82);
-  transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease, transform var(--motion-base) var(--ease-spring);
+  transition:
+    opacity var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    transform var(--motion-base) var(--ease-spring);
 }
 
 .lightbox-nav-zone:hover .lightbox-nav-button,
@@ -190,7 +197,10 @@
   background: transparent;
   color: var(--text);
   cursor: pointer;
-  transition: background var(--motion-fast) ease, color var(--motion-fast) ease, transform var(--motion-fast) ease;
+  transition:
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
 }
 
 .lightbox-close {
@@ -350,4 +360,3 @@
     height: 38px;
   }
 }
-

@@ -31,8 +31,11 @@ function closeGuide() {
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') closeGuide()
   if (event.key !== 'Tab' || !panelRef.value) return
-  const focusable = [...panelRef.value.querySelectorAll<HTMLElement>('button, input, [href], [tabindex]:not([tabindex="-1"])')]
-    .filter((element) => !element.hasAttribute('disabled'))
+  const focusable = [
+    ...panelRef.value.querySelectorAll<HTMLElement>(
+      'button, input, [href], [tabindex]:not([tabindex="-1"])'
+    )
+  ].filter((element) => !element.hasAttribute('disabled'))
   if (!focusable.length) return
   const first = focusable[0]
   const last = focusable[focusable.length - 1]
@@ -50,7 +53,8 @@ watch(
   (visible) => {
     if (visible) {
       dontShowAgain.value = props.dismissed
-      previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      previousActiveElement =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null
       void nextTick(() => closeButtonRef.value?.focus())
     } else {
       previousActiveElement?.focus()
@@ -66,7 +70,6 @@ watch(
     if (props.visible) dontShowAgain.value = dismissed
   }
 )
-
 </script>
 
 <template>
@@ -86,7 +89,13 @@ watch(
             <div>
               <h2>{{ messages.guideTitle }}</h2>
             </div>
-            <button ref="closeButtonRef" type="button" :title="messages.guideClose" :aria-label="messages.guideClose" @click="closeGuide">
+            <button
+              ref="closeButtonRef"
+              type="button"
+              :title="messages.guideClose"
+              :aria-label="messages.guideClose"
+              @click="closeGuide"
+            >
               <X :size="19" aria-hidden="true" />
             </button>
           </header>
@@ -120,7 +129,9 @@ watch(
               <input v-model="dontShowAgain" type="checkbox" />
               <span>{{ messages.guideDontShowAgain }}</span>
             </label>
-            <button class="primary-button" type="button" @click="closeGuide">{{ messages.guideConfirm }}</button>
+            <button class="primary-button" type="button" @click="closeGuide">{{
+              messages.guideConfirm
+            }}</button>
           </footer>
         </section>
       </div>

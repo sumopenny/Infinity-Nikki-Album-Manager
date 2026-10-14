@@ -29,14 +29,24 @@ defineEmits<{
 
 <template>
   <Transition name="selection-bar">
-    <div v-if="selectedCount" class="selection-bar" role="toolbar" :aria-label="messages.selected(selectedCount)">
+    <div
+      v-if="selectedCount"
+      class="selection-bar"
+      role="toolbar"
+      :aria-label="messages.selected(selectedCount)"
+    >
       <strong>{{ messages.selected(selectedCount) }}</strong>
       <span class="selection-divider"></span>
       <button type="button" :disabled="isBusy" @click="$emit('toggleAll')">
         {{ allSelected ? messages.deselectAll : messages.selectAll }}
       </button>
       <template v-if="mode === 'album' || mode === 'favorites'">
-        <button v-if="mode === 'album' && !allSelectedFavorited" type="button" :disabled="isBusy" @click="$emit('favorite')">
+        <button
+          v-if="mode === 'album' && !allSelectedFavorited"
+          type="button"
+          :disabled="isBusy"
+          @click="$emit('favorite')"
+        >
           <Heart :size="16" aria-hidden="true" />
           <span>{{ messages.favorite }}</span>
         </button>
@@ -48,7 +58,12 @@ defineEmits<{
           <Upload :size="16" aria-hidden="true" />
           <span>{{ messages.exportPhotos }}</span>
         </button>
-        <button class="selection-danger" type="button" :disabled="isBusy" @click="$emit('deleteRelated')">
+        <button
+          class="selection-danger"
+          type="button"
+          :disabled="isBusy"
+          @click="$emit('deleteRelated')"
+        >
           <Trash2 :size="16" aria-hidden="true" />
           <span>{{ messages.deleteRelated }}</span>
         </button>
@@ -67,11 +82,24 @@ defineEmits<{
           <span>{{ allItemsSelected ? messages.clearAll : messages.permanentlyDelete }}</span>
         </button>
       </template>
-      <button v-else class="selection-danger" type="button" :disabled="isBusy" @click="$emit('delete')">
+      <button
+        v-else
+        class="selection-danger"
+        type="button"
+        :disabled="isBusy"
+        @click="$emit('delete')"
+      >
         <Trash2 :size="16" aria-hidden="true" />
         <span>{{ messages.permanentlyDelete }}</span>
       </button>
-      <button class="selection-close" type="button" :title="messages.cancel" :aria-label="messages.cancel" :disabled="isBusy" @click="$emit('cancel')">
+      <button
+        class="selection-close"
+        type="button"
+        :title="messages.cancel"
+        :aria-label="messages.cancel"
+        :disabled="isBusy"
+        @click="$emit('cancel')"
+      >
         <X :size="18" aria-hidden="true" />
       </button>
     </div>

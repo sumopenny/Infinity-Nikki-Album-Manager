@@ -79,7 +79,10 @@ async function resetForm() {
 }
 
 function isAcceptedImage(file: File): boolean {
-  return /\.(jpe?g|png|webp)$/i.test(file.name) || ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+  return (
+    /\.(jpe?g|png|webp)$/i.test(file.name) ||
+    ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+  )
 }
 
 function selectFile(file: File | undefined) {
@@ -101,7 +104,9 @@ function handleDrop(event: DragEvent) {
 
 function handlePaste(event: ClipboardEvent) {
   if (!props.visible) return
-  const file = [...(event.clipboardData?.files ?? [])].find((item) => item.type.startsWith('image/'))
+  const file = [...(event.clipboardData?.files ?? [])].find((item) =>
+    item.type.startsWith('image/')
+  )
   if (file) selectFile(file)
 }
 
@@ -111,8 +116,11 @@ function handleKeydown(event: KeyboardEvent) {
     else emit('close')
   }
   if (!props.visible || event.key !== 'Tab' || !panelRef.value) return
-  const focusable = [...panelRef.value.querySelectorAll<HTMLElement>('button, input, [href], [tabindex]:not([tabindex="-1"])')]
-    .filter((element) => !element.hasAttribute('disabled'))
+  const focusable = [
+    ...panelRef.value.querySelectorAll<HTMLElement>(
+      'button, input, [href], [tabindex]:not([tabindex="-1"])'
+    )
+  ].filter((element) => !element.hasAttribute('disabled'))
   if (!focusable.length) return
   const first = focusable[0]
   const last = focusable[focusable.length - 1]
@@ -165,7 +173,8 @@ function selectCreatedTag(tag: string) {
 function handleDocumentPointerDown(event: PointerEvent) {
   if (!isAddingTag.value || !(event.target instanceof Node)) return
   if (event.target === editorOverlayRef.value) return
-  if (addTagToggleRef.value?.contains(event.target) || tagEditorRef.value?.contains(event.target)) return
+  if (addTagToggleRef.value?.contains(event.target) || tagEditorRef.value?.contains(event.target))
+    return
   closeTagInput()
 }
 
@@ -181,22 +190,31 @@ function submit() {
     errorMessage.value = props.messages.imageRequired
     return
   }
-  emit('save', { imageFile: imageFile.value, code: code.value, tag: selectedTag.value, note: note.value })
+  emit('save', {
+    imageFile: imageFile.value,
+    code: code.value,
+    tag: selectedTag.value,
+    note: note.value
+  })
 }
 
 // 打开编辑器时锁定背景滚动，关闭后恢复进入前状态，兼容从大图预览叠加打开。
-watch(() => props.visible, (visible) => {
-  if (visible) {
-    previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    void resetForm()
-    void nextTick(() => codeInput.value?.focus())
-  } else {
-    closeTagInput()
-    revokePreview()
-    previousActiveElement?.focus()
-    previousActiveElement = null
+watch(
+  () => props.visible,
+  (visible) => {
+    if (visible) {
+      previousActiveElement =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null
+      void resetForm()
+      void nextTick(() => codeInput.value?.focus())
+    } else {
+      closeTagInput()
+      revokePreview()
+      previousActiveElement?.focus()
+      previousActiveElement = null
+    }
   }
-})
+)
 
 window.addEventListener('paste', handlePaste)
 window.addEventListener('keydown', handleKeydown)
@@ -216,11 +234,25 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <Transition name="confirm-dialog">
-      <div ref="editorOverlayRef" v-if="visible" class="outfit-editor" role="dialog" aria-modal="true" :aria-label="messages.editTitle" @click.self="handleEditorBackdropClick">
+      <div
+        ref="editorOverlayRef"
+        v-if="visible"
+        class="outfit-editor"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="messages.editTitle"
+        @click.self="handleEditorBackdropClick"
+      >
         <section ref="panelRef" class="outfit-editor-panel">
           <header>
             <h2>{{ messages.editTitle }}</h2>
-            <button type="button" :title="messages.cancel" :aria-label="messages.cancel" :disabled="busy" @click="$emit('close')">
+            <button
+              type="button"
+              :title="messages.cancel"
+              :aria-label="messages.cancel"
+              :disabled="busy"
+              @click="$emit('close')"
+            >
               <X :size="19" aria-hidden="true" />
             </button>
           </header>
@@ -240,8 +272,12 @@ onBeforeUnmount(() => {
                 @drop.prevent="handleDrop"
               >
                 <img v-if="previewUrl" :src="previewUrl" alt="" />
-                <span v-else class="outfit-image-prompt"><ImagePlus :size="30" aria-hidden="true" />{{ messages.imageHint }}</span>
-                <span v-if="previewUrl" class="outfit-replace-image"><Upload :size="15" aria-hidden="true" />{{ messages.replaceImage }}</span>
+                <span v-else class="outfit-image-prompt"
+                  ><ImagePlus :size="30" aria-hidden="true" />{{ messages.imageHint }}</span
+                >
+                <span v-if="previewUrl" class="outfit-replace-image"
+                  ><Upload :size="15" aria-hidden="true" />{{ messages.replaceImage }}</span
+                >
               </button>
               <input
                 ref="fileInput"
@@ -266,7 +302,14 @@ onBeforeUnmount(() => {
               />
 
               <label for="outfit-note">{{ messages.noteLabel }}</label>
-              <input id="outfit-note" v-model="note" :maxlength="MAX_OUTFIT_NOTE_LENGTH" :placeholder="messages.notePlaceholder" :disabled="busy" autocomplete="off" />
+              <input
+                id="outfit-note"
+                v-model="note"
+                :maxlength="MAX_OUTFIT_NOTE_LENGTH"
+                :placeholder="messages.notePlaceholder"
+                :disabled="busy"
+                autocomplete="off"
+              />
 
               <fieldset>
                 <legend>{{ messages.tagLabel }}</legend>
@@ -291,7 +334,12 @@ onBeforeUnmount(() => {
                     :disabled="busy || tags.length >= MAX_OUTFIT_TAGS"
                     @click="isAddingTag ? closeTagInput() : openTagInput()"
                   >
-                    <Plus class="tag-toggle-icon" :class="{ 'is-open': isAddingTag }" :size="15" aria-hidden="true" />
+                    <Plus
+                      class="tag-toggle-icon"
+                      :class="{ 'is-open': isAddingTag }"
+                      :size="15"
+                      aria-hidden="true"
+                    />
                   </button>
                 </div>
                 <p v-if="!tags.length">{{ messages.noTag }}</p>
@@ -322,8 +370,19 @@ onBeforeUnmount(() => {
           </div>
 
           <footer>
-            <button class="confirm-dialog-button ghost" type="button" :disabled="busy" @click="$emit('close')">{{ messages.cancel }}</button>
-            <button class="confirm-dialog-button primary" type="button" :disabled="busy" @click="submit">
+            <button
+              class="confirm-dialog-button ghost"
+              type="button"
+              :disabled="busy"
+              @click="$emit('close')"
+              >{{ messages.cancel }}</button
+            >
+            <button
+              class="confirm-dialog-button primary"
+              type="button"
+              :disabled="busy"
+              @click="submit"
+            >
               {{ busy ? messages.saving : messages.confirm }}
             </button>
           </footer>

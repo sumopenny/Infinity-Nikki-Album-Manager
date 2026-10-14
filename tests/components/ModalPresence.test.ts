@@ -7,24 +7,31 @@ import { useBodyScrollLock } from '../../src/utils/bodyScrollLock'
 
 const wrappers: Array<{ unmount: () => void }> = []
 afterEach(() => {
-  wrappers.splice(0).forEach(wrapper => wrapper.unmount())
+  wrappers.splice(0).forEach((wrapper) => wrapper.unmount())
   document.body.innerHTML = ''
 })
 
 function mountModal() {
-  const open = ref(false), enabled = ref(true), panel = ref<HTMLElement | null>(null)
+  const open = ref(false),
+    enabled = ref(true),
+    panel = ref<HTMLElement | null>(null)
   const trigger = document.createElement('button')
   document.body.append(trigger)
   trigger.focus()
   let motion!: ReturnType<typeof useModalPresence>
-  const wrapper = mount(defineComponent({
-    setup() {
-      motion = useModalPresence(open, enabled)
-      useBodyScrollLock(motion.present)
-      useModalFocus(motion.present, panel, () => { open.value = false })
-      return () => h('section', { ref: panel, tabindex: -1 })
-    }
-  }), { attachTo: document.body })
+  const wrapper = mount(
+    defineComponent({
+      setup() {
+        motion = useModalPresence(open, enabled)
+        useBodyScrollLock(motion.present)
+        useModalFocus(motion.present, panel, () => {
+          open.value = false
+        })
+        return () => h('section', { ref: panel, tabindex: -1 })
+      }
+    }),
+    { attachTo: document.body }
+  )
   wrappers.push(wrapper)
   return { open, enabled, panel, trigger, motion, wrapper }
 }

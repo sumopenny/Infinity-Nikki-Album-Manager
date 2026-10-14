@@ -55,8 +55,14 @@ onBeforeUnmount(() => photoLoadQueue.cancel())
         @keydown.enter="$emit('togglePhoto', photo.id)"
       >
         <div class="photo-frame">
-          <LazyPhotoImage :photo="photo" :load-photo="photoLoadQueue.load" :failure-text="messages.imageLoadFailed" />
-          <div class="photo-overlay"><span>{{ messages.deletedAt(formatDeletedAt(photo.deletedAt)) }}</span></div>
+          <LazyPhotoImage
+            :photo="photo"
+            :load-photo="photoLoadQueue.load"
+            :failure-text="messages.imageLoadFailed"
+          />
+          <div class="photo-overlay"
+            ><span>{{ messages.deletedAt(formatDeletedAt(photo.deletedAt)) }}</span></div
+          >
           <span class="selected-badge"><Check :size="15" aria-hidden="true" /></span>
         </div>
       </article>

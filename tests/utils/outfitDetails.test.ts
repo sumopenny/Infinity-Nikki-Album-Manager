@@ -17,7 +17,8 @@ afterEach(() => {
 
 describe('loadOutfitDetail', () => {
   it('uses the part-to-outfit relation and maps palette, area, dye stage, and variant', async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce(jsonResponse({ id: 1020100001 }))
       .mockResolvedValueOnce(jsonResponse({ id: 10001 }))
     vi.stubGlobal('fetch', fetchMock)
@@ -37,7 +38,8 @@ describe('loadOutfitDetail', () => {
   })
 
   it('keeps the parsed item on the matching evolution outfit when the payload outfit is the base ID', async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce(jsonResponse({ id: 1022100347 }))
       .mockResolvedValueOnce(jsonResponse({ id: 1034701 }))
     vi.stubGlobal('fetch', fetchMock)
@@ -54,13 +56,9 @@ describe('loadOutfitDetail', () => {
   it('labels negative dye palettes as sliders', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ id: 1020100001 })))
 
-    const detail = await loadOutfitDetail(
-      1020100001,
-      null,
-      'zh',
-      '时光讯号-发型',
-      [{ targetGroupId: 1, featureTag: 3, paletteId: -1, slot: null, color: '#bcbcbc' }]
-    )
+    const detail = await loadOutfitDetail(1020100001, null, 'zh', '时光讯号-发型', [
+      { targetGroupId: 1, featureTag: 3, paletteId: -1, slot: null, color: '#bcbcbc' }
+    ])
 
     expect(detail.dyes[0]).toMatchObject({ paletteId: -1, paletteName: '拉条' })
   })
@@ -87,13 +85,9 @@ describe('loadOutfitDetail', () => {
   it('keeps non-primary dye feature tags on their upstream target group area', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ id: 1020100250 })))
 
-    const detail = await loadOutfitDetail(
-      1020100250,
-      null,
-      'zh',
-      '测试部件',
-      [{ targetGroupId: 3, featureTag: 6, paletteId: 18, slot: 3, color: '#9e463e' }]
-    )
+    const detail = await loadOutfitDetail(1020100250, null, 'zh', '测试部件', [
+      { targetGroupId: 3, featureTag: 6, paletteId: 18, slot: 3, color: '#9e463e' }
+    ])
 
     expect(detail.dyes[0].area).toBe('区域 03')
   })
@@ -122,11 +116,14 @@ describe('loadOutfitDetail', () => {
     const areas = detail.dyes.map((dye) => dye.area)
 
     expect(new Set(areas).size).toBe(areas.length)
-    expect(areas).toEqual(Array.from({ length: 20 }, (_, index) => `区域 ${String(index + 1).padStart(2, '0')}`))
+    expect(areas).toEqual(
+      Array.from({ length: 20 }, (_, index) => `区域 ${String(index + 1).padStart(2, '0')}`)
+    )
   })
 
   it('caches the same detail request', async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce(jsonResponse({ id: 1020100001 }))
       .mockResolvedValueOnce(jsonResponse({ id: 10001 }))
     vi.stubGlobal('fetch', fetchMock)
@@ -163,7 +160,9 @@ describe('loadOutfitDetail', () => {
     const detail = await loadOutfitDetail(1021850019, null, 'zh', '妆容-唇妆', [], null)
 
     expect(String(fetchMock.mock.calls[0][0])).toContain('/api/gongeo/makeups/1021850019?lang=zh')
-    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/api/gongeo/items/'))).toBe(false)
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/api/gongeo/items/'))).toBe(
+      false
+    )
     expect(detail.outfitName).toBe('')
     expect(detail.detailImageUrl).toContain('/images/items/1021850019.png')
     expect(detail.loadError).toBe(false)
@@ -198,16 +197,17 @@ describe('loadOutfitDetail', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    await Promise.all(itemIds.map((itemId) => (
-      loadOutfitDetail(itemId, null, 'zh', String(itemId), [], null)
-    )))
+    await Promise.all(
+      itemIds.map((itemId) => loadOutfitDetail(itemId, null, 'zh', String(itemId), [], null))
+    )
 
     const requests = fetchMock.mock.calls.map(([url]) => String(url))
-    expect(itemIds.every((itemId) => requests.includes(`/api/gongeo/makeups/${itemId}?lang=zh`))).toBe(true)
+    expect(
+      itemIds.every((itemId) => requests.includes(`/api/gongeo/makeups/${itemId}?lang=zh`))
+    ).toBe(true)
     expect(requests.some((url) => url.includes('/api/gongeo/items/'))).toBe(false)
   })
 })
-
 
 it('retries a failed detail request and caches the successful retry', async () => {
   const fetchMock = vi.fn().mockRejectedValue(new Error('offline'))
@@ -220,4 +220,13 @@ it('retries a failed detail request and caches the successful retry', async () =
   const calls = fetchMock.mock.calls.length
   expect(await loadOutfitDetail(999999999, null, 'zh', 'Unknown', [])).toBe(recovered)
   expect(fetchMock).toHaveBeenCalledTimes(calls)
+})
+
+// 英文详情复用双语区域标题，避免中文标签混入解析结果。
+it('localizes dye area names in English details', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ id: 1020100001 })))
+  const detail = await loadOutfitDetail(1020100001, null, 'en', 'Hair', [
+    { targetGroupId: 1, featureTag: 1, paletteId: 18, slot: 3, color: '#9e463e' }
+  ])
+  expect(detail.dyes[0].area).toBe('Area 01')
 })

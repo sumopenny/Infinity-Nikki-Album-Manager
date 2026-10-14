@@ -1,4 +1,6 @@
-interface Context { request: Request }
+interface Context {
+  request: Request
+}
 
 const CACHE_HEADERS = {
   'cache-control': 'no-store, no-cache, must-revalidate',
@@ -18,12 +20,14 @@ export async function onRequestPost({ request }: Context): Promise<Response> {
   }
 
   const contentLength = Number(request.headers.get('content-length') ?? 0)
-  if (contentLength > 8192) return Response.json({ error: 'request_too_large' }, { status: 413, headers: CACHE_HEADERS })
+  if (contentLength > 8192)
+    return Response.json({ error: 'request_too_large' }, { status: 413, headers: CACHE_HEADERS })
 
   let body: { token?: unknown; openid?: unknown }
   try {
     const rawBody = await request.text()
-    if (rawBody.length > 8192) return Response.json({ error: 'request_too_large' }, { status: 413, headers: CACHE_HEADERS })
+    if (rawBody.length > 8192)
+      return Response.json({ error: 'request_too_large' }, { status: 413, headers: CACHE_HEADERS })
     const parsed: unknown = JSON.parse(rawBody)
     // JSON 顶层必须是非空对象；合法 JSON 的 null、数组和标量也不能作为凭据对象。
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -33,8 +37,14 @@ export async function onRequestPost({ request }: Context): Promise<Response> {
   } catch {
     return Response.json({ error: 'invalid_body' }, { status: 400, headers: CACHE_HEADERS })
   }
-  if (typeof body.token !== 'string' || !body.token || body.token.length > 4096 ||
-      typeof body.openid !== 'string' || !body.openid || body.openid.length > 256) {
+  if (
+    typeof body.token !== 'string' ||
+    !body.token ||
+    body.token.length > 4096 ||
+    typeof body.openid !== 'string' ||
+    !body.openid ||
+    body.openid.length > 256
+  ) {
     return Response.json({ error: 'invalid_credentials' }, { status: 400, headers: CACHE_HEADERS })
   }
 
@@ -54,7 +64,11 @@ export async function onRequestPost({ request }: Context): Promise<Response> {
       return Response.json({ error: 'upstream_rejected' }, { status: 502, headers: CACHE_HEADERS })
     }
     const responseHeaders = new Headers(CACHE_HEADERS)
-    responseHeaders.set('content-type', upstream.headers.get('content-type') ?? (action === 'snapshot' ? 'application/octet-stream' : 'application/json'))
+    responseHeaders.set(
+      'content-type',
+      upstream.headers.get('content-type') ??
+        (action === 'snapshot' ? 'application/octet-stream' : 'application/json')
+    )
     return new Response(upstream.body, { status: 200, headers: responseHeaders })
   } catch {
     return Response.json({ error: 'upstream_unavailable' }, { status: 502, headers: CACHE_HEADERS })

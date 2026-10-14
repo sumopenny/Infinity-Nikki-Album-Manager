@@ -37,8 +37,11 @@ function handleKeydown(event: KeyboardEvent) {
     return
   }
   if (event.key !== 'Tab' || !panelRef.value) return
-  const focusable = [...panelRef.value.querySelectorAll<HTMLElement>('button, input, [href], [tabindex]:not([tabindex="-1"])')]
-    .filter((element) => !element.hasAttribute('disabled'))
+  const focusable = [
+    ...panelRef.value.querySelectorAll<HTMLElement>(
+      'button, input, [href], [tabindex]:not([tabindex="-1"])'
+    )
+  ].filter((element) => !element.hasAttribute('disabled'))
   if (!focusable.length) return
   const first = focusable[0]
   const last = focusable[focusable.length - 1]
@@ -53,14 +56,17 @@ function handleKeydown(event: KeyboardEvent) {
 
 /** 判断某个清理项的按钮是否可用。参数：item 为清理项标识。 */
 function isItemDisabled(item: SpecialCleanupItem): boolean {
-  return props.disabled || !props.authorizedName || (props.busyItem !== null && props.busyItem !== item)
+  return (
+    props.disabled || !props.authorizedName || (props.busyItem !== null && props.busyItem !== item)
+  )
 }
 
 watch(
   () => props.visible,
   (visible) => {
     if (visible) {
-      previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      previousActiveElement =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null
     } else {
       previousActiveElement?.focus()
       previousActiveElement = null
@@ -68,7 +74,6 @@ watch(
   },
   { immediate: true }
 )
-
 </script>
 
 <template>
@@ -91,12 +96,25 @@ watch(
               <p class="cleanup-auth-hint">{{ messages.referenceHint }}</p>
             </div>
             <div class="cleanup-dialog-header-actions">
-              <span v-if="authorizedName" class="cleanup-authorized-label">{{ messages.authorizedAs(authorizedName) }}</span>
-              <button class="primary-button cleanup-authorize-button" type="button" :disabled="disabled" @click="emit('authorize')">
+              <span v-if="authorizedName" class="cleanup-authorized-label">{{
+                messages.authorizedAs(authorizedName)
+              }}</span>
+              <button
+                class="primary-button cleanup-authorize-button"
+                type="button"
+                :disabled="disabled"
+                @click="emit('authorize')"
+              >
                 <FolderOpen :size="15" aria-hidden="true" />
                 <span>{{ authorizedName ? messages.reauthorize : messages.authorize }}</span>
               </button>
-              <button class="cleanup-dialog-close" type="button" :title="messages.dialogCloseAria" :aria-label="messages.dialogCloseAria" @click="closeDialog">
+              <button
+                class="cleanup-dialog-close"
+                type="button"
+                :title="messages.dialogCloseAria"
+                :aria-label="messages.dialogCloseAria"
+                @click="closeDialog"
+              >
                 <X :size="19" aria-hidden="true" />
               </button>
             </div>

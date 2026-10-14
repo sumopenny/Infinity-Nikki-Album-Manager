@@ -72,5 +72,17 @@ export function usePhotoTransfer() {
     controller.value = null
   }
 
-  return { state, controller, begin, showPrepared, updateProgress, createController, markCompleted, markExportResult, cancel, takeMovePending, clearController }
+  return {
+    state,
+    controller,
+    begin,
+    showPrepared,
+    updateProgress,
+    createController,
+    markCompleted,
+    markExportResult,
+    cancel,
+    takeMovePending,
+    clearController
+  }
 }

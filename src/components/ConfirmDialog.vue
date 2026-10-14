@@ -65,7 +65,9 @@ watch(
             <svg v-else-if="tone === 'warning'" viewBox="0 0 24 24">
               <path d="M12 8v5" />
               <path d="M12 17.25h.01" />
-              <path d="M10.1 4.6 3.2 17a2 2 0 0 0 1.75 3h14.1a2 2 0 0 0 1.75-3L13.9 4.6a2.17 2.17 0 0 0-3.8 0Z" />
+              <path
+                d="M10.1 4.6 3.2 17a2 2 0 0 0 1.75 3h14.1a2 2 0 0 0 1.75-3L13.9 4.6a2.17 2.17 0 0 0-3.8 0Z"
+              />
             </svg>
             <svg v-else viewBox="0 0 24 24">
               <path d="M12 10.75V17" />
@@ -79,17 +81,32 @@ watch(
             <p>{{ message }}</p>
           </div>
 
-          <button class="confirm-dialog-close" type="button" :aria-label="closeLabel" @click="emit('cancel')">
+          <button
+            class="confirm-dialog-close"
+            type="button"
+            :aria-label="closeLabel"
+            @click="emit('cancel')"
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="m7 7 10 10M17 7 7 17" />
             </svg>
           </button>
 
           <div class="confirm-dialog-actions">
-            <button v-if="cancelLabel" class="confirm-dialog-button ghost" type="button" @click="emit('cancel')">
+            <button
+              v-if="cancelLabel"
+              class="confirm-dialog-button ghost"
+              type="button"
+              @click="emit('cancel')"
+            >
               {{ cancelLabel }}
             </button>
-            <button ref="confirmButtonRef" class="confirm-dialog-button primary" type="button" @click="emit('confirm')">
+            <button
+              ref="confirmButtonRef"
+              class="confirm-dialog-button primary"
+              type="button"
+              @click="emit('confirm')"
+            >
               {{ confirmLabel }}
             </button>
           </div>

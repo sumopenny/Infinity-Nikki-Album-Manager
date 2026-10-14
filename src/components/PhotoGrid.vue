@@ -30,16 +30,34 @@ const emit = defineEmits<{
 
 const photoLoadQueue = createPhotoLoadQueue(3)
 
-const renderGroups = computed(() => (props.groupingMode ?? 'date') === 'action'
-  ? (props.actionGroups ?? []).map((group) => ({ key: group.actionKey, title: group.actionName, photos: group.photos, actionImageUrl: group.actionImageUrl, isAction: true }))
-  : props.dateGroups.map((group) => ({ key: group.dateKey, title: group.displayDate, photos: group.photos, actionImageUrl: undefined, isAction: false })))
+const renderGroups = computed(() =>
+  (props.groupingMode ?? 'date') === 'action'
+    ? (props.actionGroups ?? []).map((group) => ({
+        key: group.actionKey,
+        title: group.actionName,
+        photos: group.photos,
+        actionImageUrl: group.actionImageUrl,
+        isAction: true
+      }))
+    : props.dateGroups.map((group) => ({
+        key: group.dateKey,
+        title: group.displayDate,
+        photos: group.photos,
+        actionImageUrl: undefined,
+        isAction: false
+      }))
+)
 
 function isGroupSelected(photos: PhotoItem[]): boolean {
   return photos.length > 0 && photos.every((photo) => props.selectedIds.has(photo.id))
 }
 
 function toggleGroup(group: { key: string; photos: PhotoItem[]; isAction: boolean }) {
-  if (group.isAction) emit('toggleGroup', group.photos.map((photo) => photo.id))
+  if (group.isAction)
+    emit(
+      'toggleGroup',
+      group.photos.map((photo) => photo.id)
+    )
   else emit('toggleDate', group.key)
 }
 
@@ -67,9 +85,22 @@ onBeforeUnmount(() => photoLoadQueue.cancel())
       <p>{{ isFavoritesView ? messages.emptyFavoritesDescription : messages.emptyDescription }}</p>
     </div>
 
-    <section v-for="group in renderGroups" :id="`${group.isAction ? 'action' : 'date'}-${group.key}`" :key="group.key" class="date-block" :class="{ 'is-action-group': group.isAction }">
+    <section
+      v-for="group in renderGroups"
+      :id="`${group.isAction ? 'action' : 'date'}-${group.key}`"
+      :key="group.key"
+      class="date-block"
+      :class="{ 'is-action-group': group.isAction }"
+    >
       <div class="date-block-header">
-        <h2><img v-if="group.actionImageUrl" class="action-group-image" :src="group.actionImageUrl" :alt="group.title" />{{ group.title }} · {{ messages.photoCount(group.photos.length) }}</h2>
+        <h2
+          ><img
+            v-if="group.actionImageUrl"
+            class="action-group-image"
+            :src="group.actionImageUrl"
+            :alt="group.title"
+          />{{ group.title }} · {{ messages.photoCount(group.photos.length) }}</h2
+        >
         <button
           class="date-select-button"
           type="button"
@@ -95,7 +126,11 @@ onBeforeUnmount(() => photoLoadQueue.cancel())
           @keydown.enter="$emit('togglePhoto', photo.id)"
         >
           <div class="photo-frame">
-            <LazyPhotoImage :photo="photo" :load-photo="photoLoadQueue.load" :failure-text="messages.imageLoadFailed" />
+            <LazyPhotoImage
+              :photo="photo"
+              :load-photo="photoLoadQueue.load"
+              :failure-text="messages.imageLoadFailed"
+            />
             <div class="photo-overlay">
               <span>{{ getPhotoMeta(photo) }}</span>
             </div>
@@ -113,13 +148,26 @@ onBeforeUnmount(() => photoLoadQueue.cancel())
               class="favorite-heart"
               type="button"
               :class="{ active: favoriteIds.has(photo.id) }"
-              :aria-label="favoriteIds.has(photo.id) ? messages.removeFavorite : messages.addFavorite"
+              :aria-label="
+                favoriteIds.has(photo.id) ? messages.removeFavorite : messages.addFavorite
+              "
               :title="favoriteIds.has(photo.id) ? messages.removeFavorite : messages.addFavorite"
               @click.stop="handleFavoriteClick(photo.id, $event)"
             >
-              <Heart :size="17" :fill="favoriteIds.has(photo.id) ? 'currentColor' : 'none'" aria-hidden="true" />
+              <Heart
+                :size="17"
+                :fill="favoriteIds.has(photo.id) ? 'currentColor' : 'none'"
+                aria-hidden="true"
+              />
             </button>
-            <button class="photo-note-edit" type="button" :title="messages.editNote" :aria-label="messages.editNote" @click.stop="emit('editNote', photo)"><Edit3 :size="16" /></button>
+            <button
+              class="photo-note-edit"
+              type="button"
+              :title="messages.editNote"
+              :aria-label="messages.editNote"
+              @click.stop="emit('editNote', photo)"
+              ><Edit3 :size="16"
+            /></button>
           </div>
         </article>
       </div>

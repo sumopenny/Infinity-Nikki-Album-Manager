@@ -5,10 +5,12 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('Gongeo Pages proxy', () => {
   it('forwards makeup detail paths and language', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response('{"id":1}', {
-      status: 200,
-      headers: { 'content-type': 'application/json' }
-    }))
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('{"id":1}', {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      })
+    )
     vi.stubGlobal('fetch', fetchMock)
 
     const response = await onRequestGet({
@@ -17,7 +19,9 @@ describe('Gongeo Pages proxy', () => {
     })
 
     expect(response.status).toBe(200)
-    expect(String(fetchMock.mock.calls[0][0])).toBe('https://data.gongeo.us/v1/makeups/1021850019?lang=zh')
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      'https://data.gongeo.us/v1/makeups/1021850019?lang=zh'
+    )
     expect(fetchMock.mock.calls[0][1].headers).toEqual({ Accept: 'application/json' })
   })
 

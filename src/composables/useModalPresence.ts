@@ -4,10 +4,16 @@ import { ref, watch, type Ref } from 'vue'
 export function useModalPresence(open: Ref<boolean>, enabled: Ref<boolean>) {
   const present = ref(enabled.value && open.value)
   const leaving = new Set<Element>()
-  watch([open, enabled], ([isOpen, isEnabled]) => {
-    if (!isEnabled) { present.value = false; leaving.clear() }
-    else if (isOpen) present.value = true
-  }, { flush: 'sync' })
+  watch(
+    [open, enabled],
+    ([isOpen, isEnabled]) => {
+      if (!isEnabled) {
+        present.value = false
+        leaving.clear()
+      } else if (isOpen) present.value = true
+    },
+    { flush: 'sync' }
+  )
 
   function beforeEnter(element: Element) {
     leaving.delete(element)
@@ -16,7 +22,10 @@ export function useModalPresence(open: Ref<boolean>, enabled: Ref<boolean>) {
 
   function beforeLeave(element: Element) {
     // 退场节点仍可见，但不再接受点击和键盘操作。
-    if (enabled.value) { leaving.add(element); element.setAttribute('inert', '') }
+    if (enabled.value) {
+      leaving.add(element)
+      element.setAttribute('inert', '')
+    }
   }
 
   function afterLeave(element: Element) {

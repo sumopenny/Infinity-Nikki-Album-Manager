@@ -15,7 +15,8 @@ export function encodeSnappyLiteral(value: string): Uint8Array {
     let lengthBytes = 1
     while (encodedLength >= 2 ** (lengthBytes * 8)) lengthBytes += 1
     bytes.push((59 + lengthBytes) << 2)
-    for (let index = 0; index < lengthBytes; index += 1) bytes.push((encodedLength >>> (index * 8)) & 0xff)
+    for (let index = 0; index < lengthBytes; index += 1)
+      bytes.push((encodedLength >>> (index * 8)) & 0xff)
   }
   bytes.push(...data)
   return Uint8Array.from(bytes)

@@ -5,12 +5,16 @@ interface OutfitCodeFunctionContext {
 
 const UPSTREAM_BASE_URL = 'https://x6cn-clothdiydata.nuanpaper.com/default/'
 const UPSTREAM_TIMEOUT_MS = 8_000
-const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }
+const JSON_HEADERS = {
+  'content-type': 'application/json; charset=utf-8',
+  'cache-control': 'no-store'
+}
 
 /** Forward the fixed object path, keeping cancellation alive through body delivery. */
 export async function onRequestGet(context: OutfitCodeFunctionContext): Promise<Response> {
   const pathId = context.params.id ?? ''
-  if (!/^\d{18}$/.test(pathId)) return Response.json({ error: 'invalid_path_id' }, { status: 400, headers: JSON_HEADERS })
+  if (!/^\d{18}$/.test(pathId))
+    return Response.json({ error: 'invalid_path_id' }, { status: 400, headers: JSON_HEADERS })
   const startedAt = Date.now()
   const timeoutSignal = AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
   const controller = new AbortController()
@@ -25,7 +29,9 @@ export async function onRequestGet(context: OutfitCodeFunctionContext): Promise<
   if (context.request.signal.aborted) abortForRequest()
   if (timeoutSignal.aborted) abortForTimeout()
   try {
-    const upstream = await fetch(UPSTREAM_BASE_URL + pathId + '.json', { signal: controller.signal })
+    const upstream = await fetch(UPSTREAM_BASE_URL + pathId + '.json', {
+      signal: controller.signal
+    })
     const headersAt = Date.now()
     const headers = new Headers({
       'cache-control': 'private, no-store',
@@ -59,12 +65,19 @@ export async function onRequestGet(context: OutfitCodeFunctionContext): Promise<
             finish()
           } else downstream.enqueue(value)
         } catch (error) {
-          if (!finished) { downstream.error(error); finish() }
+          if (!finished) {
+            downstream.error(error)
+            finish()
+          }
         }
       },
       async cancel(reason) {
         controller.abort(reason)
-        try { await reader.cancel(reason) } finally { finish() }
+        try {
+          await reader.cancel(reason)
+        } finally {
+          finish()
+        }
       }
     })
     return new Response(body, { status: upstream.status, headers })
@@ -72,9 +85,16 @@ export async function onRequestGet(context: OutfitCodeFunctionContext): Promise<
     cleanup()
     const timedOut = timeoutSignal.aborted && !context.request.signal.aborted
     const totalMs = Date.now() - startedAt
-    return Response.json({ error: timedOut ? 'upstream_timeout' : 'upstream_unavailable' }, {
-      status: timedOut ? 504 : 502,
-      headers: { ...JSON_HEADERS, 'server-timing': `upstream;dur=${totalMs}`, 'x-outfit-proxy-upstream-ms': String(totalMs) }
-    })
+    return Response.json(
+      { error: timedOut ? 'upstream_timeout' : 'upstream_unavailable' },
+      {
+        status: timedOut ? 504 : 502,
+        headers: {
+          ...JSON_HEADERS,
+          'server-timing': `upstream;dur=${totalMs}`,
+          'x-outfit-proxy-upstream-ms': String(totalMs)
+        }
+      }
+    )
   }
 }

@@ -100,10 +100,20 @@ async function openItemDetail(item: ParseItemView, event: Event) {
   selectedDetail.value = null
   void nextTick(() => detailPanelRef.value?.querySelector('button')?.focus())
   try {
-    const result = await loadOutfitDetail(item.id, item.outfitId, props.language, item.name, item.dyes, item.clothType, item.hasSpecialEffect)
+    const result = await loadOutfitDetail(
+      item.id,
+      item.outfitId,
+      props.language,
+      item.name,
+      item.dyes,
+      item.clothType,
+      item.hasSpecialEffect
+    )
     if (!request.isCurrent()) return
     selectedDetail.value = result
-    void nextTick(() => { if (request.isCurrent()) detailPanelRef.value?.querySelector('button')?.focus() })
+    void nextTick(() => {
+      if (request.isCurrent()) detailPanelRef.value?.querySelector('button')?.focus()
+    })
   } catch {
     if (request.isCurrent()) detailError.value = true
   } finally {
@@ -155,10 +165,7 @@ async function startParse() {
   }
 
   try {
-    const [catalogIndex, result] = await Promise.all([
-      loadItemCatalog(),
-      parseOutfitCode(code)
-    ])
+    const [catalogIndex, result] = await Promise.all([loadItemCatalog(), parseOutfitCode(code)])
     if (currentRequest !== requestId) return
     catalog.value = catalogIndex
     decoded.value = result
@@ -184,8 +191,9 @@ function handleKeydown(event: KeyboardEvent) {
   if (event.key !== 'Tab') return
   const activePanel = detailVisible.value ? detailPanelRef.value : panelRef.value
   if (!activePanel) return
-  const focusable = [...activePanel.querySelectorAll<HTMLElement>('button, [href], [tabindex]:not([tabindex="-1"])')]
-    .filter((element) => !element.hasAttribute('disabled'))
+  const focusable = [
+    ...activePanel.querySelectorAll<HTMLElement>('button, [href], [tabindex]:not([tabindex="-1"])')
+  ].filter((element) => !element.hasAttribute('disabled'))
   if (!focusable.length) return
   const first = focusable[0]
   const last = focusable[focusable.length - 1]
@@ -199,28 +207,47 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 // 打开窗口时开始解析并把焦点移入面板，关闭后把焦点还给来源按钮。
-watch(() => props.visible, (visible) => {
-  if (visible) {
-    previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    void startParse()
-    void nextTick(() => panelRef.value?.querySelector('button')?.focus())
-  } else {
-    requestId += 1
-    closeItemDetail()
-    previousActiveElement?.focus()
-    previousActiveElement = null
+watch(
+  () => props.visible,
+  (visible) => {
+    if (visible) {
+      previousActiveElement =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null
+      void startParse()
+      void nextTick(() => panelRef.value?.querySelector('button')?.focus())
+    } else {
+      requestId += 1
+      closeItemDetail()
+      previousActiveElement?.focus()
+      previousActiveElement = null
+    }
   }
-})
+)
 
 window.addEventListener('keydown', handleKeydown)
-watch(() => [props.code, props.language], () => { if (props.visible) void startParse() })
-onBeforeUnmount(() => { requestId++; window.removeEventListener('keydown', handleKeydown) })
+watch(
+  () => [props.code, props.language],
+  () => {
+    if (props.visible) void startParse()
+  }
+)
+onBeforeUnmount(() => {
+  requestId++
+  window.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <template>
   <Teleport to="body">
     <Transition name="confirm-dialog">
-      <div v-if="visible" class="outfit-editor" role="dialog" aria-modal="true" :aria-label="messages.parseTitle" @click.self="$emit('close')">
+      <div
+        v-if="visible"
+        class="outfit-editor"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="messages.parseTitle"
+        @click.self="$emit('close')"
+      >
         <section ref="panelRef" class="outfit-editor-panel outfit-parse-panel">
           <header>
             <div class="outfit-parse-heading">
@@ -239,7 +266,12 @@ onBeforeUnmount(() => { requestId++; window.removeEventListener('keydown', handl
                 {{ requestCode }}
               </p>
             </div>
-            <button type="button" :title="messages.parseClose" :aria-label="messages.parseClose" @click="$emit('close')">
+            <button
+              type="button"
+              :title="messages.parseClose"
+              :aria-label="messages.parseClose"
+              @click="$emit('close')"
+            >
               <X :size="19" aria-hidden="true" />
             </button>
           </header>
@@ -256,7 +288,9 @@ onBeforeUnmount(() => { requestId++; window.removeEventListener('keydown', handl
             </template>
 
             <div v-else-if="status === 'error'" class="outfit-parse-status" role="alert">
-              <p>{{ errorKind === 'invalid' ? messages.parseInvalidCode : messages.parseUnavailable }}</p>
+              <p>{{
+                errorKind === 'invalid' ? messages.parseInvalidCode : messages.parseUnavailable
+              }}</p>
               <button class="primary-button outfit-parse-retry" type="button" @click="startParse">
                 <RefreshCw :size="15" aria-hidden="true" />
                 <span>{{ messages.parseRetry }}</span>
@@ -264,7 +298,12 @@ onBeforeUnmount(() => { requestId++; window.removeEventListener('keydown', handl
             </div>
 
             <div v-else-if="items.length" class="outfit-parse-grid">
-              <article v-for="item in items" :key="item.id" class="outfit-parse-item" :title="item.name">
+              <article
+                v-for="item in items"
+                :key="item.id"
+                class="outfit-parse-item"
+                :title="item.name"
+              >
                 <button
                   v-if="item.imageUrl"
                   class="outfit-parse-item-button"
@@ -274,7 +313,10 @@ onBeforeUnmount(() => { requestId++; window.removeEventListener('keydown', handl
                 >
                   <img
                     class="outfit-parse-item-icon"
-                    :class="{ 'is-loading': !loadedItemImages.has(item.id), 'is-failed': failedItemImages.has(item.id) }"
+                    :class="{
+                      'is-loading': !loadedItemImages.has(item.id),
+                      'is-failed': failedItemImages.has(item.id)
+                    }"
                     :src="item.imageUrl"
                     :alt="item.name"
                     loading="lazy"
@@ -282,8 +324,17 @@ onBeforeUnmount(() => { requestId++; window.removeEventListener('keydown', handl
                     @load="markItemImageLoaded(item.id)"
                     @error="markItemImageFailed(item.id)"
                   />
-                  <span v-if="!loadedItemImages.has(item.id) && !failedItemImages.has(item.id)" class="outfit-image-spinner" aria-hidden="true"></span>
-                  <span v-else-if="failedItemImages.has(item.id)" class="outfit-image-failure" aria-hidden="true">?</span>
+                  <span
+                    v-if="!loadedItemImages.has(item.id) && !failedItemImages.has(item.id)"
+                    class="outfit-image-spinner"
+                    aria-hidden="true"
+                  ></span>
+                  <span
+                    v-else-if="failedItemImages.has(item.id)"
+                    class="outfit-image-failure"
+                    aria-hidden="true"
+                    >?</span
+                  >
                 </button>
                 <span v-else class="outfit-parse-item-icon is-missing" aria-hidden="true">?</span>
                 <p class="outfit-parse-item-name">{{ item.name }}</p>
@@ -324,7 +375,12 @@ onBeforeUnmount(() => { requestId++; window.removeEventListener('keydown', handl
         >
           <header>
             <h2>{{ messages.detailTitle }}</h2>
-            <button type="button" :title="messages.detailClose" :aria-label="messages.detailClose" @click="closeItemDetail">
+            <button
+              type="button"
+              :title="messages.detailClose"
+              :aria-label="messages.detailClose"
+              @click="closeItemDetail"
+            >
               <X :size="19" aria-hidden="true" />
             </button>
           </header>
@@ -332,7 +388,9 @@ onBeforeUnmount(() => { requestId++; window.removeEventListener('keydown', handl
             <span class="outfit-parse-spinner" aria-hidden="true"></span>
             <p>{{ messages.detailLoading }}</p>
           </div>
-          <p v-else-if="detailError" class="outfit-detail-error" role="alert">{{ messages.detailLoadFailed }}</p>
+          <p v-else-if="detailError" class="outfit-detail-error" role="alert">{{
+            messages.detailLoadFailed
+          }}</p>
           <div
             v-else-if="selectedDetail"
             class="outfit-detail-content"
@@ -350,26 +408,64 @@ onBeforeUnmount(() => { requestId++; window.removeEventListener('keydown', handl
                   @load="markDetailImageLoaded"
                   @error="markDetailImageFailed"
                 />
-                <span v-if="selectedDetail.detailImageUrl && detailImageState === 'idle'" class="outfit-image-spinner outfit-detail-image-spinner" aria-hidden="true"></span>
-                <div v-else-if="!selectedDetail.detailImageUrl || detailImageState === 'failed'" class="outfit-detail-image is-missing">?</div>
+                <span
+                  v-if="selectedDetail.detailImageUrl && detailImageState === 'idle'"
+                  class="outfit-image-spinner outfit-detail-image-spinner"
+                  aria-hidden="true"
+                ></span>
+                <div
+                  v-else-if="!selectedDetail.detailImageUrl || detailImageState === 'failed'"
+                  class="outfit-detail-image is-missing"
+                  >?</div
+                >
               </div>
               <dl class="outfit-detail-info">
-                <div><dt>{{ messages.detailOutfit }}</dt><dd>{{ selectedDetail.outfitName || messages.detailOutfitUnavailable }}</dd></div>
-                <div><dt>{{ messages.detailCurrentItem }}</dt><dd>{{ selectedDetail.itemName }}</dd></div>
-                <div><dt>{{ messages.detailEvolution }}</dt><dd>{{ selectedDetail.evolution }}</dd></div>
-                <div><dt>{{ messages.detailDyeCondition }}</dt><dd>{{ selectedDetail.dyeCondition }}</dd></div>
+                <div
+                  ><dt>{{ messages.detailOutfit }}</dt
+                  ><dd>{{ selectedDetail.outfitName || messages.detailOutfitUnavailable }}</dd></div
+                >
+                <div
+                  ><dt>{{ messages.detailCurrentItem }}</dt
+                  ><dd>{{ selectedDetail.itemName }}</dd></div
+                >
+                <div
+                  ><dt>{{ messages.detailEvolution }}</dt
+                  ><dd>{{ selectedDetail.evolution }}</dd></div
+                >
+                <div
+                  ><dt>{{ messages.detailDyeCondition }}</dt
+                  ><dd>{{ selectedDetail.dyeCondition }}</dd></div
+                >
               </dl>
-              <p v-if="selectedDetail.loadError" class="outfit-detail-error" role="alert">{{ messages.detailLoadFailed }}</p>
+              <p v-if="selectedDetail.loadError" class="outfit-detail-error" role="alert">{{
+                messages.detailLoadFailed
+              }}</p>
             </section>
             <section v-if="selectedDetail.dyes.length" class="outfit-detail-dyes">
               <h3>{{ messages.detailDyes }}</h3>
               <div class="outfit-detail-table-wrap">
                 <table>
-                  <thead><tr><th>{{ messages.detailArea }}</th><th>{{ messages.detailPalette }}</th><th>{{ messages.detailSlot }}</th><th>{{ messages.detailColor }}</th></tr></thead>
+                  <thead
+                    ><tr
+                      ><th>{{ messages.detailArea }}</th
+                      ><th>{{ messages.detailPalette }}</th
+                      ><th>{{ messages.detailSlot }}</th
+                      ><th>{{ messages.detailColor }}</th></tr
+                    ></thead
+                  >
                   <tbody>
                     <tr v-for="(dye, index) in selectedDetail.dyes" :key="`${dye.area}-${index}`">
-                      <td>{{ dye.area }}</td><td>{{ dye.paletteId < 0 ? dye.paletteName : `${dye.paletteId} ${dye.paletteName}` }}</td><td>{{ dye.slot ?? '—' }}</td>
-                      <td><span class="outfit-detail-color"><i :style="{ backgroundColor: dye.color }"></i><code>{{ dye.color }}</code></span></td>
+                      <td>{{ dye.area }}</td
+                      ><td>{{
+                        dye.paletteId < 0 ? dye.paletteName : `${dye.paletteId} ${dye.paletteName}`
+                      }}</td
+                      ><td>{{ dye.slot ?? '—' }}</td>
+                      <td
+                        ><span class="outfit-detail-color"
+                          ><i :style="{ backgroundColor: dye.color }"></i
+                          ><code>{{ dye.color }}</code></span
+                        ></td
+                      >
                     </tr>
                   </tbody>
                 </table>

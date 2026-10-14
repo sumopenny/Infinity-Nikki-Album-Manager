@@ -24,6 +24,6 @@ export const operationCoordinatorKey: InjectionKey<OperationCoordinator> =
 /** 子组件只登记任务，不通过 watch/卸载事件维护父级忙碌标志。 */
 export function useModuleOperation(module: string) {
   const coordinator = getCurrentInstance() ? inject(operationCoordinatorKey, null) : null
-  return <T,>(action: () => Promise<T>): Promise<T> =>
+  return <T>(action: () => Promise<T>): Promise<T> =>
     coordinator ? coordinator.run(module, action) : action()
 }

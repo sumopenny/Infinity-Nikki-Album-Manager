@@ -17,8 +17,12 @@ export async function readPhotoBlob(photo: PhotoDisplayItem): Promise<Blob> {
   throw new Error('Image source is unavailable')
 }
 
-export async function ensurePhotoUrl(photo: PhotoDisplayItem, signal?: AbortSignal): Promise<string> {
-  if (signal?.aborted || releasedPhotos.has(photo)) throw new DOMException('Photo load cancelled', 'AbortError')
+export async function ensurePhotoUrl(
+  photo: PhotoDisplayItem,
+  signal?: AbortSignal
+): Promise<string> {
+  if (signal?.aborted || releasedPhotos.has(photo))
+    throw new DOMException('Photo load cancelled', 'AbortError')
   if (photo.url) return photo.url
   let pending = pendingPhotoLoads.get(photo)
   if (!pending) {
@@ -26,7 +30,10 @@ export async function ensurePhotoUrl(photo: PhotoDisplayItem, signal?: AbortSign
       const file = await readPhotoBlob(photo)
       if (releasedPhotos.has(photo)) throw new DOMException('Photo load cancelled', 'AbortError')
       const url = URL.createObjectURL(file)
-      if (releasedPhotos.has(photo)) { URL.revokeObjectURL(url); throw new DOMException('Photo load cancelled', 'AbortError') }
+      if (releasedPhotos.has(photo)) {
+        URL.revokeObjectURL(url)
+        throw new DOMException('Photo load cancelled', 'AbortError')
+      }
       photo.fileSizeText = formatFileSize(file.size)
       photo.fileSize = file.size
       if (file instanceof File) photo.lastModified = file.lastModified
@@ -36,7 +43,8 @@ export async function ensurePhotoUrl(photo: PhotoDisplayItem, signal?: AbortSign
     pendingPhotoLoads.set(photo, pending)
   }
   const url = await pending
-  if (signal?.aborted || releasedPhotos.has(photo)) throw new DOMException('Photo load cancelled', 'AbortError')
+  if (signal?.aborted || releasedPhotos.has(photo))
+    throw new DOMException('Photo load cancelled', 'AbortError')
   return url
 }
 

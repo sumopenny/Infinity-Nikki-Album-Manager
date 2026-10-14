@@ -28,11 +28,15 @@ describe('PhotoTransferProgressDialog', () => {
 
     const progress = wrapper.get('.photo-transfer-progress')
     expect(progress.attributes('aria-valuenow')).toBe('0')
-    expect(wrapper.get('.photo-transfer-progress-track span').attributes('style')).toContain('width: 0%')
+    expect(wrapper.get('.photo-transfer-progress-track span').attributes('style')).toContain(
+      'width: 0%'
+    )
 
     await wrapper.setProps({ preparing: false, total: 10, completed: 5 })
     expect(wrapper.get('.photo-transfer-progress').attributes('aria-valuenow')).toBe('50')
-    expect(wrapper.get('.photo-transfer-progress-track span').attributes('style')).toContain('width: 50%')
+    expect(wrapper.get('.photo-transfer-progress-track span').attributes('style')).toContain(
+      'width: 50%'
+    )
 
     await wrapper.setProps({ visible: false })
     expect(wrapper.find('.photo-transfer-overlay').exists()).toBe(false)

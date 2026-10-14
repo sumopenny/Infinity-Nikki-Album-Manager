@@ -30,18 +30,27 @@ function openResonanceMenu() {
 }
 
 function closeResonanceMenu() {
-  closeTimer = setTimeout(() => { resonanceMenuOpen.value = false }, 120)
+  closeTimer = setTimeout(() => {
+    resonanceMenuOpen.value = false
+  }, 120)
 }
 
 // 触屏的兼容鼠标事件不能参与悬停；点击导航始终直接进入模块。
 function handlePointerEnter(event: PointerEvent) {
   if (event.pointerType === 'mouse' && !compact.value) openResonanceMenu()
 }
-onBeforeUnmount(() => { if (closeTimer) clearTimeout(closeTimer) })
+onBeforeUnmount(() => {
+  if (closeTimer) clearTimeout(closeTimer)
+})
 
-defineEmits<{
+const emit = defineEmits<{
   changeView: [view: AlbumView]
 }>()
+/** 切换导航前关闭共鸣子菜单，避免保留旧展开状态。 */
+function selectView(view: AlbumView) {
+  resonanceMenuOpen.value = false
+  emit('changeView', view)
+}
 </script>
 
 <template>
@@ -50,15 +59,34 @@ defineEmits<{
       v-for="item in [
         { view: 'all' as const, label: messages.allPhotos, count: allCount },
         { view: 'outfits' as const, label: outfitLabel, count: outfitsCount },
-        { view: 'home' as const, label: messages.homeSchemes, count: homeSchemesCount, countText: messages.homeSchemesCount(homeSchemesCount) },
-        { view: 'resonance' as const, label: resonanceLabel ?? 'Resonance', count: 0, countText: '' },
-        { view: 'favorites' as const, label: messages.favorites, count: favoriteCount, countText: favoriteCountText },
+        {
+          view: 'home' as const,
+          label: messages.homeSchemes,
+          count: homeSchemesCount,
+          countText: messages.homeSchemesCount(homeSchemesCount)
+        },
+        {
+          view: 'resonance' as const,
+          label: resonanceLabel ?? 'Resonance',
+          count: 0,
+          countText: ''
+        },
+        {
+          view: 'favorites' as const,
+          label: messages.favorites,
+          count: favoriteCount,
+          countText: favoriteCountText
+        },
         { view: 'trash' as const, label: messages.recentlyDeleted, count: trashCount }
       ]"
       :key="item.view"
       class="album-view-item"
       @pointerenter="item.view === 'resonance' ? handlePointerEnter($event) : undefined"
-      @pointerleave="item.view === 'resonance' && $event.pointerType === 'mouse' ? closeResonanceMenu() : undefined"
+      @pointerleave="
+        item.view === 'resonance' && $event.pointerType === 'mouse'
+          ? closeResonanceMenu()
+          : undefined
+      "
     >
       <button
         class="album-view-button"
@@ -68,11 +96,19 @@ defineEmits<{
         :aria-pressed="activeView === item.view"
         :aria-haspopup="item.view === 'resonance' ? 'menu' : undefined"
         :aria-expanded="item.view === 'resonance' ? resonanceMenuOpen : undefined"
-        @click="resonanceMenuOpen = false; $emit('changeView', item.view)"
+        @click="selectView(item.view)"
       >
         <span>{{ item.label }}</span>
-        <small v-if="item.view !== 'resonance'">{{ item.countText ?? messages.count(item.count) }}</small>
-        <ChevronLeft v-else class="resonance-nav-arrow" :class="{ 'is-open': resonanceMenuOpen }" :size="14" aria-hidden="true" />
+        <small v-if="item.view !== 'resonance'">{{
+          item.countText ?? messages.count(item.count)
+        }}</small>
+        <ChevronLeft
+          v-else
+          class="resonance-nav-arrow"
+          :class="{ 'is-open': resonanceMenuOpen }"
+          :size="14"
+          aria-hidden="true"
+        />
       </button>
       <div
         v-if="item.view === 'resonance' && resonanceMenuOpen && !disabled"
@@ -81,8 +117,16 @@ defineEmits<{
         @pointerenter="handlePointerEnter"
         @pointerleave="$event.pointerType === 'mouse' && closeResonanceMenu()"
       >
-        <button type="button" role="menuitem" :class="{ active: activeView === 'resonance' }" @click.stop="$emit('changeView', 'resonance')">{{ messages.resonanceRecords }}</button>
-        <button type="button" role="menuitem" disabled @click.stop>{{ messages.comingSoon }}</button>
+        <button
+          type="button"
+          role="menuitem"
+          :class="{ active: activeView === 'resonance' }"
+          @click.stop="$emit('changeView', 'resonance')"
+          >{{ messages.resonanceRecords }}</button
+        >
+        <button type="button" role="menuitem" disabled @click.stop>{{
+          messages.comingSoon
+        }}</button>
       </div>
     </div>
   </nav>

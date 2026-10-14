@@ -1,4 +1,5 @@
-export type ThumbnailMode = 'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'
+export type ThumbnailMode =
+  'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'
 
 export const THUMBNAIL_MODE_OPTIONS: Array<{ value: ThumbnailMode; label: string }> = [
   { value: 'default', label: '1:1' },

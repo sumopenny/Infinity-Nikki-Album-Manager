@@ -45,7 +45,14 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
     <div v-if="!outfits.length" class="empty-album inline-empty">
       <Shirt :size="30" aria-hidden="true" />
       <h2>{{ messages.emptyTitle }}</h2>
-      <p>{{ messages.emptyDescription }}</p><button class="mobile-only empty-import-button" type="button" :disabled="disabled" @click="$emit('importBackup')">{{ messages.importData }}</button>
+      <p>{{ messages.emptyDescription }}</p
+      ><button
+        class="mobile-only empty-import-button"
+        type="button"
+        :disabled="disabled"
+        @click="$emit('importBackup')"
+        >{{ messages.importData }}</button
+      >
     </div>
 
     <div v-else class="photo-grid outfit-grid">
@@ -63,9 +70,18 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
         @keydown="handleCardKeydown($event, outfit.id)"
       >
         <div class="photo-frame">
-          <LazyPhotoImage :photo="outfit" :load-photo="photoLoadQueue.load" :failure-text="messages.imageLoadFailed" />
+          <LazyPhotoImage
+            :photo="outfit"
+            :load-photo="photoLoadQueue.load"
+            :failure-text="messages.imageLoadFailed"
+          />
           <div class="photo-overlay outfit-overlay">
-            <span class="outfit-card-tag" :title="outfit.tags.join('、')"><span>{{ outfit.tags[0] || messages.uncategorized }}</span><small v-if="outfit.tags.length > 1" class="mobile-only">+{{ outfit.tags.length - 1 }}</small></span>
+            <span class="outfit-card-tag" :title="outfit.tags.join('、')"
+              ><span>{{ outfit.tags[0] || messages.uncategorized }}</span
+              ><small v-if="outfit.tags.length > 1" class="mobile-only"
+                >+{{ outfit.tags.length - 1 }}</small
+              ></span
+            >
           </div>
           <span class="selected-badge"><Check :size="15" aria-hidden="true" /></span>
           <button
@@ -112,11 +128,33 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
             >
               <Copy :size="15" aria-hidden="true" />
             </button>
-            <button type="button" :title="messages.edit" :aria-label="messages.edit" :disabled="disabled" @click.stop="$emit('edit', outfit)">
+            <button
+              type="button"
+              :title="messages.edit"
+              :aria-label="messages.edit"
+              :disabled="disabled"
+              @click.stop="$emit('edit', outfit)"
+            >
               <Edit3 :size="15" aria-hidden="true" />
             </button>
-            <button class="mobile-only" type="button" :title="messages.delete" :aria-label="messages.delete" :disabled="disabled" @click.stop="$emit('delete', outfit)"><Trash2 :size="18" aria-hidden="true" /></button>
-            <button class="mobile-only" type="button" :title="messages.parse" :aria-label="messages.parse" :disabled="disabled || !outfit.code" @click.stop="$emit('parse', outfit)"><ScanSearch :size="18" aria-hidden="true" /></button>
+            <button
+              class="mobile-only"
+              type="button"
+              :title="messages.delete"
+              :aria-label="messages.delete"
+              :disabled="disabled"
+              @click.stop="$emit('delete', outfit)"
+              ><Trash2 :size="18" aria-hidden="true"
+            /></button>
+            <button
+              class="mobile-only"
+              type="button"
+              :title="messages.parse"
+              :aria-label="messages.parse"
+              :disabled="disabled || !outfit.code"
+              @click.stop="$emit('parse', outfit)"
+              ><ScanSearch :size="18" aria-hidden="true"
+            /></button>
           </div>
         </div>
       </article>

@@ -21,7 +21,8 @@ let observer: IntersectionObserver | null = null
 async function startLoading(): Promise<void> {
   if (loadState.value !== 'idle') return
   loadState.value = 'loading'
-  const photo = props.photo, controller = abortController
+  const photo = props.photo,
+    controller = abortController
 
   try {
     const url = await props.loadPhoto(photo, controller.signal)
@@ -29,18 +30,26 @@ async function startLoading(): Promise<void> {
     displayedUrl.value = url
     loadState.value = 'loaded'
   } catch (error) {
-    if (controller.signal.aborted || props.photo !== photo || error instanceof DOMException && error.name === 'AbortError') return
+    if (
+      controller.signal.aborted ||
+      props.photo !== photo ||
+      (error instanceof DOMException && error.name === 'AbortError')
+    )
+      return
     loadState.value = 'failed'
   }
 }
 
-watch(() => props.photo, (photo) => {
-  abortController.abort()
-  abortController = new AbortController()
-  displayedUrl.value = photo.url
-  loadState.value = photo.url ? 'loaded' : 'idle'
-  if (!observer && !photo.url) void startLoading()
-})
+watch(
+  () => props.photo,
+  (photo) => {
+    abortController.abort()
+    abortController = new AbortController()
+    displayedUrl.value = photo.url
+    loadState.value = photo.url ? 'loaded' : 'idle'
+    if (!observer && !photo.url) void startLoading()
+  }
+)
 
 onMounted(() => {
   if (!rootRef.value || !('IntersectionObserver' in window)) {
@@ -69,8 +78,18 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="rootRef" class="lazy-photo-image" :class="`is-${loadState}`">
-    <div v-if="loadState === 'idle' || loadState === 'loading'" class="photo-skeleton" aria-hidden="true"></div>
-    <div v-else-if="loadState === 'failed'" class="photo-load-failed" role="img" :aria-label="failureText" :title="failureText">
+    <div
+      v-if="loadState === 'idle' || loadState === 'loading'"
+      class="photo-skeleton"
+      aria-hidden="true"
+    ></div>
+    <div
+      v-else-if="loadState === 'failed'"
+      class="photo-load-failed"
+      role="img"
+      :aria-label="failureText"
+      :title="failureText"
+    >
       <span aria-hidden="true">×</span>
     </div>
     <img v-else-if="displayedUrl" :src="displayedUrl" :alt="photo.name" loading="lazy" />

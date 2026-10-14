@@ -1142,7 +1142,7 @@ function handleAddTag(value: string) {
                   @click="removeLocalImageFile"
                   ><X :size="14" aria-hidden="true" />{{ messages.removeImage }}</button
                 >
-                <table class="home-scheme-metadata" aria-label="方案信息">
+                <table class="home-scheme-metadata" :aria-label="messages.metadataAria">
                   <tbody>
                     <tr>
                       <td

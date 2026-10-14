@@ -6,34 +6,84 @@ import { zh } from '../../src/i18n'
 import type { CameraFavorite } from '../../src/utils/photo-params/favorites'
 import type { PhotoParamsResult } from '../../src/utils/photo-params/types'
 
-const mocks = vi.hoisted(() => ({ read: vi.fn(), readCover: vi.fn(), saveTags: vi.fn(), save: vi.fn(), copy: vi.fn(), cover: vi.fn(), parse: vi.fn(), webp: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  read: vi.fn(),
+  readCover: vi.fn(),
+  saveTags: vi.fn(),
+  save: vi.fn(),
+  copy: vi.fn(),
+  cover: vi.fn(),
+  parse: vi.fn(),
+  webp: vi.fn()
+}))
 vi.mock('../../src/utils/photo-params/favorites', async (original) => ({
-  ...await original<object>(), readCameraFavorites: mocks.read, readCameraFavoriteCover: mocks.readCover, saveCameraFavoriteTags: mocks.saveTags, saveCameraFavorite: mocks.save, coverMetadata: mocks.cover
+  ...(await original<object>()),
+  readCameraFavorites: mocks.read,
+  readCameraFavoriteCover: mocks.readCover,
+  saveCameraFavoriteTags: mocks.saveTags,
+  saveCameraFavorite: mocks.save,
+  coverMetadata: mocks.cover
 }))
 vi.mock('../../src/utils/image', () => ({ convertImageToWebp: mocks.webp }))
 vi.mock('../../src/utils/clipboard', () => ({ copyTextToClipboard: mocks.copy }))
 vi.mock('../../src/composables/usePhotoParams', () => ({
   usePhotoParams: () => {
-    const result = ref<PhotoParamsResult | null>(null), error = ref<string | null>(null)
-    return { result, error, close: vi.fn(), parseRawCameraParams: async (raw: string) => {
-      const parsed = await mocks.parse(raw)
-      result.value = parsed
-      error.value = parsed ? null : '无效参数码'
-    } }
+    const result = ref<PhotoParamsResult | null>(null),
+      error = ref<string | null>(null)
+    return {
+      result,
+      error,
+      close: vi.fn(),
+      parseRawCameraParams: async (raw: string) => {
+        const parsed = await mocks.parse(raw)
+        result.value = parsed
+        error.value = parsed ? null : '无效参数码'
+      }
+    }
   }
 }))
-const result: PhotoParamsResult = { rawCameraParams: 'ABC', environmentFields: [{ label: '天气', value: '晴天' }], cameraFields: [], imageFields: [], resourceGroups: [
-  { kind: 'pose', id: '12', title: '动作', name: '回眸' },
-  { kind: 'light', title: '灯光', name: '--' },
-  { kind: 'filter', id: '34', title: '滤镜', name: '暖光' }
-] }
-const item: CameraFavorite = { id: 'one', version: 1, name: '暖光人像', code: 'ABC', tag: '人像', result, source: 'tool', cover: null, createdAt: '2026-10-11T00:00:00Z', updatedAt: '2026-10-11T00:00:00Z' }
+const result: PhotoParamsResult = {
+  rawCameraParams: 'ABC',
+  environmentFields: [{ label: '天气', value: '晴天' }],
+  cameraFields: [],
+  imageFields: [],
+  resourceGroups: [
+    { kind: 'pose', id: '12', title: '动作', name: '回眸' },
+    { kind: 'light', title: '灯光', name: '--' },
+    { kind: 'filter', id: '34', title: '滤镜', name: '暖光' }
+  ]
+}
+const item: CameraFavorite = {
+  id: 'one',
+  version: 1,
+  name: '暖光人像',
+  code: 'ABC',
+  tag: '人像',
+  result,
+  source: 'tool',
+  cover: null,
+  createdAt: '2026-10-11T00:00:00Z',
+  updatedAt: '2026-10-11T00:00:00Z'
+}
 let wrapper: ReturnType<typeof mount> | null = null
 function create() {
-  wrapper = mount(CameraFavorites, { props: { active: true, language: 'zh', messages: zh.photoParams, searchQuery: '', confirmAction: vi.fn().mockResolvedValue(true) }, attachTo: document.body })
+  wrapper = mount(CameraFavorites, {
+    props: {
+      active: true,
+      language: 'zh',
+      messages: zh.photoParams,
+      searchQuery: '',
+      confirmAction: vi.fn().mockResolvedValue(true)
+    },
+    attachTo: document.body
+  })
   return wrapper
 }
-function button(label: string) { return [...document.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') || b.textContent?.trim()) === label)! }
+function button(label: string) {
+  return [...document.querySelectorAll('button')].find(
+    (b) => (b.getAttribute('aria-label') || b.textContent?.trim()) === label
+  )!
+}
 beforeEach(() => {
   localStorage.clear()
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
@@ -50,12 +100,23 @@ beforeEach(() => {
     return tags
   })
   mocks.parse.mockResolvedValue(result)
-  mocks.cover.mockImplementation(async (blob: Blob, name: string) => ({ name, type: blob.type, size: blob.size, sha256: 'a'.repeat(64) }))
+  mocks.cover.mockImplementation(async (blob: Blob, name: string) => ({
+    name,
+    type: blob.type,
+    size: blob.size,
+    sha256: 'a'.repeat(64)
+  }))
   vi.stubGlobal('BroadcastChannel', undefined)
   URL.createObjectURL = vi.fn(() => 'blob:cover')
   URL.revokeObjectURL = vi.fn()
 })
-afterEach(() => { wrapper?.unmount(); wrapper = null; document.body.innerHTML = ''; vi.unstubAllGlobals(); vi.useRealTimers() })
+afterEach(() => {
+  wrapper?.unmount()
+  wrapper = null
+  document.body.innerHTML = ''
+  vi.unstubAllGlobals()
+  vi.useRealTimers()
+})
 
 describe('camera favorite UI', () => {
   it('provides four footer icons with a working copy action and disabled busy state', async () => {
@@ -63,14 +124,23 @@ describe('camera favorite UI', () => {
     const view = create()
     await flushPromises()
     const actions = view.findAll('.camera-favorite-card .outfit-card-actions button')
-    expect(actions.map(action => action.attributes('aria-label'))).toEqual(['复制', '编辑', '删除', '详情'])
-    expect(actions.every(action => action.text() === '')).toBe(true)
+    expect(actions.map((action) => action.attributes('aria-label'))).toEqual([
+      '复制',
+      '编辑',
+      '删除',
+      '详情'
+    ])
+    expect(actions.every((action) => action.text() === '')).toBe(true)
     expect(view.find('.card-menu-trigger').exists()).toBe(false)
     await actions[0]!.trigger('click')
     expect(mocks.copy).toHaveBeenCalledWith('ABC')
     expect(view.get('.camera-favorite-card').attributes('aria-checked')).toBe('false')
     await view.setProps({ disabled: true })
-    expect(view.findAll('.camera-favorite-card .outfit-card-actions button').every(action => action.attributes('disabled') !== undefined)).toBe(true)
+    expect(
+      view
+        .findAll('.camera-favorite-card .outfit-card-actions button')
+        .every((action) => action.attributes('disabled') !== undefined)
+    ).toBe(true)
   })
   it('offers manual addition without an album and requires successful parsing before saving', async () => {
     const view = create()
@@ -85,9 +155,15 @@ describe('camera favorite UI', () => {
     await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
     expect(button('保存收藏').disabled).toBe(false)
-    document.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    document
+      .querySelector('form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await flushPromises()
-    expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ source: 'manual', code: 'ABC', cover: null }), null, undefined)
+    expect(mocks.save).toHaveBeenCalledWith(
+      expect.objectContaining({ source: 'manual', code: 'ABC', cover: null }),
+      null,
+      undefined
+    )
     expect(view.emitted('status')?.at(-1)?.[1]).toBe('success')
   })
   it('invalidates a parsed result when the input changes and retains the form on failure', async () => {
@@ -96,14 +172,18 @@ describe('camera favorite UI', () => {
     button('添加收藏').click()
     await flushPromises()
     const input = document.querySelector('textarea')!
-    input.value = 'ABC'; input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.value = 'ABC'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
     await flushPromises()
-    await vi.advanceTimersByTimeAsync(500); await flushPromises()
-    input.value = 'invalid'; input.dispatchEvent(new Event('input', { bubbles: true }))
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+    input.value = 'invalid'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
     await flushPromises()
     expect(button('保存收藏').disabled).toBe(true)
     mocks.parse.mockResolvedValue(null)
-    await vi.advanceTimersByTimeAsync(500); await flushPromises()
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
     expect(view.emitted('status')?.at(-1)).toEqual(['无效参数码', 'error'])
     expect(document.querySelector('.outfit-editor-error')).toBeNull()
     expect(input.value).toBe('invalid')
@@ -112,21 +192,34 @@ describe('camera favorite UI', () => {
     const view = create()
     await flushPromises()
     const file = new File(['original'], 'cover.png', { type: 'image/png' })
-    await (view.vm as unknown as { openFromResult: Function }).openFromResult(result, { name: 'cover.png', fileHandle: { getFile: async () => file } })
+    await (view.vm as unknown as { openFromResult: Function }).openFromResult(result, {
+      name: 'cover.png',
+      fileHandle: { getFile: async () => file }
+    })
     await flushPromises()
     expect(document.querySelector('.camera-editor-preview')).not.toBeNull()
-    document.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    document
+      .querySelector('form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await flushPromises()
     const converted = await mocks.webp.mock.results[0].value
     expect(mocks.save.mock.calls[0][1]).toBe(converted)
     expect(mocks.cover).toHaveBeenCalledWith(converted, 'cover.webp')
-    expect(mocks.save.mock.calls[0][0].cover).toMatchObject({ name: 'cover.webp', type: 'image/webp', size: converted.size })
+    expect(mocks.save.mock.calls[0][0].cover).toMatchObject({
+      name: 'cover.webp',
+      type: 'image/webp',
+      size: converted.size
+    })
     expect(mocks.save.mock.calls[0][0].source).toBe('album')
     expect(mocks.save.mock.calls[0][0].result.resourceGroups[0]).toEqual(result.resourceGroups[0])
-    await (view.vm as unknown as { openFromResult: Function }).openFromResult(result, { name: 'tool.png' })
+    await (view.vm as unknown as { openFromResult: Function }).openFromResult(result, {
+      name: 'tool.png'
+    })
     await flushPromises()
     expect(document.querySelector('.camera-editor-preview')).toBeNull()
-    document.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    document
+      .querySelector('form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await flushPromises()
     expect(mocks.save.mock.calls[1][0].source).toBe('tool')
     expect(mocks.save.mock.calls[1][0].result.resourceGroups[0]).toEqual(result.resourceGroups[0])
@@ -146,16 +239,25 @@ describe('camera favorite UI', () => {
 
 describe('camera favorite selection and resources', () => {
   it('displays typed action resources in cards and details and filters empty resources', async () => {
-    const typed = { ...item, result: { ...result, resourceGroups: [
-      { kind: 'pose', title: '动作', name: '回眸', imageUrl: '/pose.webp' },
-      { kind: 'light', title: '灯光', name: '--' },
-      { kind: 'light', title: '灯光', name: '无' },
-      { kind: 'filter', title: '滤镜', name: '暖光' }
-    ] } }
+    const typed = {
+      ...item,
+      result: {
+        ...result,
+        resourceGroups: [
+          { kind: 'pose', title: '动作', name: '回眸', imageUrl: '/pose.webp' },
+          { kind: 'light', title: '灯光', name: '--' },
+          { kind: 'light', title: '灯光', name: '无' },
+          { kind: 'filter', title: '滤镜', name: '暖光' }
+        ]
+      }
+    }
     mocks.read.mockResolvedValue({ records: [typed], covers: new Map() })
     const view = create()
     await flushPromises()
-    expect(view.findAll('.camera-resources strong').map(resource => resource.text())).toEqual(['回眸', '暖光'])
+    expect(view.findAll('.camera-resources strong').map((resource) => resource.text())).toEqual([
+      '回眸',
+      '暖光'
+    ])
     button('详情').click()
     await flushPromises()
     expect(document.querySelector('.photo-params-dialog')?.textContent).toContain('回眸')
@@ -197,36 +299,50 @@ describe('camera favorite selection and resources', () => {
 })
 
 describe('camera favorite tags', () => {
-  it.each(['zh', 'en'] as const)('limits new tag input and validation to five characters (%s)', async language => {
-    mocks.read.mockResolvedValue({ records: [item], covers: new Map(), tags: [item.tag] })
-    const view = create()
-    await view.setProps({ language })
-    await flushPromises()
-    const sidebar = view.findComponent({ name: 'OutfitSidebar' })
-    expect(sidebar.props('maxTagLength')).toBe(5)
-    sidebar.vm.$emit('addTag', '123456')
-    await flushPromises()
-    expect(mocks.saveTags).not.toHaveBeenCalled()
-    expect(view.emitted('status')?.at(-1)?.[0]).toContain('1–5')
-    sidebar.vm.$emit('addTag', '12345')
-    await flushPromises()
-    expect(mocks.saveTags).toHaveBeenCalledWith([item.tag, '12345'])
-    view.get('.camera-favorite-card .outfit-card-actions button[aria-label="' + (language === 'zh' ? '编辑' : 'Edit') + '"]').element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    await flushPromises()
-    document.querySelector<HTMLButtonElement>('.camera-editor-tags .outfit-editor-add-tag')!.click()
-    await flushPromises()
-    const input = document.querySelector<HTMLInputElement>('.camera-tag-popover input')!
-    expect(input.maxLength).toBe(5)
-    expect(input.placeholder).toContain('5')
-  })
+  it.each(['zh', 'en'] as const)(
+    'limits new tag input and validation to five characters (%s)',
+    async (language) => {
+      mocks.read.mockResolvedValue({ records: [item], covers: new Map(), tags: [item.tag] })
+      const view = create()
+      await view.setProps({ language })
+      await flushPromises()
+      const sidebar = view.findComponent({ name: 'OutfitSidebar' })
+      expect(sidebar.props('maxTagLength')).toBe(5)
+      sidebar.vm.$emit('addTag', '123456')
+      await flushPromises()
+      expect(mocks.saveTags).not.toHaveBeenCalled()
+      expect(view.emitted('status')?.at(-1)?.[0]).toContain('1–5')
+      sidebar.vm.$emit('addTag', '12345')
+      await flushPromises()
+      expect(mocks.saveTags).toHaveBeenCalledWith([item.tag, '12345'])
+      view
+        .get(
+          '.camera-favorite-card .outfit-card-actions button[aria-label="' +
+            (language === 'zh' ? '编辑' : 'Edit') +
+            '"]'
+        )
+        .element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await flushPromises()
+      document
+        .querySelector<HTMLButtonElement>('.camera-editor-tags .outfit-editor-add-tag')!
+        .click()
+      await flushPromises()
+      const input = document.querySelector<HTMLInputElement>('.camera-tag-popover input')!
+      expect(input.maxLength).toBe(5)
+      expect(input.placeholder).toContain('5')
+    }
+  )
 
   it('counts single-tag records in the shared sidebar and filters uncategorized records', async () => {
     const untagged = { ...item, id: 'two', tag: '', name: '无标签收藏', code: 'XYZ' }
-    mocks.read.mockResolvedValue({ records: [item, { ...item, id: 'warm', code: 'WARM', tag: '暖光' }, untagged], covers: new Map() })
+    mocks.read.mockResolvedValue({
+      records: [item, { ...item, id: 'warm', code: 'WARM', tag: '暖光' }, untagged],
+      covers: new Map()
+    })
     const view = create()
     await flushPromises()
     const rows = view.findAll('.outfit-filter-row')
-    expect(rows.map(row => row.get('small').text())).toEqual(['1', '1'])
+    expect(rows.map((row) => row.get('small').text())).toEqual(['1', '1'])
     await rows[1].get('.outfit-filter-button').trigger('click')
     expect(view.findAll('.camera-favorite-card')).toHaveLength(1)
     expect(view.get('.camera-favorite-card').attributes('aria-label')).toBe(item.name)
@@ -243,10 +359,14 @@ describe('camera favorite tags', () => {
     await flushPromises()
     const choices = document.querySelector('.camera-editor-tags')!
     expect(choices.querySelectorAll('[aria-pressed="true"]')).toHaveLength(1)
-    const warmTag = [...choices.querySelectorAll('button')].find(button => button.textContent === '暖光')!
+    const warmTag = [...choices.querySelectorAll('button')].find(
+      (button) => button.textContent === '暖光'
+    )!
     warmTag.click()
     await flushPromises()
-    expect([...choices.querySelectorAll('[aria-pressed="true"]')].map(button => button.textContent)).toEqual(['暖光'])
+    expect(
+      [...choices.querySelectorAll('[aria-pressed="true"]')].map((button) => button.textContent)
+    ).toEqual(['暖光'])
     warmTag.click()
     await flushPromises()
     expect(choices.querySelectorAll('[aria-pressed="true"]')).toHaveLength(0)
@@ -258,7 +378,9 @@ describe('camera favorite tags', () => {
     await flushPromises()
     ;(choices.querySelector('.camera-tag-popover button') as HTMLButtonElement).click()
     await flushPromises()
-    document.querySelector('.camera-favorite-editor')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    document
+      .querySelector('.camera-favorite-editor')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await flushPromises()
     expect(mocks.save.mock.calls[0][0].tag).toBe('夜景')
     expect(mocks.saveTags).toHaveBeenCalledWith(['人像', '暖光', '夜景'])
@@ -274,10 +396,13 @@ describe('camera favorite tags', () => {
     await flushPromises()
     sidebar.vm.$emit('reorderTags', ['人像', '夜景'])
     await flushPromises()
-    view.unmount(); wrapper = null
+    view.unmount()
+    wrapper = null
     const remounted = create()
     await flushPromises()
-    expect(remounted.findAll('.outfit-filter-row .outfit-filter-button span').map(el => el.text())).toEqual(['人像', '夜景'])
+    expect(
+      remounted.findAll('.outfit-filter-row .outfit-filter-button span').map((el) => el.text())
+    ).toEqual(['人像', '夜景'])
   })
 })
 
@@ -340,14 +465,20 @@ describe('camera favorite automatic parsing', () => {
     button('添加收藏').click()
     await flushPromises()
     await enter('ABC')
-    view.unmount(); wrapper = null
+    view.unmount()
+    wrapper = null
     await vi.advanceTimersByTimeAsync(600)
     expect(mocks.parse).not.toHaveBeenCalled()
   })
   it('ignores late results after new input or closing the editor', async () => {
     const view = await open()
     let finishOld!: (value: PhotoParamsResult) => void
-    mocks.parse.mockImplementationOnce(() => new Promise<PhotoParamsResult>(resolve => { finishOld = resolve }))
+    mocks.parse.mockImplementationOnce(
+      () =>
+        new Promise<PhotoParamsResult>((resolve) => {
+          finishOld = resolve
+        })
+    )
     await enter('OLD')
     await vi.advanceTimersByTimeAsync(500)
     expect(document.querySelector('.camera-parse-status')?.textContent).toContain('解析中')
@@ -357,12 +488,19 @@ describe('camera favorite automatic parsing', () => {
     await flushPromises()
     finishOld({ ...result, rawCameraParams: 'OLD' })
     await flushPromises()
-    document.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    document
+      .querySelector('form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await flushPromises()
     expect(mocks.save.mock.calls[0][0].result.rawCameraParams).toBe('NEW')
     button('添加收藏').click()
     await flushPromises()
-    mocks.parse.mockImplementationOnce(() => new Promise<PhotoParamsResult>(resolve => { finishOld = resolve }))
+    mocks.parse.mockImplementationOnce(
+      () =>
+        new Promise<PhotoParamsResult>((resolve) => {
+          finishOld = resolve
+        })
+    )
     await enter('LATE')
     await vi.advanceTimersByTimeAsync(500)
     const notices = view.emitted('status')?.length
@@ -376,7 +514,9 @@ describe('camera favorite automatic parsing', () => {
   it('preserves existing photo results and retries automatically after invalid input', async () => {
     const view = create()
     await flushPromises()
-    await (view.vm as unknown as { openFromResult: Function }).openFromResult(result, { name: 'photo.png' })
+    await (view.vm as unknown as { openFromResult: Function }).openFromResult(result, {
+      name: 'photo.png'
+    })
     await vi.advanceTimersByTimeAsync(600)
     expect(mocks.parse).not.toHaveBeenCalled()
     expect(button('保存收藏').disabled).toBe(false)
@@ -401,11 +541,16 @@ describe('camera cover conversion', () => {
     const view = create()
     await flushPromises()
     const file = new File(['original'], 'album.png', { type: 'image/png' })
-    await (view.vm as unknown as { openFromResult: Function }).openFromResult(result, { name: file.name, fileHandle: { getFile: async () => file } })
+    await (view.vm as unknown as { openFromResult: Function }).openFromResult(result, {
+      name: file.name,
+      fileHandle: { getFile: async () => file }
+    })
     return view
   }
   async function submit() {
-    document.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    document
+      .querySelector('form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await flushPromises()
   }
   it('keeps the form on conversion failure and retries without writing a partial favorite', async () => {
@@ -445,7 +590,8 @@ describe('camera cover conversion', () => {
     expect(mocks.webp).toHaveBeenCalledTimes(1)
     expect(mocks.save.mock.calls[0][1].type).toBe('image/webp')
     expect(mocks.save.mock.calls[0][0].cover.name).toBe('manual.webp')
-    wrapper?.unmount(); wrapper = null
+    wrapper?.unmount()
+    wrapper = null
     await openAlbum()
     button('移除封面').click()
     await flushPromises()
@@ -457,15 +603,28 @@ describe('camera cover conversion', () => {
 
 it('converts an existing non-WebP cover when saving an edit', async () => {
   const original = new Blob(['png'], { type: 'image/png' })
-  const saved = { ...item, cover: { name: 'existing.png', type: original.type, size: original.size, sha256: 'a'.repeat(64) } }
+  const saved = {
+    ...item,
+    cover: {
+      name: 'existing.png',
+      type: original.type,
+      size: original.size,
+      sha256: 'a'.repeat(64)
+    }
+  }
   mocks.read.mockResolvedValue({ records: [saved], covers: new Map([[saved.id, original]]) })
   create()
   await flushPromises()
   button('编辑').click()
   await flushPromises()
-  document.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+  document
+    .querySelector('form')!
+    .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
   await flushPromises()
   expect(mocks.webp).toHaveBeenCalledTimes(1)
-  expect(mocks.save.mock.calls[0][0].cover).toMatchObject({ name: 'existing.webp', type: 'image/webp' })
+  expect(mocks.save.mock.calls[0][0].cover).toMatchObject({
+    name: 'existing.webp',
+    type: 'image/webp'
+  })
   expect(mocks.save.mock.calls[0][1].type).toBe('image/webp')
 })

@@ -4,11 +4,23 @@ import type { Language } from '../i18n'
 import type { PhotoParamsMessages } from '../i18n/messages/photoParams'
 import type { PhotoItem } from '../utils/photoGrouping'
 import { listGamePlayPhotoAccounts } from '../utils/file-system/directoryAccess'
-import { addSavedCameraParamUid, getSavedCameraParamUids, getSavedX6GameDirectoryHandle } from '../utils/file-system/directoryStorage'
+import {
+  addSavedCameraParamUid,
+  getSavedCameraParamUids,
+  getSavedX6GameDirectoryHandle
+} from '../utils/file-system/directoryStorage'
 import { decodeCameraParams, decodePhoto } from '../utils/photo-params/wasmClient'
-import type { PhotoParamsProgress, PhotoParamsResult, PhotoParamsStage } from '../utils/photo-params/types'
+import type {
+  PhotoParamsProgress,
+  PhotoParamsResult,
+  PhotoParamsStage
+} from '../utils/photo-params/types'
 
-type DecodedPhoto = { rawCameraParams: string; photo: Record<string, unknown>; camera: Record<string, unknown> }
+type DecodedPhoto = {
+  rawCameraParams: string
+  photo: Record<string, unknown>
+  camera: Record<string, unknown>
+}
 
 export function usePhotoParams(options: {
   language: Readonly<Ref<Language>>
@@ -30,15 +42,28 @@ export function usePhotoParams(options: {
 
   function describeError(code: string): string {
     const errorMessages = messages.value.errors
-    return errorMessages.format(code, errorMessages.descriptions[code] ?? errorMessages.unknownMeaning)
+    return errorMessages.format(
+      code,
+      errorMessages.descriptions[code] ?? errorMessages.unknownMeaning
+    )
   }
 
   function requiresUid(errorCode: string | undefined): boolean {
     return errorCode === 'photo_structure_invalid'
   }
 
-  function presentCameraParams(camera: Record<string, unknown>, rawCameraParams: string, photoData?: Record<string, unknown>) {
-    result.value = formatCameraParams(camera, rawCameraParams, language.value, messages.value, photoData)
+  function presentCameraParams(
+    camera: Record<string, unknown>,
+    rawCameraParams: string,
+    photoData?: Record<string, unknown>
+  ) {
+    result.value = formatCameraParams(
+      camera,
+      rawCameraParams,
+      language.value,
+      messages.value,
+      photoData
+    )
   }
 
   async function parsePhotoBytes(bytes: Uint8Array, candidateUids: string[], run: number) {
@@ -49,14 +74,19 @@ export function usePhotoParams(options: {
     const errors: string[] = []
     for (const uid of candidateUids) {
       const attempt = await decodePhoto<DecodedPhoto>(bytes, uid)
-      if (attempt.ok && attempt.value) { decoded = attempt; break }
+      if (attempt.ok && attempt.value) {
+        decoded = attempt
+        break
+      }
       if (attempt.errorCode && !errors.includes(attempt.errorCode)) errors.push(attempt.errorCode)
     }
     if (run !== runId) return null
     if (!decoded?.value) {
       // 只有“未找到有效 UID 账号”才需要用户输入 UID；其它照片结构或参数错误直接展示错误信息。
       uidRequired.value = errors.length > 0 && errors.every((code) => requiresUid(code))
-      const errorDetails = errors.length ? errors.map(describeError).join('；') : describeError('photo_parse_failed')
+      const errorDetails = errors.length
+        ? errors.map(describeError).join('；')
+        : describeError('photo_parse_failed')
       throw new Error(errorDetails)
     }
     return decoded.value
@@ -181,7 +211,8 @@ export function usePhotoParams(options: {
     try {
       const decoded = await decodeCameraParams<Record<string, unknown>>(raw)
       if (run !== runId) return
-      if (!decoded.ok || !decoded.value) throw new Error(describeError(decoded.errorCode ?? 'camera_decrypt_failed'))
+      if (!decoded.ok || !decoded.value)
+        throw new Error(describeError(decoded.errorCode ?? 'camera_decrypt_failed'))
       presentCameraParams(decoded.value, raw)
       setStage('ready', 100)
     } catch (caught) {
@@ -202,7 +233,22 @@ export function usePhotoParams(options: {
     progress.value = { stage: 'idle', percent: 0, message: '' }
   }
 
-  onScopeDispose(() => { runId += 1 })
+  onScopeDispose(() => {
+    runId += 1
+  })
 
-  return { photo, isVisible, result, error, uidRequired, progress, openForPhoto, openForFile, submitUid, openCameraParamsTool, parseRawCameraParams, close }
+  return {
+    photo,
+    isVisible,
+    result,
+    error,
+    uidRequired,
+    progress,
+    openForPhoto,
+    openForFile,
+    submitUid,
+    openCameraParamsTool,
+    parseRawCameraParams,
+    close
+  }
 }

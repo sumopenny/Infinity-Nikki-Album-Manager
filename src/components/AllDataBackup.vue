@@ -1,83 +1,169 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import CameraImportConflictDialog from './CameraImportConflictDialog.vue'
-import { applyAllDataBackup, exportAllDataBackup, hasAllBackupData, prepareAllDataBackup, type BackupModule, type CameraChoices, type ModuleImportResult } from '../utils/backup/allDataBackup'
+import {
+  applyAllDataBackup,
+  exportAllDataBackup,
+  hasAllBackupData,
+  prepareAllDataBackup,
+  type BackupModule,
+  type CameraChoices,
+  type ModuleImportResult
+} from '../utils/backup/allDataBackup'
 import type { ImportPlan } from '../utils/photo-params/favorites'
 const props = defineProps<{ language: 'zh' | 'en'; disabled: boolean }>()
 const emit = defineEmits<{
-  busy: [value: boolean]; availability: [value: boolean]; changed: []
+  busy: [value: boolean]
+  availability: [value: boolean]
+  changed: []
   status: [message: string, tone: 'success' | 'warning' | 'error' | 'info', loading?: boolean]
 }>()
-const picker = ref<HTMLInputElement | null>(null), busy = ref(false)
+const picker = ref<HTMLInputElement | null>(null),
+  busy = ref(false)
 const conflict = ref<ImportPlan | null>(null)
 let resolveChoices: ((choices: CameraChoices | null) => void) | null = null
-let disposed = false, availabilityGeneration = 0
-const t = (zh: string, en: string) => props.language === 'zh' ? zh : en
-const moduleName = (module: BackupModule) => ({
-  outfits: t('搭配码', 'Outfits'), home: t('家园方案', 'Home schemes'),
-  camera: t('相机参数', 'Camera parameters'), resonance: t('共鸣记录', 'Resonance records')
-})[module]
+let disposed = false,
+  availabilityGeneration = 0
+const t = (zh: string, en: string) => (props.language === 'zh' ? zh : en)
+const moduleName = (module: BackupModule) =>
+  ({
+    outfits: t('搭配码', 'Outfits'),
+    home: t('家园方案', 'Home schemes'),
+    camera: t('相机参数', 'Camera parameters'),
+    resonance: t('共鸣记录', 'Resonance records')
+  })[module]
 async function refreshAvailability() {
   const generation = ++availabilityGeneration
-  try { const value = await hasAllBackupData(); if (!disposed && generation === availabilityGeneration) emit('availability', value) }
-  catch { if (!disposed && generation === availabilityGeneration) emit('availability', false) }
+  try {
+    const value = await hasAllBackupData()
+    if (!disposed && generation === availabilityGeneration) emit('availability', value)
+  } catch {
+    if (!disposed && generation === availabilityGeneration) emit('availability', false)
+  }
 }
-function setBusy(value: boolean) { busy.value = value; emit('busy', value) }
+function setBusy(value: boolean) {
+  busy.value = value
+  emit('busy', value)
+}
 function report(error: unknown) {
-  emit('status', t('全部数据备份操作失败：', 'Backup operation failed: ') + (error instanceof Error ? error.message : String(error)), 'error')
+  emit(
+    'status',
+    t('全部数据备份操作失败：', 'Backup operation failed: ') +
+      (error instanceof Error ? error.message : String(error)),
+    'error'
+  )
 }
 async function exportData() {
   if (busy.value || props.disabled) return
   setBusy(true)
   emit('status', t('正在导出全部数据…', 'Exporting all data…'), 'info', true)
   try {
-    if (!await hasAllBackupData()) { emit('status', t('暂无可导出的数据', 'No data to export'), 'info'); return }
+    if (!(await hasAllBackupData())) {
+      emit('status', t('暂无可导出的数据', 'No data to export'), 'info')
+      return
+    }
     const name = await exportAllDataBackup()
     emit('status', t('已生成全部数据备份：', 'All-data backup created: ') + name, 'success')
-  } catch (error) { report(error) }
-  finally { setBusy(false); void refreshAvailability() }
+  } catch (error) {
+    report(error)
+  } finally {
+    setBusy(false)
+    void refreshAvailability()
+  }
 }
-function chooseImport() { if (!busy.value && !props.disabled) picker.value?.click() }
+function chooseImport() {
+  if (!busy.value && !props.disabled) picker.value?.click()
+}
 function finishChoices(value: CameraChoices | null) {
-  conflict.value = null; resolveChoices?.(value); resolveChoices = null
+  conflict.value = null
+  resolveChoices?.(value)
+  resolveChoices = null
 }
 function resultSummary(results: ModuleImportResult[]) {
-  return results.map(result => moduleName(result.module) + ': ' +
-    t('保存 ' + result.saved + '，跳过 ' + result.skipped + '，失败 ' + result.failed,
-      'saved ' + result.saved + ', skipped ' + result.skipped + ', failed ' + result.failed) +
-    (result.rejectedTags ? t('，未导入标签 ' + result.rejectedTags, ', rejected tags ' + result.rejectedTags) : '') +
-    (result.error ? t('；模块未完整完成：', '; module incomplete: ') + result.error : '')).join('；')
+  return results
+    .map(
+      (result) =>
+        moduleName(result.module) +
+        ': ' +
+        t(
+          '保存 ' + result.saved + '，跳过 ' + result.skipped + '，失败 ' + result.failed,
+          'saved ' + result.saved + ', skipped ' + result.skipped + ', failed ' + result.failed
+        ) +
+        (result.rejectedTags
+          ? t('，未导入标签 ' + result.rejectedTags, ', rejected tags ' + result.rejectedTags)
+          : '') +
+        (result.error ? t('；模块未完整完成：', '; module incomplete: ') + result.error : '')
+    )
+    .join('；')
 }
 async function importData(event: Event) {
-  const input = event.target as HTMLInputElement, file = input.files?.[0]
+  const input = event.target as HTMLInputElement,
+    file = input.files?.[0]
   input.value = ''
   if (!file || busy.value || props.disabled) return
   setBusy(true)
-  emit('status', t('正在检查总备份及各模块文件…', 'Checking the bundle and all modules…'), 'info', true)
+  emit(
+    'status',
+    t('正在检查总备份及各模块文件…', 'Checking the bundle and all modules…'),
+    'info',
+    true
+  )
   let started = false
   try {
     const plan = await prepareAllDataBackup(file)
-    const results = await applyAllDataBackup(plan, cameraPlan => {
-      emit('status', t('请选择相机参数冲突记录的保留方式', 'Choose how to resolve camera conflicts'), 'info')
-      conflict.value = cameraPlan
-      return new Promise(resolve => { resolveChoices = resolve })
-    }, module => {
-      started = true
-      emit('status', t('正在导入', 'Importing ') + moduleName(module) + '…', 'info', true)
-    })
-    if (!results) { emit('status', t('已取消导入，数据未修改', 'Import cancelled; data unchanged'), 'info'); return }
-    emit('status', resultSummary(results), results.some(result => result.failed || result.error || result.rejectedTags) ? 'warning' : 'success')
-  } catch (error) { report(error) }
-  finally {
+    const results = await applyAllDataBackup(
+      plan,
+      (cameraPlan) => {
+        emit(
+          'status',
+          t('请选择相机参数冲突记录的保留方式', 'Choose how to resolve camera conflicts'),
+          'info'
+        )
+        conflict.value = cameraPlan
+        return new Promise((resolve) => {
+          resolveChoices = resolve
+        })
+      },
+      (module) => {
+        started = true
+        emit('status', t('正在导入', 'Importing ') + moduleName(module) + '…', 'info', true)
+      }
+    )
+    if (!results) {
+      emit('status', t('已取消导入，数据未修改', 'Import cancelled; data unchanged'), 'info')
+      return
+    }
+    emit(
+      'status',
+      resultSummary(results),
+      results.some((result) => result.failed || result.error || result.rejectedTags)
+        ? 'warning'
+        : 'success'
+    )
+  } catch (error) {
+    report(error)
+  } finally {
     if (started) emit('changed')
-    setBusy(false); void refreshAvailability()
+    setBusy(false)
+    void refreshAvailability()
   }
 }
-onMounted(() => { void refreshAvailability() })
-onBeforeUnmount(() => { disposed = true; availabilityGeneration++; finishChoices(null) })
+onMounted(() => {
+  void refreshAvailability()
+})
+onBeforeUnmount(() => {
+  disposed = true
+  availabilityGeneration++
+  finishChoices(null)
+})
 defineExpose({ exportData, chooseImport, refreshAvailability })
 </script>
 <template>
   <input ref="picker" type="file" accept=".zip,application/zip" hidden @change="importData" />
-  <CameraImportConflictDialog :plan="conflict" :language="language" @confirm="finishChoices" @cancel="finishChoices(null)" />
+  <CameraImportConflictDialog
+    :plan="conflict"
+    :language="language"
+    @confirm="finishChoices"
+    @cancel="finishChoices(null)"
+  />
 </template>

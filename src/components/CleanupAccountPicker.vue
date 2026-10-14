@@ -82,7 +82,8 @@ watch(
     if (visible) {
       // 有记住的选择时回填：'all' 对应清理全部账号，其余为具体账号 id
       const remembered = props.rememberedChoice
-      selectedAccount.value = remembered && remembered !== 'all' && props.accounts.includes(remembered) ? remembered : ''
+      selectedAccount.value =
+        remembered && remembered !== 'all' && props.accounts.includes(remembered) ? remembered : ''
       cleanAllAccounts.value = remembered === 'all'
       rememberChoice.value = remembered === 'all' || selectedAccount.value !== ''
       menuOpen.value = false
@@ -116,8 +117,14 @@ watch(cleanAllAccounts, (checked) => {
           </div>
 
           <div class="cleanup-account-form">
-            <label class="cleanup-account-input-label" :for="selectId">{{ messages.accountInputLabel }}</label>
-            <div ref="dropdownWrapRef" class="cleanup-account-select-wrap" @keydown="handleDropdownKeydown">
+            <label class="cleanup-account-input-label" :for="selectId">{{
+              messages.accountInputLabel
+            }}</label>
+            <div
+              ref="dropdownWrapRef"
+              class="cleanup-account-select-wrap"
+              @keydown="handleDropdownKeydown"
+            >
               <button
                 :id="selectId"
                 ref="selectRef"
@@ -132,7 +139,12 @@ watch(cleanAllAccounts, (checked) => {
                 <span>{{ selectedAccount || messages.accountSelectPlaceholder }}</span>
                 <ChevronDown :size="14" aria-hidden="true" />
               </button>
-              <div v-if="menuOpen" class="cleanup-account-menu" role="listbox" :aria-label="messages.accountInputLabel">
+              <div
+                v-if="menuOpen"
+                class="cleanup-account-menu"
+                role="listbox"
+                :aria-label="messages.accountInputLabel"
+              >
                 <button
                   v-for="account in accounts"
                   :key="account"
@@ -162,7 +174,12 @@ watch(cleanAllAccounts, (checked) => {
             <button class="confirm-dialog-button ghost" type="button" @click="emit('cancel')">
               {{ messages.accountCancel }}
             </button>
-            <button class="confirm-dialog-button primary" type="button" :disabled="!canConfirm" @click="confirmSelection">
+            <button
+              class="confirm-dialog-button primary"
+              type="button"
+              :disabled="!canConfirm"
+              @click="confirmSelection"
+            >
               {{ messages.accountConfirm }}
             </button>
           </div>

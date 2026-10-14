@@ -1,0 +1,5 @@
+# 生成资源和依赖锁文件由各自生成器维护。
+src/data/
+package-lock.json
+node_modules/
+dist/

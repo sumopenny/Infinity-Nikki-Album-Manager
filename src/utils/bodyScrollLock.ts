@@ -29,12 +29,16 @@ export function acquireBodyScrollLock(): () => void {
 
 export function useBodyScrollLock(locked: Ref<boolean>): void {
   let release: (() => void) | null = null
-  watch(locked, (isLocked) => {
-    if (isLocked && !release) release = acquireBodyScrollLock()
-    if (!isLocked) {
-      release?.()
-      release = null
-    }
-  }, { immediate: true })
+  watch(
+    locked,
+    (isLocked) => {
+      if (isLocked && !release) release = acquireBodyScrollLock()
+      if (!isLocked) {
+        release?.()
+        release = null
+      }
+    },
+    { immediate: true }
+  )
   onBeforeUnmount(() => release?.())
 }

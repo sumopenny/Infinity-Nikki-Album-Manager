@@ -6,7 +6,14 @@ export const MAX_OUTFIT_TAGS = 40
 export const MAX_OUTFIT_TAG_LENGTH = 5
 export const MAX_OUTFIT_CODE_LENGTH = 30
 export const MAX_OUTFIT_NOTE_LENGTH = 15
-const RESERVED_OUTFIT_TAGS = new Set(['全部', '待填写', '未分类', 'all', 'pending', 'uncategorized'])
+const RESERVED_OUTFIT_TAGS = new Set([
+  '全部',
+  '待填写',
+  '未分类',
+  'all',
+  'pending',
+  'uncategorized'
+])
 
 export interface OutfitRecord {
   version: 1
@@ -41,38 +48,83 @@ export interface OutfitLibraryResult {
   sharedFailureStage?: SharedOutfitImportResult['failureStage']
   migration?: OutfitMigrationResult
 }
-export interface SharedOutfitSource { x6GameDirectory: FileSystemDirectoryHandle }
-export interface SharedOutfitImportResult {
-  importedCount: number; duplicateCount: number; failedCount: number
-  failureStage?: 'duplicate' | 'missing-image' | 'image-not-updated' | 'source-changed' | 'image-write-failed'
+export interface SharedOutfitSource {
+  x6GameDirectory: FileSystemDirectoryHandle
 }
-export interface SaveOutfitInput { outfit?: OutfitItem; imageFile?: File; code: string; tag: string | null; note?: string }
-export interface OutfitImportResult { addedCount: number; duplicateCount: number; failedCount: number; rejectedTagCount: number; library: OutfitLibraryResult }
-export interface OutfitDeleteResult { deleted: OutfitItem[]; failedNames: string[] }
+export interface SharedOutfitImportResult {
+  importedCount: number
+  duplicateCount: number
+  failedCount: number
+  failureStage?:
+    'duplicate' | 'missing-image' | 'image-not-updated' | 'source-changed' | 'image-write-failed'
+}
+export interface SaveOutfitInput {
+  outfit?: OutfitItem
+  imageFile?: File
+  code: string
+  tag: string | null
+  note?: string
+}
+export interface OutfitImportResult {
+  addedCount: number
+  duplicateCount: number
+  failedCount: number
+  rejectedTagCount: number
+  library: OutfitLibraryResult
+}
+export interface OutfitDeleteResult {
+  deleted: OutfitItem[]
+  failedNames: string[]
+}
 export class DuplicateOutfitCodeError extends Error {
-  constructor() { super('outfit_code_duplicate'); this.name = 'DuplicateOutfitCodeError' }
+  constructor() {
+    super('outfit_code_duplicate')
+    this.name = 'DuplicateOutfitCodeError'
+  }
 }
 
-export function createOutfitId(): string { return createUuid() }
+export function createOutfitId(): string {
+  return createUuid()
+}
 export function isSafeOutfitId(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= 128 && value !== '.' && value !== '..' && !/[\\/\0]/.test(value)
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= 128 &&
+    value !== '.' &&
+    value !== '..' &&
+    !/[\\/\0]/.test(value)
+  )
 }
 export function normalizeOutfitCode(value: unknown): string {
-  return (typeof value === 'string' ? value : '').replace(/\s/g, '').slice(0, MAX_OUTFIT_CODE_LENGTH)
+  return (typeof value === 'string' ? value : '')
+    .replace(/\s/g, '')
+    .slice(0, MAX_OUTFIT_CODE_LENGTH)
 }
-export function normalizeOutfitTag(value: unknown): string { return typeof value === 'string' ? value.trim() : '' }
-export function isValidOutfitTag(value: string): boolean { return value.length > 0 && [...value].length <= MAX_OUTFIT_TAG_LENGTH }
-export function isReservedOutfitTag(value: string): boolean { return RESERVED_OUTFIT_TAGS.has(value.toLowerCase()) }
+export function normalizeOutfitTag(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+export function isValidOutfitTag(value: string): boolean {
+  return value.length > 0 && [...value].length <= MAX_OUTFIT_TAG_LENGTH
+}
+export function isReservedOutfitTag(value: string): boolean {
+  return RESERVED_OUTFIT_TAGS.has(value.toLowerCase())
+}
 export function normalizeOutfitTags(value: unknown, allowedTags?: Set<string>): string[] {
   if (!Array.isArray(value)) return []
   const tag = normalizeOutfitTag(value[0])
-  if (!isValidOutfitTag(tag) || isReservedOutfitTag(tag) || (allowedTags && !allowedTags.has(tag))) return []
+  if (!isValidOutfitTag(tag) || isReservedOutfitTag(tag) || (allowedTags && !allowedTags.has(tag)))
+    return []
   return [tag]
 }
 export function normalizeOutfitTagList(value: unknown): string[] {
   if (!Array.isArray(value)) throw new Error('outfit_tags_invalid')
   const tags = [...new Set(value.map(normalizeOutfitTag))]
-  if (tags.length > MAX_OUTFIT_TAGS || tags.some(tag => !isValidOutfitTag(tag) || isReservedOutfitTag(tag))) throw new Error('outfit_tags_invalid')
+  if (
+    tags.length > MAX_OUTFIT_TAGS ||
+    tags.some((tag) => !isValidOutfitTag(tag) || isReservedOutfitTag(tag))
+  )
+    throw new Error('outfit_tags_invalid')
   return tags
 }
 
@@ -80,26 +132,50 @@ export function normalizeOutfitTagList(value: unknown): string[] {
 export function normalizeOutfitRecord(value: unknown): OutfitRecord {
   if (!value || typeof value !== 'object') throw new Error('outfit_record_invalid')
   const raw = value as Partial<OutfitRecord>
-  if (raw.version !== 1 || !isSafeOutfitId(raw.id) || raw.image !== `${raw.id}.webp` ||
-      typeof raw.code !== 'string' || raw.code.replace(/\s/g, '').length > MAX_OUTFIT_CODE_LENGTH ||
-      !Array.isArray(raw.tags) || raw.tags.length > 1 || typeof raw.note !== 'string' || raw.note.length > MAX_OUTFIT_NOTE_LENGTH ||
-      typeof raw.createdAt !== 'string' || !Number.isFinite(Date.parse(raw.createdAt)) ||
-      typeof raw.updatedAt !== 'string' || !Number.isFinite(Date.parse(raw.updatedAt))) throw new Error('outfit_record_invalid')
+  if (
+    raw.version !== 1 ||
+    !isSafeOutfitId(raw.id) ||
+    raw.image !== `${raw.id}.webp` ||
+    typeof raw.code !== 'string' ||
+    raw.code.replace(/\s/g, '').length > MAX_OUTFIT_CODE_LENGTH ||
+    !Array.isArray(raw.tags) ||
+    raw.tags.length > 1 ||
+    typeof raw.note !== 'string' ||
+    raw.note.length > MAX_OUTFIT_NOTE_LENGTH ||
+    typeof raw.createdAt !== 'string' ||
+    !Number.isFinite(Date.parse(raw.createdAt)) ||
+    typeof raw.updatedAt !== 'string' ||
+    !Number.isFinite(Date.parse(raw.updatedAt))
+  )
+    throw new Error('outfit_record_invalid')
   const tags = raw.tags.map(normalizeOutfitTag)
-  if (tags.some(tag => !isValidOutfitTag(tag) || isReservedOutfitTag(tag))) throw new Error('outfit_tag_invalid')
+  if (tags.some((tag) => !isValidOutfitTag(tag) || isReservedOutfitTag(tag)))
+    throw new Error('outfit_tag_invalid')
   const code = normalizeOutfitCode(raw.code)
-  const record: OutfitRecord = { version: 1, id: raw.id, image: raw.image, code, ...(code ? { codeKey: code } : {}), tags,
-    note: raw.note.trim(), createdAt: new Date(raw.createdAt).toISOString(), updatedAt: new Date(raw.updatedAt).toISOString() }
+  const record: OutfitRecord = {
+    version: 1,
+    id: raw.id,
+    image: raw.image,
+    code,
+    ...(code ? { codeKey: code } : {}),
+    tags,
+    note: raw.note.trim(),
+    createdAt: new Date(raw.createdAt).toISOString(),
+    updatedAt: new Date(raw.updatedAt).toISOString()
+  }
   if (raw.imageSize !== undefined) {
-    if (!Number.isSafeInteger(raw.imageSize) || raw.imageSize <= 0) throw new Error('outfit_image_invalid')
+    if (!Number.isSafeInteger(raw.imageSize) || raw.imageSize <= 0)
+      throw new Error('outfit_image_invalid')
     record.imageSize = raw.imageSize
   }
   if (raw.diyImageModifiedAt !== undefined) {
-    if (!Number.isFinite(raw.diyImageModifiedAt) || raw.diyImageModifiedAt < 0) throw new Error('outfit_image_time_invalid')
+    if (!Number.isFinite(raw.diyImageModifiedAt) || raw.diyImageModifiedAt < 0)
+      throw new Error('outfit_image_time_invalid')
     record.diyImageModifiedAt = raw.diyImageModifiedAt
   }
   if (raw.sourcePlayerId !== undefined) {
-    if (typeof raw.sourcePlayerId !== 'string' || !/^\d+$/.test(raw.sourcePlayerId)) throw new Error('outfit_player_invalid')
+    if (typeof raw.sourcePlayerId !== 'string' || !/^\d+$/.test(raw.sourcePlayerId))
+      throw new Error('outfit_player_invalid')
     record.sourcePlayerId = raw.sourcePlayerId
   }
   if (raw.gameSourceId !== undefined) {

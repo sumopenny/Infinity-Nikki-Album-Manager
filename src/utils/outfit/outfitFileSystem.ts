@@ -1,16 +1,46 @@
 // File-system inputs only: legacy migration and game ShareCode/DIY. Collections live in IndexedDB.
-import { OUTFITS_STORE, OUTFIT_IMAGES_STORE, OUTFIT_IGNORED_CODES_STORE, OUTFIT_GAME_SOURCES_STORE,
-  OUTFIT_MIGRATION_SOURCES_STORE, OUTFIT_MIGRATION_ENTRIES_STORE, runStoreRequest } from '../file-system/database'
+import {
+  OUTFITS_STORE,
+  OUTFIT_IMAGES_STORE,
+  OUTFIT_IGNORED_CODES_STORE,
+  OUTFIT_GAME_SOURCES_STORE,
+  OUTFIT_MIGRATION_SOURCES_STORE,
+  OUTFIT_MIGRATION_ENTRIES_STORE,
+  runStoreRequest
+} from '../file-system/database'
 import { convertImageToWebp, isSupportedImage } from '../image'
-import { createOutfitId, normalizeOutfitCode, normalizeOutfitRecord, type OutfitLibraryResult,
-  type SharedOutfitSource, type SharedOutfitImportResult } from './outfitTypes'
-import { hashOutfitBlob, initializeOutfitTags, outfitRequest, outfitTransaction, prepareOutfitImage,
-  readOutfitCollection, withOutfitImportLock } from './outfitStorage'
-import { isMissingOutfitEntry, migrateOutfitLibrary,
-  type OutfitMigrationSource, type OutfitMigrationMarker } from './outfitMigration'
+import {
+  createOutfitId,
+  normalizeOutfitCode,
+  normalizeOutfitRecord,
+  type OutfitLibraryResult,
+  type SharedOutfitSource,
+  type SharedOutfitImportResult
+} from './outfitTypes'
+import {
+  hashOutfitBlob,
+  initializeOutfitTags,
+  outfitRequest,
+  outfitTransaction,
+  prepareOutfitImage,
+  readOutfitCollection,
+  withOutfitImportLock
+} from './outfitStorage'
+import {
+  isMissingOutfitEntry,
+  migrateOutfitLibrary,
+  type OutfitMigrationSource,
+  type OutfitMigrationMarker
+} from './outfitMigration'
 
 export * from './outfitTypes'
-export { saveOutfit, saveOutfitTags, deleteOutfitTag, deleteOutfit, deleteOutfits } from './outfitStorage'
+export {
+  saveOutfit,
+  saveOutfitTags,
+  deleteOutfitTag,
+  deleteOutfit,
+  deleteOutfits
+} from './outfitStorage'
 export { convertImageToWebp } from '../image'
 const isMissingEntryError = isMissingOutfitEntry
 
@@ -58,20 +88,35 @@ function parseLatestShareCode(content: string, playerId: string): string | null 
 }
 
 /** 找到最近修改且可解析的搭配码历史文件。参数：shareCodeDirectory 为 ShareCode 目录。 */
-async function findLatestShareCode(
-  shareCodeDirectory: FileSystemDirectoryHandle
-): Promise<{ code: string; playerId: string; timestamp: number; file: File; fileName: string } | null> {
+async function findLatestShareCode(shareCodeDirectory: FileSystemDirectoryHandle): Promise<{
+  code: string
+  playerId: string
+  timestamp: number
+  file: File
+  fileName: string
+} | null> {
   const candidates: Array<{ file: File; playerId: string }> = []
   for await (const [name, handle] of shareCodeDirectory.entries()) {
     const playerId = playerIdFromShareCodeFileName(name)
     if (handle.kind !== 'file' || !isShareCodeFileName(name) || !playerId) continue
     candidates.push({ file: await (handle as FileSystemFileHandle).getFile(), playerId })
   }
-  candidates.sort((left, right) => right.file.lastModified - left.file.lastModified || right.file.name.localeCompare(left.file.name))
+  candidates.sort(
+    (left, right) =>
+      right.file.lastModified - left.file.lastModified ||
+      right.file.name.localeCompare(left.file.name)
+  )
   for (const candidate of candidates) {
     try {
       const code = parseLatestShareCode(await candidate.file.text(), candidate.playerId)
-      if (code) return { code, playerId: candidate.playerId, timestamp: candidate.file.lastModified || Date.now(), file: candidate.file, fileName: candidate.file.name }
+      if (code)
+        return {
+          code,
+          playerId: candidate.playerId,
+          timestamp: candidate.file.lastModified || Date.now(),
+          file: candidate.file,
+          fileName: candidate.file.name
+        }
     } catch {
       // 损坏的历史文件会被跳过，继续尝试时间更早的候选文件。
     }
@@ -87,97 +132,207 @@ async function findLatestDiyImage(
   for await (const [name, handle] of diyDirectory.entries()) {
     if (handle.kind !== 'file' || !isSupportedImage(name)) continue
     const file = await (handle as FileSystemFileHandle).getFile()
-    if (!latest || file.lastModified > latest.file.lastModified ||
-      (file.lastModified === latest.file.lastModified && file.name > latest.file.name)) {
+    if (
+      !latest ||
+      file.lastModified > latest.file.lastModified ||
+      (file.lastModified === latest.file.lastModified && file.name > latest.file.name)
+    ) {
       latest = { file }
     }
   }
   return latest
 }
 
-interface PlayerProgress { timestamp: number; sha256: string }
-interface GameSourceState { id: string; directory: FileSystemDirectoryHandle; players: Record<string, PlayerProgress> }
+interface PlayerProgress {
+  timestamp: number
+  sha256: string
+}
+interface GameSourceState {
+  id: string
+  directory: FileSystemDirectoryHandle
+  players: Record<string, PlayerProgress>
+}
 
 async function gameSourceState(directory: FileSystemDirectoryHandle): Promise<GameSourceState> {
-  const sources = await runStoreRequest<GameSourceState[]>(OUTFIT_GAME_SOURCES_STORE, 'readonly', store => store.getAll())
+  const sources = await runStoreRequest<GameSourceState[]>(
+    OUTFIT_GAME_SOURCES_STORE,
+    'readonly',
+    (store) => store.getAll()
+  )
   for (const source of sources) if (await directory.isSameEntry(source.directory)) return source
   const next: GameSourceState = { id: createOutfitId(), directory, players: {} }
-  await runStoreRequest(OUTFIT_GAME_SOURCES_STORE, 'readwrite', store => store.put(next))
+  await runStoreRequest(OUTFIT_GAME_SOURCES_STORE, 'readwrite', (store) => store.put(next))
   return next
 }
 
 /** Seed only timestamps demonstrably migrated from this game installation, never the global maximum. */
-async function migratedPlayerTimestamp(directory: FileSystemDirectoryHandle, playerId: string): Promise<number> {
+async function migratedPlayerTimestamp(
+  directory: FileSystemDirectoryHandle,
+  playerId: string
+): Promise<number> {
   if (!directory.resolve) return 0
-  const sources = await runStoreRequest<OutfitMigrationSource[]>(OUTFIT_MIGRATION_SOURCES_STORE, 'readonly', store => store.getAll())
+  const sources = await runStoreRequest<OutfitMigrationSource[]>(
+    OUTFIT_MIGRATION_SOURCES_STORE,
+    'readonly',
+    (store) => store.getAll()
+  )
   const sourceIds = new Set<string>()
   for (const source of sources) {
     let path: string[] | null
-    try { path = await directory.resolve(source.albumDirectory ?? source.directory) }
-    catch (error) { if (isMissingEntryError(error)) continue; throw error }
+    try {
+      path = await directory.resolve(source.albumDirectory ?? source.directory)
+    } catch (error) {
+      if (isMissingEntryError(error)) continue
+      throw error
+    }
     if (path && path[0] === 'Saved' && path[1] === 'GamePlayPhotos') sourceIds.add(source.id)
   }
   if (!sourceIds.size) return 0
-  return outfitTransaction([OUTFITS_STORE, OUTFIT_MIGRATION_ENTRIES_STORE], 'readonly', async tx => {
-    const markers = await outfitRequest(tx.objectStore(OUTFIT_MIGRATION_ENTRIES_STORE).getAll()) as OutfitMigrationMarker[]
-    let latest = 0
-    for (const marker of markers) {
-      if (marker.kind !== 'legacy' || !sourceIds.has(marker.sourceId)) continue
-      if (marker.sourcePlayerId === playerId) latest = Math.max(latest, marker.diyImageModifiedAt ?? 0)
+  return outfitTransaction(
+    [OUTFITS_STORE, OUTFIT_MIGRATION_ENTRIES_STORE],
+    'readonly',
+    async (tx) => {
+      const markers = (await outfitRequest(
+        tx.objectStore(OUTFIT_MIGRATION_ENTRIES_STORE).getAll()
+      )) as OutfitMigrationMarker[]
+      let latest = 0
+      for (const marker of markers) {
+        if (marker.kind !== 'legacy' || !sourceIds.has(marker.sourceId)) continue
+        if (marker.sourcePlayerId === playerId)
+          latest = Math.max(latest, marker.diyImageModifiedAt ?? 0)
+      }
+      return latest
     }
-    return latest
-  })
+  )
 }
 
 async function importShared(source: SharedOutfitSource): Promise<SharedOutfitImportResult> {
   let failureStage: SharedOutfitImportResult['failureStage']
   try {
     await initializeOutfitTags()
-    const shareDirectory = await findOptionalNestedDirectory(source.x6GameDirectory, ['Saved', 'ShareCode'])
+    const shareDirectory = await findOptionalNestedDirectory(source.x6GameDirectory, [
+      'Saved',
+      'ShareCode'
+    ])
     if (!shareDirectory) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
     const latest = await findLatestShareCode(shareDirectory)
     if (!latest) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
-    const codeState = await outfitTransaction([OUTFITS_STORE, OUTFIT_IGNORED_CODES_STORE], 'readonly', async tx => ({
-      duplicate: Boolean(await outfitRequest(tx.objectStore(OUTFITS_STORE).index('code').get(latest.code))),
-      ignored: Boolean(await outfitRequest(tx.objectStore(OUTFIT_IGNORED_CODES_STORE).get(latest.code)))
-    }))
+    const codeState = await outfitTransaction(
+      [OUTFITS_STORE, OUTFIT_IGNORED_CODES_STORE],
+      'readonly',
+      async (tx) => ({
+        duplicate: Boolean(
+          await outfitRequest(tx.objectStore(OUTFITS_STORE).index('code').get(latest.code))
+        ),
+        ignored: Boolean(
+          await outfitRequest(tx.objectStore(OUTFIT_IGNORED_CODES_STORE).get(latest.code))
+        )
+      })
+    )
     if (codeState.ignored) return { importedCount: 0, duplicateCount: 0, failedCount: 0 }
-    if (codeState.duplicate) return { importedCount: 0, duplicateCount: 1, failedCount: 0, failureStage: 'duplicate' }
-    const diyDirectory = await findOptionalNestedDirectory(source.x6GameDirectory, ['Saved', 'DIY', latest.playerId])
+    if (codeState.duplicate)
+      return { importedCount: 0, duplicateCount: 1, failedCount: 0, failureStage: 'duplicate' }
+    const diyDirectory = await findOptionalNestedDirectory(source.x6GameDirectory, [
+      'Saved',
+      'DIY',
+      latest.playerId
+    ])
     const latestImage = diyDirectory ? await findLatestDiyImage(diyDirectory) : null
-    if (!latestImage || !diyDirectory) return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage: 'missing-image' }
+    if (!latestImage || !diyDirectory)
+      return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage: 'missing-image' }
     const state = await gameSourceState(source.x6GameDirectory)
-    const baseline = state.players[latest.playerId]?.timestamp ?? await migratedPlayerTimestamp(source.x6GameDirectory, latest.playerId)
-    if (baseline && latestImage.file.lastModified <= baseline) return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage: 'image-not-updated' }
-    const fingerprint = await hashOutfitBlob(latest.file), originalImageHash = await hashOutfitBlob(latestImage.file)
+    const baseline =
+      state.players[latest.playerId]?.timestamp ??
+      (await migratedPlayerTimestamp(source.x6GameDirectory, latest.playerId))
+    if (baseline && latestImage.file.lastModified <= baseline)
+      return {
+        importedCount: 0,
+        duplicateCount: 0,
+        failedCount: 1,
+        failureStage: 'image-not-updated'
+      }
+    const fingerprint = await hashOutfitBlob(latest.file),
+      originalImageHash = await hashOutfitBlob(latestImage.file)
     const id = createOutfitId()
     const image = await prepareOutfitImage(await convertImageToWebp(latestImage.file), id, false)
-    const refreshedCode = await findLatestShareCode(shareDirectory), refreshedImage = await findLatestDiyImage(diyDirectory)
-    if (!refreshedCode || refreshedCode.code !== latest.code || refreshedCode.fileName !== latest.fileName ||
-        await hashOutfitBlob(refreshedCode.file) !== fingerprint || !refreshedImage || refreshedImage.file.name !== latestImage.file.name ||
-        refreshedImage.file.lastModified !== latestImage.file.lastModified || await hashOutfitBlob(refreshedImage.file) !== originalImageHash) {
+    const refreshedCode = await findLatestShareCode(shareDirectory),
+      refreshedImage = await findLatestDiyImage(diyDirectory)
+    if (
+      !refreshedCode ||
+      refreshedCode.code !== latest.code ||
+      refreshedCode.fileName !== latest.fileName ||
+      (await hashOutfitBlob(refreshedCode.file)) !== fingerprint ||
+      !refreshedImage ||
+      refreshedImage.file.name !== latestImage.file.name ||
+      refreshedImage.file.lastModified !== latestImage.file.lastModified ||
+      (await hashOutfitBlob(refreshedImage.file)) !== originalImageHash
+    ) {
       return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage: 'source-changed' }
     }
-    const record = normalizeOutfitRecord({ version: 1, id, image: `${id}.webp`, imageSize: image.size, code: latest.code, tags: [], note: '',
-      createdAt: new Date(latest.timestamp).toISOString(), updatedAt: new Date(latest.timestamp).toISOString(),
-      diyImageModifiedAt: latestImage.file.lastModified, sourcePlayerId: latest.playerId, gameSourceId: state.id })
-    failureStage = 'image-write-failed'
-    const outcome = await outfitTransaction([OUTFITS_STORE, OUTFIT_IMAGES_STORE, OUTFIT_IGNORED_CODES_STORE, OUTFIT_GAME_SOURCES_STORE], 'readwrite', async tx => {
-      const records = tx.objectStore(OUTFITS_STORE), states = tx.objectStore(OUTFIT_GAME_SOURCES_STORE)
-      if (await outfitRequest(tx.objectStore(OUTFIT_IGNORED_CODES_STORE).get(latest.code))) return 'ignored'
-      if (await outfitRequest(records.index('code').get(latest.code))) return 'duplicate'
-      const current = await outfitRequest(states.get(state.id)) as GameSourceState
-      const progress = current.players[latest.playerId]
-      if (progress && latestImage.file.lastModified <= progress.timestamp) return 'stale'
-      records.put(record); tx.objectStore(OUTFIT_IMAGES_STORE).put(image)
-      states.put({ ...current, players: { ...current.players, [latest.playerId]: { timestamp: latestImage.file.lastModified, sha256: originalImageHash } } })
-      return 'added'
+    const record = normalizeOutfitRecord({
+      version: 1,
+      id,
+      image: `${id}.webp`,
+      imageSize: image.size,
+      code: latest.code,
+      tags: [],
+      note: '',
+      createdAt: new Date(latest.timestamp).toISOString(),
+      updatedAt: new Date(latest.timestamp).toISOString(),
+      diyImageModifiedAt: latestImage.file.lastModified,
+      sourcePlayerId: latest.playerId,
+      gameSourceId: state.id
     })
-    return { importedCount: outcome === 'added' ? 1 : 0, duplicateCount: outcome === 'duplicate' ? 1 : 0, failedCount: outcome === 'stale' ? 1 : 0,
-      ...(outcome === 'duplicate' ? { failureStage: 'duplicate' as const } : outcome === 'stale' ? { failureStage: 'image-not-updated' as const } : {}) }
-  } catch { return { importedCount: 0, duplicateCount: 0, failedCount: 1, failureStage: failureStage ?? 'image-write-failed' } }
+    failureStage = 'image-write-failed'
+    const outcome = await outfitTransaction(
+      [OUTFITS_STORE, OUTFIT_IMAGES_STORE, OUTFIT_IGNORED_CODES_STORE, OUTFIT_GAME_SOURCES_STORE],
+      'readwrite',
+      async (tx) => {
+        const records = tx.objectStore(OUTFITS_STORE),
+          states = tx.objectStore(OUTFIT_GAME_SOURCES_STORE)
+        if (await outfitRequest(tx.objectStore(OUTFIT_IGNORED_CODES_STORE).get(latest.code)))
+          return 'ignored'
+        if (await outfitRequest(records.index('code').get(latest.code))) return 'duplicate'
+        const current = (await outfitRequest(states.get(state.id))) as GameSourceState
+        const progress = current.players[latest.playerId]
+        if (progress && latestImage.file.lastModified <= progress.timestamp) return 'stale'
+        records.put(record)
+        tx.objectStore(OUTFIT_IMAGES_STORE).put(image)
+        states.put({
+          ...current,
+          players: {
+            ...current.players,
+            [latest.playerId]: {
+              timestamp: latestImage.file.lastModified,
+              sha256: originalImageHash
+            }
+          }
+        })
+        return 'added'
+      }
+    )
+    return {
+      importedCount: outcome === 'added' ? 1 : 0,
+      duplicateCount: outcome === 'duplicate' ? 1 : 0,
+      failedCount: outcome === 'stale' ? 1 : 0,
+      ...(outcome === 'duplicate'
+        ? { failureStage: 'duplicate' as const }
+        : outcome === 'stale'
+          ? { failureStage: 'image-not-updated' as const }
+          : {})
+    }
+  } catch {
+    return {
+      importedCount: 0,
+      duplicateCount: 0,
+      failedCount: 1,
+      failureStage: failureStage ?? 'image-write-failed'
+    }
+  }
 }
-export function importLatestSharedOutfit(source: SharedOutfitSource): Promise<SharedOutfitImportResult> {
+export function importLatestSharedOutfit(
+  source: SharedOutfitSource
+): Promise<SharedOutfitImportResult> {
   return withOutfitImportLock(() => importShared(source))
 }
 
@@ -187,13 +342,36 @@ export async function readOutfitLibrary(
 ): Promise<OutfitLibraryResult> {
   let migration: OutfitLibraryResult['migration']
   if (album) {
-    try { migration = await migrateOutfitLibrary(album) }
-    catch (error) { migration = { addedCount: 0, replacedCount: 0, skippedCount: 0, failedCount: 1, tagsChanged: false, clotheDirectoryRemoved: false,
-      failures: [{ fileName: 'clothe', message: error instanceof Error ? error.message : String(error), errorName: error instanceof Error ? error.name : '' }] } }
+    try {
+      migration = await migrateOutfitLibrary(album)
+    } catch (error) {
+      migration = {
+        addedCount: 0,
+        replacedCount: 0,
+        skippedCount: 0,
+        failedCount: 1,
+        tagsChanged: false,
+        clotheDirectoryRemoved: false,
+        failures: [
+          {
+            fileName: 'clothe',
+            message: error instanceof Error ? error.message : String(error),
+            errorName: error instanceof Error ? error.name : ''
+          }
+        ]
+      }
+    }
   }
   // Always process game input independently of a missing or failed legacy directory.
-  const shared: SharedOutfitImportResult = options.sharedSource ? await importLatestSharedOutfit(options.sharedSource) : { importedCount: 0, duplicateCount: 0, failedCount: 0 }
+  const shared: SharedOutfitImportResult = options.sharedSource
+    ? await importLatestSharedOutfit(options.sharedSource)
+    : { importedCount: 0, duplicateCount: 0, failedCount: 0 }
   const library = await readOutfitCollection()
-  return { ...library, importedSharedCount: shared.importedCount,
-    failedCount: (migration?.failedCount ?? 0) + shared.failedCount, sharedFailureStage: shared.failureStage, migration }
+  return {
+    ...library,
+    importedSharedCount: shared.importedCount,
+    failedCount: (migration?.failedCount ?? 0) + shared.failedCount,
+    sharedFailureStage: shared.failureStage,
+    migration
+  }
 }

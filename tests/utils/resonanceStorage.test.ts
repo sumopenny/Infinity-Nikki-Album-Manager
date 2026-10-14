@@ -1,7 +1,12 @@
 import 'fake-indexeddb/auto'
 import { DB_VERSION, runStoreRequest } from '../../src/utils/file-system/database'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { loadResonanceRecords, mergeResonanceRecords, saveResonanceRecords, replaceResonanceRecordsIfUnchanged } from '../../src/utils/resonance/resonanceStorage'
+import {
+  loadResonanceRecords,
+  mergeResonanceRecords,
+  saveResonanceRecords,
+  replaceResonanceRecordsIfUnchanged
+} from '../../src/utils/resonance/resonanceStorage'
 import type { ResonanceRecord } from '../../src/utils/resonance/resonanceTypes'
 
 const dbName = 'infinity-nikki-album-manager'
@@ -24,8 +29,20 @@ const record: ResonanceRecord = {
   rarity: 5,
   outfitImageUrl: '/outfit.png',
   sets: [
-    { setNumber: 1, totalPulls: 20, parts: [{ id: 'part-1', name: { zh: 'Piece', en: 'Piece' }, imageUrl: '/part.png', pullNumber: 20 }] },
-    { setNumber: 2, totalPulls: 0, parts: [{ id: 'part-1', name: { zh: 'Piece', en: 'Piece' }, imageUrl: '/part.png', pullNumber: 0 }] }
+    {
+      setNumber: 1,
+      totalPulls: 20,
+      parts: [
+        { id: 'part-1', name: { zh: 'Piece', en: 'Piece' }, imageUrl: '/part.png', pullNumber: 20 }
+      ]
+    },
+    {
+      setNumber: 2,
+      totalPulls: 0,
+      parts: [
+        { id: 'part-1', name: { zh: 'Piece', en: 'Piece' }, imageUrl: '/part.png', pullNumber: 0 }
+      ]
+    }
   ]
 }
 
@@ -35,7 +52,9 @@ describe('resonanceStorage', () => {
     const preview = JSON.stringify(await loadResonanceRecords())
     const changed = { ...record, id: 'another-tab' }
     await saveResonanceRecords([changed])
-    await expect(replaceResonanceRecordsIfUnchanged(preview, [record])).rejects.toThrow('LOCAL_CHANGED')
+    await expect(replaceResonanceRecordsIfUnchanged(preview, [record])).rejects.toThrow(
+      'LOCAL_CHANGED'
+    )
     expect(await loadResonanceRecords()).toEqual([changed])
     await replaceResonanceRecordsIfUnchanged(JSON.stringify([changed]), [record])
     expect(await loadResonanceRecords()).toEqual([record])
@@ -59,7 +78,15 @@ describe('resonanceStorage', () => {
     })
     const names = [...upgradedDb.objectStoreNames]
     upgradedDb.close()
-    expect(names).toEqual(expect.arrayContaining(['album-handles', 'camera-favorite-covers', 'camera-favorite-tags', 'camera-favorites', 'resonance-records']))
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'album-handles',
+        'camera-favorite-covers',
+        'camera-favorite-tags',
+        'camera-favorites',
+        'resonance-records'
+      ])
+    )
   })
 
   it('returns an empty list before a snapshot exists', async () => {
@@ -72,13 +99,19 @@ describe('resonanceStorage', () => {
     const saving = saveResonanceRecords(incoming)
     incoming.length = 0
     await saving
-    expect(await loadResonanceRecords()).toEqual([{ ...record, outfitName: { zh: '新记录', en: 'New record' } }])
+    expect(await loadResonanceRecords()).toEqual([
+      { ...record, outfitName: { zh: '新记录', en: 'New record' } }
+    ])
   })
 
   it('merges concurrent imports using the latest committed records', async () => {
-    const first = { ...record, id: 'first' }, second = { ...record, id: 'second' }
+    const first = { ...record, id: 'first' },
+      second = { ...record, id: 'second' }
     await Promise.all([mergeResonanceRecords([first]), mergeResonanceRecords([second])])
-    expect((await loadResonanceRecords()).map(item => item.id).sort()).toEqual(['first', 'second'])
+    expect((await loadResonanceRecords()).map((item) => item.id).sort()).toEqual([
+      'first',
+      'second'
+    ])
     const updated = { ...first, outfitName: { zh: '更新', en: 'Updated' } }
     expect(await mergeResonanceRecords([updated])).toEqual([updated, second])
   })
@@ -92,17 +125,27 @@ describe('resonanceStorage', () => {
   })
 
   it('rejects damaged storage instead of replacing it during import', async () => {
-    await runStoreRequest('resonance-records', 'readwrite', store => store.put('broken', 'current-profile'))
+    await runStoreRequest('resonance-records', 'readwrite', (store) =>
+      store.put('broken', 'current-profile')
+    )
     await expect(mergeResonanceRecords([record])).rejects.toThrow('Invalid resonance storage')
-    expect(await runStoreRequest('resonance-records', 'readonly', store => store.get('current-profile'))).toBe('broken')
+    expect(
+      await runStoreRequest('resonance-records', 'readonly', (store) =>
+        store.get('current-profile')
+      )
+    ).toBe('broken')
   })
 
   it('reports transaction failure after put success without changing existing records', async () => {
     await saveResonanceRecords([record])
     const original = IDBObjectStore.prototype.put
-    vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['put']>) {
+    vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (
+      this: IDBObjectStore,
+      ...args: Parameters<IDBObjectStore['put']>
+    ) {
       const request = original.apply(this, args)
-      if (this.name === 'resonance-records') request.addEventListener('success', () => this.transaction.abort())
+      if (this.name === 'resonance-records')
+        request.addEventListener('success', () => this.transaction.abort())
       return request
     })
     await expect(saveResonanceRecords([{ ...record, id: 'new' }])).rejects.toThrow()

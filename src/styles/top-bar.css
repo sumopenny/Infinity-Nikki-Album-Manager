@@ -76,7 +76,7 @@
   font-size: clamp(17px, 1.6vw, 22px);
   line-height: 1.15;
   letter-spacing: 0;
-  animation: title-gradient-flow 2.0s ease-in-out infinite;
+  animation: title-gradient-flow 2s ease-in-out infinite;
 }
 
 .header-actions {
@@ -106,7 +106,10 @@
   outline: none;
   appearance: none;
   -webkit-appearance: none;
-  transition: border-color var(--motion-base) ease, box-shadow var(--motion-base) ease, background var(--motion-base) ease;
+  transition:
+    border-color var(--motion-base) ease,
+    box-shadow var(--motion-base) ease,
+    background var(--motion-base) ease;
 }
 
 .header-search input:focus,
@@ -247,7 +250,12 @@
   font-size: 13px;
   font-weight: 650;
   text-decoration: none;
-  transition: border-color var(--motion-base) ease, background var(--motion-base) ease, color var(--motion-base) ease, transform var(--motion-base) var(--ease-spring), box-shadow var(--motion-base) ease;
+  transition:
+    border-color var(--motion-base) ease,
+    background var(--motion-base) ease,
+    color var(--motion-base) ease,
+    transform var(--motion-base) var(--ease-spring),
+    box-shadow var(--motion-base) ease;
 }
 
 .header-menu-button:hover,
@@ -342,13 +350,14 @@
   font-size: 13px;
   text-align: left;
   text-decoration: none;
-  transition: background var(--motion-base) ease, color var(--motion-base) ease;
+  transition:
+    background var(--motion-base) ease,
+    color var(--motion-base) ease;
 }
 
 .header-dropdown button:hover:not(:disabled),
 .header-dropdown a:hover
-/* .header-dropdown .menu-radio.active  */
-{
+/* .header-dropdown .menu-radio.active  */ {
   background: color-mix(in srgb, var(--soft-accent) 82%, transparent);
   /* backdrop-filter: blur(18px) saturate(1.5); */
   color: var(--heading);
@@ -424,7 +433,7 @@
   color: var(--pink-deep);
   font-size: 15px;
   font-weight: 800;
-  letter-spacing: .02em;
+  letter-spacing: 0.02em;
 }
 
 .header-menu-chevron {
@@ -446,7 +455,6 @@
   min-width: 0;
   margin-block: 2px;
 }
-
 
 .menu-separator {
   height: 1px;
@@ -511,7 +519,7 @@
     display: none;
   }
 
-.brand-lockup h1 {
+  .brand-lockup h1 {
     font-size: 17px;
   }
 
@@ -567,7 +575,9 @@
   height: 12px;
   border: 1px solid var(--muted);
   border-radius: 50%;
-  transition: border-width var(--motion-fast) ease, border-color var(--motion-fast) ease;
+  transition:
+    border-width var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
 }
 
 .menu-radio.active .radio-mark {
@@ -583,10 +593,6 @@
   border-radius: 3px;
   font-size: 10px;
   font-weight: 800;
-}
-
-.spinning {
-  animation: spin 0.8s linear infinite;
 }
 
 /* 官方网站入口：流金渐变描边 + 呼吸光晕 + 图标浮动的精致炫酷按钮 */
@@ -607,7 +613,10 @@
   text-decoration: none;
   white-space: nowrap;
   isolation: isolate;
-  transition: color var(--motion-base) ease, transform var(--motion-base) var(--ease-spring), box-shadow var(--motion-base) ease;
+  transition:
+    color var(--motion-base) ease,
+    transform var(--motion-base) var(--ease-spring),
+    box-shadow var(--motion-base) ease;
 }
 
 /* 底层铺一个渐变，用于制造流金描边效果 */
@@ -619,7 +628,9 @@
   padding: 1.5px;
   background: linear-gradient(115deg, #f2c778, #e8a35c 28%, #d98a8a 62%, #f2c778 100%);
   background-size: 260% 260%;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   content: '';
@@ -642,7 +653,11 @@
   position: absolute;
   inset: -10px;
   z-index: -3;
-  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, #f2c778 40%, transparent), transparent 62%);
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, #f2c778 40%, transparent),
+    transparent 62%
+  );
   filter: blur(8px);
   opacity: 0.55;
   animation: official-glow-breathe 2.8s ease-in-out infinite;
@@ -689,26 +704,49 @@
 
 /* 流金描边流转 */
 @keyframes official-border-flow {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 260% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 260% 50%;
+  }
 }
 
 /* 光晕呼吸 */
 @keyframes official-glow-breathe {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50% { opacity: 0.75; transform: scale(1.12); }
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.12);
+  }
 }
 
 /* 图标轻微上下浮动 */
 @keyframes official-icon-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
 }
 
 /* 星星闪烁 */
 @keyframes official-spark-twinkle {
-  0%, 100% { opacity: 0.35; transform: scale(0.85) rotate(0deg); }
-  50% { opacity: 1; transform: scale(1.2) rotate(18deg); }
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2) rotate(18deg);
+  }
 }
 
 /* 深色主题下适配内层底色与文字 */
@@ -746,7 +784,10 @@
   font-size: 12px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
-  transition: border-color var(--motion-base) ease, background var(--motion-base) ease, transform var(--motion-base) var(--ease-spring);
+  transition:
+    border-color var(--motion-base) ease,
+    background var(--motion-base) ease,
+    transform var(--motion-base) var(--ease-spring);
 }
 
 .like-counter:hover {
@@ -765,7 +806,13 @@
 }
 
 @keyframes like-pop {
-  0% { transform: scale(1); }
-  45% { transform: scale(1.45); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.45);
+  }
+  100% {
+    transform: scale(1);
+  }
 }

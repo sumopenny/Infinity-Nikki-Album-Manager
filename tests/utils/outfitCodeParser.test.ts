@@ -43,8 +43,12 @@ describe('normalizeLookbookCode', () => {
   })
 
   it('支持从分享链接中提取 code 参数', () => {
-    expect(normalizeLookbookCode('https://example.com/lookbook?code=a1B2c3D4e5F#')).toBe('a1B2c3D4e5F#')
-    expect(normalizeLookbookCode('https://example.com/lookbook?code=a1B2c3D4e5F')).toBe('a1B2c3D4e5F#')
+    expect(normalizeLookbookCode('https://example.com/lookbook?code=a1B2c3D4e5F#')).toBe(
+      'a1B2c3D4e5F#'
+    )
+    expect(normalizeLookbookCode('https://example.com/lookbook?code=a1B2c3D4e5F')).toBe(
+      'a1B2c3D4e5F#'
+    )
   })
 
   it('拒绝非法输入', () => {
@@ -68,8 +72,20 @@ describe('parseOutfitCode', () => {
           cloth: { id: 1020100003, cloth_type: 3 },
           diy: {
             outfit_dye: [
-              { General: { target_group_id: 1, feature_tag: 1, color: { rgba: [1, 0, 0, 1], color_grid: 9 } } },
-              { Hair: { target_group_id: 2, feature_tag: 3, color_0: { rgba: [0.5, 0.5, 0.5, 1], color_grid: -1 } } }
+              {
+                General: {
+                  target_group_id: 1,
+                  feature_tag: 1,
+                  color: { rgba: [1, 0, 0, 1], color_grid: 9 }
+                }
+              },
+              {
+                Hair: {
+                  target_group_id: 2,
+                  feature_tag: 3,
+                  color_0: { rgba: [0.5, 0.5, 0.5, 1], color_grid: -1 }
+                }
+              }
             ]
           }
         }
@@ -97,16 +113,19 @@ describe('parseOutfitCode', () => {
   })
 
   it('为原生搭配码结果补齐部件类型', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
-      '{"Content":{"Content":{"wearingClothes":[1020500290]}}}',
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    )))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response('{"Content":{"Content":{"wearingClothes":[1020500290]}}}', {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+    )
 
     const result = await parseOutfitCode(validCode)
 
-    expect(result.wearingClothes).toEqual([
-      { itemId: 1020500290, clothType: 50, outfitId: null }
-    ])
+    expect(result.wearingClothes).toEqual([{ itemId: 1020500290, clothType: 50, outfitId: null }])
   })
 
   it('格式非法时不请求接口并标记 invalid', async () => {
@@ -132,7 +151,10 @@ describe('parseOutfitCode', () => {
   })
 
   it('上游 502 标记 unavailable', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('upstream unavailable', { status: 502 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('upstream unavailable', { status: 502 }))
+    )
     await expect(parseOutfitCode(validCode)).rejects.toMatchObject({ kind: 'unavailable' })
   })
 
@@ -154,7 +176,10 @@ describe('parseOutfitCode', () => {
   })
 
   it('HTTP 成功但响应 JSON 损坏时标记 unavailable', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"clothes":[{"cloth":{"id":1+}}]}')))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('{"clothes":[{"cloth":{"id":1+}}]}'))
+    )
     await expect(parseOutfitCode(validCode)).rejects.toMatchObject({
       kind: 'unavailable',
       message: 'Lookbook upstream returned malformed JSON'
@@ -162,9 +187,11 @@ describe('parseOutfitCode', () => {
   })
 
   it('缓存成功结果并复用规范化后的搭配码', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
-      clothes: [{ cloth: { id: 1020100001, outfit: 1001, cloth_type: 1 } }]
-    }))
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        clothes: [{ cloth: { id: 1020100001, outfit: 1001, cloth_type: 1 } }]
+      })
+    )
     vi.stubGlobal('fetch', fetchMock)
 
     const first = await parseOutfitCode(validCode)
@@ -175,7 +202,8 @@ describe('parseOutfitCode', () => {
   })
 
   it('不缓存失败结果，重试时重新请求服务', async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockRejectedValueOnce(new TypeError('Failed to fetch'))
       .mockResolvedValueOnce(jsonResponse({ clothes: [] }))
     vi.stubGlobal('fetch', fetchMock)
@@ -192,14 +220,17 @@ describe('lookbook share code protocol', () => {
   })
 
   it.each(['1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C'])(
-    'WASM 忽略原生分享码标记 %s', async (marker) => {
-      await expect(decodeLookbookShareCodePathId(marker + validCode.slice(1) + '#'))
-        .resolves.toBe('488547348102388135')
+    'WASM 忽略原生分享码标记 %s',
+    async (marker) => {
+      await expect(decodeLookbookShareCodePathId(marker + validCode.slice(1) + '#')).resolves.toBe(
+        '488547348102388135'
+      )
     }
   )
 
   it.each(['a' + validCode.slice(1) + '#', '1I43NTCbOn!#', validCode])(
-    'WASM 拒绝不支持的分享码格式 %s', async (code) => {
+    'WASM 拒绝不支持的分享码格式 %s',
+    async (code) => {
       await expect(decodeLookbookShareCodePathId(code)).resolves.toBeNull()
     }
   )
@@ -221,7 +252,8 @@ describe('lookbook WASM native output', () => {
   })
 
   it('reads native JSON-like maps and normalizes general and hair dye records', async () => {
-    const payload = '{"Content":{"Content":{"patternData":[:123:0],"wearingClothes":[1020100001,1020860231],"wearingDIYInfos":[' +
+    const payload =
+      '{"Content":{"Content":{"patternData":[:123:0],"wearingClothes":[1020100001,1020860231],"wearingDIYInfos":[' +
       '{"TargetGroupID":1,"CoreData":{"B":0.69318097829819,"ColorGridID":96,"R":0.37126499414444,"A":1,"G":0.60334801673889},"FeatureTag":1,"TargetClothID":1020100001},' +
       '{"TargetGroupID":2,"CoreData":{"TargetColor0":{"R":0.8,"B":0.7,"A":1,"G":0.6},"ColorGridID0":120},"FeatureTag":6,"TargetClothID":1020100001}' +
       ']}}}'
@@ -237,11 +269,14 @@ describe('lookbook WASM native output', () => {
       { targetGroupId: 1, featureTag: 1, paletteId: 12, slot: 8 },
       { targetGroupId: 2, featureTag: 6, paletteId: 15, slot: 8 }
     ])
-    expect(result.value.dyeItems[0].dyes.every((dye) => /^#[0-9a-f]{6}$/.test(dye.color))).toBe(true)
+    expect(result.value.dyeItems[0].dyes.every((dye) => /^#[0-9a-f]{6}$/.test(dye.color))).toBe(
+      true
+    )
   })
 
   it('preserves special-effect records as full-evolution dye conditions', async () => {
-    const payload = '{"Content":{"Content":{"patternData":[:1025740294:0],"wearingClothes":[1025740294],"wearingDIYInfos":[' +
+    const payload =
+      '{"Content":{"Content":{"patternData":[:1025740294:0],"wearingClothes":[1025740294],"wearingDIYInfos":[' +
       '{"TargetGroupID":1,"CoreData":{"R":0.1,"G":0.2,"B":0.3,"A":1,"ColorGridID":88},"FeatureTag":1,"TargetClothID":1025740294},' +
       '{"TargetGroupID":1,"CoreData":{"ColorGridID":128,"CoverDIYColor":true},"FeatureTag":7,"TargetClothID":1025740294}' +
       ']}}}'
@@ -255,14 +290,17 @@ describe('lookbook WASM native output', () => {
       clothType: 74,
       outfitId: null
     })
-    expect(result.value.dyeItems).toContainEqual(expect.objectContaining({
-      itemId: 1025740294,
-      hasSpecialEffect: true
-    }))
+    expect(result.value.dyeItems).toContainEqual(
+      expect.objectContaining({
+        itemId: 1025740294,
+        hasSpecialEffect: true
+      })
+    )
   })
 
   it('keeps a special-effect-only item in WASM dye output', async () => {
-    const payload = '{"Content":{"Content":{"wearingClothes":[1025740294],"wearingDIYInfos":[' +
+    const payload =
+      '{"Content":{"Content":{"wearingClothes":[1025740294],"wearingDIYInfos":[' +
       '{"TargetGroupID":1,"CoreData":{"CoverDIYColor":true},"FeatureTag":7,"TargetClothID":1025740294}' +
       ']}}}'
 
@@ -281,12 +319,17 @@ describe('lookbook cloth types', () => {
   afterEach(clearOutfitCodeParseCache)
 
   it('infers the cloth type when the upstream type is missing or malformed', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({
-      clothes: [
-        { cloth: { id: 1020100001 } },
-        { cloth: { id: 1020100002, cloth_type: 'invalid' } }
-      ]
-    })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          clothes: [
+            { cloth: { id: 1020100001 } },
+            { cloth: { id: 1020100002, cloth_type: 'invalid' } }
+          ]
+        })
+      )
+    )
 
     const result = await parseOutfitCode(validCode)
     expect(result.wearingClothes).toEqual([

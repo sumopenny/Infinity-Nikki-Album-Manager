@@ -26,26 +26,39 @@ export function openDb(): Promise<IDBDatabase> {
         ? request.transaction!.objectStore(OUTFITS_STORE)
         : db.createObjectStore(OUTFITS_STORE, { keyPath: 'id' })
       // Pending outfits omit codeKey, so multiple empty codes remain valid.
-      if (!outfits.indexNames.contains('code')) outfits.createIndex('code', 'codeKey', { unique: true })
-      for (const name of [OUTFIT_IMAGES_STORE, OUTFIT_GAME_SOURCES_STORE, OUTFIT_MIGRATION_SOURCES_STORE]) {
+      if (!outfits.indexNames.contains('code'))
+        outfits.createIndex('code', 'codeKey', { unique: true })
+      for (const name of [
+        OUTFIT_IMAGES_STORE,
+        OUTFIT_GAME_SOURCES_STORE,
+        OUTFIT_MIGRATION_SOURCES_STORE
+      ]) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' })
       }
       if (!db.objectStoreNames.contains(OUTFIT_TAGS_STORE)) db.createObjectStore(OUTFIT_TAGS_STORE)
-      if (!db.objectStoreNames.contains(OUTFIT_IGNORED_CODES_STORE)) db.createObjectStore(OUTFIT_IGNORED_CODES_STORE, { keyPath: 'code' })
+      if (!db.objectStoreNames.contains(OUTFIT_IGNORED_CODES_STORE))
+        db.createObjectStore(OUTFIT_IGNORED_CODES_STORE, { keyPath: 'code' })
       if (!db.objectStoreNames.contains(OUTFIT_MIGRATION_ENTRIES_STORE)) {
         db.createObjectStore(OUTFIT_MIGRATION_ENTRIES_STORE, { keyPath: ['sourceId', 'fileName'] })
       }
-      for (const name of ['album-handles', 'resonance-records', CAMERA_COVERS_STORE, CAMERA_TAGS_STORE]) {
+      for (const name of [
+        'album-handles',
+        'resonance-records',
+        CAMERA_COVERS_STORE,
+        CAMERA_TAGS_STORE
+      ]) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name)
       }
       const favorites = db.objectStoreNames.contains(CAMERA_FAVORITES_STORE)
         ? request.transaction!.objectStore(CAMERA_FAVORITES_STORE)
         : db.createObjectStore(CAMERA_FAVORITES_STORE, { keyPath: 'id' })
-      if (!favorites.indexNames.contains('code')) favorites.createIndex('code', 'code', { unique: true })
+      if (!favorites.indexNames.contains('code'))
+        favorites.createIndex('code', 'code', { unique: true })
       const schemes = db.objectStoreNames.contains(HOME_SCHEMES_STORE)
         ? request.transaction!.objectStore(HOME_SCHEMES_STORE)
         : db.createObjectStore(HOME_SCHEMES_STORE, { keyPath: 'id' })
-      if (!schemes.indexNames.contains('code')) schemes.createIndex('code', 'code', { unique: true })
+      if (!schemes.indexNames.contains('code'))
+        schemes.createIndex('code', 'code', { unique: true })
       for (const name of [HOME_IMAGES_STORE, HOME_MIGRATION_SOURCES_STORE]) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' })
       }
@@ -69,7 +82,11 @@ export function openDb(): Promise<IDBDatabase> {
 }
 
 /** Resolve writes only after the transaction has committed. */
-export async function runStoreRequest<T>(storeName: string, mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+export async function runStoreRequest<T>(
+  storeName: string,
+  mode: IDBTransactionMode,
+  action: (store: IDBObjectStore) => IDBRequest<T>
+): Promise<T> {
   const db = await openDb()
   return new Promise((resolve, reject) => {
     let request: IDBRequest<T> | undefined
@@ -77,13 +94,27 @@ export async function runStoreRequest<T>(storeName: string, mode: IDBTransaction
     let tx: IDBTransaction | undefined
     try {
       tx = db.transaction(storeName, mode)
-      tx.oncomplete = () => { db.close(); resolve(result) }
-      tx.onabort = () => { db.close(); reject(tx?.error ?? request?.error ?? new Error('IndexedDB transaction aborted')) }
-      tx.onerror = () => { /* onabort reports the final transaction failure. */ }
+      tx.oncomplete = () => {
+        db.close()
+        resolve(result)
+      }
+      tx.onabort = () => {
+        db.close()
+        reject(tx?.error ?? request?.error ?? new Error('IndexedDB transaction aborted'))
+      }
+      tx.onerror = () => {
+        /* onabort reports the final transaction failure. */
+      }
       request = action(tx.objectStore(storeName))
-      request.onsuccess = () => { result = request!.result }
+      request.onsuccess = () => {
+        result = request!.result
+      }
     } catch (error) {
-      try { tx?.abort() } catch { /* Transaction may already be inactive. */ }
+      try {
+        tx?.abort()
+      } catch {
+        /* Transaction may already be inactive. */
+      }
       db.close()
       reject(error)
     }
@@ -98,12 +129,24 @@ export async function clearAllBrowserData(): Promise<void> {
     try {
       const names = [...db.objectStoreNames]
       tx = db.transaction(names, 'readwrite')
-      tx.oncomplete = () => { db.close(); resolve() }
-      tx.onabort = () => { db.close(); reject(tx?.error ?? new Error('IndexedDB reset aborted')) }
-      tx.onerror = () => { /* onabort reports the final failure. */ }
+      tx.oncomplete = () => {
+        db.close()
+        resolve()
+      }
+      tx.onabort = () => {
+        db.close()
+        reject(tx?.error ?? new Error('IndexedDB reset aborted'))
+      }
+      tx.onerror = () => {
+        /* onabort reports the final failure. */
+      }
       for (const name of names) tx.objectStore(name).clear()
     } catch (error) {
-      try { tx?.abort() } catch { /* Transaction may already be inactive. */ }
+      try {
+        tx?.abort()
+      } catch {
+        /* Transaction may already be inactive. */
+      }
       db.close()
       reject(error)
     }

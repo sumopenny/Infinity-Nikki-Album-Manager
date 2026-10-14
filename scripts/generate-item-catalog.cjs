@@ -6,8 +6,8 @@ const fs = require('fs')
 const path = require('path')
 
 const OUT = path.join(__dirname, '../src/data/itemCatalog.json')
-const DEFAULT_GONGEO_ROOT = 'D:/DESKTOPPPPPPP/gongeo.us-nikki-tracker'
-const DEFAULT_GONGEO_RAW_BASE_URL = 'https://raw.githubusercontent.com/dastrokes/gongeo.us-nikki-tracker/master'
+const DEFAULT_GONGEO_RAW_BASE_URL =
+  'https://raw.githubusercontent.com/dastrokes/gongeo.us-nikki-tracker/master'
 const DEFAULT_TIMEOUT_MS = 15000
 const SOURCE_FILES = [
   ['zh', 'item'],
@@ -61,8 +61,10 @@ function parseOptions(argv) {
     if (argument === '--remote') options.remote = true
     else if (argument === '--strict') options.strict = true
     else if (argument === '--base-url') options.baseUrl = argv[++index] || options.baseUrl
-    else if (argument === '--timeout') options.timeoutMs = Number(argv[++index] || options.timeoutMs)
-    else if (argument === '--out') options.output = path.resolve(process.cwd(), argv[++index] || options.output)
+    else if (argument === '--timeout')
+      options.timeoutMs = Number(argv[++index] || options.timeoutMs)
+    else if (argument === '--out')
+      options.output = path.resolve(process.cwd(), argv[++index] || options.output)
     else if (!argument.startsWith('--') && !options.source) options.source = argument
   }
   if (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0) {
@@ -72,20 +74,31 @@ function parseOptions(argv) {
     options.remote = true
     options.baseUrl = options.source
   }
+  // 本地生成必须显式指定来源，避免依赖维护者机器上的旧目录。
+  if (!options.remote && !options.source)
+    throw new Error(
+      '请指定 Gongeo 仓库目录或使用 --remote / Specify a Gongeo directory or --remote'
+    )
   return options
 }
 
 /** 所有目录更新共用网络选择和一次直连兜底，JSON 无效时不重复请求。 */
 async function fetchJson(url, timeoutMs) {
-  return fetchResource(url, {
-    timeoutMs,
-    headers: { Accept: 'application/json', 'User-Agent': 'Infinity-Nikki-Album-Manager' }
-  }, async response => {
-    try { return JSON.parse(await response.text()) } catch (error) {
-      if (!(error instanceof SyntaxError)) throw error
-      throw new Error(`图鉴接口返回的 JSON 无效: ${url}`)
+  return fetchResource(
+    url,
+    {
+      timeoutMs,
+      headers: { Accept: 'application/json', 'User-Agent': 'Infinity-Nikki-Album-Manager' }
+    },
+    async (response) => {
+      try {
+        return JSON.parse(await response.text())
+      } catch (error) {
+        if (!(error instanceof SyntaxError)) throw error
+        throw new Error(`图鉴接口返回的 JSON 无效: ${url}`)
+      }
     }
-  })
+  )
 }
 
 async function readSourceJson(options, lang, kind) {
@@ -93,18 +106,22 @@ async function readSourceJson(options, lang, kind) {
     const baseUrl = options.baseUrl.replace(/\/+$/u, '')
     return fetchJson(`${baseUrl}/app/locales/${lang}/${kind}.json`, options.timeoutMs)
   }
-  const root = options.source || DEFAULT_GONGEO_ROOT
+  const root = options.source
   const file = path.join(root, 'app/locales', lang, `${kind}.json`)
   return readJson(file)
 }
 
 async function buildCatalog(options) {
-  const sources = await Promise.all(SOURCE_FILES.map(async ([lang, kind]) => [
-    lang,
-    kind,
-    await readSourceJson(options, lang, kind)
-  ]))
-  const maps = new Map(sources.map(([lang, kind, raw]) => [`${lang}/${kind}`, collect(lang, kind, raw)]))
+  const sources = await Promise.all(
+    SOURCE_FILES.map(async ([lang, kind]) => [
+      lang,
+      kind,
+      await readSourceJson(options, lang, kind)
+    ])
+  )
+  const maps = new Map(
+    sources.map(([lang, kind, raw]) => [`${lang}/${kind}`, collect(lang, kind, raw)])
+  )
   return {
     items: build(maps.get('zh/item'), maps.get('en/item')),
     makeups: build(maps.get('zh/makeup'), maps.get('en/makeup'))
@@ -114,7 +131,11 @@ async function buildCatalog(options) {
 async function writeJsonAtomic(output, catalog) {
   const serialized = `${JSON.stringify(catalog, null, 2)}\n`
   let current = null
-  try { current = fs.readFileSync(output, 'utf8') } catch (error) { if (error.code !== 'ENOENT') throw error }
+  try {
+    current = fs.readFileSync(output, 'utf8')
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error
+  }
   if (current === serialized) return false
 
   fs.mkdirSync(path.dirname(output), { recursive: true })
@@ -124,7 +145,11 @@ async function writeJsonAtomic(output, catalog) {
     fs.renameSync(temporaryPath, output)
     return true
   } catch (error) {
-    try { fs.rmSync(temporaryPath, { force: true }) } catch { /* 清理临时文件失败不覆盖原始错误。 */ }
+    try {
+      fs.rmSync(temporaryPath, { force: true })
+    } catch {
+      /* 清理临时文件失败不覆盖原始错误。 */
+    }
     throw error
   }
 }
@@ -138,9 +163,11 @@ async function main() {
       items: Object.keys(catalog.items).length,
       makeups: Object.keys(catalog.makeups).length
     }
-    console.log(updated
-      ? `图鉴目录已更新: items=${counts.items}, makeups=${counts.makeups} → ${options.output}`
-      : `图鉴目录已是最新版本: items=${counts.items}, makeups=${counts.makeups}`)
+    console.log(
+      updated
+        ? `图鉴目录已更新: items=${counts.items}, makeups=${counts.makeups} → ${options.output}`
+        : `图鉴目录已是最新版本: items=${counts.items}, makeups=${counts.makeups}`
+    )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     if (options.remote && !options.strict && fs.existsSync(options.output)) {

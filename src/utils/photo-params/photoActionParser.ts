@@ -10,18 +10,29 @@ export function photoActionFingerprint(albumKey: string, photo: PhotoItem): stri
   return `${albumKey}|${photo.name}|${photo.fileSize ?? ''}|${photo.lastModified ?? ''}|${PHOTO_ACTION_PARSER_VERSION}|${PHOTO_ACTION_CATALOG_VERSION}`
 }
 
-export async function parsePhotoAction(photo: PhotoItem, candidateUids: string[], language: 'zh' | 'en'): Promise<PhotoActionInfo> {
+export async function parsePhotoAction(
+  photo: PhotoItem,
+  candidateUids: string[],
+  language: 'zh' | 'en'
+): Promise<PhotoActionInfo> {
   try {
     const bytes = new Uint8Array(await (await photo.fileHandle.getFile()).arrayBuffer())
     const errors: string[] = []
     for (const uid of candidateUids) {
-      const decoded = await decodePhoto<DecodedPhoto & { rawCameraParams?: string; camera?: Record<string, unknown> }>(bytes, uid)
+      const decoded = await decodePhoto<
+        DecodedPhoto & { rawCameraParams?: string; camera?: Record<string, unknown> }
+      >(bytes, uid)
       if (!decoded.ok || !decoded.value) {
         if (decoded.errorCode && !errors.includes(decoded.errorCode)) errors.push(decoded.errorCode)
         continue
       }
       const poseId = decoded.value.photo?.poseId
-      if (poseId == null || String(poseId).trim() === '' || String(poseId) === '0' || String(poseId) === 'None') {
+      if (
+        poseId == null ||
+        String(poseId).trim() === '' ||
+        String(poseId) === '0' ||
+        String(poseId) === 'None'
+      ) {
         return { status: 'none', errorCode: undefined, parsedAt: Date.now() }
       }
       const actionId = String(poseId)
@@ -35,6 +46,10 @@ export async function parsePhotoAction(photo: PhotoItem, candidateUids: string[]
     }
     return { status: 'unparsed', errorCode: errors[0], parsedAt: Date.now() }
   } catch (error) {
-    return { status: 'unparsed', errorCode: error instanceof Error ? error.name : 'parse_failed', parsedAt: Date.now() }
+    return {
+      status: 'unparsed',
+      errorCode: error instanceof Error ? error.name : 'parse_failed',
+      parsedAt: Date.now()
+    }
   }
 }

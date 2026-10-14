@@ -10,7 +10,9 @@ const CHECK_VERSION = 1
 
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'))
 const readOptionalJson = (file) => {
-  try { return readJson(file) } catch (error) {
+  try {
+    return readJson(file)
+  } catch (error) {
     if (error.code === 'ENOENT' || error instanceof SyntaxError) return null
     throw error
   }
@@ -35,7 +37,9 @@ export function inspectDependencies(projectDir = DEFAULT_PROJECT_DIR) {
     const installed = readOptionalJson(join(projectDir, 'node_modules', name, 'package.json'))
     if (!installed) packageProblems.push(`Missing dependency: ${name}`)
     else if (installed.version !== expected.version) {
-      packageProblems.push(`Dependency version mismatch: ${name} (${installed.version} instead of ${expected.version})`)
+      packageProblems.push(
+        `Dependency version mismatch: ${name} (${installed.version} instead of ${expected.version})`
+      )
     }
   }
   reasons.push(...packageProblems)
@@ -43,14 +47,17 @@ export function inspectDependencies(projectDir = DEFAULT_PROJECT_DIR) {
 }
 
 function installDependencies(projectDir) {
-  const command = process.platform === 'win32' ? (process.env.ComSpec || 'cmd.exe') : 'npm'
-  const args = process.platform === 'win32'
-    ? ['/d', '/s', '/c', 'npm ci --include=dev']
-    : ['ci', '--include=dev']
+  const command = process.platform === 'win32' ? process.env.ComSpec || 'cmd.exe' : 'npm'
+  const args =
+    process.platform === 'win32'
+      ? ['/d', '/s', '/c', 'npm ci --include=dev']
+      : ['ci', '--include=dev']
   const result = spawnSync(command, args, { cwd: projectDir, stdio: 'inherit' })
   if (result.error) throw result.error
   if (result.status !== 0) {
-    throw new Error(`npm ci failed (exit code ${result.status ?? 'unknown'}). Check your network and npm output.`)
+    throw new Error(
+      `npm ci failed (exit code ${result.status ?? 'unknown'}). Check your network and npm output.`
+    )
   }
 }
 
@@ -71,7 +78,9 @@ export function ensureDependencies({
   install(projectDir)
   const after = inspectDependencies(projectDir)
   if (after.fingerprint !== before.fingerprint) {
-    throw new Error('The dependency files changed during installation. Please run the launcher again.')
+    throw new Error(
+      'The dependency files changed during installation. Please run the launcher again.'
+    )
   }
   if (after.packageProblems.length) {
     throw new Error(`Dependency installation is incomplete: ${after.packageProblems.join('; ')}`)
@@ -92,7 +101,8 @@ const entryUrl = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href 
 if (import.meta.url === entryUrl) {
   try {
     const args = process.argv.slice(2)
-    if (args.some((arg) => arg !== '--check')) throw new Error('Usage: node start/ensure-dependencies.mjs [--check]')
+    if (args.some((arg) => arg !== '--check'))
+      throw new Error('Usage: node start/ensure-dependencies.mjs [--check]')
     const result = ensureDependencies({ checkOnly: args.includes('--check') })
     if (!result.ready) process.exitCode = 1
   } catch (error) {

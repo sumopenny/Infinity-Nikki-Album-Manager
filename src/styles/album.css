@@ -131,7 +131,10 @@
   appearance: none;
   line-height: 1;
   opacity: 0;
-  transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease;
+  transition:
+    opacity var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .photo-params-parse {
@@ -150,7 +153,9 @@
   color: #5eb0f5;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.18s ease, background 0.18s ease;
+  transition:
+    opacity 0.18s ease,
+    background 0.18s ease;
 }
 
 .photo-card:hover .photo-params-parse,
@@ -182,7 +187,9 @@
   width: 11px;
   height: 11px;
   display: block;
-  transition: fill var(--motion-base) ease, transform var(--motion-base) ease;
+  transition:
+    fill var(--motion-base) ease,
+    transform var(--motion-base) ease;
 }
 
 .favorite-heart.active svg {
@@ -261,7 +268,9 @@
 
 .selection-bar-enter-active,
 .selection-bar-leave-active {
-  transition: opacity var(--motion-base) ease, transform var(--motion-base) ease;
+  transition:
+    opacity var(--motion-base) ease,
+    transform var(--motion-base) ease;
 }
 
 .selection-bar-enter-from,
@@ -292,5 +301,3 @@
     padding-inline: 8px;
   }
 }
-
-

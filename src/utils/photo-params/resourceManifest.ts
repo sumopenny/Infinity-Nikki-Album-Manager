@@ -54,7 +54,11 @@ function findEntry(kind: ResourceKind, id: string | number): ResourceEntry | und
 }
 
 /** 返回资源目录中的名称；未知 ID 显示原始值。 */
-export function resourceName(kind: ResourceKind, id: string | number, language: 'zh' | 'en'): string {
+export function resourceName(
+  kind: ResourceKind,
+  id: string | number,
+  language: 'zh' | 'en'
+): string {
   const key = String(id)
   if (language === 'zh' && isEmptyResource(key)) return '无'
   if (language === 'en' && isEmptyResource(key)) return 'None'

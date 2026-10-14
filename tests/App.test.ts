@@ -65,7 +65,14 @@ vi.mock('../src/utils/homeBuild/homeSchemeStorage', async (importOriginal) => {
 })
 
 vi.mock('../src/utils/homeBuild/homeSchemeMigration', () => ({
-  migrateHomeSchemeLibrary: vi.fn(async () => ({ addedCount: 0, replacedCount: 0, skippedCount: 0, failedCount: 0, tagsChanged: false, failures: [] }))
+  migrateHomeSchemeLibrary: vi.fn(async () => ({
+    addedCount: 0,
+    replacedCount: 0,
+    skippedCount: 0,
+    failedCount: 0,
+    tagsChanged: false,
+    failures: []
+  }))
 }))
 
 const getSavedAlbumDirectoryHandleMock = vi.mocked(getSavedAlbumDirectoryHandle)
@@ -81,7 +88,9 @@ const countHomeSchemesMock = vi.mocked(countHomeSchemes)
 
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((resolvePromise) => { resolve = resolvePromise })
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise
+  })
   return { promise, resolve }
 }
 
@@ -109,12 +118,26 @@ describe('App lifecycle coordination', () => {
 
   it('falls back from half thumbnails on mobile without changing desktop preferences', async () => {
     const listeners = new Set<() => void>()
-    const query = { matches: true, addEventListener: (_: string, fn: () => void) => listeners.add(fn), removeEventListener: (_: string, fn: () => void) => listeners.delete(fn) }
-    vi.stubGlobal('matchMedia', vi.fn(() => query))
+    const query = {
+      matches: true,
+      addEventListener: (_: string, fn: () => void) => listeners.add(fn),
+      removeEventListener: (_: string, fn: () => void) => listeners.delete(fn)
+    }
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => query)
+    )
     getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
-    const keys = ['infinity-nikki-thumbnail-mode', 'infinity-nikki-outfit-thumbnail-mode', 'infinity-nikki-home-thumbnail-mode']
-    keys.forEach(key => localStorage.setItem(key, 'half'))
-    const wrapper = mount(App, { attachTo: document.body, global: { stubs: { CameraFavorites: true } } })
+    const keys = [
+      'infinity-nikki-thumbnail-mode',
+      'infinity-nikki-outfit-thumbnail-mode',
+      'infinity-nikki-home-thumbnail-mode'
+    ]
+    keys.forEach((key) => localStorage.setItem(key, 'half'))
+    const wrapper = mount(App, {
+      attachTo: document.body,
+      global: { stubs: { CameraFavorites: true } }
+    })
     try {
       await flushPromises()
       const topBar = wrapper.getComponent({ name: 'TopBar' })
@@ -123,54 +146,85 @@ describe('App lifecycle coordination', () => {
         navigation.vm.$emit('changeView', view)
         await flushPromises()
         expect(topBar.props('thumbnailMode')).toBe('default')
-        if (view === 'outfits') expect(wrapper.getComponent({ name: 'OutfitGrid' }).props('thumbnailMode')).toBe('default')
+        if (view === 'outfits')
+          expect(wrapper.getComponent({ name: 'OutfitGrid' }).props('thumbnailMode')).toBe(
+            'default'
+          )
         topBar.vm.$emit('changeThumbnailMode', 'half')
         await flushPromises()
         expect(topBar.props('thumbnailMode')).toBe('default')
       }
-      keys.forEach(key => expect(localStorage.getItem(key)).toBe('half'))
+      keys.forEach((key) => expect(localStorage.getItem(key)).toBe('half'))
       query.matches = false
-      listeners.forEach(fn => fn())
+      listeners.forEach((fn) => fn())
       await flushPromises()
       for (const view of ['all', 'outfits', 'home']) {
         navigation.vm.$emit('changeView', view)
         await flushPromises()
         expect(topBar.props('thumbnailMode')).toBe('half')
       }
-    } finally { wrapper.unmount(); vi.unstubAllGlobals() }
+    } finally {
+      wrapper.unmount()
+      vi.unstubAllGlobals()
+    }
   })
 
-  it.each([true, false])('disables all resonance ratios and rejects preference changes (compact=%s)', async compact => {
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: compact, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
-    getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
-    localStorage.setItem('infinity-nikki-thumbnail-mode', 'wide')
-    const wrapper = mount(App, { attachTo: document.body, global: { stubs: { ResonanceRecords: true, CameraFavorites: true } } })
-    try {
-      await flushPromises()
-      const navigation = wrapper.getComponent({ name: 'AlbumViewSwitcher' })
-      const topBar = wrapper.getComponent({ name: 'TopBar' })
-      navigation.vm.$emit('changeView', 'resonance')
-      await flushPromises()
-      expect(topBar.props('thumbnailModeDisabled')).toBe(true)
-      await topBar.get(compact ? '.mobile-header-row button[aria-label="打开视图菜单"]' : '.view-menu-button').trigger('click')
-      await flushPromises()
-      const options = [...document.querySelectorAll<HTMLButtonElement>('.thumbnail-options button')]
-      expect(options.length).toBeGreaterThan(0)
-      expect(options.every(button => button.disabled)).toBe(true)
-      topBar.vm.$emit('changeThumbnailMode', 'portrait-standard')
-      await flushPromises()
-      expect(localStorage.getItem('infinity-nikki-thumbnail-mode')).toBe('wide')
-      navigation.vm.$emit('changeView', 'all')
-      await flushPromises()
-      expect(topBar.props('thumbnailModeDisabled')).toBe(false)
-      expect(topBar.props('thumbnailMode')).toBe('wide')
-    } finally { wrapper.unmount(); vi.unstubAllGlobals() }
-  })
+  it.each([true, false])(
+    'disables all resonance ratios and rejects preference changes (compact=%s)',
+    async (compact) => {
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn(() => ({ matches: compact, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+      )
+      getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+      localStorage.setItem('infinity-nikki-thumbnail-mode', 'wide')
+      const wrapper = mount(App, {
+        attachTo: document.body,
+        global: { stubs: { ResonanceRecords: true, CameraFavorites: true } }
+      })
+      try {
+        await flushPromises()
+        const navigation = wrapper.getComponent({ name: 'AlbumViewSwitcher' })
+        const topBar = wrapper.getComponent({ name: 'TopBar' })
+        navigation.vm.$emit('changeView', 'resonance')
+        await flushPromises()
+        expect(topBar.props('thumbnailModeDisabled')).toBe(true)
+        await topBar
+          .get(
+            compact ? '.mobile-header-row button[aria-label="打开视图菜单"]' : '.view-menu-button'
+          )
+          .trigger('click')
+        await flushPromises()
+        const options = [
+          ...document.querySelectorAll<HTMLButtonElement>('.thumbnail-options button')
+        ]
+        expect(options.length).toBeGreaterThan(0)
+        expect(options.every((button) => button.disabled)).toBe(true)
+        topBar.vm.$emit('changeThumbnailMode', 'portrait-standard')
+        await flushPromises()
+        expect(localStorage.getItem('infinity-nikki-thumbnail-mode')).toBe('wide')
+        navigation.vm.$emit('changeView', 'all')
+        await flushPromises()
+        expect(topBar.props('thumbnailModeDisabled')).toBe(false)
+        expect(topBar.props('thumbnailMode')).toBe('wide')
+      } finally {
+        wrapper.unmount()
+        vi.unstubAllGlobals()
+      }
+    }
+  )
 
   it('shows camera parameters in compact favorites and restores desktop photo tabs', async () => {
     const listeners = new Set<() => void>()
-    const query = { matches: false, addEventListener: (_: string, fn: () => void) => listeners.add(fn), removeEventListener: (_: string, fn: () => void) => listeners.delete(fn) }
-    vi.stubGlobal('matchMedia', vi.fn(() => query))
+    const query = {
+      matches: false,
+      addEventListener: (_: string, fn: () => void) => listeners.add(fn),
+      removeEventListener: (_: string, fn: () => void) => listeners.delete(fn)
+    }
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => query)
+    )
     getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
     const wrapper = mount(App, { global: { stubs: { CameraFavorites: true } } })
     try {
@@ -181,7 +235,7 @@ describe('App lifecycle coordination', () => {
       expect(wrapper.getComponent({ name: 'TopBar' }).props('thumbnailModeDisabled')).toBe(false)
       expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('active')).toBe(false)
       query.matches = true
-      listeners.forEach(fn => fn())
+      listeners.forEach((fn) => fn())
       await flushPromises()
       expect(wrapper.findAll('.mobile-navigation button')[2]!.text()).toBe('相机参数')
       expect(wrapper.find('.favorites-tabs').exists()).toBe(false)
@@ -189,14 +243,16 @@ describe('App lifecycle coordination', () => {
       expect(wrapper.find('.empty-album-start').exists()).toBe(false)
       expect(wrapper.get('.favorites-toolbar').isVisible()).toBe(false)
       query.matches = false
-      listeners.forEach(fn => fn())
+      listeners.forEach((fn) => fn())
       await flushPromises()
       expect(wrapper.findAll('.favorites-tabs button')).toHaveLength(2)
       expect(wrapper.findAll('.favorites-tabs button')[1]!.attributes('aria-pressed')).toBe('true')
       expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('active')).toBe(false)
       await wrapper.getComponent({ name: 'TopBar' }).vm.$emit('toggleLanguage')
       await flushPromises()
-      await vi.waitFor(() => expect(wrapper.findAll('.mobile-navigation button')[2]!.text()).toBe('Camera parameters'))
+      await vi.waitFor(() =>
+        expect(wrapper.findAll('.mobile-navigation button')[2]!.text()).toBe('Camera parameters')
+      )
     } finally {
       wrapper.unmount()
       vi.unstubAllGlobals()
@@ -215,15 +271,36 @@ describe('App lifecycle coordination', () => {
       ['resonance-records', 'current-profile', [{ id: 'kept-record' }]],
       ['camera-favorite-tags', 'order', ['保留分类']],
       ['camera-favorite-covers', 'kept', new NodeBlob(['kept-cover'])],
-      ['camera-favorites', undefined, {
-        id: 'kept', version: 1, name: '保留参数', tag: '保留分类', code: 'ABC', source: 'manual',
-        createdAt: '2026-10-12T00:00:00Z', updatedAt: '2026-10-12T00:00:00Z', cover: null,
-        result: { rawCameraParams: 'ABC', environmentFields: [], cameraFields: [], imageFields: [], resourceGroups: [] }
-      }]
+      [
+        'camera-favorites',
+        undefined,
+        {
+          id: 'kept',
+          version: 1,
+          name: '保留参数',
+          tag: '保留分类',
+          code: 'ABC',
+          source: 'manual',
+          createdAt: '2026-10-12T00:00:00Z',
+          updatedAt: '2026-10-12T00:00:00Z',
+          cover: null,
+          result: {
+            rawCameraParams: 'ABC',
+            environmentFields: [],
+            cameraFields: [],
+            imageFields: [],
+            resourceGroups: []
+          }
+        }
+      ]
     ] as const
     for (const [storeName, key, value] of preserved)
-      await runStoreRequest(storeName, 'readwrite', store => key === undefined ? store.put(value) : store.put(value, key))
-    await runStoreRequest('album-handles', 'readwrite', store => store.put('cache', 'home-scheme-parse:one'))
+      await runStoreRequest(storeName, 'readwrite', (store) =>
+        key === undefined ? store.put(value) : store.put(value, key)
+      )
+    await runStoreRequest('album-handles', 'readwrite', (store) =>
+      store.put('cache', 'home-scheme-parse:one')
+    )
     const wrapper = mount(App, {
       attachTo: document.body,
       global: { stubs: { CameraFavorites: true, ResonanceRecords: true } }
@@ -236,17 +313,21 @@ describe('App lifecycle coordination', () => {
       expect(dialog.props('message')).toContain('永久删除')
       expect(dialog.props('message')).toContain('请先导出备份')
       dialog.vm.$emit('confirm')
-      await vi.waitFor(() => expect(document.body.textContent).toContain(messages.zh.app.clearDataStatus))
+      await vi.waitFor(() =>
+        expect(document.body.textContent).toContain(messages.zh.app.clearDataStatus)
+      )
       expect(localStorage.length).toBe(0)
       expect(sessionStorage.length).toBe(0)
       expect(reload).toHaveBeenCalledOnce()
-      expect(await runStoreRequest('album-handles', 'readonly', store => store.count())).toBe(0)
+      expect(await runStoreRequest('album-handles', 'readonly', (store) => store.count())).toBe(0)
       for (const [storeName, key] of preserved)
-        expect(await runStoreRequest(storeName, 'readonly', store => store.get(key ?? 'kept'))).toBeUndefined()
+        expect(
+          await runStoreRequest(storeName, 'readonly', (store) => store.get(key ?? 'kept'))
+        ).toBeUndefined()
     } finally {
       wrapper.unmount()
       for (const [storeName] of preserved)
-        await runStoreRequest(storeName, 'readwrite', store => store.clear())
+        await runStoreRequest(storeName, 'readwrite', (store) => store.clear())
       vi.unstubAllGlobals()
     }
   })
@@ -256,8 +337,13 @@ describe('App lifecycle coordination', () => {
     const reload = vi.fn()
     vi.stubGlobal('location', { reload })
     localStorage.setItem('reset-cancel', 'saved')
-    await runStoreRequest('album-handles', 'readwrite', store => store.put('saved', 'reset-cancel'))
-    const wrapper = mount(App, { attachTo: document.body, global: { stubs: { CameraFavorites: true } } })
+    await runStoreRequest('album-handles', 'readwrite', (store) =>
+      store.put('saved', 'reset-cancel')
+    )
+    const wrapper = mount(App, {
+      attachTo: document.body,
+      global: { stubs: { CameraFavorites: true } }
+    })
     try {
       await flushPromises()
       wrapper.getComponent({ name: 'TopBar' }).vm.$emit('clearData')
@@ -265,11 +351,13 @@ describe('App lifecycle coordination', () => {
       wrapper.getComponent({ name: 'ConfirmDialog' }).vm.$emit('cancel')
       await flushPromises()
       expect(localStorage.getItem('reset-cancel')).toBe('saved')
-      expect(await runStoreRequest('album-handles', 'readonly', store => store.get('reset-cancel'))).toBe('saved')
+      expect(
+        await runStoreRequest('album-handles', 'readonly', (store) => store.get('reset-cancel'))
+      ).toBe('saved')
       expect(reload).not.toHaveBeenCalled()
     } finally {
       wrapper.unmount()
-      await runStoreRequest('album-handles', 'readwrite', store => store.delete('reset-cancel'))
+      await runStoreRequest('album-handles', 'readwrite', (store) => store.delete('reset-cancel'))
       vi.unstubAllGlobals()
     }
   })
@@ -278,11 +366,16 @@ describe('App lifecycle coordination', () => {
     getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
     const reload = vi.fn()
     vi.stubGlobal('location', { reload })
-    const wrapper = mount(App, { attachTo: document.body, global: { stubs: { CameraFavorites: true } } })
+    const wrapper = mount(App, {
+      attachTo: document.body,
+      global: { stubs: { CameraFavorites: true } }
+    })
     let clear: ReturnType<typeof vi.spyOn> | undefined
     try {
       await flushPromises()
-      clear = vi.spyOn(Storage.prototype, 'clear').mockImplementation(() => { throw new Error('Storage unavailable') })
+      clear = vi.spyOn(Storage.prototype, 'clear').mockImplementation(() => {
+        throw new Error('Storage unavailable')
+      })
       wrapper.getComponent({ name: 'TopBar' }).vm.$emit('clearData')
       await nextTick()
       wrapper.getComponent({ name: 'ConfirmDialog' }).vm.$emit('confirm')
@@ -303,8 +396,9 @@ describe('App lifecycle coordination', () => {
 
     await wrapper.get(`[aria-label="${messages.zh.topBar.albumMenuAria}"]`).trigger('click')
     await nextTick()
-    const chooseDirectoryButton = [...document.body.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')]
-      .find((button) => button.textContent?.includes(messages.zh.topBar.chooseDirectory))
+    const chooseDirectoryButton = [
+      ...document.body.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
+    ].find((button) => button.textContent?.includes(messages.zh.topBar.chooseDirectory))
 
     expect(chooseDirectoryButton?.disabled).toBe(true)
 
@@ -318,10 +412,14 @@ describe('App lifecycle coordination', () => {
     getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
     const wrapper = mount(App, {
       attachTo: document.body,
-      global: { stubs: { ResonanceRecords: { template: '<div class="resonance-workspace-stub" />' } } }
+      global: {
+        stubs: { ResonanceRecords: { template: '<div class="resonance-workspace-stub" />' } }
+      }
     })
     await flushPromises()
-    await vi.waitFor(() => expect(wrapper.findComponent({ name: 'AlbumViewSwitcher' }).props('disabled')).toBe(false))
+    await vi.waitFor(() =>
+      expect(wrapper.findComponent({ name: 'AlbumViewSwitcher' }).props('disabled')).toBe(false)
+    )
 
     for (const index of [1, 2, 4, 5, 0]) {
       const button = wrapper.findAll('.album-view-button')[index]
@@ -331,22 +429,38 @@ describe('App lifecycle coordination', () => {
       expect(button.attributes('aria-pressed')).toBe('true')
       expect(wrapper.find('.empty-album-start').exists()).toBe(index === 0 || index === 5)
       if (index === 1) {
-        expect(wrapper.get('.outfit-grid-wrap .inline-empty h2').text()).toBe(messages.zh.outfit.emptyTitle)
-        expect(wrapper.findAll('.outfit-header-actions button').map(button => (button.element as HTMLButtonElement).disabled)).toEqual([false, true, false])
+        expect(wrapper.get('.outfit-grid-wrap .inline-empty h2').text()).toBe(
+          messages.zh.outfit.emptyTitle
+        )
+        expect(
+          wrapper
+            .findAll('.outfit-header-actions button')
+            .map((button) => (button.element as HTMLButtonElement).disabled)
+        ).toEqual([false, true, false])
         await wrapper.findAll('.outfit-header-actions button')[1].trigger('click')
         await flushPromises()
         expect(wrapper.findComponent({ name: 'ConfirmDialog' }).props('visible')).toBe(false)
       }
       if (index === 2) {
         expect(wrapper.get('.home-scheme-empty h2').text()).toBe(messages.zh.homeScheme.emptyTitle)
-        await vi.waitFor(() => expect(wrapper.findAll('.home-scheme-header-actions button').map(button => (button.element as HTMLButtonElement).disabled)).toEqual([false, true, false]))
+        await vi.waitFor(() =>
+          expect(
+            wrapper
+              .findAll('.home-scheme-header-actions button')
+              .map((button) => (button.element as HTMLButtonElement).disabled)
+          ).toEqual([false, true, false])
+        )
         await wrapper.findAll('.home-scheme-header-actions button')[1].trigger('click')
         await flushPromises()
         expect(wrapper.findComponent({ name: 'ConfirmDialog' }).props('visible')).toBe(false)
       }
-      if (index === 4) expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('active')).toBe(true)
+      if (index === 4)
+        expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('active')).toBe(true)
     }
-    expect(readOutfitLibraryMock).toHaveBeenCalledWith(null, expect.objectContaining({ sharedSource: null }))
+    expect(readOutfitLibraryMock).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({ sharedSource: null })
+    )
     expect(wrapper.findComponent({ name: 'OutfitGuideDialog' }).props('visible')).toBe(false)
 
     await wrapper.findAll('.album-view-button')[3].trigger('click')
@@ -357,12 +471,19 @@ describe('App lifecycle coordination', () => {
   })
 
   it('releases outfit object URLs when the application unmounts', async () => {
-    const directoryHandle = { kind: 'directory', name: 'NikkiPhotos_HighQuality' } as FileSystemDirectoryHandle
+    const directoryHandle = {
+      kind: 'directory',
+      name: 'NikkiPhotos_HighQuality'
+    } as FileSystemDirectoryHandle
     const outfit = { id: 'outfit-1', url: 'blob:outfit' } as OutfitItem
     const revokeObjectUrl = vi.fn()
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectUrl })
     getSavedAlbumDirectoryHandleMock.mockResolvedValue(directoryHandle)
-    readAlbumDirectoryMock.mockResolvedValue({ directoryName: directoryHandle.name, directoryHandle, photos: [] })
+    readAlbumDirectoryMock.mockResolvedValue({
+      directoryName: directoryHandle.name,
+      directoryHandle,
+      photos: []
+    })
     readOutfitLibraryMock.mockResolvedValue({
       outfits: [outfit],
       tags: [],
@@ -394,7 +515,9 @@ describe('App lifecycle coordination', () => {
     })
     const wrapper = mount(App)
     await flushPromises()
-    await vi.waitFor(() => expect(wrapper.findComponent({ name: 'AlbumViewSwitcher' }).props('disabled')).toBe(false))
+    await vi.waitFor(() =>
+      expect(wrapper.findComponent({ name: 'AlbumViewSwitcher' }).props('disabled')).toBe(false)
+    )
     const scanCount = readOutfitLibraryMock.mock.calls.length
     const input = wrapper.get('#outfit-backup-input')
     const backup = new File(['zip'], 'backup.zip', { type: 'application/zip' })
@@ -409,41 +532,117 @@ describe('App lifecycle coordination', () => {
   })
 
   it('keeps the global collection visible after cancelling album authorization', async () => {
-    const directory = { kind: 'directory', name: 'NikkiPhotos_HighQuality' } as FileSystemDirectoryHandle
-    const outfit: OutfitItem = { version: 1, id: 'global', image: 'global.webp', code: 'GLOBAL', tags: [], name: 'global.webp', note: '', url: null,
-      createdAt: '2026-07-31T00:00:00.000Z', updatedAt: '2026-07-31T00:00:00.000Z', fileSizeText: '1 KB',
-      dateKey: '2026-07-31', year: '2026', monthDay: '07月31日', displayDate: '2026年07月31日', timeText: '08:00', timestamp: 1 }
+    const directory = {
+      kind: 'directory',
+      name: 'NikkiPhotos_HighQuality'
+    } as FileSystemDirectoryHandle
+    const outfit: OutfitItem = {
+      version: 1,
+      id: 'global',
+      image: 'global.webp',
+      code: 'GLOBAL',
+      tags: [],
+      name: 'global.webp',
+      note: '',
+      url: null,
+      createdAt: '2026-07-31T00:00:00.000Z',
+      updatedAt: '2026-07-31T00:00:00.000Z',
+      fileSizeText: '1 KB',
+      dateKey: '2026-07-31',
+      year: '2026',
+      monthDay: '07月31日',
+      displayDate: '2026年07月31日',
+      timeText: '08:00',
+      timestamp: 1
+    }
     readOutfitCollectionMock.mockResolvedValue({ outfits: [outfit], tags: [] })
-    readOutfitLibraryMock.mockResolvedValue({ outfits: [outfit], tags: [], importedSharedCount: 0, failedCount: 0 })
+    readOutfitLibraryMock.mockResolvedValue({
+      outfits: [outfit],
+      tags: [],
+      importedSharedCount: 0,
+      failedCount: 0
+    })
     getSavedAlbumDirectoryHandleMock.mockResolvedValue(directory)
-    readAlbumDirectoryMock.mockResolvedValue({ directoryName: directory.name, directoryHandle: directory, photos: [] })
-    const wrapper = mount(App, { global: { stubs: { CameraFavorites: true, OutfitGrid: { props: ['outfits'], template: '<div class="outfit-grid-stub">{{ outfits.length }}</div>' } } } })
+    readAlbumDirectoryMock.mockResolvedValue({
+      directoryName: directory.name,
+      directoryHandle: directory,
+      photos: []
+    })
+    const wrapper = mount(App, {
+      global: {
+        stubs: {
+          CameraFavorites: true,
+          OutfitGrid: {
+            props: ['outfits'],
+            template: '<div class="outfit-grid-stub">{{ outfits.length }}</div>'
+          }
+        }
+      }
+    })
     try {
       await flushPromises()
       wrapper.findComponent({ name: 'TopBar' }).vm.$emit('clearDirectory')
-      await vi.waitFor(() => expect(wrapper.findComponent({ name: 'TopBar' }).props('hasAlbumDirectory')).toBe(false))
+      await vi.waitFor(() =>
+        expect(wrapper.findComponent({ name: 'TopBar' }).props('hasAlbumDirectory')).toBe(false)
+      )
       await wrapper.findAll('.album-view-button')[1].trigger('click')
       await flushPromises()
       expect(wrapper.get('.outfit-grid-stub').text()).toBe('1')
-      expect(wrapper.findAll('.outfit-header-actions button').map(button => (button.element as HTMLButtonElement).disabled)).toEqual([false, false, false])
-    } finally { wrapper.unmount() }
+      expect(
+        wrapper
+          .findAll('.outfit-header-actions button')
+          .map((button) => (button.element as HTMLButtonElement).disabled)
+      ).toEqual([false, false, false])
+    } finally {
+      wrapper.unmount()
+    }
   })
 
   it.each([
-    { name: 'Android', userAgent: 'Mozilla/5.0 (Linux; Android 14)', platform: 'Linux', touchPoints: 5, picker: true },
-    { name: 'iPhone', userAgent: 'Mozilla/5.0 (iPhone)', platform: 'iPhone', touchPoints: 5, picker: false },
-    { name: 'iPad desktop mode', userAgent: 'Mozilla/5.0 (Macintosh)', platform: 'MacIntel', touchPoints: 5, picker: true },
-    { name: 'unsupported desktop', userAgent: 'Mozilla/5.0 (Windows NT 10.0)', platform: 'Win32', touchPoints: 0, picker: false }
-  ])('opens outfits silently on $name without directory authorization', async device => {
+    {
+      name: 'Android',
+      userAgent: 'Mozilla/5.0 (Linux; Android 14)',
+      platform: 'Linux',
+      touchPoints: 5,
+      picker: true
+    },
+    {
+      name: 'iPhone',
+      userAgent: 'Mozilla/5.0 (iPhone)',
+      platform: 'iPhone',
+      touchPoints: 5,
+      picker: false
+    },
+    {
+      name: 'iPad desktop mode',
+      userAgent: 'Mozilla/5.0 (Macintosh)',
+      platform: 'MacIntel',
+      touchPoints: 5,
+      picker: true
+    },
+    {
+      name: 'unsupported desktop',
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0)',
+      platform: 'Win32',
+      touchPoints: 0,
+      picker: false
+    }
+  ])('opens outfits silently on $name without directory authorization', async (device) => {
     getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
     localStorage.setItem('infinity-nikki-outfit-guide-dismissed', 'true')
     const userAgent = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(device.userAgent)
     const platform = vi.spyOn(navigator, 'platform', 'get').mockReturnValue(device.platform)
     const touchDescriptor = Object.getOwnPropertyDescriptor(navigator, 'maxTouchPoints')
-    Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: device.touchPoints })
+    Object.defineProperty(navigator, 'maxTouchPoints', {
+      configurable: true,
+      value: device.touchPoints
+    })
     const descriptor = Object.getOwnPropertyDescriptor(window, 'showDirectoryPicker')
     const picker = vi.fn()
-    Object.defineProperty(window, 'showDirectoryPicker', { configurable: true, value: device.picker ? picker : undefined })
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      configurable: true,
+      value: device.picker ? picker : undefined
+    })
     const wrapper = mount(App, { global: { stubs: { CameraFavorites: true } } })
     try {
       await flushPromises()
@@ -454,10 +653,14 @@ describe('App lifecycle coordination', () => {
       expect(wrapper.text()).not.toContain(messages.zh.fileSystem.mobileBrowserUnsupported)
       expect(wrapper.text()).not.toContain(messages.zh.fileSystem.unsupportedBrowser)
       expect(picker).not.toHaveBeenCalled()
-      expect(readOutfitLibraryMock).toHaveBeenLastCalledWith(null, expect.objectContaining({ sharedSource: null }))
+      expect(readOutfitLibraryMock).toHaveBeenLastCalledWith(
+        null,
+        expect.objectContaining({ sharedSource: null })
+      )
     } finally {
       wrapper.unmount()
-      userAgent.mockRestore(); platform.mockRestore()
+      userAgent.mockRestore()
+      platform.mockRestore()
       if (touchDescriptor) Object.defineProperty(navigator, 'maxTouchPoints', touchDescriptor)
       else Reflect.deleteProperty(navigator, 'maxTouchPoints')
       if (descriptor) Object.defineProperty(window, 'showDirectoryPicker', descriptor)
@@ -468,40 +671,64 @@ describe('App lifecycle coordination', () => {
   it('checks an authorized game directory without an album and skips permission requests in background', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
-    const requestPermission = vi.fn(), queryPermission = vi.fn(async () => 'granted' as PermissionState)
-    const game = { kind: 'directory', name: 'X6Game', queryPermission, requestPermission } as unknown as FileSystemDirectoryHandle
+    const requestPermission = vi.fn(),
+      queryPermission = vi.fn(async () => 'granted' as PermissionState)
+    const game = {
+      kind: 'directory',
+      name: 'X6Game',
+      queryPermission,
+      requestPermission
+    } as unknown as FileSystemDirectoryHandle
     getSavedX6GameDirectoryHandleMock.mockResolvedValue(game)
     const wrapper = mount(App, { global: { stubs: { CameraFavorites: true } } })
     try {
       await flushPromises()
-      expect(readOutfitLibraryMock).toHaveBeenCalledWith(null, expect.objectContaining({ sharedSource: { x6GameDirectory: game } }))
+      expect(readOutfitLibraryMock).toHaveBeenCalledWith(
+        null,
+        expect.objectContaining({ sharedSource: { x6GameDirectory: game } })
+      )
       queryPermission.mockResolvedValue('prompt')
       window.dispatchEvent(new Event('focus'))
       await vi.advanceTimersByTimeAsync(400)
       await flushPromises()
-      expect(readOutfitLibraryMock).toHaveBeenLastCalledWith(null, expect.objectContaining({ sharedSource: null }))
+      expect(readOutfitLibraryMock).toHaveBeenLastCalledWith(
+        null,
+        expect.objectContaining({ sharedSource: null })
+      )
       expect(requestPermission).not.toHaveBeenCalled()
       expect(wrapper.findComponent({ name: 'ConfirmDialog' }).props('visible')).toBe(false)
-    } finally { wrapper.unmount() }
+    } finally {
+      wrapper.unmount()
+    }
   })
 
   it('opens the shared parse dialog from the outfit code input', async () => {
-    const directoryHandle = { kind: 'directory', name: 'NikkiPhotos_HighQuality' } as FileSystemDirectoryHandle
+    const directoryHandle = {
+      kind: 'directory',
+      name: 'NikkiPhotos_HighQuality'
+    } as FileSystemDirectoryHandle
     getSavedAlbumDirectoryHandleMock.mockResolvedValue(directoryHandle)
-    readAlbumDirectoryMock.mockResolvedValue({ directoryName: directoryHandle.name, directoryHandle, photos: [] })
+    readAlbumDirectoryMock.mockResolvedValue({
+      directoryName: directoryHandle.name,
+      directoryHandle,
+      photos: []
+    })
     const wrapper = mount(App, {
       global: {
         stubs: {
           Teleport: true,
           OutfitParseDialog: {
             props: ['visible', 'code'],
-            template: '<div v-if="visible" class="parse-dialog-stub">{{ code }}<button class="parse-dialog-close" @click="$emit(\'close\')">Close</button></div>'
+            template:
+              '<div v-if="visible" class="parse-dialog-stub">{{ code }}<button class="parse-dialog-close" @click="$emit(\'close\')">Close</button></div>'
           }
         }
       }
     })
     await flushPromises()
-    await vi.waitFor(() => expect(wrapper.findComponent({ name: 'AlbumViewSwitcher' }).props('disabled')).toBe(false))
+    await vi.waitFor(() =>
+      expect(wrapper.findComponent({ name: 'AlbumViewSwitcher' }).props('disabled')).toBe(false)
+    )
 
     await wrapper.get('.tools-menu-button').trigger('click')
     await wrapper.get('.header-dropdown').findAll('button')[2].trigger('click')
@@ -515,15 +742,29 @@ describe('App lifecycle coordination', () => {
     expect(wrapper.get('.parse-dialog-stub').text()).toContain('ABC123')
     await wrapper.get('.parse-dialog-close').trigger('click')
     expect(wrapper.find('.parse-tools-dialog').exists()).toBe(true)
-    expect((wrapper.findAll('.parse-tools-section input:not([type="file"])')[1].element as HTMLInputElement).value).toBe('')
+    expect(
+      (
+        wrapper.findAll('.parse-tools-section input:not([type="file"])')[1]
+          .element as HTMLInputElement
+      ).value
+    ).toBe('')
     wrapper.unmount()
   })
 
   it('returns to the shared parse dialog after closing camera parameter results', async () => {
-    const directoryHandle = { kind: 'directory', name: 'NikkiPhotos_HighQuality' } as FileSystemDirectoryHandle
+    const directoryHandle = {
+      kind: 'directory',
+      name: 'NikkiPhotos_HighQuality'
+    } as FileSystemDirectoryHandle
     getSavedAlbumDirectoryHandleMock.mockResolvedValue(directoryHandle)
-    readAlbumDirectoryMock.mockResolvedValue({ directoryName: directoryHandle.name, directoryHandle, photos: [] })
-    decodeCameraParamsMock.mockResolvedValue({ ok: true, value: {} } as Awaited<ReturnType<typeof decodeCameraParams>>)
+    readAlbumDirectoryMock.mockResolvedValue({
+      directoryName: directoryHandle.name,
+      directoryHandle,
+      photos: []
+    })
+    decodeCameraParamsMock.mockResolvedValue({ ok: true, value: {} } as Awaited<
+      ReturnType<typeof decodeCameraParams>
+    >)
     const wrapper = mount(App, {
       global: {
         stubs: {
@@ -534,13 +775,16 @@ describe('App lifecycle coordination', () => {
           },
           PhotoParamsDialog: {
             props: ['visible', 'messages'],
-            template: '<div v-if="visible" class="photo-params-stub"><span>{{ messages.eyebrow }} {{ messages.labels.focalLength }} {{ messages.stages.ready }}</span><button class="photo-params-close" @click="$emit(\'close\')">Close</button></div>'
+            template:
+              '<div v-if="visible" class="photo-params-stub"><span>{{ messages.eyebrow }} {{ messages.labels.focalLength }} {{ messages.stages.ready }}</span><button class="photo-params-close" @click="$emit(\'close\')">Close</button></div>'
           }
         }
       }
     })
     await flushPromises()
-    await vi.waitFor(() => expect(wrapper.findComponent({ name: 'AlbumViewSwitcher' }).props('disabled')).toBe(false))
+    await vi.waitFor(() =>
+      expect(wrapper.findComponent({ name: 'AlbumViewSwitcher' }).props('disabled')).toBe(false)
+    )
 
     await wrapper.get('.tools-menu-button').trigger('click')
     await wrapper.get('.header-dropdown').findAll('button')[2].trigger('click')
@@ -552,7 +796,12 @@ describe('App lifecycle coordination', () => {
     expect(wrapper.find('.photo-params-stub').exists()).toBe(true)
     await wrapper.get('.photo-params-close').trigger('click')
     expect(wrapper.find('.parse-tools-dialog').exists()).toBe(true)
-    expect((wrapper.findAll('.parse-tools-section input:not([type="file"])')[0].element as HTMLInputElement).value).toBe('')
+    expect(
+      (
+        wrapper.findAll('.parse-tools-section input:not([type="file"])')[0]
+          .element as HTMLInputElement
+      ).value
+    ).toBe('')
     wrapper.unmount()
   })
 })
@@ -561,9 +810,24 @@ it('blocks desktop and mobile navigation until a child operation settles', async
   getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
   readOutfitCollectionMock.mockResolvedValue({ outfits: [], tags: [] })
   let finish!: () => void
-  const wrapper = mount(App, { global: { stubs: { CameraFavorites: {
-    setup() { const run = useModuleOperation('camera'); void run(() => new Promise<void>(resolve => { finish = resolve })); return () => null }
-  } } } })
+  const wrapper = mount(App, {
+    global: {
+      stubs: {
+        CameraFavorites: {
+          setup() {
+            const run = useModuleOperation('camera')
+            void run(
+              () =>
+                new Promise<void>((resolve) => {
+                  finish = resolve
+                })
+            )
+            return () => null
+          }
+        }
+      }
+    }
+  })
   try {
     await flushPromises()
     const desktop = wrapper.findComponent({ name: 'AlbumViewSwitcher' })
@@ -571,12 +835,17 @@ it('blocks desktop and mobile navigation until a child operation settles', async
     const previous = desktop.props('activeView')
     expect(desktop.props('disabled')).toBe(true)
     expect(mobile.props('disabled')).toBe(true)
-    desktop.vm.$emit('changeView', 'resonance'); await flushPromises()
+    desktop.vm.$emit('changeView', 'resonance')
+    await flushPromises()
     expect(desktop.props('activeView')).toBe(previous)
-    finish(); await flushPromises()
+    finish()
+    await flushPromises()
     expect(desktop.props('disabled')).toBe(false)
     expect(mobile.props('disabled')).toBe(false)
-    desktop.vm.$emit('changeView', 'resonance'); await flushPromises()
+    desktop.vm.$emit('changeView', 'resonance')
+    await flushPromises()
     expect(desktop.props('activeView')).toBe('resonance')
-  } finally { wrapper.unmount() }
+  } finally {
+    wrapper.unmount()
+  }
 })

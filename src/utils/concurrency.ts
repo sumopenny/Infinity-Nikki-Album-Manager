@@ -25,6 +25,11 @@ export async function runWithConcurrency<T, R>(
       options.onItemComplete?.(items[index], index, result)
     }
   }
-  await Promise.all(Array.from({ length: Math.min(Math.max(1, Math.floor(options.concurrency)), items.length) }, runWorker))
+  await Promise.all(
+    Array.from(
+      { length: Math.min(Math.max(1, Math.floor(options.concurrency)), items.length) },
+      runWorker
+    )
+  )
   return results.filter((_, index) => completed[index])
 }

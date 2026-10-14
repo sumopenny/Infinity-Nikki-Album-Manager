@@ -1,44 +1,110 @@
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from 'fflate'
-import { OUTFIT_BACKUP_LIMITS, planBackupParts, downloadBackupParts, type BackupDownload } from '../backup/zipBackup'
-import { OUTFITS_STORE, OUTFIT_IMAGES_STORE, OUTFIT_TAGS_STORE, OUTFIT_IGNORED_CODES_STORE } from '../file-system/database'
+import {
+  OUTFIT_BACKUP_LIMITS,
+  planBackupParts,
+  downloadBackupParts,
+  type BackupDownload
+} from '../backup/zipBackup'
+import {
+  OUTFITS_STORE,
+  OUTFIT_IMAGES_STORE,
+  OUTFIT_TAGS_STORE,
+  OUTFIT_IGNORED_CODES_STORE
+} from '../file-system/database'
 import { imageExtension, MAX_IMAGE_BYTES } from '../image'
-import { readOutfitSnapshot, readOutfitCollection, prepareOutfitImage, outfitTransaction, outfitRequest,
-  withOutfitImportLock, initializeOutfitTags } from './outfitStorage'
-import { createOutfitId, isSafeOutfitId, normalizeOutfitCode, normalizeOutfitRecord, normalizeOutfitTagList,
-  normalizeOutfitTag, isValidOutfitTag, isReservedOutfitTag, MAX_OUTFIT_TAGS,
-  type OutfitRecord, type OutfitImportResult } from './outfitTypes'
+import {
+  readOutfitSnapshot,
+  readOutfitCollection,
+  prepareOutfitImage,
+  outfitTransaction,
+  outfitRequest,
+  withOutfitImportLock,
+  initializeOutfitTags
+} from './outfitStorage'
+import {
+  createOutfitId,
+  isSafeOutfitId,
+  normalizeOutfitCode,
+  normalizeOutfitRecord,
+  normalizeOutfitTagList,
+  normalizeOutfitTag,
+  isValidOutfitTag,
+  isReservedOutfitTag,
+  MAX_OUTFIT_TAGS,
+  type OutfitRecord,
+  type OutfitImportResult
+} from './outfitTypes'
 
 const BACKUP_FORMAT = 'infinity-nikki-outfit-backup'
 const BACKUP_VERSION = 2
 const MAX_BACKUP_BYTES = OUTFIT_BACKUP_LIMITS.bytes
 const MAX_BACKUP_ENTRIES = OUTFIT_BACKUP_LIMITS.entries
 const IMPORT_CONCURRENCY = 6
-interface BackupManifest { format: string; version: number; exportedAt: string; tags: string[]; outfits: Array<OutfitRecord>; ignoredCodes?: string[] }
+interface BackupManifest {
+  format: string
+  version: number
+  exportedAt: string
+  tags: string[]
+  outfits: Array<OutfitRecord>
+  ignoredCodes?: string[]
+}
 function backupTimestamp(date = new Date()): string {
   const pad = (value: number) => String(value).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
 }
-export async function exportOutfitBackup(download?: BackupDownload): Promise<{ fileNames: string[]; count: number }> {
-  const snapshot = await readOutfitSnapshot(), exportedAt = new Date().toISOString(), items = []
+export async function exportOutfitBackup(
+  download?: BackupDownload
+): Promise<{ fileNames: string[]; count: number }> {
+  const snapshot = await readOutfitSnapshot(),
+    exportedAt = new Date().toISOString(),
+    items = []
   for (const record of snapshot.records) {
-    const image = snapshot.images.get(record.id)!, checked = await prepareOutfitImage(image.blob, record.id)
+    const image = snapshot.images.get(record.id)!,
+      checked = await prepareOutfitImage(image.blob, record.id)
     if (checked.sha256 !== image.sha256) throw new Error('outfit_image_invalid')
     const path = `images/${record.image}`
     // Directory identities are local authorization, never portable backup data.
     const { gameSourceId: _gameSourceId, codeKey: _codeKey, ...portable } = record
     items.push({ record: { ...portable, image: path }, files: [{ name: path, blob: image.blob }] })
   }
-  const parts = planBackupParts(items, outfits => ({ format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt,
-    tags: snapshot.tags, ignoredCodes: snapshot.ignoredCodes, outfits }), 'manifest.json', OUTFIT_BACKUP_LIMITS)
-  const fileNames = await downloadBackupParts('无限暖暖搭配码备份_' + backupTimestamp(), parts, 'manifest.json', OUTFIT_BACKUP_LIMITS, download)
+  const parts = planBackupParts(
+    items,
+    (outfits) => ({
+      format: BACKUP_FORMAT,
+      version: BACKUP_VERSION,
+      exportedAt,
+      tags: snapshot.tags,
+      ignoredCodes: snapshot.ignoredCodes,
+      outfits
+    }),
+    'manifest.json',
+    OUTFIT_BACKUP_LIMITS
+  )
+  const fileNames = await downloadBackupParts(
+    '无限暖暖搭配码备份_' + backupTimestamp(),
+    parts,
+    'manifest.json',
+    OUTFIT_BACKUP_LIMITS,
+    download
+  )
   return { fileNames, count: snapshot.records.length }
 }
 export function isSafeOutfitArchivePath(path: string): boolean {
-  return Boolean(path) && !path.startsWith('/') && !path.startsWith('\\') && !path.includes('\\') && !path.includes('\0') &&
-    path.split('/').every(segment => segment && segment !== '.' && segment !== '..')
+  return (
+    Boolean(path) &&
+    !path.startsWith('/') &&
+    !path.startsWith('\\') &&
+    !path.includes('\\') &&
+    !path.includes('\0') &&
+    path.split('/').every((segment) => segment && segment !== '.' && segment !== '..')
+  )
 }
 
-type BackupEntryHandler = (name: string, content: Uint8Array | null, byteLength: number) => void | Promise<void>
+type BackupEntryHandler = (
+  name: string,
+  content: Uint8Array | null,
+  byteLength: number
+) => void | Promise<void>
 
 /**
  * 顺序扫描 ZIP，并只为调用方关心的条目组装字节。读取循环会在处理队列达到上限时暂停，
@@ -60,7 +126,8 @@ async function streamBackupEntries(
   let activeHandlers = 0
   const handlerWaiters: Array<() => void> = []
   const acquireHandler = async () => {
-    if (activeHandlers >= concurrency) await new Promise<void>((resolve) => handlerWaiters.push(resolve))
+    if (activeHandlers >= concurrency)
+      await new Promise<void>((resolve) => handlerWaiters.push(resolve))
     activeHandlers += 1
   }
   const releaseHandler = () => {
@@ -75,11 +142,18 @@ async function streamBackupEntries(
       entryCount += 1
       if (entryCount > MAX_BACKUP_ENTRIES) throw new Error('Backup contains too many files')
       if (!isSafeOutfitArchivePath(entry.name)) throw new Error('Backup contains an unsafe path')
-      if (entry.name !== 'manifest.json' && (!entry.name.startsWith('images/') || imageExtension(entry.name) !== 'webp')) {
+      if (
+        entry.name !== 'manifest.json' &&
+        (!entry.name.startsWith('images/') || imageExtension(entry.name) !== 'webp')
+      ) {
         throw new Error('Backup contains an unsupported file')
       }
       if (entry.originalSize !== undefined) {
-        if (entry.originalSize > (entry.name === 'manifest.json' ? OUTFIT_BACKUP_LIMITS.manifest : MAX_IMAGE_BYTES)) throw new Error('Backup image is too large')
+        if (
+          entry.originalSize >
+          (entry.name === 'manifest.json' ? OUTFIT_BACKUP_LIMITS.manifest : MAX_IMAGE_BYTES)
+        )
+          throw new Error('Backup image is too large')
         declaredBytes += entry.originalSize
         if (declaredBytes > MAX_BACKUP_BYTES) throw new Error('Expanded backup is too large')
       }
@@ -100,7 +174,10 @@ async function streamBackupEntries(
         if (chunk?.length) {
           entryBytes += chunk.length
           expandedBytes += chunk.length
-          if (entryBytes > (entry.name === 'manifest.json' ? OUTFIT_BACKUP_LIMITS.manifest : MAX_IMAGE_BYTES)) {
+          if (
+            entryBytes >
+            (entry.name === 'manifest.json' ? OUTFIT_BACKUP_LIMITS.manifest : MAX_IMAGE_BYTES)
+          ) {
             extractionError = new Error('Backup image is too large')
             entry.terminate()
             return
@@ -132,7 +209,8 @@ async function streamBackupEntries(
             }
           })()
             .catch((taskError) => {
-              extractionError = taskError instanceof Error ? taskError : new Error('Unable to process backup')
+              extractionError =
+                taskError instanceof Error ? taskError : new Error('Unable to process backup')
             })
             .finally(() => activeTasks.delete(task))
           activeTasks.add(task)
@@ -176,84 +254,191 @@ export async function inspectOutfitBackup(file: File): Promise<BackupManifest> {
   let manifestBytes: Uint8Array | null = null
   const images = new Set<string>()
   // Validate every image transiently before any database write, without buffering the whole archive.
-  await streamBackupEntries(file, () => true, async (name, content) => {
-    if (name === 'manifest.json') { manifestBytes = content; return }
-    if (!content?.byteLength) throw new Error('Backup is missing an outfit image')
-    await prepareOutfitImage(new Blob([content], { type: 'image/webp' }), 'validation')
-    images.add(name)
-  }, IMPORT_CONCURRENCY)
+  await streamBackupEntries(
+    file,
+    () => true,
+    async (name, content) => {
+      if (name === 'manifest.json') {
+        manifestBytes = content
+        return
+      }
+      if (!content?.byteLength) throw new Error('Backup is missing an outfit image')
+      await prepareOutfitImage(new Blob([content], { type: 'image/webp' }), 'validation')
+      images.add(name)
+    },
+    IMPORT_CONCURRENCY
+  )
   if (!manifestBytes) throw new Error('Backup manifest is missing')
   const manifest = JSON.parse(strFromU8(manifestBytes)) as BackupManifest
-  if (!manifest || manifest.format !== BACKUP_FORMAT || ![1, BACKUP_VERSION].includes(manifest.version) || !Array.isArray(manifest.outfits) || !Array.isArray(manifest.tags)) throw new Error('Unsupported backup format')
+  if (
+    !manifest ||
+    manifest.format !== BACKUP_FORMAT ||
+    ![1, BACKUP_VERSION].includes(manifest.version) ||
+    !Array.isArray(manifest.outfits) ||
+    !Array.isArray(manifest.tags)
+  )
+    throw new Error('Unsupported backup format')
   for (const raw of manifest.outfits) {
-    if (!raw || typeof raw !== 'object' || typeof raw.image !== 'string' || !isSafeOutfitArchivePath(raw.image) || !/^images\/[^/]+\.webp$/i.test(raw.image)) throw new Error('Backup contains invalid outfit metadata')
+    if (
+      !raw ||
+      typeof raw !== 'object' ||
+      typeof raw.image !== 'string' ||
+      !isSafeOutfitArchivePath(raw.image) ||
+      !/^images\/[^/]+\.webp$/i.test(raw.image)
+    )
+      throw new Error('Backup contains invalid outfit metadata')
     if (!images.has(raw.image)) throw new Error('Backup is missing an outfit image')
   }
-  if (manifest.version === 2 && (!Array.isArray(manifest.ignoredCodes) || manifest.ignoredCodes.some(code => typeof code !== 'string' || !normalizeOutfitCode(code) || code.replace(/\s/g, '').length > 30))) throw new Error('outfit_ignored_codes_invalid')
+  if (
+    manifest.version === 2 &&
+    (!Array.isArray(manifest.ignoredCodes) ||
+      manifest.ignoredCodes.some(
+        (code) =>
+          typeof code !== 'string' ||
+          !normalizeOutfitCode(code) ||
+          code.replace(/\s/g, '').length > 30
+      ))
+  )
+    throw new Error('outfit_ignored_codes_invalid')
   return manifest
 }
 
 async function importBackup(backupFile: File): Promise<OutfitImportResult> {
   const manifest = await inspectOutfitBackup(backupFile)
-  let failedCount = 0, addedCount = 0, duplicateCount = 0, rejectedTagCount = 0
+  let failedCount = 0,
+    addedCount = 0,
+    duplicateCount = 0,
+    rejectedTagCount = 0
   const prepared: Array<{ record: OutfitRecord; path: string }> = []
   for (const raw of manifest.outfits) {
     try {
       if (!isSafeOutfitId(raw.id)) throw new Error('outfit_record_invalid')
-      const createdAt = typeof raw.createdAt === 'string' && Number.isFinite(Date.parse(raw.createdAt)) ? raw.createdAt : new Date().toISOString()
-      prepared.push({ path: raw.image, record: normalizeOutfitRecord({ ...raw, version: 1, image: `${raw.id}.webp`,
-        note: raw.note ?? '', createdAt, updatedAt: raw.updatedAt ?? createdAt, gameSourceId: undefined,
-        sourcePlayerId: raw.sourcePlayerId ?? /^sharecode-(\d+)-/.exec(raw.id)?.[1] }) })
-    } catch { failedCount++ }
+      const createdAt =
+        typeof raw.createdAt === 'string' && Number.isFinite(Date.parse(raw.createdAt))
+          ? raw.createdAt
+          : new Date().toISOString()
+      prepared.push({
+        path: raw.image,
+        record: normalizeOutfitRecord({
+          ...raw,
+          version: 1,
+          image: `${raw.id}.webp`,
+          note: raw.note ?? '',
+          createdAt,
+          updatedAt: raw.updatedAt ?? createdAt,
+          gameSourceId: undefined,
+          sourcePlayerId: raw.sourcePlayerId ?? /^sharecode-(\d+)-/.exec(raw.id)?.[1]
+        })
+      })
+    } catch {
+      failedCount++
+    }
   }
   await initializeOutfitTags()
   // Commit tags and ignored codes atomically. Restored records below explicitly lift their own ignore state.
-  await outfitTransaction([OUTFIT_TAGS_STORE, OUTFIT_IGNORED_CODES_STORE, OUTFITS_STORE], 'readwrite', async tx => {
-    const tags = normalizeOutfitTagList(await outfitRequest(tx.objectStore(OUTFIT_TAGS_STORE).get('default')))
-    for (const raw of manifest.tags) {
-      const tag = normalizeOutfitTag(raw)
-      if (tags.includes(tag)) continue
-      if (!isValidOutfitTag(tag) || isReservedOutfitTag(tag) || tags.length >= MAX_OUTFIT_TAGS) { rejectedTagCount++; continue }
-      tags.push(tag)
+  await outfitTransaction(
+    [OUTFIT_TAGS_STORE, OUTFIT_IGNORED_CODES_STORE, OUTFITS_STORE],
+    'readwrite',
+    async (tx) => {
+      const tags = normalizeOutfitTagList(
+        await outfitRequest(tx.objectStore(OUTFIT_TAGS_STORE).get('default'))
+      )
+      for (const raw of manifest.tags) {
+        const tag = normalizeOutfitTag(raw)
+        if (tags.includes(tag)) continue
+        if (!isValidOutfitTag(tag) || isReservedOutfitTag(tag) || tags.length >= MAX_OUTFIT_TAGS) {
+          rejectedTagCount++
+          continue
+        }
+        tags.push(tag)
+      }
+      tx.objectStore(OUTFIT_TAGS_STORE).put(tags, 'default')
+      for (const code of manifest.ignoredCodes ?? []) {
+        const normalized = normalizeOutfitCode(code)
+        if (!(await outfitRequest(tx.objectStore(OUTFITS_STORE).index('code').get(normalized))))
+          tx.objectStore(OUTFIT_IGNORED_CODES_STORE).put({ code: normalized })
+      }
     }
-    tx.objectStore(OUTFIT_TAGS_STORE).put(tags, 'default')
-    for (const code of manifest.ignoredCodes ?? []) {
-      const normalized = normalizeOutfitCode(code)
-      if (!await outfitRequest(tx.objectStore(OUTFITS_STORE).index('code').get(normalized))) tx.objectStore(OUTFIT_IGNORED_CODES_STORE).put({ code: normalized })
-    }
-  })
+  )
   const byImage = new Map<string, typeof prepared>()
   for (const item of prepared) byImage.set(item.path, [...(byImage.get(item.path) ?? []), item])
-  await streamBackupEntries(backupFile, name => byImage.has(name), async (path, bytes) => {
-    if (!bytes || !byImage.has(path)) return
-    const image = await prepareOutfitImage(new Blob([bytes], { type: 'image/webp' }), 'prepared', false)
-    for (const { record } of byImage.get(path)!) {
-      try {
-        const result = await outfitTransaction([OUTFITS_STORE, OUTFIT_IMAGES_STORE, OUTFIT_TAGS_STORE, OUTFIT_IGNORED_CODES_STORE], 'readwrite', async tx => {
-          const records = tx.objectStore(OUTFITS_STORE)
-          const duplicate = record.code ? await outfitRequest(records.index('code').get(record.code)) as OutfitRecord | undefined : undefined
-          if (duplicate) { tx.objectStore(OUTFIT_IGNORED_CODES_STORE).delete(record.code); return 'duplicate' }
-          const existing = await outfitRequest(records.get(record.id)) as OutfitRecord | undefined
-          if (!record.code && existing && !existing.code) {
-            const oldImage = await outfitRequest(tx.objectStore(OUTFIT_IMAGES_STORE).get(record.id)) as { sha256: string } | undefined
-            const { id: _id, image: _image, ...old } = normalizeOutfitRecord(existing)
-            const { id: _nextId, image: _nextImage, ...next } = { ...record, imageSize: image.size }
-            if (JSON.stringify(old) === JSON.stringify(next) && oldImage?.sha256 === image.sha256) return 'duplicate'
-          }
-          const id = existing ? createOutfitId() : record.id
-          const tags = normalizeOutfitTagList(await outfitRequest(tx.objectStore(OUTFIT_TAGS_STORE).get('default')))
-          const incoming = normalizeOutfitRecord({ ...record, id, image: `${id}.webp`, imageSize: image.size, tags: record.tags.filter(tag => tags.includes(tag)) })
-          records.put(incoming); tx.objectStore(OUTFIT_IMAGES_STORE).put({ ...image, id })
-          if (record.code) tx.objectStore(OUTFIT_IGNORED_CODES_STORE).delete(record.code)
-          return 'added'
-        })
-        if (result === 'added') addedCount++; else duplicateCount++
-      } catch { failedCount++ }
-    }
-  }, IMPORT_CONCURRENCY)
+  await streamBackupEntries(
+    backupFile,
+    (name) => byImage.has(name),
+    async (path, bytes) => {
+      if (!bytes || !byImage.has(path)) return
+      const image = await prepareOutfitImage(
+        new Blob([bytes], { type: 'image/webp' }),
+        'prepared',
+        false
+      )
+      for (const { record } of byImage.get(path)!) {
+        try {
+          const result = await outfitTransaction(
+            [OUTFITS_STORE, OUTFIT_IMAGES_STORE, OUTFIT_TAGS_STORE, OUTFIT_IGNORED_CODES_STORE],
+            'readwrite',
+            async (tx) => {
+              const records = tx.objectStore(OUTFITS_STORE)
+              const duplicate = record.code
+                ? ((await outfitRequest(records.index('code').get(record.code))) as
+                    OutfitRecord | undefined)
+                : undefined
+              if (duplicate) {
+                tx.objectStore(OUTFIT_IGNORED_CODES_STORE).delete(record.code)
+                return 'duplicate'
+              }
+              const existing = (await outfitRequest(records.get(record.id))) as
+                OutfitRecord | undefined
+              if (!record.code && existing && !existing.code) {
+                const oldImage = (await outfitRequest(
+                  tx.objectStore(OUTFIT_IMAGES_STORE).get(record.id)
+                )) as { sha256: string } | undefined
+                const { id: _id, image: _image, ...old } = normalizeOutfitRecord(existing)
+                const {
+                  id: _nextId,
+                  image: _nextImage,
+                  ...next
+                } = { ...record, imageSize: image.size }
+                if (
+                  JSON.stringify(old) === JSON.stringify(next) &&
+                  oldImage?.sha256 === image.sha256
+                )
+                  return 'duplicate'
+              }
+              const id = existing ? createOutfitId() : record.id
+              const tags = normalizeOutfitTagList(
+                await outfitRequest(tx.objectStore(OUTFIT_TAGS_STORE).get('default'))
+              )
+              const incoming = normalizeOutfitRecord({
+                ...record,
+                id,
+                image: `${id}.webp`,
+                imageSize: image.size,
+                tags: record.tags.filter((tag) => tags.includes(tag))
+              })
+              records.put(incoming)
+              tx.objectStore(OUTFIT_IMAGES_STORE).put({ ...image, id })
+              if (record.code) tx.objectStore(OUTFIT_IGNORED_CODES_STORE).delete(record.code)
+              return 'added'
+            }
+          )
+          if (result === 'added') addedCount++
+          else duplicateCount++
+        } catch {
+          failedCount++
+        }
+      }
+    },
+    IMPORT_CONCURRENCY
+  )
   const library = await readOutfitCollection()
-  return { addedCount, duplicateCount, failedCount, rejectedTagCount,
-    library: { ...library, importedSharedCount: 0, failedCount } }
+  return {
+    addedCount,
+    duplicateCount,
+    failedCount,
+    rejectedTagCount,
+    library: { ...library, importedSharedCount: 0, failedCount }
+  }
 }
 export function importOutfitBackup(backupFile: File): Promise<OutfitImportResult> {
   return withOutfitImportLock(() => importBackup(backupFile))

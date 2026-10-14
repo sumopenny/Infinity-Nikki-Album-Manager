@@ -28,12 +28,19 @@ describe('ResonanceSidebar', () => {
 
     const links = wrapper.findAll('.resonance-sidebar-link')
     expect(links.map((link) => link.text())).toEqual(['套装newer · 5星', '套装older · 4星'])
-    expect(links[0].find('img').attributes()).toMatchObject({ src: '/outfit-newer.png', alt: '', referrerpolicy: 'no-referrer' })
+    expect(links[0].find('img').attributes()).toMatchObject({
+      src: '/outfit-newer.png',
+      alt: '',
+      referrerpolicy: 'no-referrer'
+    })
     await links[0].trigger('click')
     expect(wrapper.emitted('jumpToRecord')).toEqual([['newer']])
 
     await wrapper.setProps({ language: 'en' })
-    expect(wrapper.findAll('.resonance-sidebar-link').map((link) => link.text())).toEqual(['Outfit newer · 5-star', 'Outfit older · 4-star'])
+    expect(wrapper.findAll('.resonance-sidebar-link').map((link) => link.text())).toEqual([
+      'Outfit newer · 5-star',
+      'Outfit older · 4-star'
+    ])
   })
 
   it('leaves the sidebar empty when there are no records', () => {
@@ -43,18 +50,32 @@ describe('ResonanceSidebar', () => {
 
   it('places banner order below the title and reverses the sidebar when changed', async () => {
     const wrapper = mount(ResonanceSidebar, {
-      props: { records: [record('older', '1', 4), record('newer', '2', 5)], language: 'zh', bannerOrder: 'newest' }
+      props: {
+        records: [record('older', '1', 4), record('newer', '2', 5)],
+        language: 'zh',
+        bannerOrder: 'newest'
+      }
     })
 
-    expect(wrapper.find('.sidebar-section-title').element.nextElementSibling?.classList.contains('resonance-sort-control')).toBe(true)
+    expect(
+      wrapper
+        .find('.sidebar-section-title')
+        .element.nextElementSibling?.classList.contains('resonance-sort-control')
+    ).toBe(true)
     await wrapper.find('.resonance-sort-control > button').trigger('click')
-    expect(wrapper.findAll('.resonance-sort-control [role="menuitemradio"]').map((option) => option.text()))
-      .toEqual(['最新优先', '最早优先', '全部展示', '只展示五星', '只展示四星'])
+    expect(
+      wrapper
+        .findAll('.resonance-sort-control [role="menuitemradio"]')
+        .map((option) => option.text())
+    ).toEqual(['最新优先', '最早优先', '全部展示', '只展示五星', '只展示四星'])
     await wrapper.findAll('.resonance-sort-control [role="menuitemradio"]')[1].trigger('click')
     expect(wrapper.emitted('changeBannerOrder')).toEqual([['oldest']])
 
     await wrapper.setProps({ bannerOrder: 'oldest' })
-    expect(wrapper.findAll('.resonance-sidebar-link').map((link) => link.text())).toEqual(['套装older · 4星', '套装newer · 5星'])
+    expect(wrapper.findAll('.resonance-sidebar-link').map((link) => link.text())).toEqual([
+      '套装older · 4星',
+      '套装newer · 5星'
+    ])
     expect(wrapper.find('.resonance-sort-control > button').text()).toBe('最早优先')
   })
 
@@ -66,7 +87,9 @@ describe('ResonanceSidebar', () => {
     await wrapper.findAll('.resonance-sort-control [role="menuitemradio"]')[3].trigger('click')
     expect(wrapper.emitted('changeRarityFilter')).toEqual([[5]])
     await wrapper.setProps({ rarityFilter: 5 })
-    expect(wrapper.findAll('.resonance-sidebar-link').map((link) => link.text())).toEqual(['套装five · 5星'])
+    expect(wrapper.findAll('.resonance-sidebar-link').map((link) => link.text())).toEqual([
+      '套装five · 5星'
+    ])
     expect(wrapper.find('.resonance-sort-control > button').text()).toBe('5星 · 最新优先')
 
     await wrapper.setProps({ records: [record('four', '1', 4)] })

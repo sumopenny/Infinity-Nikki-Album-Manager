@@ -1,5 +1,10 @@
 // 相册回收站：负责最近删除照片的读取、移动、恢复、永久删除和安全清空。
-import { datePartsFromTimestamp, parsePhotoDate, type PhotoItem, type RecentlyDeletedPhoto } from '../photoGrouping'
+import {
+  datePartsFromTimestamp,
+  parsePhotoDate,
+  type PhotoItem,
+  type RecentlyDeletedPhoto
+} from '../photoGrouping'
 import { formatFileSize, releasePhotoUrl } from './photoUrl'
 import { runWithConcurrency } from '../concurrency'
 import { readTrashNotes, normalizePhotoNote, transferPhotoNote } from './photoMetadata'
@@ -10,9 +15,16 @@ const TRASH_FILE_PREFIX = 'inam-v1__'
 const FILE_COPY_CONCURRENCY = 27
 const FILE_DELETE_CONCURRENCY = 10
 
-export interface TrashOperationResult<T> { succeeded: T[]; failedNames: string[] }
-export interface MoveToTrashResult extends TrashOperationResult<PhotoItem> { movedPhotos: RecentlyDeletedPhoto[] }
-export interface RestoreTrashResult extends TrashOperationResult<RecentlyDeletedPhoto> { restoredPhotos: PhotoItem[] }
+export interface TrashOperationResult<T> {
+  succeeded: T[]
+  failedNames: string[]
+}
+export interface MoveToTrashResult extends TrashOperationResult<PhotoItem> {
+  movedPhotos: RecentlyDeletedPhoto[]
+}
+export interface RestoreTrashResult extends TrashOperationResult<RecentlyDeletedPhoto> {
+  restoredPhotos: PhotoItem[]
+}
 
 function isImageFile(fileName: string): boolean {
   return IMAGE_EXTENSIONS.has(fileName.split('.').pop()?.toLowerCase() ?? '')
@@ -51,49 +63,55 @@ export async function listRecentlyDeleted(
     candidates.push({ trashName, fileHandle: handle as FileSystemFileHandle, metadata })
   }
 
-  const scannedPhotos = await runWithConcurrency(candidates, async ({ trashName, fileHandle, metadata }): Promise<RecentlyDeletedPhoto | null> => {
-    let size: number | null = null
-    let lastModified: number | undefined
-    try {
-      const file = await fileHandle.getFile()
-      size = file.size
-      lastModified = file.lastModified
-    } catch {
-      // 单个文件大小读取失败不影响其余回收照片展示。
-    }
-    const parsed = parsePhotoDate(metadata.originalName) ??
-      (lastModified === undefined ? null : datePartsFromTimestamp(lastModified))
-    if (!parsed) return null
-
-    let noteKey = `trash/${trashName}`
-    // 旧版备注仍按原名保存；原名被新照片占用时不能把新照片的备注挪走。
-    if (!Object.hasOwn(notes, noteKey)) {
-      try { await albumDirectoryHandle.getFileHandle(metadata.originalName) }
-      catch (error) {
-        if (!isMissingDirectoryError(error)) throw error
-        noteKey = metadata.originalName
+  const scannedPhotos = await runWithConcurrency(
+    candidates,
+    async ({ trashName, fileHandle, metadata }): Promise<RecentlyDeletedPhoto | null> => {
+      let size: number | null = null
+      let lastModified: number | undefined
+      try {
+        const file = await fileHandle.getFile()
+        size = file.size
+        lastModified = file.lastModified
+      } catch {
+        // 单个文件大小读取失败不影响其余回收照片展示。
       }
-    }
+      const parsed =
+        parsePhotoDate(metadata.originalName) ??
+        (lastModified === undefined ? null : datePartsFromTimestamp(lastModified))
+      if (!parsed) return null
 
-    return {
-      id: `trash:${trashName}`,
-      name: metadata.originalName,
-      originalName: metadata.originalName,
-      trashName,
-      deletedAt: metadata.deletedAt,
-      wasFavorite: metadata.wasFavorite,
-      size,
-      url: null,
-      fileSizeText: size === null ? '--' : formatFileSize(size),
-      fileHandle,
-      directoryHandle: trashDirectoryHandle,
-      lastModified,
-      note: normalizePhotoNote(notes[noteKey]?.note),
-      noteKey,
-      albumDirectoryHandle,
-      ...parsed
-    } satisfies RecentlyDeletedPhoto
-  }, { concurrency: 6 })
+      let noteKey = `trash/${trashName}`
+      // 旧版备注仍按原名保存；原名被新照片占用时不能把新照片的备注挪走。
+      if (!Object.hasOwn(notes, noteKey)) {
+        try {
+          await albumDirectoryHandle.getFileHandle(metadata.originalName)
+        } catch (error) {
+          if (!isMissingDirectoryError(error)) throw error
+          noteKey = metadata.originalName
+        }
+      }
+
+      return {
+        id: `trash:${trashName}`,
+        name: metadata.originalName,
+        originalName: metadata.originalName,
+        trashName,
+        deletedAt: metadata.deletedAt,
+        wasFavorite: metadata.wasFavorite,
+        size,
+        url: null,
+        fileSizeText: size === null ? '--' : formatFileSize(size),
+        fileHandle,
+        directoryHandle: trashDirectoryHandle,
+        lastModified,
+        note: normalizePhotoNote(notes[noteKey]?.note),
+        noteKey,
+        albumDirectoryHandle,
+        ...parsed
+      } satisfies RecentlyDeletedPhoto
+    },
+    { concurrency: 6 }
+  )
 
   return scannedPhotos
     .filter((photo): photo is RecentlyDeletedPhoto => Boolean(photo))
@@ -115,50 +133,62 @@ export async function movePhotosToRecentlyDeleted(
   if (!photos.length) return { succeeded, movedPhotos, failedNames }
 
   const albumDirectoryHandle = photos[0].directoryHandle
-  const trashDirectoryHandle = await albumDirectoryHandle.getDirectoryHandle(TRASH_DIRECTORY_NAME, { create: true })
+  const trashDirectoryHandle = await albumDirectoryHandle.getDirectoryHandle(TRASH_DIRECTORY_NAME, {
+    create: true
+  })
 
-  const results = await runWithConcurrency(photos, async (photo) => {
-    const deletedAt = Date.now()
-    const wasFavorite = favoriteIds.has(photo.id)
-    const trashName = createTrashFileName(photo, wasFavorite, deletedAt)
-    try {
-      const sourceFile = await photo.fileHandle.getFile()
-      const targetHandle = await trashDirectoryHandle.getFileHandle(trashName, { create: true })
-      let note = photo.note ?? ''
+  const results = await runWithConcurrency(
+    photos,
+    async (photo) => {
+      const deletedAt = Date.now()
+      const wasFavorite = favoriteIds.has(photo.id)
+      const trashName = createTrashFileName(photo, wasFavorite, deletedAt)
       try {
-        await copyFileToHandle(sourceFile, targetHandle)
-        note = await transferPhotoNote(albumDirectoryHandle, photo.name, `trash/${trashName}`, '',
-          () => photo.directoryHandle.removeEntry(photo.name))
-      } catch (error) {
-        if (!(error && typeof error === 'object' && 'preserveTarget' in error)) await rollbackFile(trashDirectoryHandle, trashName)
-        throw error
+        const sourceFile = await photo.fileHandle.getFile()
+        const targetHandle = await trashDirectoryHandle.getFileHandle(trashName, { create: true })
+        let note = photo.note ?? ''
+        try {
+          await copyFileToHandle(sourceFile, targetHandle)
+          note = await transferPhotoNote(
+            albumDirectoryHandle,
+            photo.name,
+            `trash/${trashName}`,
+            '',
+            () => photo.directoryHandle.removeEntry(photo.name)
+          )
+        } catch (error) {
+          if (!(error && typeof error === 'object' && 'preserveTarget' in error))
+            await rollbackFile(trashDirectoryHandle, trashName)
+          throw error
+        }
+        releasePhotoUrl(photo)
+        return {
+          source: photo,
+          moved: {
+            ...photo,
+            note,
+            noteKey: `trash/${trashName}`,
+            albumDirectoryHandle,
+            id: `trash:${trashName}`,
+            url: null,
+            fileSize: sourceFile.size,
+            fileSizeText: formatFileSize(sourceFile.size),
+            lastModified: sourceFile.lastModified,
+            fileHandle: targetHandle,
+            directoryHandle: trashDirectoryHandle,
+            trashName,
+            originalName: photo.name,
+            deletedAt,
+            wasFavorite,
+            size: sourceFile.size
+          } satisfies RecentlyDeletedPhoto
+        }
+      } catch {
+        return { source: photo, moved: null }
       }
-      releasePhotoUrl(photo)
-      return {
-        source: photo,
-        moved: {
-          ...photo,
-          note,
-          noteKey: `trash/${trashName}`,
-          albumDirectoryHandle,
-          id: `trash:${trashName}`,
-          url: null,
-          fileSize: sourceFile.size,
-          fileSizeText: formatFileSize(sourceFile.size),
-          lastModified: sourceFile.lastModified,
-          fileHandle: targetHandle,
-          directoryHandle: trashDirectoryHandle,
-          trashName,
-          originalName: photo.name,
-          deletedAt,
-          wasFavorite,
-          size: sourceFile.size
-        } satisfies RecentlyDeletedPhoto
-      }
-    } catch {
-      return { source: photo, moved: null }
-    }
-  }, { concurrency: FILE_COPY_CONCURRENCY })
+    },
+    { concurrency: FILE_COPY_CONCURRENCY }
+  )
 
   for (const result of results) {
     if (result.moved) {
@@ -217,52 +247,67 @@ export async function restoreRecentlyDeletedPhotos(
   const failedNames: string[] = []
   const reservedNames = new Set<string>()
 
-  const results = await runWithConcurrency(photos, async (photo) => {
-    let restoreName = ''
-    try {
-      restoreName = await findAvailableRestoreName(albumDirectoryHandle, photo.originalName, reservedNames)
-      const sourceFile = await photo.fileHandle.getFile()
-      const targetHandle = await albumDirectoryHandle.getFileHandle(restoreName, { create: true })
-      let note = photo.note ?? ''
+  const results = await runWithConcurrency(
+    photos,
+    async (photo) => {
+      let restoreName = ''
       try {
-        await copyFileToHandle(sourceFile, targetHandle)
-        const noteKey = restoreName !== photo.originalName && photo.noteKey === photo.originalName
-          ? `trash/${photo.trashName}`
-          : photo.noteKey ?? (restoreName === photo.originalName ? photo.originalName : `trash/${photo.trashName}`)
-        note = await transferPhotoNote(albumDirectoryHandle, noteKey, restoreName, note,
-          () => photo.directoryHandle.removeEntry(photo.trashName))
-      } catch (error) {
-        if (!(error && typeof error === 'object' && 'preserveTarget' in error)) await rollbackFile(albumDirectoryHandle, restoreName)
-        throw error
-      }
+        restoreName = await findAvailableRestoreName(
+          albumDirectoryHandle,
+          photo.originalName,
+          reservedNames
+        )
+        const sourceFile = await photo.fileHandle.getFile()
+        const targetHandle = await albumDirectoryHandle.getFileHandle(restoreName, { create: true })
+        let note = photo.note ?? ''
+        try {
+          await copyFileToHandle(sourceFile, targetHandle)
+          const noteKey =
+            restoreName !== photo.originalName && photo.noteKey === photo.originalName
+              ? `trash/${photo.trashName}`
+              : (photo.noteKey ??
+                (restoreName === photo.originalName
+                  ? photo.originalName
+                  : `trash/${photo.trashName}`))
+          note = await transferPhotoNote(albumDirectoryHandle, noteKey, restoreName, note, () =>
+            photo.directoryHandle.removeEntry(photo.trashName)
+          )
+        } catch (error) {
+          if (!(error && typeof error === 'object' && 'preserveTarget' in error))
+            await rollbackFile(albumDirectoryHandle, restoreName)
+          throw error
+        }
 
-      const parsed = parsePhotoDate(restoreName) ?? datePartsFromTimestamp(sourceFile.lastModified) ?? {
-        dateKey: photo.dateKey,
-        year: photo.year,
-        monthDay: photo.monthDay,
-        displayDate: photo.displayDate,
-        timeText: photo.timeText,
-        timestamp: photo.timestamp
+        const parsed = parsePhotoDate(restoreName) ??
+          datePartsFromTimestamp(sourceFile.lastModified) ?? {
+            dateKey: photo.dateKey,
+            year: photo.year,
+            monthDay: photo.monthDay,
+            displayDate: photo.displayDate,
+            timeText: photo.timeText,
+            timestamp: photo.timestamp
+          }
+        const restoredPhoto: PhotoItem = {
+          ...parsed,
+          id: `${parsed.dateKey}-${parsed.timeText}-${restoreName}`,
+          name: restoreName,
+          url: null,
+          fileSizeText: formatFileSize(sourceFile.size),
+          fileSize: sourceFile.size,
+          lastModified: sourceFile.lastModified,
+          fileHandle: targetHandle,
+          directoryHandle: albumDirectoryHandle,
+          note
+        }
+        releasePhotoUrl(photo)
+        return { source: photo, restored: restoredPhoto }
+      } catch {
+        if (restoreName) reservedNames.delete(restoreName)
+        return { source: photo, restored: null }
       }
-      const restoredPhoto: PhotoItem = {
-        ...parsed,
-        id: `${parsed.dateKey}-${parsed.timeText}-${restoreName}`,
-        name: restoreName,
-        url: null,
-        fileSizeText: formatFileSize(sourceFile.size),
-        fileSize: sourceFile.size,
-        lastModified: sourceFile.lastModified,
-        fileHandle: targetHandle,
-        directoryHandle: albumDirectoryHandle,
-        note
-      }
-      releasePhotoUrl(photo)
-      return { source: photo, restored: restoredPhoto }
-    } catch {
-      if (restoreName) reservedNames.delete(restoreName)
-      return { source: photo, restored: null }
-    }
-  }, { concurrency: FILE_COPY_CONCURRENCY })
+    },
+    { concurrency: FILE_COPY_CONCURRENCY }
+  )
 
   for (const result of results) {
     if (result.restored) {
@@ -287,15 +332,19 @@ export async function permanentlyDeleteRecentlyDeleted(
   const succeeded: RecentlyDeletedPhoto[] = []
   const failedNames: string[] = []
 
-  const results = await runWithConcurrency(photos, async (photo) => {
-    try {
-      await photo.directoryHandle.removeEntry(photo.trashName)
-      releasePhotoUrl(photo)
-      return { photo, succeeded: true }
-    } catch {
-      return { photo, succeeded: false }
-    }
-  }, { concurrency: FILE_DELETE_CONCURRENCY })
+  const results = await runWithConcurrency(
+    photos,
+    async (photo) => {
+      try {
+        await photo.directoryHandle.removeEntry(photo.trashName)
+        releasePhotoUrl(photo)
+        return { photo, succeeded: true }
+      } catch {
+        return { photo, succeeded: false }
+      }
+    },
+    { concurrency: FILE_DELETE_CONCURRENCY }
+  )
 
   for (const result of results) {
     if (result.succeeded) succeeded.push(result.photo)
@@ -303,12 +352,17 @@ export async function permanentlyDeleteRecentlyDeleted(
   }
 
   // 文件仍按十并发删除；之后一次清理各相册的回收备注，不让写锁串行化文件 IO。
-  const albums = new Set(succeeded.map(photo => photo.albumDirectoryHandle).filter(Boolean))
+  const albums = new Set(succeeded.map((photo) => photo.albumDirectoryHandle).filter(Boolean))
   for (const album of albums) {
-    const keys = succeeded.filter(photo => photo.albumDirectoryHandle === album)
-      .map(photo => photo.noteKey ?? `trash/${photo.trashName}`).filter(key => key.startsWith('trash/'))
-    try { await transferPhotoNote(album!, keys, null, '', async () => undefined) }
-    catch { console.warn('[trash]', { operation: 'cleanupNotes', category: 'metadataWriteFailed' }) }
+    const keys = succeeded
+      .filter((photo) => photo.albumDirectoryHandle === album)
+      .map((photo) => photo.noteKey ?? `trash/${photo.trashName}`)
+      .filter((key) => key.startsWith('trash/'))
+    try {
+      await transferPhotoNote(album!, keys, null, '', async () => undefined)
+    } catch {
+      console.warn('[trash]', { operation: 'cleanupNotes', category: 'metadataWriteFailed' })
+    }
   }
 
   return { succeeded, failedNames }
@@ -335,10 +389,12 @@ export async function clearRecentlyDeleted(
     }
     if (!containsUnknownEntry && entryCount === expectedNames.size) {
       // 旧记录可能引用原名；原名后来被新照片占用时，不能清掉新照片的备注。
-      const noteKeys = photos.map(photo => photo.noteKey ?? `trash/${photo.trashName}`)
-        .filter(key => key.startsWith('trash/'))
-      await transferPhotoNote(albumDirectoryHandle, noteKeys, null, '',
-        () => albumDirectoryHandle.removeEntry(TRASH_DIRECTORY_NAME, { recursive: true }))
+      const noteKeys = photos
+        .map((photo) => photo.noteKey ?? `trash/${photo.trashName}`)
+        .filter((key) => key.startsWith('trash/'))
+      await transferPhotoNote(albumDirectoryHandle, noteKeys, null, '', () =>
+        albumDirectoryHandle.removeEntry(TRASH_DIRECTORY_NAME, { recursive: true })
+      )
       for (const photo of photos) releasePhotoUrl(photo)
       return { succeeded: [...photos], failedNames: [] }
     }
@@ -355,7 +411,10 @@ export async function clearRecentlyDeleted(
  * 返回：包含版本、删除时间、收藏状态和原文件名的回收文件名。
  */
 function createTrashFileName(photo: PhotoItem, wasFavorite: boolean, deletedAt: number): string {
-  const randomId = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).slice(2)
+  const randomId =
+    typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2)
   return `${TRASH_FILE_PREFIX}${deletedAt}__${wasFavorite ? '1' : '0'}__${randomId}__${photo.name}`
 }
 
@@ -364,7 +423,9 @@ function createTrashFileName(photo: PhotoItem, wasFavorite: boolean, deletedAt: 
  * 参数：trashName 为 trash 目录中的真实文件名。
  * 返回：可恢复元数据；非应用文件返回 null。
  */
-function parseTrashFileName(trashName: string): { originalName: string; deletedAt: number; wasFavorite: boolean } | null {
+function parseTrashFileName(
+  trashName: string
+): { originalName: string; deletedAt: number; wasFavorite: boolean } | null {
   const match = trashName.match(/^inam-v1__(\d+)__([01])__(?:[^_]|_(?!_))+__(.+)$/)
   if (!match) return null
 
@@ -377,7 +438,10 @@ function parseTrashFileName(trashName: string): { originalName: string; deletedA
  * 将文件完整写入目标句柄，写入失败时中止流。
  * 参数：sourceFile 为源文件，targetHandle 为目标文件句柄。
  */
-async function copyFileToHandle(sourceFile: File, targetHandle: FileSystemFileHandle): Promise<void> {
+async function copyFileToHandle(
+  sourceFile: File,
+  targetHandle: FileSystemFileHandle
+): Promise<void> {
   const writable = await targetHandle.createWritable()
   try {
     await writable.write(sourceFile)
@@ -396,7 +460,10 @@ async function copyFileToHandle(sourceFile: File, targetHandle: FileSystemFileHa
  * 尝试移除一次失败操作留下的目标文件。
  * 参数：directoryHandle 为目标目录，fileName 为待回滚文件名。
  */
-async function rollbackFile(directoryHandle: FileSystemDirectoryHandle, fileName: string): Promise<void> {
+async function rollbackFile(
+  directoryHandle: FileSystemDirectoryHandle,
+  fileName: string
+): Promise<void> {
   try {
     await directoryHandle.removeEntry(fileName)
   } catch {

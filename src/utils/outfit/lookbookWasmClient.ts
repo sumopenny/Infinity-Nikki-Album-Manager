@@ -8,9 +8,7 @@ interface LookbookWasmExports extends WebAssembly.Exports {
   decodeShareCodePathId(codePointer: number): number
 }
 
-export type LookbookWasmResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; errorCode: string }
+export type LookbookWasmResult<T> = { ok: true; value: T } | { ok: false; errorCode: string }
 
 let exportsPromise: Promise<LookbookWasmExports> | null = null
 
@@ -37,10 +35,9 @@ export async function decodeLookbookPayload<T>(
   payload: string
 ): Promise<LookbookWasmResult<T>> {
   const wasm = await getExports()
-  const result = wasm.__getString(wasm.decodeOutfitPayload(
-    wasm.__newString(code),
-    wasm.__newString(payload)
-  ))
+  const result = wasm.__getString(
+    wasm.decodeOutfitPayload(wasm.__newString(code), wasm.__newString(payload))
+  )
   return JSON.parse(result) as LookbookWasmResult<T>
 }
 

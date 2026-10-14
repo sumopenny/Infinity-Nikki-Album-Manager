@@ -3,11 +3,10 @@ import type { LocaleMessages } from '../types'
 import { enDisplayDate, enMonthDay, zhDisplayDate, zhMonthDay } from '../formatters'
 
 export const dateZh: LocaleMessages['date'] = {
-      displayDate: zhDisplayDate,
-      monthDay: zhMonthDay
-    }
+  displayDate: zhDisplayDate,
+  monthDay: zhMonthDay
+}
 export const dateEn: LocaleMessages['date'] = {
-      displayDate: enDisplayDate,
-      monthDay: enMonthDay
-    }
-
+  displayDate: enDisplayDate,
+  monthDay: enMonthDay
+}

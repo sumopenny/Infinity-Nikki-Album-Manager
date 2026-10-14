@@ -23,14 +23,7 @@ if (-not (Test-Path $iconPath)) {
   throw "未找到图标文件：$iconPath"
 }
 
-if (Test-Path -LiteralPath $launcherPath) {
-  [IO.File]::Delete($launcherPath)
-}
-
-if (Test-Path -LiteralPath $legacyLauncherPath) {
-  [IO.File]::Delete($legacyLauncherPath)
-}
-
+# 编译到临时文件；编译失败时保留原有可用启动器。
 & $cscPath /nologo /target:winexe /platform:anycpu /win32icon:"$iconPath" /reference:System.Windows.Forms.dll /out:"$outputPath" "$sourcePath"
 if ($LASTEXITCODE -ne 0) {
   throw 'Launcher compilation failed.'
@@ -40,10 +33,16 @@ if (-not (Test-Path -LiteralPath $outputPath)) {
   throw "未生成临时启动器：$outputPath"
 }
 
+# 已有启动器使用原子替换，避免删除旧文件后移动失败导致启动入口丢失。
 if (Test-Path -LiteralPath $launcherPath) {
-  [IO.File]::Delete($launcherPath)
+  # NullString 避免 PowerShell 将 $null 转成空路径字符串。
+  [IO.File]::Replace($outputPath, $launcherPath, [NullString]::Value)
+} else {
+  Move-Item -LiteralPath $outputPath -Destination $launcherPath
 }
 
-Move-Item -LiteralPath $outputPath -Destination $launcherPath
+if (Test-Path -LiteralPath $legacyLauncherPath) {
+  [IO.File]::Delete($legacyLauncherPath)
+}
 
 Write-Host "已生成：$launcherPath"

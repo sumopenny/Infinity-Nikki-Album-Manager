@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { PHOTO_PARAM_RANGES, photoFocalLengthDisplay, rawFocalLengthDisplay, sliderPercent } from '../../src/utils/photo-params/slider'
+import {
+  PHOTO_PARAM_RANGES,
+  photoFocalLengthDisplay,
+  rawFocalLengthDisplay,
+  sliderPercent
+} from '../../src/utils/photo-params/slider'
 
 describe('photo parameter slider ranges', () => {
   it('maps signed values around zero to the upstream slider midpoint', () => {

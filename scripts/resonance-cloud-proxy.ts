@@ -19,8 +19,12 @@ export function resonanceCloudProxy(target: string): ProxyOptions {
         // HTTP 开发环境仅移除共鸣 Cookie 的 Secure；HttpOnly/SameSite 及线上响应不变。
         if ((incoming.socket as TLSSocket).encrypted) return
         const cookies = response.headers['set-cookie']
-        if (cookies) response.headers['set-cookie'] = cookies.map(cookie =>
-          cookie.startsWith('resonance_session=') ? cookie.replace(/;\s*Secure(?=;|$)/gi, '') : cookie)
+        if (cookies)
+          response.headers['set-cookie'] = cookies.map((cookie) =>
+            cookie.startsWith('resonance_session=')
+              ? cookie.replace(/;\s*Secure(?=;|$)/gi, '')
+              : cookie
+          )
       })
     }
   }

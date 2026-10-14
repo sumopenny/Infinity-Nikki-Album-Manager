@@ -32,12 +32,17 @@ interface HomeSchemeParseCache {
 function isCache(value: unknown, code: string): value is HomeSchemeParseCache {
   if (!value || typeof value !== 'object') return false
   const item = value as Partial<HomeSchemeParseCache>
-  return item.code === code && item.parserVersion === HOME_SCHEME_PARSER_VERSION &&
-    typeof item.cachedAt === 'number' && Boolean(item.result && item.result.code === code)
+  return (
+    item.code === code &&
+    item.parserVersion === HOME_SCHEME_PARSER_VERSION &&
+    typeof item.cachedAt === 'number' &&
+    Boolean(item.result && item.result.code === code)
+  )
 }
 
 function toResult(code: string, server: number, value: HomeBuildWireData): HomeSchemeParseResult {
-  if (value.TemplateType !== 0 && value.TemplateType !== 1) throw new Error('template_type_unsupported')
+  if (value.TemplateType !== 0 && value.TemplateType !== 1)
+    throw new Error('template_type_unsupported')
   return {
     code,
     name: value.Name,
@@ -51,7 +56,10 @@ function toResult(code: string, server: number, value: HomeBuildWireData): HomeS
 }
 
 /** 先查带解析器版本的本地缓存；未命中时通过同源代理取二进制并交给 WASM。 */
-export async function parseHomeScheme(codeInput: string, signal?: AbortSignal): Promise<HomeSchemeParseResult> {
+export async function parseHomeScheme(
+  codeInput: string,
+  signal?: AbortSignal
+): Promise<HomeSchemeParseResult> {
   const generation = cacheGeneration()
   const code = codeInput.replace(/\s/g, '')
   const route = await decodeHomeBuildShareCode(code)
@@ -72,9 +80,11 @@ export async function parseHomeScheme(codeInput: string, signal?: AbortSignal): 
   if (!response.ok) {
     let code = `home_build_http_${response.status}`
     try {
-      const error = await response.json() as { errorCode?: unknown }
+      const error = (await response.json()) as { errorCode?: unknown }
       if (typeof error.errorCode === 'string') code = error.errorCode
-    } catch { /* 非 JSON 响应使用 HTTP 状态码。 */ }
+    } catch {
+      /* 非 JSON 响应使用 HTTP 状态码。 */
+    }
     throw new Error(code)
   }
 
@@ -87,6 +97,8 @@ export async function parseHomeScheme(codeInput: string, signal?: AbortSignal): 
     cachedAt: Date.now(),
     parserVersion: HOME_SCHEME_PARSER_VERSION
   }
-  await persistCacheIfCurrent(generation, () => saveHomeSchemeParseResult(code, cache)).catch(() => undefined)
+  await persistCacheIfCurrent(generation, () => saveHomeSchemeParseResult(code, cache)).catch(
+    () => undefined
+  )
   return result
 }

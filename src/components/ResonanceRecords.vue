@@ -43,10 +43,7 @@ import {
   resonanceBookmarkScript,
   resonanceConsoleScript
 } from '../utils/resonance/resonanceScripts'
-import {
-  loadResonanceRecords,
-  saveResonanceRecords
-} from '../utils/resonance/resonanceStorage'
+import { loadResonanceRecords, saveResonanceRecords } from '../utils/resonance/resonanceStorage'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { ResonanceLocalizedName, ResonanceRecord } from '../utils/resonance/resonanceTypes'
 
@@ -106,10 +103,11 @@ watch(preview, async (result) => {
   await nextTick()
   if (!showAddDialog.value || preview.value !== result) return
   const body = dialogRef.value?.querySelector<HTMLElement>('.resonance-import-body')
-  if (body) body.scrollTo({
-    top: body.scrollHeight,
-    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
-  })
+  if (body)
+    body.scrollTo({
+      top: body.scrollHeight,
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
+    })
 })
 let previousActiveElement: HTMLElement | null = null
 let activeNoticeId: string | null = null
@@ -479,6 +477,11 @@ async function reload() {
 }
 onMounted(reload)
 defineExpose({ reload })
+/** 云端恢复后同步列表并重置套数切换状态。 */
+function applyCloudRecords(restored: ResonanceRecord[]) {
+  records.value = restored
+  selectedSet.value = {}
+}
 </script>
 
 <template>
@@ -488,18 +491,55 @@ defineExpose({ reload })
         <p class="eyebrow">RESONANCE</p>
         <h2 id="resonance-title">{{ t.title }}</h2>
       </div>
-      <CollectionActions persistent-secondary :mobile-target="mobileActionsTarget" class="resonance-actions" :label="language === 'zh' ? '共鸣操作' : 'Resonance actions'"><button class="primary-button" type="button" :aria-label="t.addData" :title="t.addData" :disabled="disabled || cloudOpen" @click="openDialog"><Plus :size="16" aria-hidden="true" /><span class="collection-action-label">{{ t.addData }}</span></button><template #secondary>
-        <ResonanceCloudActions :language="language" :disabled="disabled || showAddDialog || showClearConfirm" @lock="cloudOpen = $event" @restored="records = $event; selectedSet = {}" @notice="(message, tone) => notify('cloud-' + tone, message, tone)" />
-        <button type="button" :disabled="disabled || cloudOpen || !records.length || clearing" @click="requestClearRecords"><Trash2 :size="16" aria-hidden="true" />{{ t.clearRecords }}</button>
-        <button type="button" :disabled="disabled || cloudOpen || !records.length" @click="exportRecords"><Upload :size="16" aria-hidden="true" />{{ t.exportData }}</button>
-
-</template></CollectionActions>
+      <CollectionActions
+        persistent-secondary
+        :mobile-target="mobileActionsTarget"
+        class="resonance-actions"
+        :label="language === 'zh' ? '共鸣操作' : 'Resonance actions'"
+        ><button
+          class="primary-button"
+          type="button"
+          :aria-label="t.addData"
+          :title="t.addData"
+          :disabled="disabled || cloudOpen"
+          @click="openDialog"
+          ><Plus :size="16" aria-hidden="true" /><span class="collection-action-label">{{
+            t.addData
+          }}</span></button
+        ><template #secondary>
+          <ResonanceCloudActions
+            :language="language"
+            :disabled="disabled || showAddDialog || showClearConfirm"
+            @lock="cloudOpen = $event"
+            @restored="applyCloudRecords"
+            @notice="(message, tone) => notify('cloud-' + tone, message, tone)"
+          />
+          <button
+            type="button"
+            :disabled="disabled || cloudOpen || !records.length || clearing"
+            @click="requestClearRecords"
+            ><Trash2 :size="16" aria-hidden="true" />{{ t.clearRecords }}</button
+          >
+          <button
+            type="button"
+            :disabled="disabled || cloudOpen || !records.length"
+            @click="exportRecords"
+            ><Upload :size="16" aria-hidden="true" />{{ t.exportData }}</button
+          >
+        </template></CollectionActions
+      >
     </header>
 
     <div v-if="!records.length" class="resonance-empty">
       <h3>{{ t.emptyTitle }}</h3>
       <p>{{ t.emptyDescription }}</p>
-      <button class="primary-button desktop-only" type="button" :disabled="disabled || cloudOpen" @click="openDialog"><Plus :size="16" aria-hidden="true" />{{ t.addData }}</button>
+      <button
+        class="primary-button desktop-only"
+        type="button"
+        :disabled="disabled || cloudOpen"
+        @click="openDialog"
+        ><Plus :size="16" aria-hidden="true" />{{ t.addData }}</button
+      >
     </div>
 
     <div v-else-if="!sortedRecords.length" class="resonance-empty">
@@ -507,25 +547,55 @@ defineExpose({ reload })
     </div>
 
     <div v-else class="resonance-list">
-      <article v-for="record in sortedRecords" :id="`resonance-record-${record.id}`" :key="record.id" class="resonance-record">
+      <article
+        v-for="record in sortedRecords"
+        :id="`resonance-record-${record.id}`"
+        :key="record.id"
+        class="resonance-record"
+      >
         <div class="resonance-record-heading">
           <div class="resonance-record-title-row">
-            <h3 :title="`${displayName(record.outfitName)} ${t.rarity(record.rarity)}`">{{ displayName(record.outfitName) }} {{ t.rarity(record.rarity) }}</h3>
-            <span class="resonance-banner-name" :title="displayName(record.bannerName)">{{ displayName(record.bannerName) }}</span>
+            <h3 :title="`${displayName(record.outfitName)} ${t.rarity(record.rarity)}`"
+              >{{ displayName(record.outfitName) }} {{ t.rarity(record.rarity) }}</h3
+            >
+            <span class="resonance-banner-name" :title="displayName(record.bannerName)">{{
+              displayName(record.bannerName)
+            }}</span>
           </div>
-          <p>{{ totalPullsLabel(record) }} <span aria-hidden="true">|</span> {{ t.average(outfitPulls(record).average.toFixed(1)) }}</p>
+          <p
+            >{{ totalPullsLabel(record) }} <span aria-hidden="true">|</span>
+            {{ t.average(outfitPulls(record).average.toFixed(1)) }}</p
+          >
         </div>
         <div class="resonance-record-body">
-          <div class="resonance-outfit-image"><img :src="record.outfitImageUrl" :alt="displayName(record.outfitName)" referrerpolicy="no-referrer" @error="hideBrokenImage" /></div>
+          <div class="resonance-outfit-image"
+            ><img
+              :src="record.outfitImageUrl"
+              :alt="displayName(record.outfitName)"
+              referrerpolicy="no-referrer"
+              @error="hideBrokenImage"
+          /></div>
           <div class="resonance-parts">
             <div
               v-for="part in sortResonanceParts(currentSet(record).parts)"
               :key="part.id"
               class="resonance-part"
-              :class="{ 'is-even-banner': Number(record.bannerId) % 2 === 0, 'is-missing': part.pullNumber === 0 && !part.manual }"
+              :class="{
+                'is-even-banner': Number(record.bannerId) % 2 === 0,
+                'is-missing': part.pullNumber === 0 && !part.manual
+              }"
             >
-              <img :src="getResonancePartIconUrl(part.id)" :alt="displayName(part.name)" referrerpolicy="no-referrer" @error="hideBrokenImage" />
-              <span class="resonance-pull-number" :class="{ missing: part.pullNumber === 0 && !part.manual }">{{ part.manual ? '*' : part.pullNumber }}</span>
+              <img
+                :src="getResonancePartIconUrl(part.id)"
+                :alt="displayName(part.name)"
+                referrerpolicy="no-referrer"
+                @error="hideBrokenImage"
+              />
+              <span
+                class="resonance-pull-number"
+                :class="{ missing: part.pullNumber === 0 && !part.manual }"
+                >{{ part.manual ? '*' : part.pullNumber }}</span
+              >
             </div>
           </div>
         </div>
@@ -549,24 +619,57 @@ defineExpose({ reload })
           <section ref="dialogRef" class="dialog-panel resonance-import-panel">
             <header class="resonance-import-header">
               <h2 id="resonance-import-title">{{ t.addTitle }}</h2>
-              <button type="button" :aria-label="t.close" :title="t.close" :disabled="confirming" @click="closeDialog">
+              <button
+                type="button"
+                :aria-label="t.close"
+                :title="t.close"
+                :disabled="confirming"
+                @click="closeDialog"
+              >
                 <X :size="19" aria-hidden="true" />
               </button>
             </header>
 
             <div class="resonance-import-body">
               <div class="resonance-choice-row" role="group" :aria-label="t.importMethod">
-                <button type="button" class="resonance-choice" :aria-pressed="importMethod === 'pearpal'" @click="selectImportMethod('pearpal')">{{ t.fromPearpal }}</button>
-                <button type="button" class="resonance-choice" :aria-pressed="importMethod === 'file'" @click="selectImportMethod('file')">{{ t.fromFile }}</button>
+                <button
+                  type="button"
+                  class="resonance-choice"
+                  :aria-pressed="importMethod === 'pearpal'"
+                  @click="selectImportMethod('pearpal')"
+                  >{{ t.fromPearpal }}</button
+                >
+                <button
+                  type="button"
+                  class="resonance-choice"
+                  :aria-pressed="importMethod === 'file'"
+                  @click="selectImportMethod('file')"
+                  >{{ t.fromFile }}</button
+                >
               </div>
-              <section v-if="importMethod === 'file'" class="parse-tools-section resonance-info-card resonance-file-card">
+              <section
+                v-if="importMethod === 'file'"
+                class="parse-tools-section resonance-info-card resonance-file-card"
+              >
                 <p>{{ t.fileDescription }}</p>
                 <div class="resonance-file-picker">
-                  <input ref="fileInput" class="visually-hidden" type="file" accept=".json,application/json" :aria-label="t.chooseFile" @change="selectFile" />
+                  <input
+                    ref="fileInput"
+                    class="visually-hidden"
+                    type="file"
+                    accept=".json,application/json"
+                    :aria-label="t.chooseFile"
+                    @change="selectFile"
+                  />
                   <button type="button" class="resonance-file-button" @click="fileInput?.click()">
                     <FileUp :size="16" aria-hidden="true" />{{ t.chooseFile }}
                   </button>
-                  <span class="resonance-file-name" :class="{ 'has-file': selectedFile }" role="status" :title="selectedFile?.name">
+                  <span
+                    class="resonance-file-name"
+                    :class="{ 'has-file': selectedFile }"
+                    role="status"
+                    :title="selectedFile?.name"
+                  >
                     {{ selectedFile?.name || t.noFileSelected }}
                   </span>
                 </div>
@@ -574,17 +677,36 @@ defineExpose({ reload })
               <section v-if="importMethod === 'pearpal'">
                 <h3>{{ t.loginPearpal }}</h3>
                 <div class="parse-tools-section resonance-info-card">
-                  <p>{{ t.loginPearpalDesc }} <a :href="PEARPAL_URL" target="_blank" rel="noreferrer noopener">{{ t.pearpalSite }}<ExternalLink :size="12" aria-hidden="true" /></a></p>
+                  <p
+                    >{{ t.loginPearpalDesc }}
+                    <a :href="PEARPAL_URL" target="_blank" rel="noreferrer noopener"
+                      >{{ t.pearpalSite }}<ExternalLink :size="12" aria-hidden="true" /></a
+                  ></p>
                 </div>
               </section>
 
               <section v-if="importMethod === 'pearpal'">
                 <h3>{{ t.getCookie }}</h3>
                 <p class="resonance-hint">{{ t.getCookieDesc }}</p>
-                <p class="resonance-source-attribution"><strong>{{ t.sourceAttributionLabel }}</strong><span>{{ t.sourceAttribution }}</span></p>
+                <p class="resonance-source-attribution"
+                  ><strong>{{ t.sourceAttributionLabel }}</strong
+                  ><span>{{ t.sourceAttribution }}</span></p
+                >
                 <div class="resonance-choice-row" role="group" :aria-label="t.cookieMethods">
-                  <button type="button" class="resonance-choice" :aria-pressed="cookieMethod === 'bookmark'" @click="selectCookieMethod('bookmark')"><Bookmark :size="14" aria-hidden="true" />{{ t.bookmarkMethod }}</button>
-                  <button type="button" class="resonance-choice" :aria-pressed="cookieMethod === 'console'" @click="selectCookieMethod('console')"><Terminal :size="14" aria-hidden="true" />{{ t.consoleMethod }}</button>
+                  <button
+                    type="button"
+                    class="resonance-choice"
+                    :aria-pressed="cookieMethod === 'bookmark'"
+                    @click="selectCookieMethod('bookmark')"
+                    ><Bookmark :size="14" aria-hidden="true" />{{ t.bookmarkMethod }}</button
+                  >
+                  <button
+                    type="button"
+                    class="resonance-choice"
+                    :aria-pressed="cookieMethod === 'console'"
+                    @click="selectCookieMethod('console')"
+                    ><Terminal :size="14" aria-hidden="true" />{{ t.consoleMethod }}</button
+                  >
                 </div>
 
                 <div class="parse-tools-section resonance-cookie-guide">
@@ -592,7 +714,12 @@ defineExpose({ reload })
                   <ol v-if="cookieMethod === 'bookmark'" class="resonance-steps">
                     <li>
                       {{ t.bookmarkStep1 }}
-                      <a class="resonance-inline-action" :href="bookmarkScript" @click.prevent="copyScript('bookmark')"><Bookmark :size="14" aria-hidden="true" />{{ t.pearpalSite }} Cookie</a>
+                      <a
+                        class="resonance-inline-action"
+                        :href="bookmarkScript"
+                        @click.prevent="copyScript('bookmark')"
+                        ><Bookmark :size="14" aria-hidden="true" />{{ t.pearpalSite }} Cookie</a
+                      >
                     </li>
                     <li>{{ t.bookmarkStep2 }}</li>
                     <li>{{ t.bookmarkStep3 }}</li>
@@ -605,30 +732,58 @@ defineExpose({ reload })
                       <li>{{ t.consoleStep3 }}</li>
                       <li>
                         {{ t.consoleStep4 }}
-                        <button class="resonance-inline-action" type="button" @click="copyScript('console')"><Copy :size="14" aria-hidden="true" />{{ t.copyCode }}</button>
+                        <button
+                          class="resonance-inline-action"
+                          type="button"
+                          @click="copyScript('console')"
+                          ><Copy :size="14" aria-hidden="true" />{{ t.copyCode }}</button
+                        >
                       </li>
                       <li>{{ t.consoleStep5 }}</li>
                       <li>{{ t.consoleStep6 }}</li>
                     </ol>
                   </template>
-                  <p v-if="cookieMethod === 'bookmark'" class="resonance-hint">{{ t.bookmarkTip }}</p>
+                  <p v-if="cookieMethod === 'bookmark'" class="resonance-hint">{{
+                    t.bookmarkTip
+                  }}</p>
                   <p class="resonance-security-note">{{ t.securityNote }}</p>
 
                   <label class="photo-params-paste resonance-paste">
                     <span>{{ t.pasteHere }}</span>
-                    <textarea v-model="cookieInput" rows="3" spellcheck="false" placeholder='{"roleid":"123456","token":"...","id":"654321"}'></textarea>
+                    <textarea
+                      v-model="cookieInput"
+                      rows="3"
+                      spellcheck="false"
+                      placeholder='{"roleid":"123456","token":"...","id":"654321"}'
+                    ></textarea>
                   </label>
 
                   <div class="resonance-form">
-                    <label><span>{{ t.roleId }}</span><input v-model="roleid" autocomplete="off" inputmode="numeric" /></label>
-                    <label><span>{{ t.token }}</span><input v-model="token" type="password" autocomplete="off" /></label>
-                    <label><span>{{ t.openId }}</span><input v-model="openid" autocomplete="off" /></label>
+                    <label
+                      ><span>{{ t.roleId }}</span
+                      ><input v-model="roleid" autocomplete="off" inputmode="numeric"
+                    /></label>
+                    <label
+                      ><span>{{ t.token }}</span
+                      ><input v-model="token" type="password" autocomplete="off"
+                    /></label>
+                    <label
+                      ><span>{{ t.openId }}</span
+                      ><input v-model="openid" autocomplete="off"
+                    /></label>
                   </div>
                 </div>
               </section>
 
-              <p v-if="progressText" class="resonance-status-line is-progress" role="status">{{ progressText }}</p>
-              <p v-if="preview.length && skippedPools" class="resonance-status-line is-warning" role="status">{{ t.partialImport(skippedPools) }}</p>
+              <p v-if="progressText" class="resonance-status-line is-progress" role="status">{{
+                progressText
+              }}</p>
+              <p
+                v-if="preview.length && skippedPools"
+                class="resonance-status-line is-warning"
+                role="status"
+                >{{ t.partialImport(skippedPools) }}</p
+              >
 
               <section v-if="preview.length" class="resonance-preview">
                 <h3>{{ t.previewTitle }} ({{ preview.length }})</h3>
@@ -657,8 +812,22 @@ defineExpose({ reload })
             </div>
 
             <footer class="resonance-import-footer">
-              <button v-if="!preview.length" class="primary-button" type="button" :disabled="importing" @click="importMethod === 'file' ? createFilePreview() : createPreview()">{{ importing ? t.importing : t.import }}</button>
-              <button v-else class="primary-button" type="button" :disabled="confirming" @click="confirmImport">{{ confirming ? t.saving : t.confirmImport }}</button>
+              <button
+                v-if="!preview.length"
+                class="primary-button"
+                type="button"
+                :disabled="importing"
+                @click="importMethod === 'file' ? createFilePreview() : createPreview()"
+                >{{ importing ? t.importing : t.import }}</button
+              >
+              <button
+                v-else
+                class="primary-button"
+                type="button"
+                :disabled="confirming"
+                @click="confirmImport"
+                >{{ confirming ? t.saving : t.confirmImport }}</button
+              >
             </footer>
           </section>
         </div>
@@ -680,58 +849,242 @@ defineExpose({ reload })
 </template>
 
 <style scoped>
-.resonance-page { min-width: 0; }
-.resonance-header { margin-bottom: 18px; }
-.resonance-actions { flex-wrap: wrap; }
-.resonance-empty { display: grid; min-height: 280px; place-items: center; align-content: center; gap: 10px; padding: 32px; border: 1px dashed var(--line); border-radius: var(--ui-radius); color: var(--muted); text-align: center; }
-.resonance-empty h3, .resonance-empty p { margin: 0; }
+.resonance-page {
+  min-width: 0;
+}
+.resonance-header {
+  margin-bottom: 18px;
+}
+.resonance-actions {
+  flex-wrap: wrap;
+}
+.resonance-empty {
+  display: grid;
+  min-height: 280px;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  padding: 32px;
+  border: 1px dashed var(--line);
+  border-radius: var(--ui-radius);
+  color: var(--muted);
+  text-align: center;
+}
+.resonance-empty h3,
+.resonance-empty p {
+  margin: 0;
+}
 /* 空列表按钮沿用公共高度，图标与文字在按钮内部横向、垂直居中。 */
-.resonance-empty > button { align-items: center; justify-content: center; gap: 6px; }
-.resonance-record { scroll-margin-top: calc(var(--sidebar-sticky-top) + 12px); margin-bottom: 16px; padding: 18px; border: 1px solid var(--line); border-radius: var(--ui-radius); background: var(--surface); }
+.resonance-empty > button {
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.resonance-record {
+  scroll-margin-top: calc(var(--sidebar-sticky-top) + 12px);
+  margin-bottom: 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius);
+  background: var(--surface);
+}
 /* 标题独占一行；两侧允许收缩并省略长名称，窄屏仍保持卡池居右。 */
-.resonance-record-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.resonance-record-title-row h3 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.resonance-record-heading h3, .resonance-record-heading p { margin: 0; }
-.resonance-record-heading p { margin-top: 7px; color: var(--muted); font-size: 13px; }
-.resonance-banner-name { max-width: 45%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 13px; text-align: right; }
-.resonance-record-body { display: flex; gap: 18px; margin-top: 18px; align-items: flex-start; }
-.resonance-outfit-image { width: min(180px, 28%); aspect-ratio: 448 / 656; overflow: hidden; border-radius: 8px; background: var(--frame-bg) url('../../img/back.png') center / cover no-repeat; }
-.resonance-outfit-image img, .resonance-part img { width: 100%; height: 100%; object-fit: cover; }
-.resonance-outfit-image img[hidden], .resonance-part img[hidden] { display: none; }
-.resonance-parts { display: grid; flex: 1; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 10px; }
-.resonance-part { position: relative; aspect-ratio: 1; overflow: visible; border-radius: 8px; background: var(--frame-bg) url('../../img/pinkCardBg.png') center / contain no-repeat; }
-.resonance-part.is-even-banner { background-image: url('../../img/purpleCardBg.png'); }
-.resonance-part.is-missing { background-image: url('../../img/silverCardBg.png'); }
+.resonance-record-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.resonance-record-title-row h3 {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.resonance-record-heading h3,
+.resonance-record-heading p {
+  margin: 0;
+}
+.resonance-record-heading p {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.resonance-banner-name {
+  max-width: 45%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: right;
+}
+.resonance-record-body {
+  display: flex;
+  gap: 18px;
+  margin-top: 18px;
+  align-items: flex-start;
+}
+.resonance-outfit-image {
+  width: min(180px, 28%);
+  aspect-ratio: 448 / 656;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--frame-bg) url('../../img/back.png') center / cover no-repeat;
+}
+.resonance-outfit-image img,
+.resonance-part img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.resonance-outfit-image img[hidden],
+.resonance-part img[hidden] {
+  display: none;
+}
+.resonance-parts {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
+  gap: 10px;
+}
+.resonance-part {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: visible;
+  border-radius: 8px;
+  background: var(--frame-bg) url('../../img/pinkCardBg.png') center / contain no-repeat;
+}
+.resonance-part.is-even-banner {
+  background-image: url('../../img/purpleCardBg.png');
+}
+.resonance-part.is-missing {
+  background-image: url('../../img/silverCardBg.png');
+}
 .resonance-part img {
   /* 本次修复：消除行内图片的基线留白，避免撑高方形卡片导致背景上下露底。 */
   display: block;
   border-radius: 8px;
 }
-.resonance-pull-number { position: absolute; right: -4px; bottom: -4px; display: grid; width: 25px; height: 25px; place-items: center; border: 2px solid var(--surface); border-radius: 50%; background: var(--pink-deep); color: #fff; font-size: 11px; font-weight: 800; }
-.resonance-pull-number.missing { background: var(--muted); }
-.resonance-second-set { margin-top: 14px; border: 0; background: transparent; color: var(--pink-deep); font-size: 13px; font-weight: 700; cursor: pointer; }
-.resonance-choice-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
-.resonance-choice { display: inline-flex; align-items: center; gap: 6px; }
-.resonance-cookie-guide { display: grid; gap: 10px; margin-top: 12px; }
-.resonance-cookie-guide h4, .resonance-cookie-guide p { margin: 0; }
-.resonance-steps { margin: 0; padding-left: 22px; }
-.resonance-steps li + li { margin-top: 6px; }
-.resonance-inline-action { display: inline-flex; align-items: center; gap: 5px; }
-.resonance-security-note { color: var(--muted); font-size: 13px; }
-.resonance-paste { display: grid; gap: 6px; }
-.resonance-paste textarea { width: 100%; resize: vertical; }
-.resonance-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.resonance-form label { display: grid; min-width: 0; gap: 5px; }
-.resonance-form input { width: 100%; min-width: 0; }
-.resonance-preview { margin-top: 18px; }
-.resonance-preview h3 { margin-bottom: 8px; }
-.resonance-preview-wrap { max-height: 240px; overflow: auto; }
-.resonance-import-footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; }
+.resonance-pull-number {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--pink-deep);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+.resonance-pull-number.missing {
+  background: var(--muted);
+}
+.resonance-second-set {
+  margin-top: 14px;
+  border: 0;
+  background: transparent;
+  color: var(--pink-deep);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.resonance-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+.resonance-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.resonance-cookie-guide {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.resonance-cookie-guide h4,
+.resonance-cookie-guide p {
+  margin: 0;
+}
+.resonance-steps {
+  margin: 0;
+  padding-left: 22px;
+}
+.resonance-steps li + li {
+  margin-top: 6px;
+}
+.resonance-inline-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.resonance-security-note {
+  color: var(--muted);
+  font-size: 13px;
+}
+.resonance-paste {
+  display: grid;
+  gap: 6px;
+}
+.resonance-paste textarea {
+  width: 100%;
+  resize: vertical;
+}
+.resonance-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.resonance-form label {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+.resonance-form input {
+  width: 100%;
+  min-width: 0;
+}
+.resonance-preview {
+  margin-top: 18px;
+}
+.resonance-preview h3 {
+  margin-bottom: 8px;
+}
+.resonance-preview-wrap {
+  max-height: 240px;
+  overflow: auto;
+}
+.resonance-import-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+}
 @media (max-width: 600px) {
-  .resonance-record { padding: 14px; }
-  .resonance-record-body { gap: 12px; }
-  .resonance-outfit-image { width: 35%; }
-  .resonance-parts { grid-template-columns: repeat(3, minmax(52px, 1fr)); gap: 8px; }
-  .resonance-form { grid-template-columns: 1fr; }
+  .resonance-record {
+    padding: 14px;
+  }
+  .resonance-record-body {
+    gap: 12px;
+  }
+  .resonance-outfit-image {
+    width: 35%;
+  }
+  .resonance-parts {
+    grid-template-columns: repeat(3, minmax(52px, 1fr));
+    gap: 8px;
+  }
+  .resonance-form {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

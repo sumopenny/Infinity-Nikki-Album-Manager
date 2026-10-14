@@ -10,13 +10,16 @@ const { parseOutfitCodeMock, loadItemCatalogMock, loadOutfitDetailMock } = vi.ho
 }))
 
 vi.mock('../../src/utils/outfit/outfitCodeParser', async () => {
-  const actual = await vi.importActual<typeof import('../../src/utils/outfit/outfitCodeParser')>('../../src/utils/outfit/outfitCodeParser')
+  const actual = await vi.importActual<typeof import('../../src/utils/outfit/outfitCodeParser')>(
+    '../../src/utils/outfit/outfitCodeParser'
+  )
   return { ...actual, parseOutfitCode: parseOutfitCodeMock }
 })
 
 vi.mock('../../src/utils/outfit/itemCatalog', () => ({
   loadItemCatalog: loadItemCatalogMock,
-  getCatalogEntryName: (entry: { zh: string; en: string }, language: 'zh' | 'en') => entry[language],
+  getCatalogEntryName: (entry: { zh: string; en: string }, language: 'zh' | 'en') =>
+    entry[language],
   getCatalogImageUrl: (entry: { id: number }) => `https://example.test/${entry.id}.png`
 }))
 
@@ -42,13 +45,29 @@ describe('OutfitParseDialog', () => {
     parseOutfitCodeMock.mockResolvedValue({
       code: 'a1B2c3D4e5F#',
       wearingClothes: [{ itemId: 1020100001, clothType: 10, outfitId: 1001 }],
-      dyeItems: [{ itemId: 1020100001, clothType: 10, outfitId: 1001, dyes: detail.dyes.map((dye) => ({ ...dye, targetGroupId: 1, featureTag: 1 })) }]
+      dyeItems: [
+        {
+          itemId: 1020100001,
+          clothType: 10,
+          outfitId: 1001,
+          dyes: detail.dyes.map((dye) => ({ ...dye, targetGroupId: 1, featureTag: 1 }))
+        }
+      ]
     })
-    loadItemCatalogMock.mockResolvedValue(new Map([[1020100001, { id: 1020100001, zh: '时光讯号', en: 'Signal of Time', makeup: false }]]))
+    loadItemCatalogMock.mockResolvedValue(
+      new Map([
+        [1020100001, { id: 1020100001, zh: '时光讯号', en: 'Signal of Time', makeup: false }]
+      ])
+    )
     loadOutfitDetailMock.mockResolvedValue(detail)
 
     const wrapper = mount(OutfitParseDialog, {
-      props: { visible: false, code: 'a1B2c3D4e5F', language: 'zh', messages: getOutfitMessages('zh') },
+      props: {
+        visible: false,
+        code: 'a1B2c3D4e5F',
+        language: 'zh',
+        messages: getOutfitMessages('zh')
+      },
       attachTo: document.body,
       global: { stubs: { Teleport: true, Transition: { template: '<div><slot /></div>' } } }
     })
@@ -86,13 +105,29 @@ describe('OutfitParseDialog', () => {
     parseOutfitCodeMock.mockResolvedValue({
       code: '13Zb1zKZgf1#',
       wearingClothes: [{ itemId: 1025740294, clothType: null, outfitId: null }],
-      dyeItems: [{ itemId: 1025740294, clothType: null, outfitId: null, dyes, hasSpecialEffect: true }]
+      dyeItems: [
+        { itemId: 1025740294, clothType: null, outfitId: null, dyes, hasSpecialEffect: true }
+      ]
     })
-    loadItemCatalogMock.mockResolvedValue(new Map([[1025740294, { id: 1025740294, zh: '童话终章', en: 'Fairytale Finale', makeup: false }]]))
-    loadOutfitDetailMock.mockResolvedValue({ ...detail, itemId: 1025740294, itemName: '童话终章', dyeCondition: '满进可染' })
+    loadItemCatalogMock.mockResolvedValue(
+      new Map([
+        [1025740294, { id: 1025740294, zh: '童话终章', en: 'Fairytale Finale', makeup: false }]
+      ])
+    )
+    loadOutfitDetailMock.mockResolvedValue({
+      ...detail,
+      itemId: 1025740294,
+      itemName: '童话终章',
+      dyeCondition: '满进可染'
+    })
 
     const wrapper = mount(OutfitParseDialog, {
-      props: { visible: false, code: '13Zb1zKZgf1#', language: 'zh', messages: getOutfitMessages('zh') },
+      props: {
+        visible: false,
+        code: '13Zb1zKZgf1#',
+        language: 'zh',
+        messages: getOutfitMessages('zh')
+      },
       attachTo: document.body,
       global: { stubs: { Teleport: true, Transition: { template: '<div><slot /></div>' } } }
     })
@@ -101,7 +136,15 @@ describe('OutfitParseDialog', () => {
     await wrapper.get('.outfit-parse-item-button').trigger('click')
     await flushPromises()
 
-    expect(loadOutfitDetailMock).toHaveBeenCalledWith(1025740294, null, 'zh', '童话终章(颈饰)', dyes, 74, true)
+    expect(loadOutfitDetailMock).toHaveBeenCalledWith(
+      1025740294,
+      null,
+      'zh',
+      '童话终章(颈饰)',
+      dyes,
+      74,
+      true
+    )
     expect(wrapper.text()).toContain('童话终章(颈饰)')
     expect(wrapper.text()).toContain('满进可染')
     wrapper.unmount()
@@ -113,11 +156,26 @@ describe('OutfitParseDialog', () => {
       wearingClothes: [{ itemId: 1020100001, clothType: 10, outfitId: null }],
       dyeItems: []
     })
-    loadItemCatalogMock.mockResolvedValue(new Map([[1020100001, { id: 1020100001, zh: '时光讯号', en: 'Signal of Time', makeup: false }]]))
-    loadOutfitDetailMock.mockResolvedValue({ ...detail, outfitName: '', dyes: [], outfitId: null, outfitImageUrl: null })
+    loadItemCatalogMock.mockResolvedValue(
+      new Map([
+        [1020100001, { id: 1020100001, zh: '时光讯号', en: 'Signal of Time', makeup: false }]
+      ])
+    )
+    loadOutfitDetailMock.mockResolvedValue({
+      ...detail,
+      outfitName: '',
+      dyes: [],
+      outfitId: null,
+      outfitImageUrl: null
+    })
 
     const wrapper = mount(OutfitParseDialog, {
-      props: { visible: false, code: 'a1B2c3D4e5F', language: 'zh', messages: getOutfitMessages('zh') },
+      props: {
+        visible: false,
+        code: 'a1B2c3D4e5F',
+        language: 'zh',
+        messages: getOutfitMessages('zh')
+      },
       attachTo: document.body,
       global: { stubs: { Teleport: true, Transition: { template: '<div><slot /></div>' } } }
     })
@@ -134,26 +192,62 @@ describe('OutfitParseDialog', () => {
   })
 })
 
-it.each([false, true])('ignores older detail success/error and late results after close (%s)', async rejectOld => {
-  parseOutfitCodeMock.mockResolvedValue({ code: 'CODE', wearingClothes: [{ itemId: 1, outfitId: null, clothType: null }, { itemId: 2, outfitId: null, clothType: null }], dyeItems: [] })
-  loadItemCatalogMock.mockResolvedValue(new Map([[1, { id: 1, zh: '甲', en: 'A' }], [2, { id: 2, zh: '乙', en: 'B' }]]))
-  let finishOld!: (value: typeof detail) => void, failOld!: (reason: Error) => void
-  loadOutfitDetailMock.mockImplementationOnce(() => new Promise((resolve, reject) => { finishOld = resolve; failOld = reject }))
-    .mockResolvedValueOnce({ ...detail, itemName: '最新详情', outfitName: '最新套装' })
-  const wrapper = mount(OutfitParseDialog, { props: { visible: false, code: 'CODE', language: 'zh', messages: getOutfitMessages('zh') }, global: { stubs: { Teleport: true } } })
-  try {
-    await wrapper.setProps({ visible: true }); await flushPromises()
-    await wrapper.findAll('.outfit-parse-item-button')[0]!.trigger('click')
-    await wrapper.findAll('.outfit-parse-item-button')[1]!.trigger('click'); await flushPromises()
-    expect(wrapper.get('.outfit-detail-panel').text()).toContain('最新套装')
-    if (rejectOld) failOld(new Error('old failed')); else finishOld(detail)
-    await flushPromises()
-    expect(wrapper.get('.outfit-detail-panel').text()).toContain('最新套装')
-    let late!: (value: typeof detail) => void
-    loadOutfitDetailMock.mockImplementationOnce(() => new Promise(resolve => { late = resolve }))
-    await wrapper.findAll('.outfit-parse-item-button')[0]!.trigger('click')
-    await wrapper.get('.outfit-detail-panel header button').trigger('click')
-    late(detail); await flushPromises()
-    expect(wrapper.find('.outfit-detail-panel').exists()).toBe(false)
-  } finally { wrapper.unmount() }
-})
+it.each([false, true])(
+  'ignores older detail success/error and late results after close (%s)',
+  async (rejectOld) => {
+    parseOutfitCodeMock.mockResolvedValue({
+      code: 'CODE',
+      wearingClothes: [
+        { itemId: 1, outfitId: null, clothType: null },
+        { itemId: 2, outfitId: null, clothType: null }
+      ],
+      dyeItems: []
+    })
+    loadItemCatalogMock.mockResolvedValue(
+      new Map([
+        [1, { id: 1, zh: '甲', en: 'A' }],
+        [2, { id: 2, zh: '乙', en: 'B' }]
+      ])
+    )
+    let finishOld!: (value: typeof detail) => void, failOld!: (reason: Error) => void
+    loadOutfitDetailMock
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve, reject) => {
+            finishOld = resolve
+            failOld = reject
+          })
+      )
+      .mockResolvedValueOnce({ ...detail, itemName: '最新详情', outfitName: '最新套装' })
+    const wrapper = mount(OutfitParseDialog, {
+      props: { visible: false, code: 'CODE', language: 'zh', messages: getOutfitMessages('zh') },
+      global: { stubs: { Teleport: true } }
+    })
+    try {
+      await wrapper.setProps({ visible: true })
+      await flushPromises()
+      await wrapper.findAll('.outfit-parse-item-button')[0]!.trigger('click')
+      await wrapper.findAll('.outfit-parse-item-button')[1]!.trigger('click')
+      await flushPromises()
+      expect(wrapper.get('.outfit-detail-panel').text()).toContain('最新套装')
+      if (rejectOld) failOld(new Error('old failed'))
+      else finishOld(detail)
+      await flushPromises()
+      expect(wrapper.get('.outfit-detail-panel').text()).toContain('最新套装')
+      let late!: (value: typeof detail) => void
+      loadOutfitDetailMock.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            late = resolve
+          })
+      )
+      await wrapper.findAll('.outfit-parse-item-button')[0]!.trigger('click')
+      await wrapper.get('.outfit-detail-panel header button').trigger('click')
+      late(detail)
+      await flushPromises()
+      expect(wrapper.find('.outfit-detail-panel').exists()).toBe(false)
+    } finally {
+      wrapper.unmount()
+    }
+  }
+)

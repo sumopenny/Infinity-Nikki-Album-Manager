@@ -7,8 +7,10 @@ it('reloads a refreshed database image with the same ID and ignores the previous
   const first = { id: 'same', name: 'same.webp', url: null } as PhotoDisplayItem
   const second = { ...first }
   const completions: Array<(url: string) => void> = []
-  const loadPhoto = vi.fn(() => new Promise<string>(resolve => completions.push(resolve)))
-  const wrapper = mount(LazyPhotoImage, { props: { photo: first, loadPhoto, failureText: 'failed' } })
+  const loadPhoto = vi.fn(() => new Promise<string>((resolve) => completions.push(resolve)))
+  const wrapper = mount(LazyPhotoImage, {
+    props: { photo: first, loadPhoto, failureText: 'failed' }
+  })
   try {
     await wrapper.setProps({ photo: second })
     completions[0]('blob:stale')
@@ -17,5 +19,7 @@ it('reloads a refreshed database image with the same ID and ignores the previous
     completions[1]('blob:current')
     await flushPromises()
     expect(wrapper.get('img').attributes('src')).toBe('blob:current')
-  } finally { wrapper.unmount() }
+  } finally {
+    wrapper.unmount()
+  }
 })

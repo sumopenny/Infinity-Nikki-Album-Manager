@@ -29,16 +29,25 @@ describe('LikeCounter', () => {
     const wrapper = mount(LikeCounter, { props: { messages } })
     await flushPromises()
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/like', expect.objectContaining({ headers: expect.any(Object) }))
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/like',
+      expect.objectContaining({ headers: expect.any(Object) })
+    )
     expect(wrapper.text()).toContain('42')
     expect(wrapper.find('button').exists()).toBe(true)
   })
 
   it('点击后乐观 +1 并以服务端返回为准', async () => {
     let resolvePost: ((response: Response) => void) | undefined
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockImplementationOnce(async () => jsonResponse({ count: 10 }))
-      .mockImplementationOnce(async () => new Promise<Response>((resolve) => { resolvePost = resolve }))
+      .mockImplementationOnce(
+        async () =>
+          new Promise<Response>((resolve) => {
+            resolvePost = resolve
+          })
+      )
     vi.stubGlobal('fetch', fetchMock)
 
     const wrapper = mount(LikeCounter, { props: { messages } })
@@ -54,11 +63,15 @@ describe('LikeCounter', () => {
     // 服务端对账后为准（多人同时点赞时服务端总数可能更高）
     expect(wrapper.text()).toContain('13')
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(fetchMock).toHaveBeenLastCalledWith('/api/like', expect.objectContaining({ method: 'POST' }))
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      '/api/like',
+      expect.objectContaining({ method: 'POST' })
+    )
   })
 
   it('POST 失败时回退乐观更新', async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockImplementationOnce(async () => jsonResponse({ count: 5 }))
       .mockImplementationOnce(async () => jsonResponse({}, false))
     vi.stubGlobal('fetch', fetchMock)
@@ -74,9 +87,15 @@ describe('LikeCounter', () => {
 
   it('快速连续点赞时串行发送请求并保留未确认的乐观计数', async () => {
     let resolveFirst: ((response: Response) => void) | undefined
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockImplementationOnce(async () => jsonResponse({ count: 20 }))
-      .mockImplementationOnce(async () => new Promise<Response>((resolve) => { resolveFirst = resolve }))
+      .mockImplementationOnce(
+        async () =>
+          new Promise<Response>((resolve) => {
+            resolveFirst = resolve
+          })
+      )
       .mockImplementationOnce(async () => jsonResponse({ count: 22 }))
     vi.stubGlobal('fetch', fetchMock)
 

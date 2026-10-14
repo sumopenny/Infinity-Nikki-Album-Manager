@@ -2,18 +2,37 @@ import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, vi } from 'vitest'
 import { DB_NAME } from '../../src/utils/file-system/database'
 
-export const webp = (name = 'look.webp', content = 'image', timestamp = 100) => new File(['RIFF0000WEBP' + content], name, { type: 'image/webp', lastModified: timestamp })
+export const webp = (name = 'look.webp', content = 'image', timestamp = 100) =>
+  new File(['RIFF0000WEBP' + content], name, { type: 'image/webp', lastModified: timestamp })
 export async function resetOutfitDatabase() {
-  await new Promise<void>((resolve, reject) => { const request = indexedDB.deleteDatabase(DB_NAME)
-    request.onsuccess = () => resolve(); request.onerror = () => reject(request.error); request.onblocked = () => reject(new Error('Database still open')) })
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME)
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+    request.onblocked = () => reject(new Error('Database still open'))
+  })
 }
 export function setupOutfitDatabaseTests() {
   beforeEach(() => {
-    vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 10, height: 10, close() {} })))
-    vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => ({ drawImage() {} }),
-      toBlob: (callback: BlobCallback) => callback(new Blob(['RIFF0000WEBPconverted'], { type: 'image/webp' })) }) })
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(async () => ({ width: 10, height: 10, close() {} }))
+    )
+    vi.stubGlobal('document', {
+      createElement: () => ({
+        width: 0,
+        height: 0,
+        getContext: () => ({ drawImage() {} }),
+        toBlob: (callback: BlobCallback) =>
+          callback(new Blob(['RIFF0000WEBPconverted'], { type: 'image/webp' }))
+      })
+    })
   })
-  afterEach(async () => { vi.restoreAllMocks(); vi.unstubAllGlobals(); await resetOutfitDatabase() })
+  afterEach(async () => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    await resetOutfitDatabase()
+  })
 }
 
 export class OutfitDirectory {
@@ -24,7 +43,9 @@ export class OutfitDirectory {
   denied = false
   removed: string[] = []
   constructor(readonly name = 'album') {}
-  async isSameEntry(other: OutfitDirectory) { return this.token === other.token }
+  async isSameEntry(other: OutfitDirectory) {
+    return this.token === other.token
+  }
   async getDirectoryHandle(name: string) {
     if (this.denied) throw new DOMException('Denied', 'NotAllowedError')
     const directory = this.directories.get(name)
@@ -33,13 +54,22 @@ export class OutfitDirectory {
   }
   async getFileHandle(name: string) {
     if (!this.files.has(name)) throw new DOMException('Missing', 'NotFoundError')
-    return { kind: 'file' as const, getFile: async () => { const file = this.files.get(name); if (!file) throw new DOMException('Missing', 'NotFoundError'); return file } }
+    return {
+      kind: 'file' as const,
+      getFile: async () => {
+        const file = this.files.get(name)
+        if (!file) throw new DOMException('Missing', 'NotFoundError')
+        return file
+      }
+    }
   }
   async removeEntry(name: string, options?: FileSystemRemoveOptions) {
     if (this.denied) throw new DOMException('Denied', 'NotAllowedError')
     const child = this.directories.get(name)
-    if (child && !options?.recursive && (child.files.size || child.directories.size)) throw new DOMException('Not empty', 'InvalidModificationError')
-    if (!this.files.delete(name) && !this.directories.delete(name)) throw new DOMException('Missing', 'NotFoundError')
+    if (child && !options?.recursive && (child.files.size || child.directories.size))
+      throw new DOMException('Not empty', 'InvalidModificationError')
+    if (!this.files.delete(name) && !this.directories.delete(name))
+      throw new DOMException('Missing', 'NotFoundError')
     this.removed.push(name)
   }
   async resolve(other: OutfitDirectory): Promise<string[] | null> {
@@ -50,21 +80,51 @@ export class OutfitDirectory {
     }
     return null
   }
-  async *entries() { for (const [name] of this.files) yield [name, await this.getFileHandle(name)]; for (const [name] of this.directories) yield [name, { kind: 'directory' }] }
-  json(name: string, value: unknown, timestamp = 100) { this.files.set(name, new File([JSON.stringify(value)], name, { type: 'application/json', lastModified: timestamp })) }
-  child(name: string) { const child = new OutfitDirectory(name); this.directories.set(name, child); return child }
+  async *entries() {
+    for (const [name] of this.files) yield [name, await this.getFileHandle(name)]
+    for (const [name] of this.directories) yield [name, { kind: 'directory' }]
+  }
+  json(name: string, value: unknown, timestamp = 100) {
+    this.files.set(
+      name,
+      new File([JSON.stringify(value)], name, { type: 'application/json', lastModified: timestamp })
+    )
+  }
+  child(name: string) {
+    const child = new OutfitDirectory(name)
+    this.directories.set(name, child)
+    return child
+  }
 }
-export const directoryHandle = (directory: OutfitDirectory) => directory as unknown as FileSystemDirectoryHandle
+export const directoryHandle = (directory: OutfitDirectory) =>
+  directory as unknown as FileSystemDirectoryHandle
 export function legacyAlbum(id = 'one', code = 'CODE1', content = 'original') {
-  const album = new OutfitDirectory('NikkiPhotos_HighQuality'), clothe = album.child('clothe')
+  const album = new OutfitDirectory('NikkiPhotos_HighQuality'),
+    clothe = album.child('clothe')
   clothe.json('tags.json', ['甜美', '自定义'])
   clothe.files.set(`${id}.webp`, webp(`${id}.webp`, content))
-  clothe.json(`${id}.json`, { id, image: `${id}.webp`, code, tags: ['自定义'], note: '保留备注', createdAt: '2026-07-31T00:00:00.000Z' })
+  clothe.json(`${id}.json`, {
+    id,
+    image: `${id}.webp`,
+    code,
+    tags: ['自定义'],
+    note: '保留备注',
+    createdAt: '2026-07-31T00:00:00.000Z'
+  })
   return { album, clothe }
 }
 export function gameSource() {
-  const game = new OutfitDirectory('X6Game'), saved = game.child('Saved'), share = saved.child('ShareCode'), diy = saved.child('DIY')
-  function publish(playerId: string, code: string, timestamp: number, imageTime = timestamp, content = code) {
+  const game = new OutfitDirectory('X6Game'),
+    saved = game.child('Saved'),
+    share = saved.child('ShareCode'),
+    diy = saved.child('DIY')
+  function publish(
+    playerId: string,
+    code: string,
+    timestamp: number,
+    imageTime = timestamp,
+    content = code
+  ) {
     share.json(`${playerId}-sharecode.json`, [{ RoleID: playerId, ShareCode: code }], timestamp)
     const player = diy.directories.get(playerId) ?? diy.child(playerId)
     player.files.set('latest.webp', webp('latest.webp', content, imageTime))

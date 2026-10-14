@@ -49,10 +49,25 @@ export interface PhotoParamsMessages {
 }
 
 export const photoParamsZh: PhotoParamsMessages = {
-  title: '照片参数', eyebrow: 'PHOTO PARAMETERS', close: '关闭', copy: '复制参数', copied: '已复制', copyFailed: '复制失败',
-  noValue: '无', capture: '环境', camera: '相机', image: '画面',
-  action: '动作', light: '灯光', filter: '滤镜', raw: '相机参数',
-  uidPrompt: '请输入拍摄此照片所用账号的 UID', uidPlaceholder: '填写账号 UID', uidParse: '解析', upload: '上传图片解析', uploadHint: '选择本地游戏原图进行解析',
+  title: '照片参数',
+  eyebrow: 'PHOTO PARAMETERS',
+  close: '关闭',
+  copy: '复制参数',
+  copied: '已复制',
+  copyFailed: '复制失败',
+  noValue: '无',
+  capture: '环境',
+  camera: '相机',
+  image: '画面',
+  action: '动作',
+  light: '灯光',
+  filter: '滤镜',
+  raw: '相机参数',
+  uidPrompt: '请输入拍摄此照片所用账号的 UID',
+  uidPlaceholder: '填写账号 UID',
+  uidParse: '解析',
+  upload: '上传图片解析',
+  uploadHint: '选择本地游戏原图进行解析',
   authorizationRequired: '请先授权 X6Game 文件夹。',
   stages: {
     idle: '',
@@ -62,13 +77,24 @@ export const photoParamsZh: PhotoParamsMessages = {
     decryptingPhoto: '正在解密照片参数…',
     parsingCamera: '正在整理相机参数…',
     ready: '解析完成',
-    error: '解析失败',
+    error: '解析失败'
   },
   labels: {
-    gameTime: '游戏时间', weather: '天气', focalLength: '焦距', aperture: '光圈', vignette: '晕影',
+    gameTime: '游戏时间',
+    weather: '天气',
+    focalLength: '焦距',
+    aperture: '光圈',
+    vignette: '晕影',
     imageFields: {
-      bloomIntensity: '柔光强度', bloomRange: '柔光范围', brightness: '亮度', exposure: '曝光',
-      contrast: '对比度', saturation: '饱和度', vibrance: '自然饱和', highlights: '高光', shadows: '阴影'
+      bloomIntensity: '柔光强度',
+      bloomRange: '柔光范围',
+      brightness: '亮度',
+      exposure: '曝光',
+      contrast: '对比度',
+      saturation: '饱和度',
+      vibrance: '自然饱和',
+      highlights: '高光',
+      shadows: '阴影'
     }
   },
   errors: {
@@ -90,10 +116,25 @@ export const photoParamsZh: PhotoParamsMessages = {
 }
 
 export const photoParamsEn: PhotoParamsMessages = {
-  title: 'Photo parameters', eyebrow: 'PHOTO PARAMETERS', close: 'Close', copy: 'Copy parameters', copied: 'Copied', copyFailed: 'Copy failed',
-  noValue: 'None', capture: 'Environment', camera: 'Camera', image: 'Image',
-  action: 'Action', light: 'Light', filter: 'Filter', raw: 'Camera parameters',
-  uidPrompt: 'Enter the UID used to take this photo', uidPlaceholder: 'Enter account UID', uidParse: 'Parse', upload: 'Parse local image', uploadHint: 'Choose an original game photo from this device',
+  title: 'Photo parameters',
+  eyebrow: 'PHOTO PARAMETERS',
+  close: 'Close',
+  copy: 'Copy parameters',
+  copied: 'Copied',
+  copyFailed: 'Copy failed',
+  noValue: 'None',
+  capture: 'Environment',
+  camera: 'Camera',
+  image: 'Image',
+  action: 'Action',
+  light: 'Light',
+  filter: 'Filter',
+  raw: 'Camera parameters',
+  uidPrompt: 'Enter the UID used to take this photo',
+  uidPlaceholder: 'Enter account UID',
+  uidParse: 'Parse',
+  upload: 'Parse local image',
+  uploadHint: 'Choose an original game photo from this device',
   authorizationRequired: 'Authorize the X6Game folder first.',
   stages: {
     idle: '',
@@ -103,13 +144,24 @@ export const photoParamsEn: PhotoParamsMessages = {
     decryptingPhoto: 'Decrypting photo parameters...',
     parsingCamera: 'Preparing camera parameters...',
     ready: 'Parsed',
-    error: 'Parsing failed',
+    error: 'Parsing failed'
   },
   labels: {
-    gameTime: 'Game time', weather: 'Weather', focalLength: 'Focal length', aperture: 'Aperture', vignette: 'Vignette',
+    gameTime: 'Game time',
+    weather: 'Weather',
+    focalLength: 'Focal length',
+    aperture: 'Aperture',
+    vignette: 'Vignette',
     imageFields: {
-      bloomIntensity: 'Bloom', bloomRange: 'Bloom range', brightness: 'Brightness', exposure: 'Exposure',
-      contrast: 'Contrast', saturation: 'Saturation', vibrance: 'Vibrance', highlights: 'Highlights', shadows: 'Shadows'
+      bloomIntensity: 'Bloom',
+      bloomRange: 'Bloom range',
+      brightness: 'Brightness',
+      exposure: 'Exposure',
+      contrast: 'Contrast',
+      saturation: 'Saturation',
+      vibrance: 'Vibrance',
+      highlights: 'Highlights',
+      shadows: 'Shadows'
     }
   },
   errors: {
@@ -121,7 +173,8 @@ export const photoParamsEn: PhotoParamsMessages = {
       camera_params_missing: 'The photo does not contain CameraParams',
       camera_base64_invalid: 'CameraParams is not valid Base64 data',
       camera_decrypt_failed: 'CameraParams decryption failed',
-      camera_params_invalid_length: 'The CameraParams array length is not a supported 31, 32, or 40 items',
+      camera_params_invalid_length:
+        'The CameraParams array length is not a supported 31, 32, or 40 items',
       camera_params_encode_failed: 'The raw CameraParams array is missing or invalid',
       photo_parse_failed: 'The photo parameters could not be parsed'
     },

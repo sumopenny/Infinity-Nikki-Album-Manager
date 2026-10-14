@@ -26,7 +26,10 @@ export interface DecodedPhoto {
  * 参数：url 为对象地址，signal 用于取消已经离开页面的加载任务。
  * 返回：图片原始宽高，供调用方复用解码结果而不必再次探测。
  */
-export function loadImageUrlWithSize(url: string, signal?: AbortSignal): Promise<{ width: number; height: number }> {
+export function loadImageUrlWithSize(
+  url: string,
+  signal?: AbortSignal
+): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const image = new Image()
 
@@ -64,7 +67,10 @@ export function loadImageUrlWithSize(url: string, signal?: AbortSignal): Promise
  * 参数：photo 为目标照片，signal 用于取消失效任务。
  * 返回：已经完成解码的对象地址与原始尺寸。
  */
-async function loadDecodedPhotoWithRetry(photo: PhotoDisplayItem, signal?: AbortSignal): Promise<DecodedPhoto> {
+async function loadDecodedPhotoWithRetry(
+  photo: PhotoDisplayItem,
+  signal?: AbortSignal
+): Promise<DecodedPhoto> {
   let lastError: unknown
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -87,7 +93,10 @@ async function loadDecodedPhotoWithRetry(photo: PhotoDisplayItem, signal?: Abort
  * 参数：photo 为目标照片，signal 用于取消失效任务。
  * 返回：已经完成解码的对象地址。
  */
-export async function loadPhotoWithRetry(photo: PhotoDisplayItem, signal?: AbortSignal): Promise<string> {
+export async function loadPhotoWithRetry(
+  photo: PhotoDisplayItem,
+  signal?: AbortSignal
+): Promise<string> {
   return (await loadDecodedPhotoWithRetry(photo, signal)).url
 }
 
@@ -96,7 +105,10 @@ export async function loadPhotoWithRetry(photo: PhotoDisplayItem, signal?: Abort
  * 参数：photo 为目标照片，signal 用于取消失效任务。
  * 返回：已经完成解码的对象地址与原始宽高。
  */
-export async function loadPhotoWithRetryAndSize(photo: PhotoDisplayItem, signal?: AbortSignal): Promise<DecodedPhoto> {
+export async function loadPhotoWithRetryAndSize(
+  photo: PhotoDisplayItem,
+  signal?: AbortSignal
+): Promise<DecodedPhoto> {
   return loadDecodedPhotoWithRetry(photo, signal)
 }
 
@@ -123,10 +135,13 @@ export function createPhotoLoadQueue(concurrency: number): PhotoLoadQueue {
       }
 
       activeCount += 1
-      entry.task().then(entry.resolve, entry.reject).finally(() => {
-        activeCount -= 1
-        drain()
-      })
+      entry
+        .task()
+        .then(entry.resolve, entry.reject)
+        .finally(() => {
+          activeCount -= 1
+          drain()
+        })
     }
   }
 

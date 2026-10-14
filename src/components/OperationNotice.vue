@@ -11,7 +11,12 @@ function updateNoticeTarget() {
 onMounted(() => {
   updateNoticeTarget()
   modalObserver = new MutationObserver(updateNoticeTarget)
-  modalObserver.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['open'] })
+  modalObserver.observe(document.body, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ['open']
+  })
 })
 onBeforeUnmount(() => modalObserver?.disconnect())
 
@@ -54,7 +59,9 @@ const emit = defineEmits<{
           <svg v-else-if="tone === 'warning' || tone === 'error'" viewBox="0 0 24 24">
             <path d="M12 8v5" />
             <path d="M12 17.25h.01" />
-            <path d="M10.1 4.6 3.2 17a2 2 0 0 0 1.75 3h14.1a2 2 0 0 0 1.75-3L13.9 4.6a2.17 2.17 0 0 0-3.8 0Z" />
+            <path
+              d="M10.1 4.6 3.2 17a2 2 0 0 0 1.75 3h14.1a2 2 0 0 0 1.75-3L13.9 4.6a2.17 2.17 0 0 0-3.8 0Z"
+            />
           </svg>
           <svg v-else viewBox="0 0 24 24">
             <path d="M12 10.75V17" />
@@ -68,7 +75,13 @@ const emit = defineEmits<{
           <p class="operation-notice-message">{{ message }}</p>
         </div>
 
-        <button v-if="!isLoading" class="operation-notice-close" type="button" :aria-label="closeLabel" @click="emit('close')">
+        <button
+          v-if="!isLoading"
+          class="operation-notice-close"
+          type="button"
+          :aria-label="closeLabel"
+          @click="emit('close')"
+        >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="m7 7 10 10M17 7 7 17" />
           </svg>

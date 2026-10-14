@@ -1,7 +1,17 @@
 // 相册视图模型：集中计算筛选结果、日期分组、预览数据和界面展示文案。
 import { computed, type ComputedRef, type Ref } from 'vue'
 import { getThumbnailModeOptions, type LocaleMessages } from '../i18n'
-import { groupDatesByYear, groupPhotosByAction, groupPhotosByDate, type ActionGroup, type ActionSort, type PhotoActionInfo, type PhotoDisplayItem, type PhotoItem, type RecentlyDeletedPhoto } from '../utils/photoGrouping'
+import {
+  groupDatesByYear,
+  groupPhotosByAction,
+  groupPhotosByDate,
+  type ActionGroup,
+  type ActionSort,
+  type PhotoActionInfo,
+  type PhotoDisplayItem,
+  type PhotoItem,
+  type RecentlyDeletedPhoto
+} from '../utils/photoGrouping'
 import { formatFileSize } from '../utils/file-system/photoUrl'
 import type { OutfitItem } from '../utils/outfit/outfitTypes'
 import type { OutfitFilter } from '../components/OutfitSidebar.vue'
@@ -16,16 +26,41 @@ export function useAlbumViewModel(options: {
   activeOutfitFilter: Ref<OutfitFilter>
   searchQuery: Ref<string>
   currentPreview: Ref<PhotoDisplayItem | null>
-  thumbnailMode: Ref<'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'>
-  outfitThumbnailMode: Ref<'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'>
-  homeThumbnailMode: Ref<'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'>
-  directoryState: Ref<{ type: 'none' } | { type: 'remembered'; name: string } | { type: 'selected'; name: string }>
+  thumbnailMode: Ref<
+    'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'
+  >
+  outfitThumbnailMode: Ref<
+    'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'
+  >
+  homeThumbnailMode: Ref<
+    'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'
+  >
+  directoryState: Ref<
+    { type: 'none' } | { type: 'remembered'; name: string } | { type: 'selected'; name: string }
+  >
   language: Ref<'zh' | 'en'>
   locale: ComputedRef<LocaleMessages>
   actionInfo: Ref<Map<string, PhotoActionInfo>>
   actionSort: Ref<ActionSort>
 }) {
-  const { photos, outfits, recentlyDeleted, favoriteIds, activeView, activeOutfitFilter, searchQuery, currentPreview, thumbnailMode, outfitThumbnailMode, homeThumbnailMode, directoryState, language, locale, actionInfo, actionSort } = options
+  const {
+    photos,
+    outfits,
+    recentlyDeleted,
+    favoriteIds,
+    activeView,
+    activeOutfitFilter,
+    searchQuery,
+    currentPreview,
+    thumbnailMode,
+    outfitThumbnailMode,
+    homeThumbnailMode,
+    directoryState,
+    language,
+    locale,
+    actionInfo,
+    actionSort
+  } = options
   const outfitLocale = computed(() => locale.value.outfit)
   const normalizedSearch = computed(() => searchQuery.value.trim().toLocaleLowerCase())
 
@@ -33,15 +68,19 @@ export function useAlbumViewModel(options: {
     return !normalizedSearch.value || value.toLocaleLowerCase().includes(normalizedSearch.value)
   }
 
-  const favoritePhotos = computed(() => photos.value.filter((photo) => favoriteIds.value.has(photo.id)))
+  const favoritePhotos = computed(() =>
+    photos.value.filter((photo) => favoriteIds.value.has(photo.id))
+  )
   const visiblePhotos = computed(() => {
     const source = activeView.value === 'favorites' ? favoritePhotos.value : photos.value
     return source.filter((photo) => matchesSearch(`${photo.name} ${photo.note}`))
   })
   const visibleOutfits = computed(() => {
     let result = outfits.value
-    if (activeOutfitFilter.value === 'pending') result = result.filter((outfit) => !outfit.code.trim())
-    else if (activeOutfitFilter.value === 'uncategorized') result = result.filter((outfit) => !outfit.tags.length)
+    if (activeOutfitFilter.value === 'pending')
+      result = result.filter((outfit) => !outfit.code.trim())
+    else if (activeOutfitFilter.value === 'uncategorized')
+      result = result.filter((outfit) => !outfit.tags.length)
     if (activeOutfitFilter.value.startsWith('tag:')) {
       const tag = activeOutfitFilter.value.slice(4)
       result = result.filter((outfit) => outfit.tags[0] === tag)
@@ -58,21 +97,29 @@ export function useAlbumViewModel(options: {
     return outfits.value.find((outfit) => outfit.id === currentPreview.value?.id) ?? null
   })
   const dateGroups = computed(() => groupPhotosByDate(visiblePhotos.value))
-  const formattedDateGroups = computed(() => dateGroups.value.map((group) => ({
-    ...group,
-    displayDate: locale.value.date.displayDate(group.dateKey),
-    monthDay: locale.value.date.monthDay(group.dateKey)
-  })))
+  const formattedDateGroups = computed(() =>
+    dateGroups.value.map((group) => ({
+      ...group,
+      displayDate: locale.value.date.displayDate(group.dateKey),
+      monthDay: locale.value.date.monthDay(group.dateKey)
+    }))
+  )
   const yearGroups = computed(() => groupDatesByYear(formattedDateGroups.value))
-  const actionGroups = computed<ActionGroup[]>(() => groupPhotosByAction(visiblePhotos.value, actionInfo.value, actionSort.value, {
-    none: locale.value.sidebar.noAction,
-    unparsed: locale.value.sidebar.unparsed
-  }).map((group) => group.actionId
-    ? { ...group, actionName: resourceName('pose', group.actionId, language.value) }
-    : group))
+  const actionGroups = computed<ActionGroup[]>(() =>
+    groupPhotosByAction(visiblePhotos.value, actionInfo.value, actionSort.value, {
+      none: locale.value.sidebar.noAction,
+      unparsed: locale.value.sidebar.unparsed
+    }).map((group) =>
+      group.actionId
+        ? { ...group, actionName: resourceName('pose', group.actionId, language.value) }
+        : group
+    )
+  )
   const visibleCount = computed(() => visiblePhotos.value.length)
   const favoriteCount = computed(() => favoritePhotos.value.length)
-  const trashTotalSize = computed(() => recentlyDeleted.value.reduce((total, photo) => total + (photo.size ?? 0), 0))
+  const trashTotalSize = computed(() =>
+    recentlyDeleted.value.reduce((total, photo) => total + (photo.size ?? 0), 0)
+  )
   const trashTotalSizeText = computed(() => formatFileSize(trashTotalSize.value))
   const thumbnailModeOptions = computed(() => getThumbnailModeOptions(language.value))
   // Home scheme covers use their own fixed 16:9 layout and do not participate
@@ -82,7 +129,8 @@ export function useAlbumViewModel(options: {
     return activeView.value === 'outfits' ? outfitThumbnailMode.value : thumbnailMode.value
   })
   const directoryName = computed(() => {
-    if (directoryState.value.type === 'remembered') return locale.value.app.rememberedDirectory(directoryState.value.name)
+    if (directoryState.value.type === 'remembered')
+      return locale.value.app.rememberedDirectory(directoryState.value.name)
     if (directoryState.value.type === 'selected') return directoryState.value.name
     return locale.value.app.noDirectory
   })
@@ -94,9 +142,22 @@ export function useAlbumViewModel(options: {
     return locale.value.viewNav.allPhotos
   })
   return {
-    outfitLocale, visiblePhotos, visibleOutfits, previewPhotos, currentPreviewOutfit,
-    dateGroups, formattedDateGroups, yearGroups, actionGroups, visibleCount, favoriteCount,
-    trashTotalSize, trashTotalSizeText, thumbnailModeOptions, displayedThumbnailMode,
-    directoryName, viewTitle
+    outfitLocale,
+    visiblePhotos,
+    visibleOutfits,
+    previewPhotos,
+    currentPreviewOutfit,
+    dateGroups,
+    formattedDateGroups,
+    yearGroups,
+    actionGroups,
+    visibleCount,
+    favoriteCount,
+    trashTotalSize,
+    trashTotalSizeText,
+    thumbnailModeOptions,
+    displayedThumbnailMode,
+    directoryName,
+    viewTitle
   }
 }

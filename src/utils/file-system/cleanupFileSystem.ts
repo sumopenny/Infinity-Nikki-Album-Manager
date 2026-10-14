@@ -5,13 +5,40 @@ const LOW_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_LowQuality'
 const SCREENSHOT_DIRECTORY_NAME = 'ScreenShot'
 const FILE_DELETE_CONCURRENCY = 10
 
-interface RelatedPhotoCleanupTarget { directoryName: string; directoryHandle: FileSystemDirectoryHandle; photoNames: string[] }
+interface RelatedPhotoCleanupTarget {
+  directoryName: string
+  directoryHandle: FileSystemDirectoryHandle
+  photoNames: string[]
+}
 export type SpecialCleanupItem = 'lowQuality' | 'crashes' | 'logs' | 'webcache'
-export interface SpecialCleanupDirectoryTarget { directoryName: string; directoryHandle: FileSystemDirectoryHandle; entries: Array<{ name: string; bytes: number; fileCount: number; sizeKnown: boolean }> }
-export interface SpecialCleanupPlan { item: SpecialCleanupItem; fileCount: number; totalBytes: number; totalBytesKnown: boolean; photoTargets: RelatedPhotoCleanupTarget[]; directoryTargets: SpecialCleanupDirectoryTarget[]; missingDirectories: string[]; skippedDirectories: string[] }
+export interface SpecialCleanupDirectoryTarget {
+  directoryName: string
+  directoryHandle: FileSystemDirectoryHandle
+  entries: Array<{ name: string; bytes: number; fileCount: number; sizeKnown: boolean }>
+}
+export interface SpecialCleanupPlan {
+  item: SpecialCleanupItem
+  fileCount: number
+  totalBytes: number
+  totalBytesKnown: boolean
+  photoTargets: RelatedPhotoCleanupTarget[]
+  directoryTargets: SpecialCleanupDirectoryTarget[]
+  missingDirectories: string[]
+  skippedDirectories: string[]
+}
 export type RelatedCleanupFailureReason = 'unreadable-size' | 'remove-failed'
-export interface RelatedPhotoCleanupResult { deletedCount: number; deletedBytes: number; failures: Array<{ path: string; reason: RelatedCleanupFailureReason }>; missingDirectories: string[] }
-export interface MatchingPhotoCleanupPlan { photoTargets: RelatedPhotoCleanupTarget[]; matchedCount: number; missingDirectories: string[]; skippedDirectories: string[] }
+export interface RelatedPhotoCleanupResult {
+  deletedCount: number
+  deletedBytes: number
+  failures: Array<{ path: string; reason: RelatedCleanupFailureReason }>
+  missingDirectories: string[]
+}
+export interface MatchingPhotoCleanupPlan {
+  photoTargets: RelatedPhotoCleanupTarget[]
+  matchedCount: number
+  missingDirectories: string[]
+  skippedDirectories: string[]
+}
 
 function isImageFile(fileName: string): boolean {
   return IMAGE_EXTENSIONS.has(fileName.split('.').pop()?.toLowerCase() ?? '')
@@ -22,7 +49,10 @@ function isMissingDirectoryError(error: unknown): boolean {
 }
 
 /** 判断两个目录句柄是否指向同一个目录（精确匹配，不含嵌套关系）。 */
-async function isSameDirectoryEntry(a: FileSystemDirectoryHandle, b: FileSystemDirectoryHandle): Promise<boolean> {
+async function isSameDirectoryEntry(
+  a: FileSystemDirectoryHandle,
+  b: FileSystemDirectoryHandle
+): Promise<boolean> {
   return a === b || (await a.resolve(b))?.length === 0
 }
 
@@ -47,7 +77,7 @@ async function collectCleanupTarget(
   try {
     const directoryHandle = await getDirectoryHandle()
     // 清理目标就是当前正在管理的相册时跳过该目录，避免删除用户正在浏览的内容。
-    if (skipDirectoryHandle && await isSameDirectoryEntry(skipDirectoryHandle, directoryHandle)) {
+    if (skipDirectoryHandle && (await isSameDirectoryEntry(skipDirectoryHandle, directoryHandle))) {
       if (!skippedDirectories.includes(directoryName)) skippedDirectories.push(directoryName)
       return
     }
@@ -72,7 +102,13 @@ export async function prepareMatchingPhotoCleanup(
   photoNames: string[],
   skipDirectoryHandle?: FileSystemDirectoryHandle
 ): Promise<MatchingPhotoCleanupPlan> {
-  if (x6GameHandle.name !== 'X6Game' || !accountId || accountId === '.' || accountId === '..' || /[\\/]/.test(accountId)) {
+  if (
+    x6GameHandle.name !== 'X6Game' ||
+    !accountId ||
+    accountId === '.' ||
+    accountId === '..' ||
+    /[\\/]/.test(accountId)
+  ) {
     throw new Error('Invalid X6Game account directory')
   }
   const wantedNames = new Set(photoNames)
@@ -81,7 +117,13 @@ export async function prepareMatchingPhotoCleanup(
   const skippedDirectories: string[] = []
   await collectCleanupTarget(
     LOW_QUALITY_DIRECTORY_NAME,
-    () => getRequiredNestedDirectory(x6GameHandle, ['Saved', 'GamePlayPhotos', accountId, LOW_QUALITY_DIRECTORY_NAME]),
+    () =>
+      getRequiredNestedDirectory(x6GameHandle, [
+        'Saved',
+        'GamePlayPhotos',
+        accountId,
+        LOW_QUALITY_DIRECTORY_NAME
+      ]),
     photoTargets,
     missingDirectories,
     skippedDirectories,
@@ -95,7 +137,8 @@ export async function prepareMatchingPhotoCleanup(
     skippedDirectories,
     skipDirectoryHandle
   )
-  for (const target of photoTargets) target.photoNames = target.photoNames.filter((name) => wantedNames.has(name))
+  for (const target of photoTargets)
+    target.photoNames = target.photoNames.filter((name) => wantedNames.has(name))
   return {
     photoTargets: photoTargets.filter((target) => target.photoNames.length > 0),
     matchedCount: photoTargets.reduce((count, target) => count + target.photoNames.length, 0),
@@ -105,33 +148,47 @@ export async function prepareMatchingPhotoCleanup(
 }
 
 /** 永久删除精准匹配计划中的图片；不读取或修改相册源照片。 */
-export async function executeMatchingPhotoCleanup(plan: MatchingPhotoCleanupPlan): Promise<RelatedPhotoCleanupResult> {
-  const tasks = plan.photoTargets.flatMap((target) => target.photoNames.map((name) => ({ target, name })))
-  const results = await runWithConcurrency(tasks, async ({ target, name }) => {
-    let fileSize = 0
-    try {
-      const fileHandle = await target.directoryHandle.getFileHandle(name)
-      fileSize = (await fileHandle.getFile()).size
-    } catch {
-      fileSize = 0
-    }
-    try {
-      await target.directoryHandle.removeEntry(name)
-      return { deletedCount: 1, deletedBytes: fileSize, failure: null }
-    } catch {
-      return { deletedCount: 0, deletedBytes: 0, failure: { path: target.directoryName + '\\' + name, reason: 'remove-failed' as const } }
-    }
-  }, { concurrency: FILE_DELETE_CONCURRENCY })
+export async function executeMatchingPhotoCleanup(
+  plan: MatchingPhotoCleanupPlan
+): Promise<RelatedPhotoCleanupResult> {
+  const tasks = plan.photoTargets.flatMap((target) =>
+    target.photoNames.map((name) => ({ target, name }))
+  )
+  const results = await runWithConcurrency(
+    tasks,
+    async ({ target, name }) => {
+      let fileSize = 0
+      try {
+        const fileHandle = await target.directoryHandle.getFileHandle(name)
+        fileSize = (await fileHandle.getFile()).size
+      } catch {
+        fileSize = 0
+      }
+      try {
+        await target.directoryHandle.removeEntry(name)
+        return { deletedCount: 1, deletedBytes: fileSize, failure: null }
+      } catch {
+        return {
+          deletedCount: 0,
+          deletedBytes: 0,
+          failure: { path: target.directoryName + '\\' + name, reason: 'remove-failed' as const }
+        }
+      }
+    },
+    { concurrency: FILE_DELETE_CONCURRENCY }
+  )
   return {
     deletedCount: results.reduce((count, result) => count + result.deletedCount, 0),
     deletedBytes: results.reduce((bytes, result) => bytes + result.deletedBytes, 0),
-    failures: results.flatMap((result) => result.failure ? [result.failure] : []),
+    failures: results.flatMap((result) => (result.failure ? [result.failure] : [])),
     missingDirectories: plan.missingDirectories
   }
 }
 
 /** 递归统计单个文件或目录条目的字节数和文件数；大小读取失败的文件仍计入文件数。 */
-async function sumEntrySize(handle: FileSystemFileHandle | FileSystemDirectoryHandle): Promise<{ bytes: number; fileCount: number; sizeKnown: boolean }> {
+async function sumEntrySize(
+  handle: FileSystemFileHandle | FileSystemDirectoryHandle
+): Promise<{ bytes: number; fileCount: number; sizeKnown: boolean }> {
   if (handle.kind === 'file') {
     try {
       const file = await (handle as FileSystemFileHandle).getFile()
@@ -170,7 +227,9 @@ async function collectDirectoryCleanupTarget(
     const entries: SpecialCleanupDirectoryTarget['entries'] = []
 
     for await (const [name, handle] of directoryHandle.entries()) {
-      const { bytes, fileCount, sizeKnown } = await sumEntrySize(handle as FileSystemFileHandle | FileSystemDirectoryHandle)
+      const { bytes, fileCount, sizeKnown } = await sumEntrySize(
+        handle as FileSystemFileHandle | FileSystemDirectoryHandle
+      )
       entries.push({ name, bytes, fileCount, sizeKnown })
     }
 
@@ -182,7 +241,10 @@ async function collectDirectoryCleanupTarget(
 }
 
 /** 目录类专项清理项对应的目录名与相对 X6Game 的路径。 */
-const SPECIAL_CLEANUP_DIRECTORY_PATHS: Record<Exclude<SpecialCleanupItem, 'lowQuality'>, { name: string; segments: string[] }> = {
+const SPECIAL_CLEANUP_DIRECTORY_PATHS: Record<
+  Exclude<SpecialCleanupItem, 'lowQuality'>,
+  { name: string; segments: string[] }
+> = {
   crashes: { name: 'Crashes', segments: ['Saved', 'Crashes'] },
   logs: { name: 'Logs', segments: ['Saved', 'Logs'] },
   webcache: { name: 'webcache_4430', segments: ['Saved', 'webcache_4430'] }
@@ -209,7 +271,13 @@ export async function prepareSpecialCleanup(
     for (const accountId of accountIds) {
       await collectCleanupTarget(
         LOW_QUALITY_DIRECTORY_NAME,
-        () => getRequiredNestedDirectory(x6GameHandle, ['Saved', 'GamePlayPhotos', accountId, LOW_QUALITY_DIRECTORY_NAME]),
+        () =>
+          getRequiredNestedDirectory(x6GameHandle, [
+            'Saved',
+            'GamePlayPhotos',
+            accountId,
+            LOW_QUALITY_DIRECTORY_NAME
+          ]),
         photoTargets,
         missingDirectories,
         skippedDirectories,
@@ -234,16 +302,32 @@ export async function prepareSpecialCleanup(
     )
   }
 
-  const fileCount = item === 'lowQuality'
-    ? photoTargets.reduce((count, target) => count + target.photoNames.length, 0)
-    : directoryTargets.reduce((count, target) => count + target.entries.reduce((sum, entry) => sum + entry.fileCount, 0), 0)
+  const fileCount =
+    item === 'lowQuality'
+      ? photoTargets.reduce((count, target) => count + target.photoNames.length, 0)
+      : directoryTargets.reduce(
+          (count, target) =>
+            count + target.entries.reduce((sum, entry) => sum + entry.fileCount, 0),
+          0
+        )
   const totalBytes = directoryTargets.reduce(
     (sum, target) => sum + target.entries.reduce((entrySum, entry) => entrySum + entry.bytes, 0),
     0
   )
-  const totalBytesKnown = directoryTargets.every((target) => target.entries.every((entry) => entry.sizeKnown))
+  const totalBytesKnown = directoryTargets.every((target) =>
+    target.entries.every((entry) => entry.sizeKnown)
+  )
 
-  return { item, fileCount, totalBytes, totalBytesKnown, photoTargets, directoryTargets, missingDirectories, skippedDirectories }
+  return {
+    item,
+    fileCount,
+    totalBytes,
+    totalBytesKnown,
+    photoTargets,
+    directoryTargets,
+    missingDirectories,
+    skippedDirectories
+  }
 }
 
 /**
@@ -251,47 +335,78 @@ export async function prepareSpecialCleanup(
  * 参数：plan 为已确认的清理计划；目录类清理会保留目录本身，只删除目录内的条目。
  * 返回：成功数量、释放字节数、结构化失败原因和缺失目录。
  */
-export async function executeSpecialCleanup(plan: SpecialCleanupPlan): Promise<RelatedPhotoCleanupResult> {
+export async function executeSpecialCleanup(
+  plan: SpecialCleanupPlan
+): Promise<RelatedPhotoCleanupResult> {
   type CleanupTask =
     | { kind: 'photo'; target: RelatedPhotoCleanupTarget; name: string }
-    | { kind: 'entry'; target: SpecialCleanupDirectoryTarget; name: string; bytes: number; fileCount: number }
+    | {
+        kind: 'entry'
+        target: SpecialCleanupDirectoryTarget
+        name: string
+        bytes: number
+        fileCount: number
+      }
   const tasks: CleanupTask[] = []
   for (const target of plan.photoTargets) {
     for (const name of target.photoNames) tasks.push({ kind: 'photo', target, name })
   }
   for (const target of plan.directoryTargets) {
-    for (const entry of target.entries) tasks.push({ kind: 'entry', target, name: entry.name, bytes: entry.bytes, fileCount: entry.fileCount })
+    for (const entry of target.entries)
+      tasks.push({
+        kind: 'entry',
+        target,
+        name: entry.name,
+        bytes: entry.bytes,
+        fileCount: entry.fileCount
+      })
   }
 
-  const results = await runWithConcurrency(tasks, async (task) => {
-    const path = `${task.target.directoryName}\\${task.name}`
-    if (task.kind === 'entry') {
-      try {
-        await task.target.directoryHandle.removeEntry(task.name, { recursive: true })
-        return { deletedCount: task.fileCount, deletedBytes: task.bytes, failure: null }
-      } catch {
-        return { deletedCount: 0, deletedBytes: 0, failure: { path, reason: 'remove-failed' as const } }
+  const results = await runWithConcurrency(
+    tasks,
+    async (task) => {
+      const path = `${task.target.directoryName}\\${task.name}`
+      if (task.kind === 'entry') {
+        try {
+          await task.target.directoryHandle.removeEntry(task.name, { recursive: true })
+          return { deletedCount: task.fileCount, deletedBytes: task.bytes, failure: null }
+        } catch {
+          return {
+            deletedCount: 0,
+            deletedBytes: 0,
+            failure: { path, reason: 'remove-failed' as const }
+          }
+        }
       }
-    }
 
-    let fileSize: number
-    try {
-      const fileHandle = await task.target.directoryHandle.getFileHandle(task.name)
-      fileSize = (await fileHandle.getFile()).size
-    } catch {
-      return { deletedCount: 0, deletedBytes: 0, failure: { path, reason: 'unreadable-size' as const } }
-    }
-    try {
-      await task.target.directoryHandle.removeEntry(task.name)
-      return { deletedCount: 1, deletedBytes: fileSize, failure: null }
-    } catch {
-      return { deletedCount: 0, deletedBytes: 0, failure: { path, reason: 'remove-failed' as const } }
-    }
-  }, { concurrency: FILE_DELETE_CONCURRENCY })
+      let fileSize: number
+      try {
+        const fileHandle = await task.target.directoryHandle.getFileHandle(task.name)
+        fileSize = (await fileHandle.getFile()).size
+      } catch {
+        return {
+          deletedCount: 0,
+          deletedBytes: 0,
+          failure: { path, reason: 'unreadable-size' as const }
+        }
+      }
+      try {
+        await task.target.directoryHandle.removeEntry(task.name)
+        return { deletedCount: 1, deletedBytes: fileSize, failure: null }
+      } catch {
+        return {
+          deletedCount: 0,
+          deletedBytes: 0,
+          failure: { path, reason: 'remove-failed' as const }
+        }
+      }
+    },
+    { concurrency: FILE_DELETE_CONCURRENCY }
+  )
 
   const deletedCount = results.reduce((sum, result) => sum + result.deletedCount, 0)
   const deletedBytes = results.reduce((sum, result) => sum + result.deletedBytes, 0)
-  const failures = results.flatMap((result) => result.failure ? [result.failure] : [])
+  const failures = results.flatMap((result) => (result.failure ? [result.failure] : []))
 
   return {
     deletedCount,

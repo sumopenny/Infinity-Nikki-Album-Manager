@@ -5,10 +5,7 @@ import {
   getSavedOutfitParseResult,
   saveOutfitParseResult
 } from '../file-system/directoryStorage'
-import {
-  decodeLookbookPayload,
-  decodeLookbookShareCodePathId
-} from './lookbookWasmClient'
+import { decodeLookbookPayload, decodeLookbookShareCodePathId } from './lookbookWasmClient'
 import { inferClothTypeFromItemId } from './clothType'
 
 const LOOKBOOK_DATA_PROXY_BASE_URL = '/api/outfit-code'
@@ -60,10 +57,11 @@ export interface LookbookDecodeResult {
 
 /** 补齐原生搭配码没有携带的部件类型；接口明确返回的类型保持不变。 */
 function inferMissingClothTypes(result: LookbookDecodeResult): LookbookDecodeResult {
-  const infer = <T extends { itemId: number; clothType: number | null }>(cloth: T): T => ({
-    ...cloth,
-    clothType: cloth.clothType ?? inferClothTypeFromItemId(cloth.itemId)
-  } as T)
+  const infer = <T extends { itemId: number; clothType: number | null }>(cloth: T): T =>
+    ({
+      ...cloth,
+      clothType: cloth.clothType ?? inferClothTypeFromItemId(cloth.itemId)
+    }) as T
   return {
     ...result,
     wearingClothes: result.wearingClothes.map(infer),
@@ -92,22 +90,42 @@ export function normalizeLookbookCode(value: unknown): string {
 const isCachedParseResult = (value: unknown, code: string): value is LookbookDecodeResult => {
   if (!value || typeof value !== 'object') return false
   const result = value as Partial<LookbookDecodeResult>
-  if (result.code !== code || !Array.isArray(result.wearingClothes) || !Array.isArray(result.dyeItems)) return false
-  return result.wearingClothes.every((cloth) => (
-    cloth && typeof cloth === 'object' &&
-    Number.isSafeInteger(cloth.itemId) && cloth.itemId > 0 &&
-    (cloth.clothType === null || Number.isInteger(cloth.clothType)) &&
-    (cloth.outfitId === null || (Number.isSafeInteger(cloth.outfitId) && cloth.outfitId > 0))
-  )) && result.dyeItems.every((item) => (
-    item && typeof item === 'object' &&
-    Number.isSafeInteger(item.itemId) && item.itemId > 0 &&
-    Array.isArray(item.dyes) && item.dyes.every((dye) => (
-      dye && typeof dye === 'object' &&
-      Number.isInteger(dye.targetGroupId) && Number.isInteger(dye.featureTag) &&
-      Number.isInteger(dye.paletteId) &&
-      (dye.slot === null || Number.isInteger(dye.slot)) && typeof dye.color === 'string'
-    )) && typeof item.hasSpecialEffect === 'boolean'
-  ))
+  if (
+    result.code !== code ||
+    !Array.isArray(result.wearingClothes) ||
+    !Array.isArray(result.dyeItems)
+  )
+    return false
+  return (
+    result.wearingClothes.every(
+      (cloth) =>
+        cloth &&
+        typeof cloth === 'object' &&
+        Number.isSafeInteger(cloth.itemId) &&
+        cloth.itemId > 0 &&
+        (cloth.clothType === null || Number.isInteger(cloth.clothType)) &&
+        (cloth.outfitId === null || (Number.isSafeInteger(cloth.outfitId) && cloth.outfitId > 0))
+    ) &&
+    result.dyeItems.every(
+      (item) =>
+        item &&
+        typeof item === 'object' &&
+        Number.isSafeInteger(item.itemId) &&
+        item.itemId > 0 &&
+        Array.isArray(item.dyes) &&
+        item.dyes.every(
+          (dye) =>
+            dye &&
+            typeof dye === 'object' &&
+            Number.isInteger(dye.targetGroupId) &&
+            Number.isInteger(dye.featureTag) &&
+            Number.isInteger(dye.paletteId) &&
+            (dye.slot === null || Number.isInteger(dye.slot)) &&
+            typeof dye.color === 'string'
+        ) &&
+        typeof item.hasSpecialEffect === 'boolean'
+    )
+  )
 }
 
 /** 请求对象存储代理，并调用浏览器 WASM 归一化搭配数据。 */
@@ -118,7 +136,8 @@ async function requestLookbookParse(code: string): Promise<LookbookDecodeResult>
   } catch (error) {
     throw new OutfitCodeParseError(
       'unavailable',
-      'Lookbook WASM share-code decoding failed: ' + (error instanceof Error ? error.message : String(error))
+      'Lookbook WASM share-code decoding failed: ' +
+        (error instanceof Error ? error.message : String(error))
     )
   }
   if (!pathId) {
@@ -129,7 +148,7 @@ async function requestLookbookParse(code: string): Promise<LookbookDecodeResult>
   try {
     response = await fetch(LOOKBOOK_DATA_PROXY_BASE_URL + '/' + pathId, {
       signal: AbortSignal.timeout(LOOKBOOK_REQUEST_TIMEOUT_MS),
-      headers: { Accept: 'application/json, application/octet-stream' },
+      headers: { Accept: 'application/json, application/octet-stream' }
     })
   } catch (error) {
     throw new OutfitCodeParseError(
@@ -163,11 +182,12 @@ async function requestLookbookParse(code: string): Promise<LookbookDecodeResult>
     )
   }
   if (!decoded.ok) {
-    const message = decoded.errorCode === 'json_invalid'
-      ? 'Lookbook upstream returned malformed JSON'
-      : decoded.errorCode === 'clothes_missing'
-        ? 'Lookbook upstream response is missing clothes'
-        : `Lookbook upstream response could not be normalized (${decoded.errorCode})`
+    const message =
+      decoded.errorCode === 'json_invalid'
+        ? 'Lookbook upstream returned malformed JSON'
+        : decoded.errorCode === 'clothes_missing'
+          ? 'Lookbook upstream response is missing clothes'
+          : `Lookbook upstream response could not be normalized (${decoded.errorCode})`
     throw new OutfitCodeParseError('unavailable', message)
   }
   return decoded.value
@@ -199,7 +219,9 @@ export async function parseOutfitCode(rawCode: string): Promise<LookbookDecodeRe
 
     const result = inferMissingClothTypes(await requestLookbookParse(code))
     if (isCurrentCacheGeneration(generation)) parsedResultCache.set(code, result)
-    try { await persistCacheIfCurrent(generation, () => saveOutfitParseResult(code, result)) } catch {
+    try {
+      await persistCacheIfCurrent(generation, () => saveOutfitParseResult(code, result))
+    } catch {
       // 持久化失败不影响本次已成功的解析结果。
     }
     return result

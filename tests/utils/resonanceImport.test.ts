@@ -1,16 +1,33 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import outfitItems from '../../src/data/gongeo/outfitItems.json'
-import { buildResonanceRecords, loadResonanceBanners, normalizeBannerPulls, sortResonanceParts, sortResonanceRecords } from '../../src/utils/resonance/resonanceCatalog'
-import { importFromPearpal, PEARPAL_AUTH_FAILED, PEARPAL_NO_RECORDS, PEARPAL_UID_MISMATCH } from '../../src/utils/resonance/resonanceImport'
+import {
+  buildResonanceRecords,
+  loadResonanceBanners,
+  normalizeBannerPulls,
+  sortResonanceParts,
+  sortResonanceRecords
+} from '../../src/utils/resonance/resonanceCatalog'
+import {
+  importFromPearpal,
+  PEARPAL_AUTH_FAILED,
+  PEARPAL_NO_RECORDS,
+  PEARPAL_UID_MISMATCH
+} from '../../src/utils/resonance/resonanceImport'
 import { decodePearpal } from '../../src/utils/resonance/resonancePearpalData'
-import { parseResonanceCookie, resonanceBookmarkScript, resonanceConsoleScript } from '../../src/utils/resonance/resonanceScripts'
+import {
+  parseResonanceCookie,
+  resonanceBookmarkScript,
+  resonanceConsoleScript
+} from '../../src/utils/resonance/resonanceScripts'
 import { encodeSnappyLiteral } from './resonanceSnappyFixture'
 
 const HAIR = '1020100347'
 const BANNER_TWO_ITEM = '1020100126'
 const CREDENTIALS = { token: 'test-token', roleid: '123456', id: 'test-openid' }
 const outfitParts = (outfitId: string) => {
-  const entry = (outfitItems as unknown as Array<[number, number[]]>).find(([id]) => String(id) === outfitId)
+  const entry = (outfitItems as unknown as Array<[number, number[]]>).find(
+    ([id]) => String(id) === outfitId
+  )
   return entry?.[1].map(String) ?? []
 }
 
@@ -20,7 +37,7 @@ describe('resonance catalog', () => {
   it('loads bilingual banner names in descending banner ID order', () => {
     const banners = loadResonanceBanners()
     expect(banners.length).toBeGreaterThan(0)
-    const ids = banners.map(banner => Number(banner.bannerId))
+    const ids = banners.map((banner) => Number(banner.bannerId))
     expect(ids).toEqual([...ids].sort((a, b) => b - a))
     for (const banner of banners) {
       expect(banner.name.zh).toEqual(expect.any(String))
@@ -47,15 +64,30 @@ describe('resonance catalog', () => {
     ])
     const records = buildResonanceRecords('77', pulls)
     const older = { ...records[0]!, id: '2:10126', bannerId: '2', outfitId: '10126' }
-    expect(sortResonanceRecords([older, records[1]!, records[0]!]).map((record) => record.id))
-      .toEqual(['77:10347', '77:10343', '2:10126'])
+    expect(
+      sortResonanceRecords([older, records[1]!, records[0]!]).map((record) => record.id)
+    ).toEqual(['77:10347', '77:10343', '2:10126'])
   })
 
   it('filters rarity independently of banner order', () => {
-    const five = { id: '77:five', bannerId: '77', outfitId: 'five', rarity: 5 as const } as ReturnType<typeof buildResonanceRecords>[number]
-    const four = { id: '76:four', bannerId: '76', outfitId: 'four', rarity: 4 as const } as ReturnType<typeof buildResonanceRecords>[number]
-    expect(sortResonanceRecords([five, four], 'oldest', 5).map((record) => record.id)).toEqual(['77:five'])
-    expect(sortResonanceRecords([five, four], 'newest', 4).map((record) => record.id)).toEqual(['76:four'])
+    const five = {
+      id: '77:five',
+      bannerId: '77',
+      outfitId: 'five',
+      rarity: 5 as const
+    } as ReturnType<typeof buildResonanceRecords>[number]
+    const four = {
+      id: '76:four',
+      bannerId: '76',
+      outfitId: 'four',
+      rarity: 4 as const
+    } as ReturnType<typeof buildResonanceRecords>[number]
+    expect(sortResonanceRecords([five, four], 'oldest', 5).map((record) => record.id)).toEqual([
+      '77:five'
+    ])
+    expect(sortResonanceRecords([five, four], 'newest', 4).map((record) => record.id)).toEqual([
+      '76:four'
+    ])
   })
 })
 
@@ -79,7 +111,9 @@ describe('normalizeBannerPulls', () => {
     const record = buildResonanceRecords('77', pulls).find((item) => item.outfitId === '10347')
     expect(record?.sets[0].parts.find((part) => part.id === ids[0])?.pullNumber).toBe(1)
     expect(record?.sets[1].parts.find((part) => part.id === ids[0])?.pullNumber).toBe(2)
-    expect(record?.sets[0].totalPulls).toBe(1 + ids.slice(1).reduce((sum, _, index) => sum + index + 3, 0))
+    expect(record?.sets[0].totalPulls).toBe(
+      1 + ids.slice(1).reduce((sum, _, index) => sum + index + 3, 0)
+    )
     expect(record?.sets[1].totalPulls).toBe(2)
   })
 
@@ -88,14 +122,14 @@ describe('normalizeBannerPulls', () => {
     const records = buildResonanceRecords('77', pulls)
     const record = records.find((item) => item.outfitId === '10347')
     expect(record?.sets[0].parts.find((part) => part.id === HAIR)?.pullNumber).toBe(73)
-    expect(records.some((item) => item.sets[0].parts.every((part) => part.pullNumber === 0))).toBe(false)
+    expect(records.some((item) => item.sets[0].parts.every((part) => part.pullNumber === 0))).toBe(
+      false
+    )
     expect(normalizeBannerPulls('77', [{ itemId: '9999999999' }])).toEqual([])
   })
 
   it('uses pool_cnt for cumulative pulls when notebook rows have gaps', () => {
-    const pulls = normalizeBannerPulls('77', [
-      { itemId: HAIR, poolCount: 42, pullsToObtain: 18 }
-    ])
+    const pulls = normalizeBannerPulls('77', [{ itemId: HAIR, poolCount: 42, pullsToObtain: 18 }])
     expect(pulls[0]?.pullNumber).toBe(43)
     const record = buildResonanceRecords('77', pulls).find((item) => item.outfitId === '10347')
     expect(record?.sets[0].totalPulls).toBe(18)
@@ -111,11 +145,26 @@ describe('normalizeBannerPulls', () => {
       { itemId: second, poolCount: 5, pullsToObtain: 7 }
     ])
     const record = buildResonanceRecords('77', pulls).find((item) => item.outfitId === '10347')!
-    expect(sortResonanceParts(record.sets[0].parts).slice(0, 2).map((part) => part.id)).toEqual([first, second])
-    expect(sortResonanceParts(record.sets[1].parts).slice(0, 2).map((part) => part.id)).toEqual([second, first])
-    expect(sortResonanceParts(record.sets[0].parts).slice(2).every((part) => part.pullNumber === 0)).toBe(true)
-    expect(sortResonanceParts(record.sets[0].parts).slice(2).map((part) => part.id))
-      .toEqual(outfitParts('10347').slice(2))
+    expect(
+      sortResonanceParts(record.sets[0].parts)
+        .slice(0, 2)
+        .map((part) => part.id)
+    ).toEqual([first, second])
+    expect(
+      sortResonanceParts(record.sets[1].parts)
+        .slice(0, 2)
+        .map((part) => part.id)
+    ).toEqual([second, first])
+    expect(
+      sortResonanceParts(record.sets[0].parts)
+        .slice(2)
+        .every((part) => part.pullNumber === 0)
+    ).toBe(true)
+    expect(
+      sortResonanceParts(record.sets[0].parts)
+        .slice(2)
+        .map((part) => part.id)
+    ).toEqual(outfitParts('10347').slice(2))
   })
 
   it('keeps legacy owned order and treats manual pieces as obtained', () => {
@@ -123,11 +172,16 @@ describe('normalizeBannerPulls', () => {
     const record = buildResonanceRecords('77', normalizeBannerPulls('77', [{ itemId: first }]))[0]!
     const legacy = [
       { ...record.sets[0].parts.find((part) => part.id === first)!, acquisitionOrder: undefined },
-      { ...record.sets[0].parts.find((part) => part.id === second)!, manual: true, acquisitionOrder: undefined },
+      {
+        ...record.sets[0].parts.find((part) => part.id === second)!,
+        manual: true,
+        acquisitionOrder: undefined
+      },
       { ...record.sets[0].parts.find((part) => part.id === third)!, acquisitionOrder: undefined }
     ]
-    expect(sortResonanceParts([legacy[2]!, legacy[0]!, legacy[1]!]).map((part) => part.id))
-      .toEqual([first, second, third])
+    expect(sortResonanceParts([legacy[2]!, legacy[0]!, legacy[1]!]).map((part) => part.id)).toEqual(
+      [first, second, third]
+    )
   })
 
   it('rejects unknown banners', () => {
@@ -137,19 +191,40 @@ describe('normalizeBannerPulls', () => {
 
 describe('Pearpal import', () => {
   it('verifies the pasted UID before requesting and decoding the Snappy notebook', async () => {
-    const compressed = encodeSnappyLiteral(JSON.stringify({
-      info_from_self: { gacha_list: [
-        { card_pool_id: 77, pool_cnt: 1, result: HAIR, rarity: 5, times_from_last_five_stars: 17 },
-        { card_pool_id: 77, pool_cnt: 2, result: HAIR, rarity: 5 },
-        { card_pool_id: 77, pool_cnt: 99, result: '9999999999', rarity: 4, times_from_last_four_stars: 0 }
-      ] }
-    }))
+    const compressed = encodeSnappyLiteral(
+      JSON.stringify({
+        info_from_self: {
+          gacha_list: [
+            {
+              card_pool_id: 77,
+              pool_cnt: 1,
+              result: HAIR,
+              rarity: 5,
+              times_from_last_five_stars: 17
+            },
+            { card_pool_id: 77, pool_cnt: 2, result: HAIR, rarity: 5 },
+            {
+              card_pool_id: 77,
+              pool_cnt: 99,
+              result: '9999999999',
+              rarity: 4,
+              times_from_last_four_stars: 0
+            }
+          ]
+        }
+      })
+    )
     const fetchMock = vi.fn<typeof fetch>(async (input) => {
       const url = new URL(String(input), 'https://local.test')
       if (url.searchParams.get('action') === 'verify') {
-        return Response.json({ code: 0, data: { role: { uid: 123456, zone_id: 1 } } }, { headers: { 'cache-control': 'no-store' } })
+        return Response.json(
+          { code: 0, data: { role: { uid: 123456, zone_id: 1 } } },
+          { headers: { 'cache-control': 'no-store' } }
+        )
       }
-      return new Response(compressed.buffer as ArrayBuffer, { headers: { 'cache-control': 'no-store', 'content-type': 'application/octet-stream' } })
+      return new Response(compressed.buffer as ArrayBuffer, {
+        headers: { 'cache-control': 'no-store', 'content-type': 'application/octet-stream' }
+      })
     })
     vi.stubGlobal('fetch', fetchMock)
 
@@ -167,10 +242,15 @@ describe('Pearpal import', () => {
   })
 
   it('stops before reading the notebook when the server UID does not match', async () => {
-    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({
-      code: 0,
-      data: { role: { uid: '654321', zone_id: 1 } }
-    }, { headers: { 'cache-control': 'no-store' } }))
+    const fetchMock = vi.fn<typeof fetch>(async () =>
+      Response.json(
+        {
+          code: 0,
+          data: { role: { uid: '654321', zone_id: 1 } }
+        },
+        { headers: { 'cache-control': 'no-store' } }
+      )
+    )
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(importFromPearpal(CREDENTIALS)).rejects.toThrow(PEARPAL_UID_MISMATCH)
@@ -181,33 +261,63 @@ describe('Pearpal import', () => {
     { code: 0, info: 'OK' },
     { code: 0, info: 'OK', data: { role: {} } },
     { code: 1801, info: 'need login.' }
-  ])('classifies missing role or invalid credentials as an authentication failure: %j', async payload => {
-    const fetchMock = vi.fn<typeof fetch>(async () => Response.json(payload, { headers: { 'cache-control': 'no-store' } }))
-    vi.stubGlobal('fetch', fetchMock)
-    await expect(importFromPearpal(CREDENTIALS)).rejects.toThrow(PEARPAL_AUTH_FAILED)
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-  })
+  ])(
+    'classifies missing role or invalid credentials as an authentication failure: %j',
+    async (payload) => {
+      const fetchMock = vi.fn<typeof fetch>(async () =>
+        Response.json(payload, { headers: { 'cache-control': 'no-store' } })
+      )
+      vi.stubGlobal('fetch', fetchMock)
+      await expect(importFromPearpal(CREDENTIALS)).rejects.toThrow(PEARPAL_AUTH_FAILED)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    }
+  )
 
   it('classifies login expiry between verification and snapshot as an authentication failure', async () => {
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async input => Response.json(
-      new URL(String(input), 'https://local.test').searchParams.get('action') === 'verify'
-        ? { code: 0, data: { role: { uid: '123456', zone_id: 1 } } }
-        : { code: 1801, info: 'need login.' },
-      { headers: { 'cache-control': 'no-store' } }
-    )))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(async (input) =>
+        Response.json(
+          new URL(String(input), 'https://local.test').searchParams.get('action') === 'verify'
+            ? { code: 0, data: { role: { uid: '123456', zone_id: 1 } } }
+            : { code: 1801, info: 'need login.' },
+          { headers: { 'cache-control': 'no-store' } }
+        )
+      )
+    )
     await expect(importFromPearpal(CREDENTIALS)).rejects.toThrow(PEARPAL_AUTH_FAILED)
   })
 
   it('processes every known banner and reports an unparseable pool', async () => {
-    const compressed = encodeSnappyLiteral(JSON.stringify({ info_from_self: { gacha_list: [
-      { card_pool_id: 77, pool_cnt: 4, result: '9999999999', rarity: 5 },
-      { card_pool_id: 2, pool_cnt: 5, result: BANNER_TWO_ITEM, rarity: 5, times_from_last_five_stars: 5 }
-    ] } }))
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) =>
-      new URL(String(input), 'https://local.test').searchParams.get('action') === 'verify'
-        ? Response.json({ code: 0, data: { role: { uid: '123456', zone_id: 1 } } }, { headers: { 'cache-control': 'no-store' } })
-        : new Response(compressed.buffer as ArrayBuffer, { headers: { 'cache-control': 'no-store' } })
-    ))
+    const compressed = encodeSnappyLiteral(
+      JSON.stringify({
+        info_from_self: {
+          gacha_list: [
+            { card_pool_id: 77, pool_cnt: 4, result: '9999999999', rarity: 5 },
+            {
+              card_pool_id: 2,
+              pool_cnt: 5,
+              result: BANNER_TWO_ITEM,
+              rarity: 5,
+              times_from_last_five_stars: 5
+            }
+          ]
+        }
+      })
+    )
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(async (input) =>
+        new URL(String(input), 'https://local.test').searchParams.get('action') === 'verify'
+          ? Response.json(
+              { code: 0, data: { role: { uid: '123456', zone_id: 1 } } },
+              { headers: { 'cache-control': 'no-store' } }
+            )
+          : new Response(compressed.buffer as ArrayBuffer, {
+              headers: { 'cache-control': 'no-store' }
+            })
+      )
+    )
 
     const result = await importFromPearpal(CREDENTIALS)
     expect(result.records.map((record) => record.bannerId)).toEqual(['2'])
@@ -218,8 +328,13 @@ describe('Pearpal import', () => {
     const fetchMock = vi.fn<typeof fetch>(async (input) => {
       const action = new URL(String(input), 'https://local.test').searchParams.get('action')
       return action === 'verify'
-        ? Response.json({ code: 0, data: { role: { uid: '123456', zone_id: 1 } } }, { headers: { 'cache-control': 'no-store' } })
-        : new Response(encodeSnappyLiteral('{}').buffer as ArrayBuffer, { headers: { 'cache-control': 'no-store' } })
+        ? Response.json(
+            { code: 0, data: { role: { uid: '123456', zone_id: 1 } } },
+            { headers: { 'cache-control': 'no-store' } }
+          )
+        : new Response(encodeSnappyLiteral('{}').buffer as ArrayBuffer, {
+            headers: { 'cache-control': 'no-store' }
+          })
     })
     vi.stubGlobal('fetch', fetchMock)
     await expect(importFromPearpal(CREDENTIALS)).rejects.toThrow(PEARPAL_NO_RECORDS)
@@ -236,8 +351,11 @@ describe('credential helpers', () => {
     expect(script).toContain('请在美鸭梨网站上使用此书签')
     expect(resonanceConsoleScript).toContain('momoToken')
     expect(resonanceConsoleScript).toContain('momoNid')
-    expect(parseResonanceCookie('{"roleid":"123","token":"t","id":"i"}'))
-      .toEqual({ roleid: '123', token: 't', id: 'i' })
+    expect(parseResonanceCookie('{"roleid":"123","token":"t","id":"i"}')).toEqual({
+      roleid: '123',
+      token: 't',
+      id: 'i'
+    })
     expect(parseResonanceCookie("{'roleid':'123','token':'t','id':'i'}").roleid).toBe('123')
     expect(() => parseResonanceCookie('{"token":"t"}')).toThrow()
   })

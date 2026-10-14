@@ -34,38 +34,77 @@ export interface HomeSchemeItem extends HomeSchemeRecord {
 }
 
 export function normalizeHomeSchemeMetadata(value: unknown): HomeSchemeMetadata {
-  const raw = value && typeof value === 'object' ? value as Partial<HomeSchemeMetadata> : {}
+  const raw = value && typeof value === 'object' ? (value as Partial<HomeSchemeMetadata>) : {}
   return {
     version: typeof raw.version === 'string' ? raw.version : null,
-    furnitureCount: typeof raw.furnitureCount === 'number' && Number.isFinite(raw.furnitureCount) ? raw.furnitureCount : null,
+    furnitureCount:
+      typeof raw.furnitureCount === 'number' && Number.isFinite(raw.furnitureCount)
+        ? raw.furnitureCount
+        : null,
     server: typeof raw.server === 'number' && Number.isFinite(raw.server) ? raw.server : null,
-    lastModifyTime: typeof raw.lastModifyTime === 'number' && Number.isFinite(raw.lastModifyTime) ? raw.lastModifyTime : null,
+    lastModifyTime:
+      typeof raw.lastModifyTime === 'number' && Number.isFinite(raw.lastModifyTime)
+        ? raw.lastModifyTime
+        : null,
     coverImageUrl: typeof raw.coverImageUrl === 'string' ? raw.coverImageUrl : null
   }
 }
 
-export function createHomeSchemeId(): string { return createUuid() }
+export function createHomeSchemeId(): string {
+  return createUuid()
+}
 
 export function isSafeHomeSchemeId(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= 128 && value !== '.' && value !== '..' && !/[\\/\0]/.test(value)
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= 128 &&
+    value !== '.' &&
+    value !== '..' &&
+    !/[\\/\0]/.test(value)
+  )
 }
 
 /** Shared validation for database writes, backups and legacy migration. */
 export function normalizeHomeSchemeRecord(value: unknown): HomeSchemeRecord {
   if (!value || typeof value !== 'object') throw new Error('home_scheme_record_invalid')
   const raw = value as Partial<HomeSchemeRecord>
-  if (raw.version !== 1 || !isSafeHomeSchemeId(raw.id) || typeof raw.code !== 'string' ||
-      typeof raw.name !== 'string' || !raw.name.trim() || (raw.schemeType !== 'home' && raw.schemeType !== 'combo') ||
-      !Array.isArray(raw.tags) || typeof raw.note !== 'string' || raw.note.length > MAX_HOME_SCHEME_NOTE_LENGTH ||
-      typeof raw.createdAt !== 'string' || !Number.isFinite(Date.parse(raw.createdAt)) ||
-      typeof raw.updatedAt !== 'string' || !Number.isFinite(Date.parse(raw.updatedAt)) ||
-      (raw.image !== null && raw.image !== `${raw.id}.webp`)) throw new Error('home_scheme_record_invalid')
+  if (
+    raw.version !== 1 ||
+    !isSafeHomeSchemeId(raw.id) ||
+    typeof raw.code !== 'string' ||
+    typeof raw.name !== 'string' ||
+    !raw.name.trim() ||
+    (raw.schemeType !== 'home' && raw.schemeType !== 'combo') ||
+    !Array.isArray(raw.tags) ||
+    typeof raw.note !== 'string' ||
+    raw.note.length > MAX_HOME_SCHEME_NOTE_LENGTH ||
+    typeof raw.createdAt !== 'string' ||
+    !Number.isFinite(Date.parse(raw.createdAt)) ||
+    typeof raw.updatedAt !== 'string' ||
+    !Number.isFinite(Date.parse(raw.updatedAt)) ||
+    (raw.image !== null && raw.image !== `${raw.id}.webp`)
+  )
+    throw new Error('home_scheme_record_invalid')
   const code = normalizeHomeSchemeCode(raw.code)
-  if (code.length < 2 || code.length > MAX_HOME_SCHEME_CODE_LENGTH) throw new Error('home_scheme_code_invalid')
+  if (code.length < 2 || code.length > MAX_HOME_SCHEME_CODE_LENGTH)
+    throw new Error('home_scheme_code_invalid')
   const tags = [...new Set(raw.tags.map(normalizeHomeSchemeTag))]
-  if (tags.length > 1 || tags.some(tag => !isValidHomeSchemeTag(tag))) throw new Error('home_scheme_tag_invalid')
-  return { version: 1, id: raw.id, image: raw.image, code, name: raw.name.trim(), schemeType: raw.schemeType,
-    metadata: normalizeHomeSchemeMetadata(raw.metadata), tags, note: raw.note.trim(), createdAt: raw.createdAt, updatedAt: raw.updatedAt }
+  if (tags.length > 1 || tags.some((tag) => !isValidHomeSchemeTag(tag)))
+    throw new Error('home_scheme_tag_invalid')
+  return {
+    version: 1,
+    id: raw.id,
+    image: raw.image,
+    code,
+    name: raw.name.trim(),
+    schemeType: raw.schemeType,
+    metadata: normalizeHomeSchemeMetadata(raw.metadata),
+    tags,
+    note: raw.note.trim(),
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt
+  }
 }
 
 export interface SaveHomeSchemeInput {

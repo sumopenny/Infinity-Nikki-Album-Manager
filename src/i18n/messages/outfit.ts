@@ -30,7 +30,10 @@ export interface OutfitMessages {
   updating: string
   upToDate: string
   scanComplete: (added: number, failed: number) => string
-  sharedImportResult: Record<'duplicate' | 'missing-image' | 'image-not-updated' | 'source-changed' | 'image-write-failed', string>
+  sharedImportResult: Record<
+    'duplicate' | 'missing-image' | 'image-not-updated' | 'source-changed' | 'image-write-failed',
+    string
+  >
   addOutfit: string
   editTitle: string
   imageLabel: string
@@ -99,9 +102,6 @@ export interface OutfitMessages {
     deleteIncomplete: string
     deletingSelected: string
     deletedSelected: (deletedCount: number, failedCount: number) => string
-    exportTitle: string
-    exportConfirm: () => string
-    exportAction: string
     exportSucceeded: (fileName: string, count: number) => string
     rejectedTags: (count: number) => string
     importCompleted: (added: number, duplicates: number, failed: number, tagNote: string) => string
@@ -138,10 +138,12 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     storageFull: '浏览器存储空间不足，请释放空间后重试。源文件已保留。',
     recordChanged: '方案已被其他页面修改或删除，请刷新后重试。',
     operationFailed: '搭配数据读取或保存失败，请重试。',
-    migrationComplete: (added, replaced, skipped, failed) => `旧搭配迁移：新增 ${added} 个，替换 ${replaced} 个，跳过 ${skipped} 个，失败 ${failed} 个。`,
-    migrationFailedItems: names => `未完成文件：${names}。源文件已保留。`,
+    migrationComplete: (added, replaced, skipped, failed) =>
+      `旧搭配迁移：新增 ${added} 个，替换 ${replaced} 个，跳过 ${skipped} 个，失败 ${failed} 个。`,
+    migrationFailedItems: (names) => `未完成文件：${names}。源文件已保留。`,
     migrationDirectoryRemoved: '旧 clothe 文件夹已删除。',
-    migrationCleanupFailed: 'clothe 文件夹已保留：存在未迁移内容、源文件变化或删除权限不足。请检查后再次更新。',
+    migrationCleanupFailed:
+      'clothe 文件夹已保留：存在未迁移内容、源文件变化或删除权限不足。请检查后再次更新。',
     migrationTagLimit: '全局标签已达上限，请整理标签后再次更新。',
     migrationSourceChanged: '已迁移的源文件发生变化，未再次覆盖收藏；请通过编辑或备份导入更新。',
     updating: '搭配码更新中…',
@@ -204,13 +206,14 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     operations: {
       copyCode: '复制搭配码',
       albumOpenedWithFailures: (failed) => `相册已打开，${failed} 个搭配方案读取或导入失败。`,
-      saveSucceeded: (wasEditing) => wasEditing ? '保存成功。' : '添加成功。',
+      saveSucceeded: (wasEditing) => (wasEditing ? '保存成功。' : '添加成功。'),
       invalidTag: (maxLength) => `标签不能为空，且最多为${maxLength}个字符。`,
       duplicateOrReservedTag: '标签名称已存在或属于系统筛选项。',
       tagLimitReached: (maxTags) => `最多只能创建${maxTags}个用户标签。`,
       tagAdded: '标签添加成功。',
       deleteTagTitle: '删除标签',
-      deleteTagMessage: (tag, usedCount) => `“${tag}”正用于 ${usedCount} 个方案。删除后这些方案会归入“未分类”，图片和方案不会删除。`,
+      deleteTagMessage: (tag, usedCount) =>
+        `“${tag}”正用于 ${usedCount} 个方案。删除后这些方案会归入“未分类”，图片和方案不会删除。`,
       tagDeleted: '标签已删除。',
       copySucceeded: '复制成功。',
       copyFailed: (code) => `复制失败，请手动复制：${code}`,
@@ -221,13 +224,13 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       outfitDeleted: '删除成功。',
       deleteIncomplete: '方案删除失败，请刷新后重试。',
       deletingSelected: '正在永久删除搭配方案…',
-      deletedSelected: (deletedCount, failedCount) => `已永久删除 ${deletedCount} 个搭配方案${failedCount ? `，${failedCount} 个删除失败。` : '。'}`,
-      exportTitle: '导出搭配码数据',
-      exportConfirm: () => '备份 ZIP 将通过浏览器下载，保存位置由浏览器下载设置决定；数据较多时会生成多个 ZIP，请允许下载多个文件。是否继续？',
-      exportAction: '开始导出',
-      exportSucceeded: (fileName, count) => `已生成备份并发起下载：${fileName}（${count} 个方案）。`,
+      deletedSelected: (deletedCount, failedCount) =>
+        `已永久删除 ${deletedCount} 个搭配方案${failedCount ? `，${failedCount} 个删除失败。` : '。'}`,
+      exportSucceeded: (fileName, count) =>
+        `已生成备份并发起下载：${fileName}（${count} 个方案）。`,
       rejectedTags: (count) => `另有 ${count} 个标签因超过限制未添加。`,
-      importCompleted: (added, duplicates, failed, tagNote) => `导入完成：新增 ${added} 个方案，跳过 ${duplicates} 个重复方案，${failed} 个方案导入失败。${tagNote}`
+      importCompleted: (added, duplicates, failed, tagNote) =>
+        `导入完成：新增 ${added} 个方案，跳过 ${duplicates} 个重复方案，${failed} 个方案导入失败。${tagNote}`
     },
     guideTitle: '搭配码使用指南',
     guideIntro: '搭配图片、搭配码和标签保存在当前浏览器，所有相册共用，不会上传到网站服务器。',
@@ -239,10 +242,34 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       ]
     },
     guideSections: [
-      { title: '搭配码解析', items: ['可在搭配页顶部输入搭配码并点击“解析搭配码”，无需先创建搭配方案。', '已填写搭配码的方案可点击卡片右上角的解析按钮，查看搭配部件与染色信息。'] },
-      { title: '标签与整理', items: ['左侧可按全部、待填写、未分类和用户标签筛选。最多创建 40 个标签，每个标签不超过 5 个字符。', '删除正在使用的标签只会让相关方案归入“未分类”，不会删除图片或方案。'] },
-      { title: '添加与编辑方案', items: ['点击“添加方案”，可以选择、拖拽或粘贴图片（点击窗口空白处 Ctrl+V 粘贴）。', '搭配码可以留空稍后填写；每个方案最多选择一个标签，双击图片可打开预览。'] },
-      { title: '导入与导出', items: ['选择相册后，旧 clothe 搭配数据会自动迁入浏览器。全部迁移成功且源文件未变化后删除旧文件夹；有失败或未迁移内容时保留并提示。', '“导出数据”备份所有相册共用的搭配和标签；“导入数据”会跳过已有搭配码。请定期导出备份。删除方案后该码不会再次自动导入，手动添加或备份恢复仍可使用。'] }
+      {
+        title: '搭配码解析',
+        items: [
+          '可在搭配页顶部输入搭配码并点击“解析搭配码”，无需先创建搭配方案。',
+          '已填写搭配码的方案可点击卡片右上角的解析按钮，查看搭配部件与染色信息。'
+        ]
+      },
+      {
+        title: '标签与整理',
+        items: [
+          '左侧可按全部、待填写、未分类和用户标签筛选。最多创建 40 个标签，每个标签不超过 5 个字符。',
+          '删除正在使用的标签只会让相关方案归入“未分类”，不会删除图片或方案。'
+        ]
+      },
+      {
+        title: '添加与编辑方案',
+        items: [
+          '点击“添加方案”，可以选择、拖拽或粘贴图片（点击窗口空白处 Ctrl+V 粘贴）。',
+          '搭配码可以留空稍后填写；每个方案最多选择一个标签，双击图片可打开预览。'
+        ]
+      },
+      {
+        title: '导入与导出',
+        items: [
+          '选择相册后，旧 clothe 搭配数据会自动迁入浏览器。全部迁移成功且源文件未变化后删除旧文件夹；有失败或未迁移内容时保留并提示。',
+          '“导出数据”备份所有相册共用的搭配和标签；“导入数据”会跳过已有搭配码。请定期导出备份。删除方案后该码不会再次自动导入，手动添加或备份恢复仍可使用。'
+        ]
+      }
     ],
     guideDontShowAgain: '不再提示',
     guideConfirm: '知道了',
@@ -270,20 +297,26 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     storageFull: 'Browser storage is full. Free some space and retry. Source files were retained.',
     recordChanged: 'This outfit was changed or deleted in another page. Refresh and retry.',
     operationFailed: 'Unable to read or save outfit data. Please retry.',
-    migrationComplete: (added, replaced, skipped, failed) => `Outfit migration: ${added} added, ${replaced} replaced, ${skipped} skipped, ${failed} failed.`,
-    migrationFailedItems: names => `Unfinished files: ${names}. Source files were retained.`,
+    migrationComplete: (added, replaced, skipped, failed) =>
+      `Outfit migration: ${added} added, ${replaced} replaced, ${skipped} skipped, ${failed} failed.`,
+    migrationFailedItems: (names) => `Unfinished files: ${names}. Source files were retained.`,
     migrationDirectoryRemoved: 'The old clothe folder was removed.',
-    migrationCleanupFailed: 'The clothe folder was retained because of unmigrated content, changed files or insufficient deletion permission. Check it and update again.',
+    migrationCleanupFailed:
+      'The clothe folder was retained because of unmigrated content, changed files or insufficient deletion permission. Check it and update again.',
     migrationTagLimit: 'The global tag limit was reached. Organize your tags and update again.',
-    migrationSourceChanged: 'A migrated source file changed. Saved outfits were preserved. Use editing or backup import to update it.',
+    migrationSourceChanged:
+      'A migrated source file changed. Saved outfits were preserved. Use editing or backup import to update it.',
     updating: 'Updating outfit codes…',
     upToDate: 'Outfit codes are up to date.',
-    scanComplete: (added, failed) => `Outfit code update complete: ${added} added, ${failed} failed.`,
+    scanComplete: (added, failed) =>
+      `Outfit code update complete: ${added} added, ${failed} failed.`,
     sharedImportResult: {
       duplicate: 'The latest outfit code already exists and was skipped.',
       'missing-image': 'A new outfit code was found, but the game outfit image is missing.',
-      'image-not-updated': 'A new outfit code was found, but the game outfit image has not been updated.',
-      'source-changed': 'The game changed the code or image during import. The next update will retry.',
+      'image-not-updated':
+        'A new outfit code was found, but the game outfit image has not been updated.',
+      'source-changed':
+        'The game changed the code or image during import. The next update will retry.',
       'image-write-failed': 'The game outfit image could not be converted or written.'
     },
     addOutfit: 'Add outfit',
@@ -309,14 +342,16 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     parseLoading: 'Decoding outfit code…',
     parseEmpty: 'No outfit items were found.',
     parseInvalidCode: 'This outfit code is invalid or does not exist.',
-    parseUnavailable: 'The outfit code parsing service is currently unstable. Please refresh the website and try again later.',
+    parseUnavailable:
+      'The outfit code parsing service is currently unstable. Please refresh the website and try again later.',
     parseRetry: 'Retry',
     parseClose: 'Close item list',
     parseOpenDetail: (name) => `View details for ${name}`,
     detailTitle: 'Item details',
     detailClose: 'Close item details',
     detailLoading: 'Loading catalog details…',
-    detailLoadFailed: 'Catalog details could not be loaded. The decoded item information is still available.',
+    detailLoadFailed:
+      'Catalog details could not be loaded. The decoded item information is still available.',
     detailOutfit: 'Outfit',
     detailCurrentItem: 'Current item',
     detailOutfitUnavailable: 'None',
@@ -329,20 +364,23 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     detailColor: 'Color',
     parseItemCount: (count) => `${count} item${count === 1 ? '' : 's'}`,
     emptyTitle: 'No outfit plans yet',
-    emptyDescription: 'Add an outfit, or generate a code in the game and return to automatically import it.',
+    emptyDescription:
+      'Add an outfit, or generate a code in the game and return to automatically import it.',
     imageRequired: 'Choose an outfit image first.',
     unsupportedImage: 'Choose a JPG, JPEG, PNG, or WebP image.',
     imageLoadFailed: 'Unable to read outfit image',
     operations: {
       copyCode: 'Copy outfit code',
-      albumOpenedWithFailures: (failed) => `Album opened; ${failed} outfit item(s) could not be read or imported.`,
-      saveSucceeded: (wasEditing) => wasEditing ? 'Outfit saved.' : 'Outfit added.',
+      albumOpenedWithFailures: (failed) =>
+        `Album opened; ${failed} outfit item(s) could not be read or imported.`,
+      saveSucceeded: (wasEditing) => (wasEditing ? 'Outfit saved.' : 'Outfit added.'),
       invalidTag: (maxLength) => `A tag must contain 1 to ${maxLength} characters.`,
       duplicateOrReservedTag: 'That name is already used or reserved.',
       tagLimitReached: (maxTags) => `You can create up to ${maxTags} user tags.`,
       tagAdded: 'Tag added.',
       deleteTagTitle: 'Delete tag',
-      deleteTagMessage: (tag, usedCount) => `“${tag}” is used by ${usedCount} outfit(s). They will become uncategorized; no outfits or images will be deleted.`,
+      deleteTagMessage: (tag, usedCount) =>
+        `“${tag}” is used by ${usedCount} outfit(s). They will become uncategorized; no outfits or images will be deleted.`,
       tagDeleted: 'Tag deleted.',
       copySucceeded: 'Outfit code copied.',
       copyFailed: (code) => `Copy failed. Copy manually: ${code}`,
@@ -353,16 +391,17 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       outfitDeleted: 'Outfit deleted.',
       deleteIncomplete: 'Unable to delete outfits. Refresh and retry.',
       deletingSelected: 'Permanently deleting outfits…',
-      deletedSelected: (deletedCount, failedCount) => `Permanently deleted ${deletedCount} outfit(s)${failedCount ? `; ${failedCount} failed.` : '.'}`,
-      exportTitle: 'Export outfit code data',
-      exportConfirm: () => 'Backup ZIP files will be downloaded using your browser download settings. Large backups create multiple ZIP files; allow multiple downloads. Continue?',
-      exportAction: 'Export',
-      exportSucceeded: (fileName, count) => `Created backup and requested download: ${fileName} (${count} outfits).`,
+      deletedSelected: (deletedCount, failedCount) =>
+        `Permanently deleted ${deletedCount} outfit(s)${failedCount ? `; ${failedCount} failed.` : '.'}`,
+      exportSucceeded: (fileName, count) =>
+        `Created backup and requested download: ${fileName} (${count} outfits).`,
       rejectedTags: (count) => ` ${count} tag(s) were rejected by the limits.`,
-      importCompleted: (added, duplicates, failed, tagNote) => `Import complete: ${added} added, ${duplicates} duplicate(s) skipped, ${failed} failed.${tagNote}`
+      importCompleted: (added, duplicates, failed, tagNote) =>
+        `Import complete: ${added} added, ${duplicates} duplicate(s) skipped, ${failed} failed.${tagNote}`
     },
     guideTitle: 'Outfit Code Guide',
-    guideIntro: 'Outfit images, codes and tags are stored in this browser and shared across albums. Collections are not uploaded.',
+    guideIntro:
+      'Outfit images, codes and tags are stored in this browser and shared across albums. Collections are not uploaded.',
     guideFeaturedSection: {
       title: 'Auto update in-game codes',
       items: [
@@ -371,10 +410,34 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       ]
     },
     guideSections: [
-      { title: 'Decode outfit codes', items: ['Enter a code at the top of the Outfit Code page and click Decode outfit code without creating a plan first.', 'For a plan with a code, click the decode button in the upper-right corner of its card to view outfit items and dye information.'] },
-      { title: 'Tags and filters', items: ['Filter by All, Pending, Uncategorized, or user tags. You can create up to 40 tags with no more than 5 characters each.', 'Deleting a tag in use only moves matching plans to Uncategorized; it does not delete their images or plans.'] },
-      { title: 'Add and edit', items: ['Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press Ctrl+V).', 'The outfit code can be left blank and filled in later. Each plan can use at most one tag, and double-clicking the image opens the preview.'] },
-      { title: 'Import and export', items: ['Selecting an album automatically migrates its old clothe collection into the browser. The old folder is removed after successful migration and source verification; failures or unmigrated content leave it intact.', 'Export backs up the global collection. Import skips existing codes. Deleted codes stay excluded from automatic import, but can be restored manually or from a backup. Export backups regularly.'] }
+      {
+        title: 'Decode outfit codes',
+        items: [
+          'Enter a code at the top of the Outfit Code page and click Decode outfit code without creating a plan first.',
+          'For a plan with a code, click the decode button in the upper-right corner of its card to view outfit items and dye information.'
+        ]
+      },
+      {
+        title: 'Tags and filters',
+        items: [
+          'Filter by All, Pending, Uncategorized, or user tags. You can create up to 40 tags with no more than 5 characters each.',
+          'Deleting a tag in use only moves matching plans to Uncategorized; it does not delete their images or plans.'
+        ]
+      },
+      {
+        title: 'Add and edit',
+        items: [
+          'Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press Ctrl+V).',
+          'The outfit code can be left blank and filled in later. Each plan can use at most one tag, and double-clicking the image opens the preview.'
+        ]
+      },
+      {
+        title: 'Import and export',
+        items: [
+          'Selecting an album automatically migrates its old clothe collection into the browser. The old folder is removed after successful migration and source verification; failures or unmigrated content leave it intact.',
+          'Export backs up the global collection. Import skips existing codes. Deleted codes stay excluded from automatic import, but can be restored manually or from a backup. Export backups regularly.'
+        ]
+      }
     ],
     guideDontShowAgain: "Don't show again",
     guideConfirm: 'Got it',

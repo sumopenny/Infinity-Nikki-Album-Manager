@@ -5,7 +5,11 @@ import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { DEFAULT_GALLERY_API, GALLERY_IMAGE_TEMPLATE, readGalleryCatalog } from './update-nikkigallery-poses.mjs'
+import {
+  DEFAULT_GALLERY_API,
+  GALLERY_IMAGE_TEMPLATE,
+  readGalleryCatalog
+} from './update-nikkigallery-poses.mjs'
 
 const DEFAULT_MANIFEST_PATH = resolve(process.cwd(), '../nikki_albums/app_api/hot_update.json')
 const DATABASE_KEY = Buffer.from('9C46C6BF431F5AFFF97A2002AEDFA8B7', 'utf8')
@@ -38,7 +42,9 @@ async function readSource(source) {
   const normalized = sourceToPathOrUrl(source)
   if (!normalized) throw new Error('缺少资源输入路径或 URL')
   if (/^https?:\/\//u.test(normalized)) {
-    return fetchResource(normalized, {}, async response => Buffer.from(await response.arrayBuffer()))
+    return fetchResource(normalized, {}, async (response) =>
+      Buffer.from(await response.arrayBuffer())
+    )
   }
   return readFile(normalized)
 }
@@ -91,7 +97,8 @@ function readProtoFields(input) {
       state.offset += 8
     } else if (wire === 2) {
       const length = readVarint(bytes, state)
-      if (state.offset + length > bytes.length) throw new Error('protobuf length-delimited 字段截断')
+      if (state.offset + length > bytes.length)
+        throw new Error('protobuf length-delimited 字段截断')
       fields.push({ field, wire, value: bytes.subarray(state.offset, state.offset + length) })
       state.offset += length
     } else if (wire === 5) {
@@ -223,7 +230,12 @@ class MessagePackReader {
       return this.bytes(lengths[marker - 0xd4])
     }
     if (marker === 0xc7 || marker === 0xc8 || marker === 0xc9) {
-      const length = marker === 0xc7 ? this.byte() : marker === 0xc8 ? this.bytes(2).readUInt16BE(0) : this.bytes(4).readUInt32BE(0)
+      const length =
+        marker === 0xc7
+          ? this.byte()
+          : marker === 0xc8
+            ? this.bytes(2).readUInt16BE(0)
+            : this.bytes(4).readUInt32BE(0)
       this.byte()
       return this.bytes(length - 1)
     }
@@ -290,7 +302,9 @@ export function buildMappedEntries(map, zh, en) {
 export function resolveHotUpdateFiles(manifest, id, language) {
   const item = manifest.find((entry) => entry.id === id)
   if (!item) throw new Error(`hot_update.json 中缺少 ${id}`)
-  const file = item.files.find((entry) => entry.path === (id === 'nuan5_database' ? 'v1.db' : `${language}.bin`))
+  const file = item.files.find(
+    (entry) => entry.path === (id === 'nuan5_database' ? 'v1.db' : `${language}.bin`)
+  )
   if (!file) throw new Error(`hot_update.json 中缺少 ${id}/${language}`)
   return { versionId: item.versionId, source: file.downloadLink }
 }
@@ -301,7 +315,10 @@ function templateValue(value) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2))
-  const manifestSource = args.manifest ?? process.env.NUAN5_HOT_UPDATE_MANIFEST ?? (existsSync(DEFAULT_MANIFEST_PATH) ? DEFAULT_MANIFEST_PATH : null)
+  const manifestSource =
+    args.manifest ??
+    process.env.NUAN5_HOT_UPDATE_MANIFEST ??
+    (existsSync(DEFAULT_MANIFEST_PATH) ? DEFAULT_MANIFEST_PATH : null)
   if (!manifestSource) throw new Error('找不到 hot_update.json，请使用 --manifest 指定路径或 URL')
   const manifest = await readJsonSource(manifestSource)
   const databaseFile = resolveHotUpdateFiles(manifest, 'nuan5_database', 'zh-CN')
@@ -329,22 +346,35 @@ async function main() {
       pose: GALLERY_IMAGE_TEMPLATE
     },
     resources: {
-      light: buildMappedEntries(database.light, categoryTranslations(zh, 'light'), categoryTranslations(en, 'light')),
-      filter: buildMappedEntries(database.filter, categoryTranslations(zh, 'filter'), categoryTranslations(en, 'filter')),
+      light: buildMappedEntries(
+        database.light,
+        categoryTranslations(zh, 'light'),
+        categoryTranslations(en, 'light')
+      ),
+      filter: buildMappedEntries(
+        database.filter,
+        categoryTranslations(zh, 'filter'),
+        categoryTranslations(en, 'filter')
+      ),
       pose: gallery.poses
     }
   }
-  const output = args.out ? resolve(process.cwd(), args.out) : resolve(process.cwd(), 'src/data/nuan5ResourceCatalog.json')
+  const output = args.out
+    ? resolve(process.cwd(), args.out)
+    : resolve(process.cwd(), 'src/data/nuan5ResourceCatalog.json')
   await mkdir(dirname(output), { recursive: true })
   await writeFile(output, `${JSON.stringify(catalog, null, 2)}\n`, 'utf8')
-  const counts = Object.fromEntries(Object.entries(catalog.resources).map(([kind, entries]) => [kind, entries.length]))
+  const counts = Object.fromEntries(
+    Object.entries(catalog.resources).map(([kind, entries]) => [kind, entries.length])
+  )
   console.log(`已生成 ${output}`)
   console.log(JSON.stringify({ source: catalog.source, counts }, null, 2))
 }
 
 // 导入解析函数时不执行全量生成，供灯光和滤镜增量同步复用。
 const entryUrl = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : ''
-if (import.meta.url === entryUrl) main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error)
-  process.exitCode = 1
-})
+if (import.meta.url === entryUrl)
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error)
+    process.exitCode = 1
+  })

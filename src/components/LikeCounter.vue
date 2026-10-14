@@ -18,7 +18,8 @@ const formattedCount = computed(() => (count.value === null ? '…' : count.valu
 const displayCount = computed(() => {
   if (count.value === null || !props.compact) return formattedCount.value
   return new Intl.NumberFormat(props.language === 'en' ? 'en' : 'zh-CN', {
-    notation: 'compact', maximumFractionDigits: 1
+    notation: 'compact',
+    maximumFractionDigits: 1
   }).format(count.value)
 })
 
@@ -42,22 +43,29 @@ async function like() {
   pendingLikes += 1
   count.value = currentCount + 1
   justLiked.value = true
-  window.setTimeout(() => { justLiked.value = false }, 400)
+  window.setTimeout(() => {
+    justLiked.value = false
+  }, 400)
 
-  likeQueue = likeQueue.catch(() => undefined).then(async () => {
-    const confirmedCount = count.value ?? currentCount
-    try {
-      const response = await fetch('/api/like', { method: 'POST', headers: { accept: 'application/json' } })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const data = (await response.json()) as { count?: unknown }
-      if (typeof data.count === 'number') count.value = data.count + pendingLikes - 1
-      else count.value = Math.max(0, (count.value ?? confirmedCount) - 1)
-    } catch {
-      count.value = Math.max(0, (count.value ?? confirmedCount) - 1)
-    } finally {
-      pendingLikes -= 1
-    }
-  })
+  likeQueue = likeQueue
+    .catch(() => undefined)
+    .then(async () => {
+      const confirmedCount = count.value ?? currentCount
+      try {
+        const response = await fetch('/api/like', {
+          method: 'POST',
+          headers: { accept: 'application/json' }
+        })
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const data = (await response.json()) as { count?: unknown }
+        if (typeof data.count === 'number') count.value = data.count + pendingLikes - 1
+        else count.value = Math.max(0, (count.value ?? confirmedCount) - 1)
+      } catch {
+        count.value = Math.max(0, (count.value ?? confirmedCount) - 1)
+      } finally {
+        pendingLikes -= 1
+      }
+    })
   await likeQueue
 }
 

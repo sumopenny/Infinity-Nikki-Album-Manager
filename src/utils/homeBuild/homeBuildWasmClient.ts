@@ -7,13 +7,10 @@ interface HomeBuildWasmExports extends WebAssembly.Exports {
   __newArray(id: number, values: ArrayLike<number>): number
   Uint8Array_ID: WebAssembly.Global
   decodeHomeBuildShareCode(codePointer: number): number
-  parseHomeBuildDecodedJson(codePointer: number, payloadPointer: number): number
   parseHomeBuildResponse(payloadPointer: number): number
 }
 
-export type HomeBuildWasmResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; errorCode: string }
+export type HomeBuildWasmResult<T> = { ok: true; value: T } | { ok: false; errorCode: string }
 
 export interface HomeBuildRoute {
   code: string
@@ -21,19 +18,6 @@ export interface HomeBuildRoute {
   serverId: number
   resourceKey: string
   requestPath: string
-}
-
-export interface HomeBuildSummary extends HomeBuildRoute {
-  name: string
-  coverImage: string | null
-  mapId: number
-  lastModifyTime: number
-  uid: number
-  gameArea: string
-  templateType: 0 | 1
-  templateName: 'island' | 'group'
-  furnitureCount: number
-  version: string | null
 }
 
 export interface HomeBuildWireData {
@@ -73,7 +57,7 @@ function parseResult<T>(text: string): HomeBuildWasmResult<T> {
   return JSON.parse(text) as HomeBuildWasmResult<T>
 }
 
-/** Resolve the server marker and object key without fetching or decoding the object. */
+/** 只解析服务器标记和资源路径，不请求或解码方案正文。 */
 export async function decodeHomeBuildShareCode(
   code: string
 ): Promise<HomeBuildWasmResult<HomeBuildRoute>> {
@@ -82,20 +66,7 @@ export async function decodeHomeBuildShareCode(
   return parseResult<HomeBuildRoute>(result)
 }
 
-/** Parse the Nuan5 JSON produced by the native HomeBuild decoder. */
-export async function parseHomeBuildDecodedJson(
-  code: string,
-  payload: string
-): Promise<HomeBuildWasmResult<HomeBuildSummary>> {
-  const wasm = await getExports()
-  const result = wasm.__getString(wasm.parseHomeBuildDecodedJson(
-    wasm.__newString(code),
-    wasm.__newString(payload)
-  ))
-  return parseResult<HomeBuildSummary>(result)
-}
-
-/** Decode a captured HomeBuild CDN response without the native DLL. */
+/** 在浏览器内解码家园 CDN 二进制响应，不依赖原生 DLL。 */
 export async function parseHomeBuildResponse(
   payload: Uint8Array
 ): Promise<HomeBuildWasmResult<HomeBuildWireData>> {

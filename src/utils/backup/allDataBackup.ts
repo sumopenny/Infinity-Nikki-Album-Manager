@@ -2,68 +2,125 @@ import { strToU8, unzip } from 'fflate'
 import { backupPartBlob, downloadBackupBlob, type BackupDownload } from './zipBackup'
 import { exportOutfitBackup, importOutfitBackup, inspectOutfitBackup } from '../outfit/outfitBackup'
 import { hashOutfitBlob } from '../outfit/outfitStorage'
-import { exportHomeSchemeBackup, importHomeSchemeBackup, prepareHomeSchemeBackup } from '../homeBuild/homeSchemeBackup'
+import {
+  exportHomeSchemeBackup,
+  importHomeSchemeBackup,
+  prepareHomeSchemeBackup
+} from '../homeBuild/homeSchemeBackup'
 import { releaseHomeSchemeUrls } from '../homeBuild/homeSchemeStorage'
 import { exportCameraBackup, readCameraBackup } from '../photo-params/favoritesBackup'
-import { readCameraFavorites, planCameraImport, applyCameraImport, type ImportPlan, type FavoriteLibrary } from '../photo-params/favorites'
+import {
+  readCameraFavorites,
+  planCameraImport,
+  applyCameraImport,
+  type ImportPlan,
+  type FavoriteLibrary
+} from '../photo-params/favorites'
 import { createResonanceExport, parseResonanceFile } from '../resonance/resonanceFile'
 import { loadResonanceRecords, mergeResonanceRecords } from '../resonance/resonanceStorage'
 import type { ResonanceRecord } from '../resonance/resonanceTypes'
 import { releasePhotoUrls } from '../file-system/photoUrl'
-import { runStoreRequest, OUTFITS_STORE, OUTFIT_TAGS_STORE, OUTFIT_IGNORED_CODES_STORE,
-  HOME_SCHEMES_STORE, HOME_TAGS_STORE, CAMERA_FAVORITES_STORE, CAMERA_TAGS_STORE } from '../file-system/database'
+import {
+  runStoreRequest,
+  OUTFITS_STORE,
+  OUTFIT_TAGS_STORE,
+  OUTFIT_IGNORED_CODES_STORE,
+  HOME_SCHEMES_STORE,
+  HOME_TAGS_STORE,
+  CAMERA_FAVORITES_STORE,
+  CAMERA_TAGS_STORE
+} from '../file-system/database'
 
 const FORMAT = 'infinity-nikki-all-data-backup'
 const MAX_BYTES = 2 * 1024 ** 3
 const MAX_MANIFEST = 4 * 1024 ** 2
 const MODULES = ['outfits', 'home', 'camera', 'resonance'] as const
-export type BackupModule = typeof MODULES[number]
-interface BundleEntry { module: BackupModule; path: string; size: number; sha256: string }
-interface BundleManifest { format: typeof FORMAT; version: 1; exportedAt: string; entries: BundleEntry[] }
+export type BackupModule = (typeof MODULES)[number]
+interface BundleEntry {
+  module: BackupModule
+  path: string
+  size: number
+  sha256: string
+}
+interface BundleManifest {
+  format: typeof FORMAT
+  version: 1
+  exportedAt: string
+  entries: BundleEntry[]
+}
 export interface AllDataPlan {
   files: Map<BackupModule, File[]>
   camera: FavoriteLibrary
   resonance: ResonanceRecord[]
 }
 export interface ModuleImportResult {
-  module: BackupModule; saved: number; skipped: number; failed: number; rejectedTags?: number; error?: string
+  module: BackupModule
+  saved: number
+  skipped: number
+  failed: number
+  rejectedTags?: number
+  error?: string
 }
 export type CameraChoices = Record<string, 'local' | 'incoming'>
 export type ResolveCameraConflict = (plan: ImportPlan) => Promise<CameraChoices | null>
 
 export async function hasAllBackupData(): Promise<boolean> {
-  const counts = await Promise.all([OUTFITS_STORE, HOME_SCHEMES_STORE, CAMERA_FAVORITES_STORE, OUTFIT_IGNORED_CODES_STORE]
-    .map(name => runStoreRequest(name, 'readonly', store => store.count())))
+  const counts = await Promise.all(
+    [OUTFITS_STORE, HOME_SCHEMES_STORE, CAMERA_FAVORITES_STORE, OUTFIT_IGNORED_CODES_STORE].map(
+      (name) => runStoreRequest(name, 'readonly', (store) => store.count())
+    )
+  )
   if (counts.some(Boolean)) return true
   const tags = await Promise.all([
-    runStoreRequest(OUTFIT_TAGS_STORE, 'readonly', store => store.get('default')),
-    runStoreRequest(HOME_TAGS_STORE, 'readonly', store => store.get('default')),
-    runStoreRequest(CAMERA_TAGS_STORE, 'readonly', store => store.get('order'))
+    runStoreRequest(OUTFIT_TAGS_STORE, 'readonly', (store) => store.get('default')),
+    runStoreRequest(HOME_TAGS_STORE, 'readonly', (store) => store.get('default')),
+    runStoreRequest(CAMERA_TAGS_STORE, 'readonly', (store) => store.get('order'))
   ])
-  return tags.some(value => Array.isArray(value) && value.length > 0) || (await loadResonanceRecords()).length > 0
+  return (
+    tags.some((value) => Array.isArray(value) && value.length > 0) ||
+    (await loadResonanceRecords()).length > 0
+  )
 }
 
 /** Keep the original module archives intact so they can also be restored separately. */
-export async function exportAllDataBackup(download: BackupDownload = downloadBackupBlob): Promise<string> {
+export async function exportAllDataBackup(
+  download: BackupDownload = downloadBackupBlob
+): Promise<string> {
   const files: Array<{ name: string; blob: Blob }> = []
   const entries: BundleEntry[] = []
   let total = 0
   async function collect(module: BackupModule, blob: Blob) {
     total += blob.size
-    if (!blob.size || total > MAX_BYTES - MAX_MANIFEST) throw new Error('总备份过大，请使用各模块单独导出 / Backup too large; export modules separately')
-    const path = module + '/' + (entries.filter(entry => entry.module === module).length + 1) + (module === 'resonance' ? '.json' : '.zip')
+    if (!blob.size || total > MAX_BYTES - MAX_MANIFEST)
+      throw new Error(
+        '总备份过大，请使用各模块单独导出 / Backup too large; export modules separately'
+      )
+    const path =
+      module +
+      '/' +
+      (entries.filter((entry) => entry.module === module).length + 1) +
+      (module === 'resonance' ? '.json' : '.zip')
     files.push({ name: path, blob })
     entries.push({ module, path, size: blob.size, sha256: await hashOutfitBlob(blob) })
   }
   await exportOutfitBackup((_name, blob) => collect('outfits', blob))
   await exportHomeSchemeBackup((_name, blob) => collect('home', blob))
-  for await (const part of exportCameraBackup(await readCameraFavorites())) await collect('camera', part.blob)
+  for await (const part of exportCameraBackup(await readCameraFavorites()))
+    await collect('camera', part.blob)
   const resonance = createResonanceExport(await loadResonanceRecords())
   parseResonanceFile(resonance, true)
   await collect('resonance', new Blob([JSON.stringify(resonance)], { type: 'application/json' }))
-  const manifest: BundleManifest = { format: FORMAT, version: 1, exportedAt: new Date().toISOString(), entries }
-  const blob = await backupPartBlob({ manifest: strToU8(JSON.stringify(manifest)), files, count: entries.length }, 'backup.json',
-    { bytes: MAX_BYTES, entries: 10000, records: 10000, manifest: MAX_MANIFEST, image: 1024 ** 3 })
+  const manifest: BundleManifest = {
+    format: FORMAT,
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    entries
+  }
+  const blob = await backupPartBlob(
+    { manifest: strToU8(JSON.stringify(manifest)), files, count: entries.length },
+    'backup.json',
+    { bytes: MAX_BYTES, entries: 10000, records: 10000, manifest: MAX_MANIFEST, image: 1024 ** 3 }
+  )
   const name = 'InfinityNikki_AllData_' + new Date().toISOString().replace(/[:.]/g, '-') + '.zip'
   await download(name, blob)
   return name
@@ -71,55 +128,97 @@ export async function exportAllDataBackup(download: BackupDownload = downloadBac
 
 /** Read the ZIP directory so nested module ZIP headers are never treated as outer entries. */
 async function readBundle(file: File): Promise<Map<string, Blob>> {
-  if (!file.size || file.size > MAX_BYTES) throw new Error('总备份为空或过大 / Backup is empty or too large')
+  if (!file.size || file.size > MAX_BYTES)
+    throw new Error('总备份为空或过大 / Backup is empty or too large')
   const names = new Set<string>()
-  let expanded = 0, failure: Error | null = null
+  let expanded = 0,
+    failure: Error | null = null
   const input = new Uint8Array(await file.arrayBuffer())
   const entries = await new Promise<Record<string, Uint8Array>>((resolve, reject) => {
-    unzip(input, { filter: entry => {
-      const limit = entry.name === 'backup.json' ? MAX_MANIFEST : 1024 ** 3
-      if (names.has(entry.name) || names.size >= 10000 ||
-        !/^(backup\.json|(outfits|home|camera)\/[1-9]\d*\.zip|resonance\/1\.json)$/.test(entry.name)) {
-        failure = new Error('总备份包含重复或不支持的文件 / Invalid backup entry')
-      }
-      names.add(entry.name)
-      expanded += entry.originalSize
-      if (!Number.isSafeInteger(entry.originalSize) || entry.originalSize < 0 || entry.originalSize > limit || expanded > MAX_BYTES)
-        failure = new Error('解压后的备份过大 / Expanded backup too large')
-      return !failure
-    } }, (error, files) => error ? reject(new Error('无法读取总 ZIP / Unable to read backup ZIP')) : resolve(files))
+    unzip(
+      input,
+      {
+        filter: (entry) => {
+          const limit = entry.name === 'backup.json' ? MAX_MANIFEST : 1024 ** 3
+          if (
+            names.has(entry.name) ||
+            names.size >= 10000 ||
+            !/^(backup\.json|(outfits|home|camera)\/[1-9]\d*\.zip|resonance\/1\.json)$/.test(
+              entry.name
+            )
+          ) {
+            failure = new Error('总备份包含重复或不支持的文件 / Invalid backup entry')
+          }
+          names.add(entry.name)
+          expanded += entry.originalSize
+          if (
+            !Number.isSafeInteger(entry.originalSize) ||
+            entry.originalSize < 0 ||
+            entry.originalSize > limit ||
+            expanded > MAX_BYTES
+          )
+            failure = new Error('解压后的备份过大 / Expanded backup too large')
+          return !failure
+        }
+      },
+      (error, files) =>
+        error ? reject(new Error('无法读取总 ZIP / Unable to read backup ZIP')) : resolve(files)
+    )
   })
   if (failure) throw failure
-  if (Object.keys(entries).length !== names.size) throw new Error('总备份不完整 / Incomplete backup')
+  if (Object.keys(entries).length !== names.size)
+    throw new Error('总备份不完整 / Incomplete backup')
   const files = new Map<string, Blob>()
   let actualSize = 0
   for (const [name, bytes] of Object.entries(entries)) {
     actualSize += bytes.length
-    if (actualSize > MAX_BYTES || bytes.length > (name === 'backup.json' ? MAX_MANIFEST : 1024 ** 3))
+    if (
+      actualSize > MAX_BYTES ||
+      bytes.length > (name === 'backup.json' ? MAX_MANIFEST : 1024 ** 3)
+    )
       throw new Error('解压后的备份过大 / Expanded backup too large')
-    files.set(name, new Blob([bytes], { type: name.endsWith('.json') ? 'application/json' : 'application/zip' }))
+    files.set(
+      name,
+      new Blob([bytes], { type: name.endsWith('.json') ? 'application/json' : 'application/zip' })
+    )
   }
   return files
 }
 
 /** No database writes: every module is inspected before restoration can start. */
 export async function prepareAllDataBackup(file: File): Promise<AllDataPlan> {
-  const blobs = await readBundle(file), manifestBlob = blobs.get('backup.json')
+  const blobs = await readBundle(file),
+    manifestBlob = blobs.get('backup.json')
   if (!manifestBlob) throw new Error('缺少总备份清单 / Missing backup manifest')
   const manifest = JSON.parse(await manifestBlob.text()) as BundleManifest
-  if (!manifest || manifest.format !== FORMAT || manifest.version !== 1 || !Array.isArray(manifest.entries) ||
-    manifest.entries.length !== blobs.size - 1) throw new Error('不支持此总备份格式 / Unsupported backup format')
-  const files = new Map<BackupModule, File[]>(MODULES.map(module => [module, []]))
+  if (
+    !manifest ||
+    manifest.format !== FORMAT ||
+    manifest.version !== 1 ||
+    !Array.isArray(manifest.entries) ||
+    manifest.entries.length !== blobs.size - 1
+  )
+    throw new Error('不支持此总备份格式 / Unsupported backup format')
+  const files = new Map<BackupModule, File[]>(MODULES.map((module) => [module, []]))
   const used = new Set<string>()
   for (const entry of manifest.entries) {
-    if (!entry || !MODULES.includes(entry.module) || typeof entry.path !== 'string' ||
-      used.has(entry.path) || !entry.path.startsWith(entry.module + '/') ||
-      !Number.isSafeInteger(entry.size) || !/^[a-f0-9]{64}$/.test(entry.sha256)) throw new Error('总备份清单损坏 / Invalid backup manifest')
+    if (
+      !entry ||
+      !MODULES.includes(entry.module) ||
+      typeof entry.path !== 'string' ||
+      used.has(entry.path) ||
+      !entry.path.startsWith(entry.module + '/') ||
+      !Number.isSafeInteger(entry.size) ||
+      !/^[a-f0-9]{64}$/.test(entry.sha256)
+    )
+      throw new Error('总备份清单损坏 / Invalid backup manifest')
     const blob = blobs.get(entry.path)
-    if (!blob || blob.size !== entry.size || await hashOutfitBlob(blob) !== entry.sha256) throw new Error('总备份文件缺失或校验失败 / Backup file verification failed')
-    used.add(entry.path); files.get(entry.module)!.push(new File([blob], entry.path, { type: blob.type }))
+    if (!blob || blob.size !== entry.size || (await hashOutfitBlob(blob)) !== entry.sha256)
+      throw new Error('总备份文件缺失或校验失败 / Backup file verification failed')
+    used.add(entry.path)
+    files.get(entry.module)!.push(new File([blob], entry.path, { type: blob.type }))
   }
-  if (MODULES.some(module => !files.get(module)!.length) || files.get('resonance')!.length !== 1)
+  if (MODULES.some((module) => !files.get(module)!.length) || files.get('resonance')!.length !== 1)
     throw new Error('总备份缺少模块 / Missing backup module')
   for (const file of files.get('outfits')!) await inspectOutfitBackup(file)
   for (const file of files.get('home')!) await prepareHomeSchemeBackup(file)
@@ -129,17 +228,24 @@ export async function prepareAllDataBackup(file: File): Promise<AllDataPlan> {
     const part = await readCameraBackup(file)
     for (const record of part.records) {
       if (ids.has(record.id)) throw new Error('总备份包含重复参数记录 / Duplicate camera record')
-      ids.add(record.id); camera.records.push(record)
+      ids.add(record.id)
+      camera.records.push(record)
     }
     for (const [id, blob] of part.covers) camera.covers.set(id, blob)
     camera.tags = [...new Set([...camera.tags!, ...part.tags!])]
   }
-  const resonance = parseResonanceFile(JSON.parse(await files.get('resonance')![0].text()), true).records
+  const resonance = parseResonanceFile(
+    JSON.parse(await files.get('resonance')![0].text()),
+    true
+  ).records
   return { files, camera, resonance }
 }
 
-export async function applyAllDataBackup(plan: AllDataPlan, resolveConflict: ResolveCameraConflict,
-  onModule?: (module: BackupModule) => void): Promise<ModuleImportResult[] | null> {
+export async function applyAllDataBackup(
+  plan: AllDataPlan,
+  resolveConflict: ResolveCameraConflict,
+  onModule?: (module: BackupModule) => void
+): Promise<ModuleImportResult[] | null> {
   // Resolve interactive choices before saving any module; cancel leaves all data unchanged.
   const cameraPlan = planCameraImport(await readCameraFavorites(), plan.camera)
   const choices = cameraPlan.conflicts.length ? await resolveConflict(cameraPlan) : {}
@@ -152,14 +258,18 @@ export async function applyAllDataBackup(plan: AllDataPlan, resolveConflict: Res
       if (module === 'outfits') {
         for (const file of plan.files.get(module)!) {
           const imported = await importOutfitBackup(file)
-          result.saved += imported.addedCount; result.skipped += imported.duplicateCount
-          result.failed += imported.failedCount; result.rejectedTags = (result.rejectedTags ?? 0) + imported.rejectedTagCount
+          result.saved += imported.addedCount
+          result.skipped += imported.duplicateCount
+          result.failed += imported.failedCount
+          result.rejectedTags = (result.rejectedTags ?? 0) + imported.rejectedTagCount
           releasePhotoUrls(imported.library.outfits)
         }
       } else if (module === 'home') {
         for (const file of plan.files.get(module)!) {
           const imported = await importHomeSchemeBackup(file)
-          result.saved += imported.addedCount; result.skipped += imported.duplicateCount; result.failed += imported.failedCount
+          result.saved += imported.addedCount
+          result.skipped += imported.duplicateCount
+          result.failed += imported.failedCount
           releaseHomeSchemeUrls(imported.schemes)
         }
       } else if (module === 'camera') {
@@ -170,7 +280,9 @@ export async function applyAllDataBackup(plan: AllDataPlan, resolveConflict: Res
         if (plan.resonance.length) await mergeResonanceRecords(plan.resonance)
         result.saved = plan.resonance.length
       }
-    } catch (error) { result.error = error instanceof Error ? error.message : String(error) }
+    } catch (error) {
+      result.error = error instanceof Error ? error.message : String(error)
+    }
     results.push(result)
   }
   return results

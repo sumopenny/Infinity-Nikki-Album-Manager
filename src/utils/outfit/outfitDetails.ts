@@ -1,4 +1,5 @@
 import type { Language } from '../../i18n'
+import { outfitMessages } from '../../i18n/messages/outfit'
 import type { LookbookDyeSwatch } from './outfitCodeParser'
 
 // 由 Vite 开发服务器（及生产环境同域代理）转发到 data.gongeo.us，避免浏览器跨域。
@@ -67,7 +68,6 @@ export interface OutfitDetail {
   loadError: boolean
 }
 
-
 type ApiEntity = {
   id?: unknown
   name?: unknown
@@ -100,14 +100,19 @@ const loadCatalogSnapshot = async (language: Language): Promise<CatalogSnapshot>
     import('../../data/gongeo/makeupItems.json'),
     import('../../data/gongeo/makeupOutfits.json'),
     import('../../data/gongeo/palettes.json')
-  ]).then(([items, outfits, outfitItems, makeupItems, makeupOutfits, dyeCatalog]) => ({
-    items: items.default as CompactRow[],
-    outfits: outfits.default as CompactRow[],
-    outfitItems: outfitItems.default as CompactRow[],
-    makeupItems: makeupItems.default as CompactRow[],
-    makeupOutfits: makeupOutfits.default as CompactRow[],
-    dyeCatalog: dyeCatalog.default as CatalogSnapshot['dyeCatalog']
-  })).catch((error) => { catalogSnapshotPromise = null; throw error })
+  ])
+    .then(([items, outfits, outfitItems, makeupItems, makeupOutfits, dyeCatalog]) => ({
+      items: items.default as CompactRow[],
+      outfits: outfits.default as CompactRow[],
+      outfitItems: outfitItems.default as CompactRow[],
+      makeupItems: makeupItems.default as CompactRow[],
+      makeupOutfits: makeupOutfits.default as CompactRow[],
+      dyeCatalog: dyeCatalog.default as CatalogSnapshot['dyeCatalog']
+    }))
+    .catch((error) => {
+      catalogSnapshotPromise = null
+      throw error
+    })
   const [snapshot, names] = await Promise.all([
     catalogSnapshotPromise,
     language === 'en'
@@ -123,9 +128,7 @@ const asId = (value: unknown): number | null => {
 }
 
 const idsIn = (value: unknown): number[] =>
-  (Array.isArray(value) ? value : [value])
-    .map(asId)
-    .filter((id): id is number => id !== null)
+  (Array.isArray(value) ? value : [value]).map(asId).filter((id): id is number => id !== null)
 
 const compactIds = (row: CompactRow | undefined): number[] => idsIn(row?.[0])
 
@@ -170,7 +173,11 @@ const getVariantIndex = (itemId: number): number => {
 }
 
 /** 将原套/变体套装 ID 对齐到当前部件的变体。共鸣录的套装行按该顺序存储变体。 */
-const resolveOutfitVariantId = (catalog: CatalogSnapshot, outfitId: number, itemId: number): number => {
+const resolveOutfitVariantId = (
+  catalog: CatalogSnapshot,
+  outfitId: number,
+  itemId: number
+): number => {
   const variants = compactIds(findOutfitRow(catalog, outfitId))
   return variants[getVariantIndex(itemId)] ?? outfitId
 }
@@ -196,17 +203,26 @@ const getLocalizedName = (
   return typeof baseName === 'string' && baseName.trim() ? baseName : ''
 }
 
-const findRelatedOutfitId = (catalog: CatalogSnapshot, itemId: number, itemIds: number[]): number | null => {
+const findRelatedOutfitId = (
+  catalog: CatalogSnapshot,
+  itemId: number,
+  itemIds: number[]
+): number | null => {
   // 先用当前变体部件精确匹配，避免家族展开后被原套关系行抢先命中。
   for (const row of catalog.outfitItems) {
     const outfitId = asId(row[0])
     const outfitItems = idsIn(row[1])
-    if (outfitId && outfitItems.includes(itemId) && findOutfitRow(catalog, outfitId)) return outfitId
+    if (outfitId && outfitItems.includes(itemId) && findOutfitRow(catalog, outfitId))
+      return outfitId
   }
   for (const row of catalog.outfitItems) {
     const outfitId = asId(row[0])
     const outfitItems = idsIn(row[1])
-    if (outfitId && itemIds.some((itemId) => outfitItems.includes(itemId)) && findOutfitRow(catalog, outfitId)) {
+    if (
+      outfitId &&
+      itemIds.some((itemId) => outfitItems.includes(itemId)) &&
+      findOutfitRow(catalog, outfitId)
+    ) {
       return outfitId
     }
   }
@@ -218,13 +234,20 @@ const findRelatedMakeupOutfitId = (catalog: CatalogSnapshot, itemIds: number[]):
   const fullMakeupIds = new Set<number>()
   for (const [fullMakeupId, componentIds] of catalog.makeupItems) {
     const fullId = asId(fullMakeupId)
-    if (fullId && (itemIds.includes(fullId) || idsIn(componentIds).some((id) => itemIds.includes(id)))) {
+    if (
+      fullId &&
+      (itemIds.includes(fullId) || idsIn(componentIds).some((id) => itemIds.includes(id)))
+    ) {
       fullMakeupIds.add(fullId)
     }
   }
   for (const [outfitId, makeupIds] of catalog.makeupOutfits) {
     const id = asId(outfitId)
-    if (id && idsIn(makeupIds).some((makeupId) => fullMakeupIds.has(makeupId)) && findOutfitRow(catalog, id)) {
+    if (
+      id &&
+      idsIn(makeupIds).some((makeupId) => fullMakeupIds.has(makeupId)) &&
+      findOutfitRow(catalog, id)
+    ) {
       return id
     }
   }
@@ -232,9 +255,9 @@ const findRelatedMakeupOutfitId = (catalog: CatalogSnapshot, itemIds: number[]):
 }
 
 const isMakeupCatalogItem = (catalog: CatalogSnapshot, itemId: number): boolean =>
-  catalog.makeupItems.some(([makeupId, componentIds]) => (
-    asId(makeupId) === itemId || idsIn(componentIds).includes(itemId)
-  ))
+  catalog.makeupItems.some(
+    ([makeupId, componentIds]) => asId(makeupId) === itemId || idsIn(componentIds).includes(itemId)
+  )
 
 const isOutfitRelatedToItem = (catalog: CatalogSnapshot, outfitId: number, itemIds: number[]) => {
   const outfitVariants = compactIds(findOutfitRow(catalog, outfitId))
@@ -258,9 +281,10 @@ const getDyeAreaNumber = (
   // Only feature tags 1 and 3 are the outfit's primary/secondary dye areas.
   // Other tags use their target group directly, as in the upstream lookbook.
   if (dye.featureTag !== 1 && dye.featureTag !== 3) return dye.targetGroupId
-  let area = dye.featureTag === 3
-    ? (areaInfo?.primaryCount ?? fallbackPrimaryCount) + dye.targetGroupId
-    : dye.targetGroupId
+  let area =
+    dye.featureTag === 3
+      ? (areaInfo?.primaryCount ?? fallbackPrimaryCount) + dye.targetGroupId
+      : dye.targetGroupId
   if (areaInfo) {
     const customIndex = areaInfo.customOrder.indexOf(area)
     if (customIndex >= 0) return customIndex + 1
@@ -321,7 +345,7 @@ const requestEntity = async (path: string, language: Language): Promise<ApiEntit
   })
   if (!response.ok) throw new Error(`Catalog request failed with ${response.status}`)
   const payload: unknown = await response.json()
-  return payload && typeof payload === 'object' ? payload as ApiEntity : {}
+  return payload && typeof payload === 'object' ? (payload as ApiEntity) : {}
 }
 
 const createDetail = async (
@@ -336,14 +360,22 @@ const createDetail = async (
   const catalog = await loadCatalogSnapshot(language)
   const isMakeup = isMakeupClothType(clothType) || isMakeupCatalogItem(catalog, itemId)
   // 搭配码的 outfit 字段不一定是图鉴套装 ID；无效时按部件家族回查套装关系。
-  const entityRequest = requestEntity(`${isMakeup ? '/makeups' : '/items'}/${itemId}`, language)
-    .then((entity) => ({ ok: true as const, entity }), () => ({ ok: false as const, entity: null }))
+  const entityRequest = requestEntity(
+    `${isMakeup ? '/makeups' : '/items'}/${itemId}`,
+    language
+  ).then(
+    (entity) => ({ ok: true as const, entity }),
+    () => ({ ok: false as const, entity: null })
+  )
   const familyIds = getItemFamilyIds(catalog, itemId)
-  const catalogOutfitId = outfitId && findOutfitRow(catalog, outfitId) && isOutfitRelatedToItem(catalog, outfitId, familyIds)
-    ? outfitId
-    : isMakeup
-      ? findRelatedMakeupOutfitId(catalog, [itemId, ...familyIds])
-      : findRelatedOutfitId(catalog, itemId, familyIds)
+  const catalogOutfitId =
+    outfitId &&
+    findOutfitRow(catalog, outfitId) &&
+    isOutfitRelatedToItem(catalog, outfitId, familyIds)
+      ? outfitId
+      : isMakeup
+        ? findRelatedMakeupOutfitId(catalog, [itemId, ...familyIds])
+        : findRelatedOutfitId(catalog, itemId, familyIds)
   const resolvedCatalogOutfitId = catalogOutfitId
     ? resolveOutfitVariantId(catalog, catalogOutfitId, itemId)
     : null
@@ -353,7 +385,9 @@ const createDetail = async (
   const [entityResult, outfitResult] = await Promise.allSettled([entityRequest, outfitRequest])
   const entityLoaded = entityResult.status === 'fulfilled' && entityResult.value.ok
   const outfitEntity = outfitResult.status === 'fulfilled' ? outfitResult.value : null
-  const outfitRow = resolvedCatalogOutfitId ? findOutfitRow(catalog, resolvedCatalogOutfitId) : undefined
+  const outfitRow = resolvedCatalogOutfitId
+    ? findOutfitRow(catalog, resolvedCatalogOutfitId)
+    : undefined
   const relation = resolvedCatalogOutfitId
     ? catalog.outfitItems.find((row) => Number(row[0]) === resolvedCatalogOutfitId)
     : undefined
@@ -362,7 +396,8 @@ const createDetail = async (
   const dyeGroups = dyeRow?.slice(1) ?? []
   // 上游区域目录先查当前部件，再回退到部件根 ID；它与 raw 染色盘目录不是同一套索引。
   const rootItemId = asId(findItemRow(catalog, itemId)?.[6])
-  const areaInfo = findDyeArea(catalog, itemId) ?? (rootItemId ? findDyeArea(catalog, rootItemId) : null)
+  const areaInfo =
+    findDyeArea(catalog, itemId) ?? (rootItemId ? findDyeArea(catalog, rootItemId) : null)
   const fallbackPrimaryCount = Math.max(
     0,
     ...dyes.filter((dye) => dye.featureTag === 1).map((dye) => dye.targetGroupId)
@@ -373,7 +408,7 @@ const createDetail = async (
     const areaNumber = getDyeAreaNumber(dye, areaInfo, fallbackPrimaryCount)
     const paletteSerial = getPaletteSerial(dyeGroups, dye.paletteId)
     const detail = {
-      area: `区域 ${String(areaNumber).padStart(2, '0')}`,
+      area: `${outfitMessages[language].detailArea} ${String(areaNumber).padStart(2, '0')}`,
       paletteId: paletteSerial ?? dye.paletteId,
       paletteName: getPaletteName(dye.paletteId, language),
       slot: dye.slot,
@@ -397,16 +432,16 @@ const createDetail = async (
       : isMakeup
         ? getMakeupItemImageUrl(itemId)
         : null,
-    quality: outfitRow && Number.isSafeInteger(Number(outfitRow[1]))
-      ? Number(outfitRow[1])
-      : null,
+    quality: outfitRow && Number.isSafeInteger(Number(outfitRow[1])) ? Number(outfitRow[1]) : null,
     outfitItemIds: idsIn(relation?.[1]),
     outfitImageUrl: resolvedOutfitId
       ? `${CDN_BASE_URL}/images/outfits/${resolvedOutfitId}.png`
       : null,
     evolution: EVOLUTION_LABELS[language][getVariantIndex(itemId)],
     dyeCondition: isMakeup
-      ? language === 'en' ? 'None' : '无'
+      ? language === 'en'
+        ? 'None'
+        : '无'
       : getDyeCondition(dyes, dyeGroups, language, hasSpecialEffect),
     dyes: paletteRows.sort((left, right) => {
       const areaOrder = Number(left.area.replace(/\D/g, '')) - Number(right.area.replace(/\D/g, ''))
@@ -428,21 +463,31 @@ export function loadOutfitDetail(
   const key = `${itemId}:${outfitId ?? 'none'}:${clothType ?? 'none'}:${hasSpecialEffect ? 'effect' : 'plain'}:${language}:${dyes.map((dye) => `${dye.targetGroupId}:${dye.featureTag}:${dye.paletteId}:${dye.slot}:${dye.color}`).join(',')}`
   const cached = detailCache.get(key)
   if (cached) return cached
-  const promise = createDetail(itemId, outfitId, language, fallbackItemName, dyes, clothType, hasSpecialEffect).catch(() => ({
+  const promise = createDetail(
+    itemId,
+    outfitId,
+    language,
+    fallbackItemName,
+    dyes,
+    clothType,
+    hasSpecialEffect
+  ).catch(() => ({
     itemId,
     outfitId: null,
     itemName: fallbackItemName,
     outfitName: '',
-    detailImageUrl: isMakeupClothType(clothType)
-      ? getMakeupItemImageUrl(itemId)
-      : null,
+    detailImageUrl: isMakeupClothType(clothType) ? getMakeupItemImageUrl(itemId) : null,
     quality: null,
     outfitItemIds: [],
     outfitImageUrl: null,
     evolution: EVOLUTION_LABELS[language][getVariantIndex(itemId)],
     dyeCondition: isMakeupClothType(clothType)
-      ? language === 'en' ? 'None' : '无'
-      : language === 'en' ? 'Catalog details unavailable' : '图鉴详情加载失败',
+      ? language === 'en'
+        ? 'None'
+        : '无'
+      : language === 'en'
+        ? 'Catalog details unavailable'
+        : '图鉴详情加载失败',
     dyes: [],
     loadError: true
   }))

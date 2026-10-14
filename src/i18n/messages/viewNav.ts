@@ -2,29 +2,28 @@
 import type { LocaleMessages } from '../types'
 
 export const viewNavZh: LocaleMessages['viewNav'] = {
-      aria: '相册视图',
-      title: '相册',
-      allPhotos: '全部照片',
-      homeSchemes: '家园方案',
-      resonance: '共鸣',
-      resonanceRecords: '共鸣记录',
-      comingSoon: '其余模块开发中',
-      favorites: '收藏夹',
-      recentlyDeleted: '最近删除',
-      count: (count) => `${count} 张`,
-      homeSchemesCount: (count) => `${count} 个方案`
-    }
+  aria: '相册视图',
+  title: '相册',
+  allPhotos: '全部照片',
+  homeSchemes: '家园方案',
+  resonance: '共鸣',
+  resonanceRecords: '共鸣记录',
+  comingSoon: '其余模块开发中',
+  favorites: '收藏夹',
+  recentlyDeleted: '最近删除',
+  count: (count) => `${count} 张`,
+  homeSchemesCount: (count) => `${count} 个方案`
+}
 export const viewNavEn: LocaleMessages['viewNav'] = {
-      aria: 'Album views',
-      title: 'Album',
-      allPhotos: 'All photos',
-      homeSchemes: 'Home schemes',
-      resonance: 'Resonance',
-      resonanceRecords: 'Resonance records',
-      comingSoon: 'More modules coming soon',
-      favorites: 'Favorites',
-      recentlyDeleted: 'Recently deleted',
-      count: (count) => `${count} photos`,
-      homeSchemesCount: (count) => `${count}`
-    }
-
+  aria: 'Album views',
+  title: 'Album',
+  allPhotos: 'All photos',
+  homeSchemes: 'Home schemes',
+  resonance: 'Resonance',
+  resonanceRecords: 'Resonance records',
+  comingSoon: 'More modules coming soon',
+  favorites: 'Favorites',
+  recentlyDeleted: 'Recently deleted',
+  count: (count) => `${count} photos`,
+  homeSchemesCount: (count) => `${count}`
+}

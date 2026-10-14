@@ -1,5 +1,9 @@
 // 奇想手账导入固定使用国服美鸭梨接口；凭据只随当前请求发送，不进入持久化层。
-import { buildResonanceRecords, loadResonanceBanners, normalizeBannerPulls } from './resonanceCatalog'
+import {
+  buildResonanceRecords,
+  loadResonanceBanners,
+  normalizeBannerPulls
+} from './resonanceCatalog'
 import { decodePearpal } from './resonancePearpalData'
 import type { ResonanceRecord } from './resonanceTypes'
 
@@ -30,7 +34,8 @@ async function request(url: string, init?: RequestInit): Promise<Response> {
     const detail = await response.text().catch(() => '')
     try {
       const payload = JSON.parse(detail) as { info?: unknown; error?: unknown }
-      const message = typeof payload.info === 'string' && payload.info ? payload.info : payload.error
+      const message =
+        typeof payload.info === 'string' && payload.info ? payload.info : payload.error
       if (typeof message === 'string' && message) throw new Error(message)
     } catch (error) {
       if (error instanceof Error && error.message !== 'Unexpected end of JSON input') throw error
@@ -40,7 +45,11 @@ async function request(url: string, init?: RequestInit): Promise<Response> {
   return response
 }
 
-async function postPearpal(action: 'verify' | 'snapshot', credentials: ResonanceCredentials, signal?: AbortSignal): Promise<Response> {
+async function postPearpal(
+  action: 'verify' | 'snapshot',
+  credentials: ResonanceCredentials,
+  signal?: AbortSignal
+): Promise<Response> {
   const response = await request(`/api/resonance/pearpal?action=${action}`, {
     method: 'POST',
     signal,
@@ -56,9 +65,12 @@ async function postPearpal(action: 'verify' | 'snapshot', credentials: Resonance
 }
 
 /** 验证必须包含角色 UID；缺少角色时统一提示重新登录，不能把上游 OK 当成错误原因。 */
-async function verifyPearpalUid(credentials: ResonanceCredentials, signal?: AbortSignal): Promise<void> {
+async function verifyPearpalUid(
+  credentials: ResonanceCredentials,
+  signal?: AbortSignal
+): Promise<void> {
   const response = await postPearpal('verify', credentials, signal)
-  const payload = await response.json() as {
+  const payload = (await response.json()) as {
     code?: number
     info?: string
     data?: { role?: { uid?: string | number; zone_id?: number } }
@@ -67,7 +79,10 @@ async function verifyPearpalUid(credentials: ResonanceCredentials, signal?: Abor
   if (payload.code !== 0 || !role || role.uid === undefined || role.uid === null) {
     throw new Error(PEARPAL_AUTH_FAILED)
   }
-  if (String(role.uid) !== credentials.roleid.trim() || (role.zone_id !== undefined && role.zone_id !== 1)) {
+  if (
+    String(role.uid) !== credentials.roleid.trim() ||
+    (role.zone_id !== undefined && role.zone_id !== 1)
+  ) {
     throw new Error(PEARPAL_UID_MISMATCH)
   }
 }
@@ -82,11 +97,14 @@ interface PearpalRow {
 }
 
 function asGachaRows(value: unknown): PearpalRow[] {
-  if (Array.isArray(value)) return value.filter((row): row is PearpalRow => Boolean(row) && typeof row === 'object')
+  if (Array.isArray(value))
+    return value.filter((row): row is PearpalRow => Boolean(row) && typeof row === 'object')
   if (value && typeof value === 'object') {
-    return Object.values(value).flatMap((rows) => Array.isArray(rows)
-      ? rows.filter((row): row is PearpalRow => Boolean(row) && typeof row === 'object')
-      : [])
+    return Object.values(value).flatMap((rows) =>
+      Array.isArray(rows)
+        ? rows.filter((row): row is PearpalRow => Boolean(row) && typeof row === 'object')
+        : []
+    )
   }
   return []
 }
@@ -96,9 +114,10 @@ function toPullRow(row: PearpalRow) {
     itemId: String(row.result ?? ''),
     obtainedAt: '',
     poolCount: Number(row.pool_cnt),
-    pullsToObtain: Number(row.rarity) === 5
-      ? Number(row.times_from_last_five_stars ?? 0) + 1
-      : Number(row.times_from_last_four_stars ?? 0) + 1
+    pullsToObtain:
+      Number(row.rarity) === 5
+        ? Number(row.times_from_last_five_stars ?? 0) + 1
+        : Number(row.times_from_last_four_stars ?? 0) + 1
   }
 }
 
@@ -114,10 +133,12 @@ export async function importFromPearpal(
   const response = await postPearpal('snapshot', credentials, signal)
   // 登录失效时快照返回 JSON 而非 Snappy，先识别登录错误，避免显示解压异常。
   if (response.headers.get('content-type')?.includes('application/json')) {
-    const payload = await response.clone().json() as { code?: number }
+    const payload = (await response.clone().json()) as { code?: number }
     if (payload.code === 1801) throw new Error(PEARPAL_AUTH_FAILED)
   }
-  const decoded = decodePearpal(await response.arrayBuffer()) as { info_from_self?: { gacha_list?: unknown } }
+  const decoded = decodePearpal(await response.arrayBuffer()) as {
+    info_from_self?: { gacha_list?: unknown }
+  }
   signal?.throwIfAborted()
   const gachaList = asGachaRows(decoded?.info_from_self?.gacha_list)
   if (!gachaList.length) throw new Error(PEARPAL_NO_RECORDS)
@@ -140,7 +161,9 @@ export async function importFromPearpal(
     onProgress?.({ current: index + 1, total: targets.length, bannerName: banner.name })
     try {
       // pool_cnt 越小越早；归一化器接收最新记录优先的顺序。
-      const rows = [...(byBanner.get(banner.bannerId) ?? [])].sort((a, b) => Number(b.pool_cnt) - Number(a.pool_cnt))
+      const rows = [...(byBanner.get(banner.bannerId) ?? [])].sort(
+        (a, b) => Number(b.pool_cnt) - Number(a.pool_cnt)
+      )
       const pulls = normalizeBannerPulls(banner.bannerId, rows.map(toPullRow))
       const bannerRecords = buildResonanceRecords(banner.bannerId, pulls)
       if (!bannerRecords.length) skippedPools += 1

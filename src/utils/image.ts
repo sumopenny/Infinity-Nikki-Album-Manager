@@ -43,7 +43,7 @@ export async function convertImageToWebp(file: File): Promise<Blob> {
     context.drawImage(bitmap, 0, 0)
     return await new Promise((resolve, reject) => {
       canvas.toBlob(
-        (blob) => blob ? resolve(blob) : reject(new Error('WebP conversion failed')),
+        (blob) => (blob ? resolve(blob) : reject(new Error('WebP conversion failed'))),
         'image/webp',
         0.9
       )

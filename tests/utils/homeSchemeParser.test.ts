@@ -31,8 +31,12 @@ describe('home scheme parser service', () => {
     parseResponse.mockResolvedValue({
       ok: true,
       value: {
-        Name: '方案', TemplateType: 0, CoverImage: '', version: '1.0',
-        PlaceInfo: [{}, {}], LastModifyTime: 12
+        Name: '方案',
+        TemplateType: 0,
+        CoverImage: '',
+        version: '1.0',
+        PlaceInfo: [{}, {}],
+        LastModifyTime: 12
       }
     })
     vi.mocked(fetch).mockResolvedValue(new Response(new Uint8Array([1, 2]), { status: 200 }))
@@ -40,8 +44,14 @@ describe('home scheme parser service', () => {
 
   it('uses a parser-version cache hit without requesting the CDN proxy', async () => {
     const result = {
-      code: '1UDB66QH', name: '缓存名', templateType: 1 as const, server: 49,
-      coverImage: null, version: 'cached', furnitureCount: 4, lastModifyTime: 7
+      code: '1UDB66QH',
+      name: '缓存名',
+      templateType: 1 as const,
+      server: 49,
+      coverImage: null,
+      version: 'cached',
+      furnitureCount: 4,
+      lastModifyTime: 7
     }
     getCache.mockResolvedValue({ code: result.code, result, cachedAt: 1, parserVersion: 'wire-v1' })
 
@@ -51,7 +61,10 @@ describe('home scheme parser service', () => {
   })
 
   it('rejects an unverified server before making a request', async () => {
-    decodeCode.mockResolvedValue({ ok: true, value: { code: '1UDB66QH', serverId: 50, resourceKey: 'x' } })
+    decodeCode.mockResolvedValue({
+      ok: true,
+      value: { code: '1UDB66QH', serverId: 50, resourceKey: 'x' }
+    })
 
     await expect(parseHomeScheme('17TLJ1EW')).rejects.toThrow('home_build_server_unsupported')
     expect(fetch).not.toHaveBeenCalled()
@@ -61,14 +74,27 @@ describe('home scheme parser service', () => {
     const result = await parseHomeScheme('1UDB66QH')
 
     expect(result).toMatchObject({
-      code: '1UDB66QH', name: '方案', templateType: 0, server: 49,
-      furnitureCount: 2, lastModifyTime: 12, coverImage: null
+      code: '1UDB66QH',
+      name: '方案',
+      templateType: 0,
+      server: 49,
+      furnitureCount: 2,
+      lastModifyTime: 12,
+      coverImage: null
     })
-    expect(fetch).toHaveBeenCalledWith('/api/home-build/resource', expect.objectContaining({
-      headers: { Accept: 'application/octet-stream' }
-    }))
-    expect(saveCache).toHaveBeenCalledWith('1UDB66QH', expect.objectContaining({
-      code: '1UDB66QH', parserVersion: 'wire-v1', result
-    }))
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/home-build/resource',
+      expect.objectContaining({
+        headers: { Accept: 'application/octet-stream' }
+      })
+    )
+    expect(saveCache).toHaveBeenCalledWith(
+      '1UDB66QH',
+      expect.objectContaining({
+        code: '1UDB66QH',
+        parserVersion: 'wire-v1',
+        result
+      })
+    )
   })
 })

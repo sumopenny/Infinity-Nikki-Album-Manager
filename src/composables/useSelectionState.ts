@@ -14,15 +14,47 @@ export function useSelectionState(options: {
   trashSelectedIds: Ref<Set<string>>
   activeView: Ref<'all' | 'favorites' | 'trash' | 'outfits' | 'home' | 'resonance'>
 }) {
-  const { visiblePhotos, visibleOutfits, dateGroups, favoriteIds, selectedIds, selectedOutfitIds, trashSelectedIds, recentlyDeleted, activeView } = options
-  const scopedSelectedPhotos = computed(() => visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id)))
+  const {
+    visiblePhotos,
+    visibleOutfits,
+    dateGroups,
+    favoriteIds,
+    selectedIds,
+    selectedOutfitIds,
+    trashSelectedIds,
+    recentlyDeleted,
+    activeView
+  } = options
+  const scopedSelectedPhotos = computed(() =>
+    visiblePhotos.value.filter((photo) => selectedIds.value.has(photo.id))
+  )
   const selectedCount = computed(() => scopedSelectedPhotos.value.length)
-  const selectedOutfitCount = computed(() => visibleOutfits.value.filter((outfit) => selectedOutfitIds.value.has(outfit.id)).length)
-  const trashSelectedCount = computed(() => recentlyDeleted.value.filter((photo) => trashSelectedIds.value.has(photo.id)).length)
-  const allSelected = computed(() => visiblePhotos.value.length > 0 && visiblePhotos.value.every((photo) => selectedIds.value.has(photo.id)))
-  const allOutfitsSelected = computed(() => visibleOutfits.value.length > 0 && visibleOutfits.value.every((outfit) => selectedOutfitIds.value.has(outfit.id)))
-  const allTrashSelected = computed(() => recentlyDeleted.value.length > 0 && recentlyDeleted.value.every((photo) => trashSelectedIds.value.has(photo.id)))
-  const allSelectedFavorited = computed(() => scopedSelectedPhotos.value.length > 0 && scopedSelectedPhotos.value.every((photo) => favoriteIds.value.has(photo.id)))
+  const selectedOutfitCount = computed(
+    () => visibleOutfits.value.filter((outfit) => selectedOutfitIds.value.has(outfit.id)).length
+  )
+  const trashSelectedCount = computed(
+    () => recentlyDeleted.value.filter((photo) => trashSelectedIds.value.has(photo.id)).length
+  )
+  const allSelected = computed(
+    () =>
+      visiblePhotos.value.length > 0 &&
+      visiblePhotos.value.every((photo) => selectedIds.value.has(photo.id))
+  )
+  const allOutfitsSelected = computed(
+    () =>
+      visibleOutfits.value.length > 0 &&
+      visibleOutfits.value.every((outfit) => selectedOutfitIds.value.has(outfit.id))
+  )
+  const allTrashSelected = computed(
+    () =>
+      recentlyDeleted.value.length > 0 &&
+      recentlyDeleted.value.every((photo) => trashSelectedIds.value.has(photo.id))
+  )
+  const allSelectedFavorited = computed(
+    () =>
+      scopedSelectedPhotos.value.length > 0 &&
+      scopedSelectedPhotos.value.every((photo) => favoriteIds.value.has(photo.id))
+  )
 
   const toggleAll = () => {
     const ids = new Set(visiblePhotos.value.map((photo) => photo.id))

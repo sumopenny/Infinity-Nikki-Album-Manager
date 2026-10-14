@@ -1,5 +1,8 @@
 // 国际化公共类型：定义语言键、状态文案参数、完整界面文案结构和各模块字段类型。
-import type { RelatedCleanupFailureReason, SpecialCleanupItem } from '../utils/file-system/cleanupFileSystem'
+import type {
+  RelatedCleanupFailureReason,
+  SpecialCleanupItem
+} from '../utils/file-system/cleanupFileSystem'
 import type { OutfitMessages } from './messages/outfit'
 import type { PhotoParamsMessages } from './messages/photoParams'
 import type { HomeSchemeMessages } from './messages/homeScheme'
@@ -66,7 +69,10 @@ export interface LocaleMessages {
     relatedPhotoDeleteDialogTitle: string
     confirmRelatedPhotoDelete: (count: number, skippedDirectories: string[]) => string
     relatedPhotoDeleteCancelledStatus: string
-    relatedPhotoDeleteStatus: (deletedCount: number, failures: Array<{ path: string; reason: RelatedCleanupFailureReason }>) => string
+    relatedPhotoDeleteStatus: (
+      deletedCount: number,
+      failures: Array<{ path: string; reason: RelatedCleanupFailureReason }>
+    ) => string
     noMatchingRelatedPhotos: (missingDirectories: string[], skippedDirectories: string[]) => string
     dialogContinueAuthorization: string
     dialogOk: string
@@ -77,7 +83,11 @@ export interface LocaleMessages {
     successStatus: (count: number, prefix: StatusPrefix) => string
     successSuffix: (suffix: StatusSuffix) => string
     relatedCleanupCancelledStatus: string
-    confirmRelatedCleanup: (count: number, missingDirectories: string[], cleanupScope?: { skippedAlbumName: string; remainingTargetNames: string[] }) => string
+    confirmRelatedCleanup: (
+      count: number,
+      missingDirectories: string[],
+      cleanupScope?: { skippedAlbumName: string; remainingTargetNames: string[] }
+    ) => string
     relatedCleanupStatus: (
       deletedCount: number,
       deletedBytes: number,
@@ -168,7 +178,13 @@ export interface LocaleMessages {
     time: string
     direction: string
     rating: string
-    rows: Array<{ date: string; time: string; direction: string; rating: string; highlighted?: boolean }>
+    rows: Array<{
+      date: string
+      time: string
+      direction: string
+      rating: string
+      highlighted?: boolean
+    }>
     recommendedTitle: string
     recommendations: Array<{ title: string; details: string[] }>
     avoidTitle: string
@@ -353,4 +369,3 @@ export interface LocaleMessages {
     selectX6GameDirectoryPrompt: string
   }
 }
-

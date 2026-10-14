@@ -6,14 +6,30 @@ it('keeps pending work locked after its scope stops and releases each task indep
   const scope = effectScope()
   let finish!: () => void
   let fail!: (error: Error) => void
-  const first = scope.run(() => coordinator.run('home', () => new Promise<void>(resolve => { finish = resolve })))!
-  const second = coordinator.run('home', () => new Promise<void>((_, reject) => { fail = reject }))
+  const first = scope.run(() =>
+    coordinator.run(
+      'home',
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        })
+    )
+  )!
+  const second = coordinator.run(
+    'home',
+    () =>
+      new Promise<void>((_, reject) => {
+        fail = reject
+      })
+  )
   scope.stop()
   expect(coordinator.isBusy.value).toBe(true)
-  finish(); await first
+  finish()
+  await first
   expect(coordinator.isBusy.value).toBe(true)
   const rejected = expect(second).rejects.toThrow('failed')
-  fail(new Error('failed')); await rejected
+  fail(new Error('failed'))
+  await rejected
   expect(coordinator.isBusy.value).toBe(false)
   coordinator.activeOperation.value = 'all-data-backup'
   await coordinator.run('camera', async () => {})

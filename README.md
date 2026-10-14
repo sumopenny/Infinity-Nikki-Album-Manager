@@ -113,11 +113,11 @@
 - 最多可创建 40 个用户标签，每个标签不超过 5 个字符。删除使用中的标签只会让相关方案归入“未分类”。
 - 新增标签会显示在标签列表首位；可拖动左侧手柄调整顺序。
 - 点击“添加方案”可以选择、拖拽或粘贴图片（点击窗口空白处后按 `Ctrl+V`）；JPG 和 PNG 会在本地转换为 WebP，搭配码允许留空，标签最多选择一个，双击图片可打开预览。
-- 电脑端搭配卡片右上角显示解析按钮，手机端从卡片操作菜单进入解析；未填写搭配码时按钮保持禁用。删除按钮位于解析按钮左侧，并在悬停卡片或键盘聚焦时显示。
+- 电脑端搭配卡片右上角显示解析按钮，手机端从卡片底部解析按钮进入解析；未填写搭配码时按钮保持禁用。删除按钮位于解析按钮左侧，并在悬停卡片或键盘聚焦时显示。
 - 可从右上角“工具”菜单打开“参数/搭配码解析”窗口，直接输入搭配码，无需先创建搭配方案；解析结果复用同一个搭配码解析窗口。
 - 搭配方案大图预览的底部工具栏会显示当前标签和搭配码，并提供复制与编辑按钮。
-- 网站会在当前相册中按需创建 `clothe` 文件夹来管理搭配码。<span style="color: red;">批量导入时可直接把保存好的搭配图片移动进该文件夹，回到网站页面时会自动转为待填写方案。</span>
-- 删除过程中如果文件无法完整恢复，网站会弹窗列出相关方案，请手动检查当前相册的 `clothe` 文件夹。
+- 搭配码、图片、备注和标签保存在当前浏览器中，所有相册共用，无需创建相册内的 `clothe` 文件夹。批量迁移请使用模块 ZIP 或“导入全部数据”。
+- 选择相册后会自动迁移旧 `clothe` 数据；全部迁移成功且源文件未变化时才清理旧目录。损坏数据、未关联图片和未知文件会保留并提示，不会把散图自动转为方案。
 - 使用<span style="color: orange;">自动更新搭配码</span>功能需要授权当前游戏的 `X6Game` 文件夹，可前往页面右上角当前相册下拉菜单进行授权。<span style="color: red;">使用方式是：在游戏内点击分享按钮，需要在搭配截图右下角点击框选按钮，框选完成后点击生成搭配码，再返回网页。网站只有在检测到新搭配码且游戏搭配图片的最后修改时间也已更新时才会导入；已有相同搭配码、图片未更新或找不到图片时会跳过并提示。</span>
 
 <div align="center">
@@ -182,7 +182,7 @@
 ### 启动器没有反应
 
 - 确认项目已经完整解压，不要在 ZIP 内运行。
-- 确认已安装 Node.js LTS，且 `start` 文件夹没有缺失。
+- 确认已安装 Node.js 22 或更高版本的 LTS，且 `start` 文件夹没有缺失。
 - 检查安全软件是否拦截 EXE 或 BAT 文件。
 - 也可直接运行 `start\Start-Remote-D1-Website.bat` 查看错误信息。
 
@@ -208,11 +208,11 @@
 ## 本地安装
 
 
-环境要求：Windows、[Node.js LTS](https://nodejs.org/)、电脑上的最新版 Chrome、Edge 或其他兼容的 Chromium 浏览器。
+环境要求：Windows、[Node.js 22 或更高版本的 LTS](https://nodejs.org/)、电脑上的最新版 Chrome、Edge 或其他兼容的 Chromium 浏览器。
 
 ### 安装 Node.js
 
-1. 打开 [Node.js 官网](https://nodejs.org/)，下载标有 **LTS** 的 Windows 安装包，不要选择 Current 版本。
+1. 打开 [Node.js 官网](https://nodejs.org/)，下载 22 或更高版本、标有 **LTS** 的 Windows 安装包，不要选择 Current 版本。
 2. 双击安装包，保持默认选项并继续安装；确保 `Add to PATH` 相关选项没有被取消。
 3. 安装完成后关闭并重新打开终端、项目文件夹和启动器窗口，让环境变量生效。
 4. 按 `Win + R`，输入 `cmd` 并回车，然后分别运行：
@@ -241,7 +241,7 @@ npm -v
 
 开发与本地 Pages/D1 命令使用开发依赖中精确固定的 Wrangler 4.149.0，需 Node.js 22 或以上；建议用 `npm ci` 按 lockfile 安装。`dev:pages`、`d1:migrate:local` 和 `d1:migrate:remote` 不再临时下载 latest 版本。
 
-审查涉及的家园/相机组件与公共控件样式使用固定版本 Prettier：`npm run format:review` 格式化，`npm run format:review:check` 检查。公共按钮、菜单及减少动态效果规则集中在 `src/styles/controls.css`，业务样式只提供自身覆盖。
+所有手写 Vue、TypeScript、CSS、资源脚本、测试和启动依赖脚本共用固定版本 Prettier：`npm run format` 格式化，`npm run format:check` 检查；旧 `format:review` 命令保留为兼容别名。生成图鉴 JSON、依赖锁文件和构建产物不参与格式化。公共按钮、菜单及减少动态效果规则集中在 `src/styles/controls.css`。
 
 家园操作错误按权限、存储空间、图片、数据和标签冲突分别提示；控制台仅记录操作名及错误类别，不记录原始异常内容或凭据。共鸣导航子菜单随中英文切换。
 
@@ -261,6 +261,8 @@ npm run preview   # 预览构建结果
 启动资源更新会优先检查 HTTPS_PROXY/HTTP_PROXY（含小写变量），再读取 Windows 已启用的手动系统代理；只使用可连接的本机 HTTP/HTTPS 代理，不扫描常见端口。未配置或未启动时直连；代理请求连接失败或超时后只再直连一次，并在本进程后续请求中使用直连。HTTP 错误和数据校验失败不重试，更新仍失败时保留本地资源并继续启动（显式 --strict 模式仍报错）。遵循 NO_PROXY，本地地址默认直连。检测只作用于资源更新请求，不修改系统代理、npm 配置或网站 API 转发；PAC/SOCKS 不参与自动检测。
 
 灯光/滤镜脚本支持 `--force` 强制刷新、`--strict` 在失败时终止，以及 `--manifest <URL>` / `--timeout <毫秒>`；也可用 `NUAN5_HOT_UPDATE_MANIFEST` 指定远程清单 URL、`NUAN5_HOT_UPDATE_TIMEOUT_MS` 设置超时（默认 15000 毫秒）。通过 npm 传参时在选项前加 `--`。
+
+物品图鉴本地生成需显式传入 Gongeo 仓库目录（或设置 `GONGEO_ROOT`），例如 `node scripts/generate-item-catalog.cjs "C:/path/to/gongeo"`；远程同步继续使用 `npm run resources:update:items`。重建启动器时，`start/launcher/Build-Launcher.ps1` 先编译临时文件，成功后替换启动器；编译失败保留旧启动器。
 
 技术栈：Vue 3、TypeScript、Vite、File System Access API、IndexedDB。
 

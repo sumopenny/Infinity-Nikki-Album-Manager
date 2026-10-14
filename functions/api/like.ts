@@ -24,23 +24,25 @@ const JSON_HEADERS = {
 } as const
 
 /** 读取当前点赞总数。参数：env.DB 为 D1 绑定。返回：{ count } JSON 响应。 */
-export async function onRequestGet(context: PagesFunctionContext<LikeFunctionEnv>): Promise<Response> {
-  const row = await context.env.DB
-    .prepare('SELECT count FROM like_counter WHERE id = 1')
-    .first<{ count: number }>()
+export async function onRequestGet(
+  context: PagesFunctionContext<LikeFunctionEnv>
+): Promise<Response> {
+  const row = await context.env.DB.prepare('SELECT count FROM like_counter WHERE id = 1').first<{
+    count: number
+  }>()
 
   return Response.json({ count: row?.count ?? 0 }, { headers: JSON_HEADERS })
 }
 
 /** 点赞一次（自增并返回新总数）。参数：env.DB 为 D1 绑定。返回：{ count } JSON 响应。 */
-export async function onRequestPost(context: PagesFunctionContext<LikeFunctionEnv>): Promise<Response> {
-  const row = await context.env.DB
-    .prepare(
-      'INSERT INTO like_counter (id, count) VALUES (1, 1) ' +
+export async function onRequestPost(
+  context: PagesFunctionContext<LikeFunctionEnv>
+): Promise<Response> {
+  const row = await context.env.DB.prepare(
+    'INSERT INTO like_counter (id, count) VALUES (1, 1) ' +
       'ON CONFLICT(id) DO UPDATE SET count = count + 1 ' +
       'RETURNING count'
-    )
-    .first<{ count: number }>()
+  ).first<{ count: number }>()
 
   return Response.json({ count: row?.count ?? 0 }, { headers: JSON_HEADERS })
 }

@@ -1,10 +1,19 @@
 // 相册文件系统：负责相册目录读取、照片扫描和增量刷新。
-import { datePartsFromTimestamp, parsePhotoDate, type PhotoItem, type RecentlyDeletedPhoto } from '../photoGrouping'
+import {
+  datePartsFromTimestamp,
+  parsePhotoDate,
+  type PhotoItem,
+  type RecentlyDeletedPhoto
+} from '../photoGrouping'
 import type { LocaleMessages } from '../../i18n'
 import { readAlbumMetadata, savePhotoNote, type AlbumMetadata } from './photoMetadata'
 import { PHOTO_NOTE_LIMIT, normalizePhotoNote } from './photoMetadata'
 import { ensurePhotoUrl, resetPhotoUrl, releasePhotoUrl, releasePhotoUrls } from './photoUrl'
-import { saveAlbumDirectoryHandle, getSavedAlbumDirectoryHandle, clearSavedAlbumDirectoryHandle } from './directoryStorage'
+import {
+  saveAlbumDirectoryHandle,
+  getSavedAlbumDirectoryHandle,
+  clearSavedAlbumDirectoryHandle
+} from './directoryStorage'
 import { listRecentlyDeleted } from './trashFileSystem'
 import { runWithConcurrency } from '../concurrency'
 import { createDirectoryError, normalizeDirectoryError } from './directoryErrors'
@@ -24,11 +33,15 @@ export type { AlbumMetadata }
 type FileSystemMessages = LocaleMessages['fileSystem']
 
 function isMobileDevice(): boolean {
-  return /android|iphone|ipod|ipad/i.test(navigator.userAgent) ||
+  return (
+    /android|iphone|ipod|ipad/i.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  )
 }
 
-function getSupportedDirectoryPicker(messages: FileSystemMessages): NonNullable<typeof window.showDirectoryPicker> {
+function getSupportedDirectoryPicker(
+  messages: FileSystemMessages
+): NonNullable<typeof window.showDirectoryPicker> {
   if (isMobileDevice()) throw new Error(messages.mobileBrowserUnsupported)
   if (!window.showDirectoryPicker) throw new Error(messages.unsupportedBrowser)
   return window.showDirectoryPicker
@@ -80,7 +93,10 @@ export async function readAlbumDirectory(
   directoryHandle: FileSystemDirectoryHandle,
   options: { requestPermission?: boolean; messages: FileSystemMessages }
 ): Promise<AlbumDirectoryResult> {
-  const hasPermission = await ensureReadWritePermission(directoryHandle, options.requestPermission ?? true)
+  const hasPermission = await ensureReadWritePermission(
+    directoryHandle,
+    options.requestPermission ?? true
+  )
   if (!hasPermission) {
     throw createDirectoryError('permission-denied', options.messages)
   }
@@ -108,7 +124,10 @@ export async function refreshAlbumPhotos(
   currentPhotos: PhotoItem[],
   options: { requestPermission?: boolean; messages: FileSystemMessages }
 ): Promise<RefreshAlbumPhotosResult> {
-  const hasPermission = await ensureReadWritePermission(directoryHandle, options.requestPermission ?? false)
+  const hasPermission = await ensureReadWritePermission(
+    directoryHandle,
+    options.requestPermission ?? false
+  )
   if (!hasPermission) throw createDirectoryError('permission-denied', options.messages)
 
   try {
@@ -167,7 +186,9 @@ export async function refreshAlbumDirectory(
   return { ...album, recentlyDeleted }
 }
 
-export async function pickAlbumDirectory(messages: FileSystemMessages): Promise<AlbumDirectoryResult> {
+export async function pickAlbumDirectory(
+  messages: FileSystemMessages
+): Promise<AlbumDirectoryResult> {
   const showDirectoryPicker = getSupportedDirectoryPicker(messages)
 
   try {
@@ -182,7 +203,6 @@ export async function pickAlbumDirectory(messages: FileSystemMessages): Promise<
     throw normalizeDirectoryError(error, messages)
   }
 }
-
 
 /**
  * 根据文件名和句柄创建相册照片状态。
@@ -204,7 +224,8 @@ async function createPhotoItem(
   } catch {
     // 文件名不规范时必须读取文件时间；读取失败则无法可靠分组，跳过该文件。
   }
-  const parsed = parsePhotoDate(name) ??
+  const parsed =
+    parsePhotoDate(name) ??
     (lastModified === undefined ? null : datePartsFromTimestamp(lastModified))
   if (!parsed) return null
 
@@ -227,7 +248,10 @@ async function createPhotoItem(
  * 参数：directoryHandle 为当前相册目录。
  * 返回：按拍摄时间倒序排列的照片列表。
  */
-async function scanAlbumPhotos(directoryHandle: FileSystemDirectoryHandle, metadata: AlbumMetadata = { version: 1, photos: {} }): Promise<PhotoItem[]> {
+async function scanAlbumPhotos(
+  directoryHandle: FileSystemDirectoryHandle,
+  metadata: AlbumMetadata = { version: 1, photos: {} }
+): Promise<PhotoItem[]> {
   const imageHandles: Array<{ name: string; handle: FileSystemFileHandle }> = []
   for await (const [name, handle] of directoryHandle.entries()) {
     if (handle.kind !== 'file' || !isImageFile(name)) continue
@@ -242,8 +266,3 @@ async function scanAlbumPhotos(directoryHandle: FileSystemDirectoryHandle, metad
   const photos = scannedPhotos.filter((photo): photo is PhotoItem => Boolean(photo))
   return photos.sort((a, b) => b.timestamp - a.timestamp)
 }
-
-/**
- * 批量释放不再使用的照片对象地址，并阻止旧任务写回。
- * 参数：photos 为即将离开当前相册状态的照片列表。
- */

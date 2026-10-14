@@ -2,31 +2,30 @@
 import type { LocaleMessages } from '../types'
 
 export const selectionBarZh: LocaleMessages['selectionBar'] = {
-      selected: (count) => `已选择 ${count} 张`,
-      selectAll: '全选',
-      deselectAll: '取消全选',
-      favorite: '收藏',
-      unfavorite: '取消收藏',
-      deleteRelated: '删除对应低画质图片',
-      delete: '删除',
-      restore: '恢复',
-      permanentlyDelete: '永久删除',
-      clearAll: '永久清空全部',
-      exportPhotos: '导出',
-      cancel: '取消选择'
-    }
+  selected: (count) => `已选择 ${count} 张`,
+  selectAll: '全选',
+  deselectAll: '取消全选',
+  favorite: '收藏',
+  unfavorite: '取消收藏',
+  deleteRelated: '删除对应低画质图片',
+  delete: '删除',
+  restore: '恢复',
+  permanentlyDelete: '永久删除',
+  clearAll: '永久清空全部',
+  exportPhotos: '导出',
+  cancel: '取消选择'
+}
 export const selectionBarEn: LocaleMessages['selectionBar'] = {
-      selected: (count) => `${count} selected`,
-      selectAll: 'Select all',
-      deselectAll: 'Deselect all',
-      favorite: 'Favorite',
-      unfavorite: 'Remove favorite',
-      deleteRelated: 'Delete matching low-quality photos',
-      delete: 'Delete',
-      restore: 'Restore',
-      permanentlyDelete: 'Delete permanently',
-      clearAll: 'Permanently clear all',
-      exportPhotos: 'Export',
-      cancel: 'Clear selection'
-    }
-
+  selected: (count) => `${count} selected`,
+  selectAll: 'Select all',
+  deselectAll: 'Deselect all',
+  favorite: 'Favorite',
+  unfavorite: 'Remove favorite',
+  deleteRelated: 'Delete matching low-quality photos',
+  delete: 'Delete',
+  restore: 'Restore',
+  permanentlyDelete: 'Delete permanently',
+  clearAll: 'Permanently clear all',
+  exportPhotos: 'Export',
+  cancel: 'Clear selection'
+}

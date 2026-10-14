@@ -41,7 +41,10 @@ export interface ConfirmableStatus {
 }
 
 /** 集中管理操作状态、错误映射和顶部通知生命周期，避免页面组件重复维护计时器与 busy 判断。 */
-export function useOperationNotice(locale: ComputedRef<LocaleMessages>, operations: OperationCoordinator = createOperationCoordinator()) {
+export function useOperationNotice(
+  locale: ComputedRef<LocaleMessages>,
+  operations: OperationCoordinator = createOperationCoordinator()
+) {
   const statusState = ref<StatusState>({ type: 'initial' })
   const activeOperation = operations.activeOperation
   const isVisible = ref(false)
@@ -52,7 +55,6 @@ export function useOperationNotice(locale: ComputedRef<LocaleMessages>, operatio
   let loading = false
 
   const isLoading = computed(() => activeOperation.value === 'loading')
-  const isRefreshing = computed(() => activeOperation.value === 'refreshing')
   const isDeleting = computed(() => activeOperation.value === 'deleting')
   const isTrashBusy = computed(() => activeOperation.value === 'trash')
   const isSavingOutfit = computed(() => activeOperation.value === 'saving-outfit')
@@ -60,29 +62,41 @@ export function useOperationNotice(locale: ComputedRef<LocaleMessages>, operatio
   const isExportingOutfits = computed(() => activeOperation.value === 'exporting-outfits')
   const isImportingPhotos = computed(() => activeOperation.value === 'importing-photos')
   const isExportingPhotos = computed(() => activeOperation.value === 'exporting-photos')
-  const isUpdatingOutfits = computed(() => activeOperation.value === 'updating-outfits')
-  const isOutfitMutationBusy = computed(() => activeOperation.value === 'mutating-outfits')
   const isAnyFileOperationBusy = operations.isBusy
 
   const statusMessage = computed(() => {
     const app = locale.value.app
     const state = statusState.value
     switch (state.type) {
-      case 'reading': return app.readingStatus
-      case 'restoring': return app.restoringStatus
-      case 'restoreFailed': return app.restoreFailedStatus
-      case 'restorePathFailed': return app.restorePathFailedStatus
-      case 'readFailed': return app.readFailedStatus
-      case 'cleared': return app.clearedStatus
-      case 'success': return `${app.successStatus(state.count, state.prefix)}${state.suffix ? app.successSuffix(state.suffix) : ''}`
-      case 'custom': return state.message
-      default: return app.initialStatus
+      case 'reading':
+        return app.readingStatus
+      case 'restoring':
+        return app.restoringStatus
+      case 'restoreFailed':
+        return app.restoreFailedStatus
+      case 'restorePathFailed':
+        return app.restorePathFailedStatus
+      case 'readFailed':
+        return app.readFailedStatus
+      case 'cleared':
+        return app.clearedStatus
+      case 'success':
+        return `${app.successStatus(state.count, state.prefix)}${state.suffix ? app.successSuffix(state.suffix) : ''}`
+      case 'custom':
+        return state.message
+      default:
+        return app.initialStatus
     }
   })
 
   const statusTone = computed<StatusTone>(() => {
     const state = statusState.value
-    if (state.type === 'restoreFailed' || state.type === 'restorePathFailed' || state.type === 'readFailed') return 'error'
+    if (
+      state.type === 'restoreFailed' ||
+      state.type === 'restorePathFailed' ||
+      state.type === 'readFailed'
+    )
+      return 'error'
     if (state.type === 'success' || state.type === 'cleared') return 'success'
     if (state.type === 'custom') return state.tone ?? 'info'
     return 'info'
@@ -90,7 +104,11 @@ export function useOperationNotice(locale: ComputedRef<LocaleMessages>, operatio
 
   const isStatusLoading = computed(() => {
     const state = statusState.value
-    return state.type === 'reading' || state.type === 'restoring' || (state.type === 'custom' && Boolean(state.loading))
+    return (
+      state.type === 'reading' ||
+      state.type === 'restoring' ||
+      (state.type === 'custom' && Boolean(state.loading))
+    )
   })
 
   const clearTimer = () => {
@@ -139,18 +157,29 @@ export function useOperationNotice(locale: ComputedRef<LocaleMessages>, operatio
     hideAfter(remaining)
   }
 
-  const showStatus = ({ message, tone = 'success', loading: isLoadingStatus = false, source }: ConfirmableStatus) => {
+  const showStatus = ({
+    message,
+    tone = 'success',
+    loading: isLoadingStatus = false,
+    source
+  }: ConfirmableStatus) => {
     const current = statusState.value
     if (
-      isVisible.value && current.type === 'custom' && current.message === message && current.tone === tone &&
-      Boolean(current.loading) === isLoadingStatus && current.source === source
-    ) return
+      isVisible.value &&
+      current.type === 'custom' &&
+      current.message === message &&
+      current.tone === tone &&
+      Boolean(current.loading) === isLoadingStatus &&
+      current.source === source
+    )
+      return
     statusState.value = { type: 'custom', message, tone, loading: isLoadingStatus, source }
   }
 
   /** 按来源清理提示，避免关闭共鸣弹窗时清掉其他页面正在显示的状态。 */
   const clearStatus = (source?: string) => {
-    if (source && (statusState.value.type !== 'custom' || statusState.value.source !== source)) return
+    if (source && (statusState.value.type !== 'custom' || statusState.value.source !== source))
+      return
     statusState.value = { type: 'initial' }
   }
 
@@ -164,15 +193,10 @@ export function useOperationNotice(locale: ComputedRef<LocaleMessages>, operatio
       return { type: 'custom', message: locale.value.fileSystem.abortSelection, tone: 'info' }
     }
     if (!(error instanceof Error)) return fallback
-    if (isUserCancelledFilePicker(error)) return { type: 'custom', message: locale.value.fileSystem.abortSelection, tone: 'info' }
+    if (isUserCancelledFilePicker(error))
+      return { type: 'custom', message: locale.value.fileSystem.abortSelection, tone: 'info' }
     return { type: 'custom', message: error.message, tone: 'error' }
   }
-
-  const begin = (operation: ActiveOperation) => { activeOperation.value = operation }
-  const end = (operation: ActiveOperation) => {
-    if (activeOperation.value === operation) activeOperation.value = null
-  }
-  const isActive = (operation: ActiveOperation) => computed(() => activeOperation.value === operation)
 
   watch(statusState, (nextStatus) => {
     if (nextStatus.type === 'initial') {
@@ -190,7 +214,6 @@ export function useOperationNotice(locale: ComputedRef<LocaleMessages>, operatio
     isStatusLoading,
     activeOperation,
     isLoading,
-    isRefreshing,
     isDeleting,
     isTrashBusy,
     isSavingOutfit,
@@ -198,8 +221,6 @@ export function useOperationNotice(locale: ComputedRef<LocaleMessages>, operatio
     isExportingOutfits,
     isImportingPhotos,
     isExportingPhotos,
-    isUpdatingOutfits,
-    isOutfitMutationBusy,
     isAnyFileOperationBusy,
     isVisible,
     showStatus,
@@ -210,9 +231,6 @@ export function useOperationNotice(locale: ComputedRef<LocaleMessages>, operatio
     resumeNotice,
     createErrorStatus,
     isUserCancelledFilePicker,
-    begin,
-    end,
-    isActive,
     dispose: clearTimer
   }
 }

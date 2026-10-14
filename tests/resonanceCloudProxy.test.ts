@@ -12,14 +12,19 @@ let target: string
 
 /** 用真实 HTTP 代理核实来源、Cookie 和请求体；测试不连接生产 Pages。 */
 async function listen(server: Server) {
-  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
 }
 
 beforeAll(async () => {
   upstream = createHttpServer(async (req, res) => {
-    if ((req.headers.origin && req.headers.origin !== target) || req.headers['sec-fetch-site'] === 'cross-site') {
-      res.writeHead(403); res.end(); return
+    if (
+      (req.headers.origin && req.headers.origin !== target) ||
+      req.headers['sec-fetch-site'] === 'cross-site'
+    ) {
+      res.writeHead(403)
+      res.end()
+      return
     }
     const chunks = []
     for await (const chunk of req) chunks.push(chunk)
@@ -29,11 +34,23 @@ beforeAll(async () => {
       'unrelated=value; Secure; HttpOnly'
     ])
     res.setHeader('content-type', 'application/json')
-    res.end(JSON.stringify({ origin: req.headers.origin, cookie: req.headers.cookie, body: Buffer.concat(chunks).toString(), path: req.url }))
+    res.end(
+      JSON.stringify({
+        origin: req.headers.origin,
+        cookie: req.headers.cookie,
+        body: Buffer.concat(chunks).toString(),
+        path: req.url
+      })
+    )
   })
   target = await listen(upstream)
-  vite = await createServer({ configFile: false, appType: 'custom',
-    server: { middlewareMode: true, proxy: { '^/api/resonance/cloud(?:\\?|$)': resonanceCloudProxy(target) } },
+  vite = await createServer({
+    configFile: false,
+    appType: 'custom',
+    server: {
+      middlewareMode: true,
+      proxy: { '^/api/resonance/cloud(?:\\?|$)': resonanceCloudProxy(target) }
+    },
     optimizeDeps: { noDiscovery: true, include: [] }
   })
   local = createHttpServer(vite.middlewares)
@@ -42,18 +59,28 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await vite?.close()
-  for (const server of [local, upstream]) if (server) {
-    server.closeAllConnections()
-    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
-  }
+  for (const server of [local, upstream])
+    if (server) {
+      server.closeAllConnections()
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve()))
+      )
+    }
 })
 
 it('forwards same-origin login to Pages and adapts only the resonance cookie for local HTTP', async () => {
   const body = JSON.stringify({ username: 'tester', password: 'test-password' })
-  const response = await fetch(`${origin}/api/resonance/cloud?action=login`, { method: 'POST',
-    headers: { Origin: origin, 'Content-Type': 'application/json', 'X-Resonance-Request': '1' }, body })
+  const response = await fetch(`${origin}/api/resonance/cloud?action=login`, {
+    method: 'POST',
+    headers: { Origin: origin, 'Content-Type': 'application/json', 'X-Resonance-Request': '1' },
+    body
+  })
   expect(response.status).toBe(200)
-  expect(await response.json()).toMatchObject({ origin: target, body, path: '/api/resonance/cloud?action=login' })
+  expect(await response.json()).toMatchObject({
+    origin: target,
+    body,
+    path: '/api/resonance/cloud?action=login'
+  })
   const cookies = response.headers.getSetCookie()
   expect(cookies[0]).toContain('HttpOnly; SameSite=Strict; Max-Age=34560000')
   expect(cookies[0]).not.toMatch(/;\s*Secure/i)
@@ -61,17 +88,28 @@ it('forwards same-origin login to Pages and adapts only the resonance cookie for
 })
 
 it('forwards saved sessions and the logout cookie without a local database', async () => {
-  const response = await fetch(`${origin}/api/resonance/cloud?action=session`, { headers: { Cookie: 'resonance_session=test-session' } })
+  const response = await fetch(`${origin}/api/resonance/cloud?action=session`, {
+    headers: { Cookie: 'resonance_session=test-session' }
+  })
   expect(await response.json()).toMatchObject({ cookie: 'resonance_session=test-session' })
-  const logout = await fetch(`${origin}/api/resonance/cloud?action=logout`, { method: 'POST', headers: { Origin: origin } })
+  const logout = await fetch(`${origin}/api/resonance/cloud?action=logout`, {
+    method: 'POST',
+    headers: { Origin: origin }
+  })
   expect(logout.headers.getSetCookie()[0]).toContain('resonance_session=;')
   expect(logout.headers.getSetCookie()[0]).toContain('Max-Age=0')
 })
 
 it('does not rewrite hostile origins or bypass Fetch Metadata checks', async () => {
-  const cases: Record<string, string>[] = [{ Origin: 'https://untrusted.example' }, { Origin: origin, 'Sec-Fetch-Site': 'cross-site' }]
+  const cases: Record<string, string>[] = [
+    { Origin: 'https://untrusted.example' },
+    { Origin: origin, 'Sec-Fetch-Site': 'cross-site' }
+  ]
   for (const headers of cases) {
-    const response = await fetch(`${origin}/api/resonance/cloud?action=login`, { method: 'POST', headers })
+    const response = await fetch(`${origin}/api/resonance/cloud?action=login`, {
+      method: 'POST',
+      headers
+    })
     expect(response.status).toBe(403)
   }
 })

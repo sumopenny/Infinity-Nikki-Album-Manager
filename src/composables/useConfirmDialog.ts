@@ -22,7 +22,9 @@ export function useConfirmDialog() {
     confirmLabel: ''
   })
 
-  const openConfirmDialog = (options: Omit<ConfirmDialogState, 'visible' | 'resolve'>): Promise<boolean> => {
+  const openConfirmDialog = (
+    options: Omit<ConfirmDialogState, 'visible' | 'resolve'>
+  ): Promise<boolean> => {
     if (confirmDialog.value.visible) return Promise.resolve(false)
     return new Promise((resolve) => {
       confirmDialog.value = { ...options, visible: true, resolve }

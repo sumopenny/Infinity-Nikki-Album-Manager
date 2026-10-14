@@ -30,7 +30,7 @@ const CLOTH_TYPE_LABELS: Record<number, Record<Language, string>> = {
   94: { zh: '挂饰', en: 'Pendants' },
   95: { zh: '背饰', en: 'Backpieces' },
   96: { zh: '戒指', en: 'Rings' },
-  97: { zh: '臂饰', en: 'Arm Decorations' },
+  97: { zh: '臂饰', en: 'Arm Decorations' }
 }
 
 // 原生搭配码只保存部件 ID。ID 的六位分类前缀末两位与 ClothType 一致，
@@ -65,7 +65,7 @@ const ITEM_ID_CATEGORY_TYPES: Record<number, number> = {
   95: 95,
   96: 96,
   97: 97,
-  98: 76,
+  98: 76
 }
 
 /** 从原生部件 ID 推导 ClothType；无法识别时返回 null。 */
@@ -77,5 +77,5 @@ export function inferClothTypeFromItemId(itemId: number): number | null {
 }
 
 export function getClothTypeLabel(clothType: number | null, language: Language): string | null {
-  return clothType === null ? null : CLOTH_TYPE_LABELS[clothType]?.[language] ?? null
+  return clothType === null ? null : (CLOTH_TYPE_LABELS[clothType]?.[language] ?? null)
 }

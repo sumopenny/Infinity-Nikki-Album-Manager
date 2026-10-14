@@ -113,11 +113,11 @@ On desktop, entering Outfit codes opens a standalone guide according to your sav
 - You can create up to 40 user tags, and each tag can contain up to 5 characters. Deleting a tag in use only moves related plans to Uncategorized.
 - New tags appear at the top of the tag list; drag the left handle to adjust the order.
 - Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press `Ctrl+V`). JPG and PNG files are converted locally to WebP, the outfit code can be empty, each plan can use one tag, and double-clicking the image opens the preview.
-- On desktop, the decode button appears in the upper-right corner of each outfit card; on mobile, open decoding from the card action menu. The button stays disabled until a code is entered. The delete button sits to the left of the decode button and appears when the card is hovered or the button receives keyboard focus.
+- On desktop, the decode button appears in the upper-right corner of each outfit card; on mobile, use the decode button at the bottom of the card. The button stays disabled until a code is entered. The delete button sits to the left of the decode button and appears when the card is hovered or the button receives keyboard focus.
 - Open the shared Parameter / outfit-code parser from the upper-right Tools menu and enter a code without creating a plan first; results open in the same decoder dialog.
 - The outfit preview toolbar shows the current tag and outfit code, with Copy and Edit buttons.
-- The app creates a `clothe` folder inside the current album as needed to manage outfit codes. <span style="color: red;">For bulk import, move saved outfit images directly into this folder; returning to the website page automatically converts them into pending plans.</span>
-- If a delete operation cannot fully restore files, the app lists the affected outfits in a dialog; manually inspect the current album's `clothe` folder.
+- Outfit codes, images, notes and tags are stored in the current browser and shared across albums. No new album `clothe` folder is required. Use the collection ZIP or Import all data for batch migration.
+- Selecting an album migrates its old `clothe` data. The old folder is cleaned only after successful migration and source verification. Damaged data, unassociated images and unknown files remain with a notice; loose images are not converted into plans automatically.
 - Using the <span style="color: orange;">auto update outfit code</span> feature requires authorizing the current game's `X6Game` folder. You can authorize it from the Current album menu in the upper-right corner. <span style="color: red;">How to use: in the game, tap Share, tap the selection button at the lower-right corner of the outfit screenshot, tap Generate Outfit Code after the selection is complete, then return to the web page. The website imports only when both the outfit code is new and the game's outfit image has a newer last-modified time; existing codes, unchanged images, or missing images are skipped with a status message.</span>
 
 <div align="center">
@@ -182,7 +182,7 @@ Do not select the C drive, Program Files, the game install root, or other protec
 ### The launcher does nothing
 
 - Make sure the project has been fully extracted, and do not run it inside the ZIP.
-- Make sure Node.js LTS is installed and the `start` folder is not missing.
+- Make sure Node.js LTS version 22 or newer is installed and the `start` folder is not missing.
 - Check whether security software blocked the EXE or BAT file.
 - You can also run `start\Start-Remote-D1-Website.bat` directly to view error details.
 
@@ -207,11 +207,11 @@ Browsers block web pages from accessing system folders. Please select `NikkiPhot
 
 ## Local installation
 
-Requirements: Windows, [Node.js LTS](https://nodejs.org/), and the latest desktop version of Chrome, Edge, or another compatible Chromium browser.
+Requirements: Windows, [Node.js LTS version 22 or newer](https://nodejs.org/), and the latest desktop version of Chrome, Edge, or another compatible Chromium browser.
 
 ### Install Node.js
 
-1. Open the [Node.js website](https://nodejs.org/), download the Windows installer marked **LTS**, and do not choose the Current version.
+1. Open the [Node.js website](https://nodejs.org/), download the Windows installer for version 22 or newer marked **LTS**, and do not choose the Current version.
 2. Run the installer with the default options, and make sure the `Add to PATH` option is not disabled.
 3. After installation, close and reopen terminals, project folders, and launcher windows so the environment variables take effect.
 4. Press `Win + R`, enter `cmd`, and run:
@@ -240,7 +240,7 @@ Internally, `useOperationCoordinator` tracks module work and `useLatestRequest` 
 
 Development and local Pages/D1 commands use the exact Wrangler 4.149.0 dev dependency and require Node.js 22 or newer. Use `npm ci` to install from the lockfile. `dev:pages`, `d1:migrate:local`, and `d1:migrate:remote` no longer download latest on each run.
 
-The reviewed Home/Camera components and shared controls use pinned Prettier: run `npm run format:review` to format or `npm run format:review:check` to check. Shared button, menu, and reduced-motion rules live in `src/styles/controls.css`; business styles provide their own overrides.
+Handwritten Vue, TypeScript, CSS, resource scripts, tests and startup dependency scripts share pinned Prettier. Run `npm run format` to format or `npm run format:check` to check; the old `format:review` commands remain compatibility aliases. Generated catalog JSON, the dependency lockfile and build output are excluded. Shared button, menu and reduced-motion rules live in `src/styles/controls.css`.
 
 Home operations distinguish permission, storage capacity, image, data, and tag conflicts. Console diagnostics contain only the operation and error category, without raw exceptions or credentials. The Resonance submenu follows the selected language.
 
@@ -260,6 +260,8 @@ The local EXE launcher, `dev`, `dev:remote`, and Cloudflare builds share the res
 Resource updates first check HTTPS_PROXY/HTTP_PROXY (including lowercase names), then enabled manual Windows system proxies. Only reachable local HTTP/HTTPS proxies are used; common ports are not scanned. With no configured or listening proxy, requests connect directly. A proxy connection failure or timeout triggers one direct attempt and switches subsequent requests in that process to direct access. HTTP errors and validation failures are not retried. Failed updates retain local resources and startup continues; explicit --strict mode still fails. NO_PROXY is respected, with local addresses bypassed by default. Detection applies only to resource-update requests and does not change system proxy settings, npm configuration or website API forwarding. PAC and SOCKS settings are not detected.
 
 The light/filter script accepts `--force` to refresh, `--strict` to fail on errors, and `--manifest <URL>` / `--timeout <milliseconds>`. Environment overrides are `NUAN5_HOT_UPDATE_MANIFEST` for the remote manifest URL and `NUAN5_HOT_UPDATE_TIMEOUT_MS` for the timeout (15000 milliseconds by default). When passing options through npm, put `--` before them.
+
+Local item-catalog generation requires an explicit Gongeo checkout path (or `GONGEO_ROOT`), for example `node scripts/generate-item-catalog.cjs "C:/path/to/gongeo"`. Remote synchronization still uses `npm run resources:update:items`. When rebuilding the launcher, `start/launcher/Build-Launcher.ps1` compiles a temporary file and replaces the launcher only on success; compilation failure preserves the old launcher.
 
 Stack: Vue 3, TypeScript, Vite, File System Access API, IndexedDB.
 

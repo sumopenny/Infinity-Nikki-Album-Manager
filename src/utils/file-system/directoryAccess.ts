@@ -1,10 +1,19 @@
 // 目录访问：负责浏览器目录选择、读写权限、X6Game 授权复用和账号路径验证。
-import { clearSavedX6GameDirectoryHandle, getSavedX6GameDirectoryHandle, saveX6GameDirectoryHandle } from './directoryStorage'
+import {
+  clearSavedX6GameDirectoryHandle,
+  getSavedX6GameDirectoryHandle,
+  saveX6GameDirectoryHandle
+} from './directoryStorage'
 import { createDirectoryError, normalizeDirectoryError } from './directoryErrors'
 import type { FileSystemMessages } from './directoryErrors'
 
 const HIGH_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_HighQuality'
-export interface X6GameDirectoryOptions { beforePickX6GameDirectory?: () => boolean | Promise<boolean>; beforeRequestX6GamePermission?: () => boolean | Promise<boolean>; allowUnrelatedAlbum?: boolean; /** 强制打开目录选择器，不复用已保存的授权句柄。 */ forcePick?: boolean }
+export interface X6GameDirectoryOptions {
+  beforePickX6GameDirectory?: () => boolean | Promise<boolean>
+  beforeRequestX6GamePermission?: () => boolean | Promise<boolean>
+  allowUnrelatedAlbum?: boolean
+  /** 强制打开目录选择器，不复用已保存的授权句柄。 */ forcePick?: boolean
+}
 function isMobileDevice(): boolean {
   const isMobileUserAgent = /android|iphone|ipod|ipad/i.test(navigator.userAgent)
   const isTouchCapableMac = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
@@ -16,7 +25,9 @@ export function supportsDirectoryAuthorization(): boolean {
   return !isMobileDevice() && typeof window.showDirectoryPicker === 'function'
 }
 
-function getSupportedDirectoryPicker(messages: FileSystemMessages): NonNullable<typeof window.showDirectoryPicker> {
+function getSupportedDirectoryPicker(
+  messages: FileSystemMessages
+): NonNullable<typeof window.showDirectoryPicker> {
   if (isMobileDevice()) {
     throw new Error(messages.mobileBrowserUnsupported)
   }
@@ -64,7 +75,10 @@ export async function isSameOrNestedDirectory(
 }
 
 /** 判断导出目标是否为相册本身、其子目录或 trash 目录。 */
-export async function isProtectedAlbumDirectory(album: FileSystemDirectoryHandle, candidate: FileSystemDirectoryHandle): Promise<boolean> {
+export async function isProtectedAlbumDirectory(
+  album: FileSystemDirectoryHandle,
+  candidate: FileSystemDirectoryHandle
+): Promise<boolean> {
   if (await isSameOrNestedDirectory(album, candidate)) return true
   try {
     const trash = await album.getDirectoryHandle('trash')
@@ -95,7 +109,10 @@ export async function resolveX6GameAccountDirectory(
     relativePath[1] === 'GamePlayPhotos' &&
     relativePath[3] === albumDirectoryHandle.name
   const hasValidAccountDirectory =
-    Boolean(accountDirectoryName) && accountDirectoryName !== '.' && accountDirectoryName !== '..' && !/[\\/]/.test(accountDirectoryName)
+    Boolean(accountDirectoryName) &&
+    accountDirectoryName !== '.' &&
+    accountDirectoryName !== '..' &&
+    !/[\\/]/.test(accountDirectoryName)
 
   if (!hasExpectedPath || !hasValidAccountDirectory) {
     throw createDirectoryError('invalid-directory', messages)
@@ -152,7 +169,10 @@ async function getValidatedX6GameDirectory(
     let hasPermission = await ensureReadWritePermission(savedHandle, false)
 
     if (!hasPermission) {
-      if (options.beforeRequestX6GamePermission && !(await options.beforeRequestX6GamePermission())) {
+      if (
+        options.beforeRequestX6GamePermission &&
+        !(await options.beforeRequestX6GamePermission())
+      ) {
         throw createDirectoryError('cancelled', messages)
       }
       hasPermission = await ensureReadWritePermission(savedHandle, true)
@@ -204,7 +224,10 @@ export async function pickStandaloneX6GameDirectory(
     let hasPermission = await ensureReadWritePermission(savedHandle, false)
 
     if (!hasPermission) {
-      if (options.beforeRequestX6GamePermission && !(await options.beforeRequestX6GamePermission())) {
+      if (
+        options.beforeRequestX6GamePermission &&
+        !(await options.beforeRequestX6GamePermission())
+      ) {
         throw createDirectoryError('cancelled', messages)
       }
       hasPermission = await ensureReadWritePermission(savedHandle, true)
@@ -245,10 +268,15 @@ export async function pickStandaloneX6GameDirectory(
  * 参数：x6GameHandle 为已授权的 X6Game 目录句柄。
  * 返回：Saved\GamePlayPhotos 下的子目录名列表；目录不存在时返回空数组。
  */
-export async function listGamePlayPhotoAccounts(x6GameHandle: FileSystemDirectoryHandle): Promise<string[]> {
+export async function listGamePlayPhotoAccounts(
+  x6GameHandle: FileSystemDirectoryHandle
+): Promise<string[]> {
   let gamePlayPhotosHandle: FileSystemDirectoryHandle
   try {
-    gamePlayPhotosHandle = await getRequiredNestedDirectory(x6GameHandle, ['Saved', 'GamePlayPhotos'])
+    gamePlayPhotosHandle = await getRequiredNestedDirectory(x6GameHandle, [
+      'Saved',
+      'GamePlayPhotos'
+    ])
   } catch (error) {
     if (isMissingDirectoryError(error)) return []
     throw error

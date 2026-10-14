@@ -22,7 +22,10 @@ export interface PhotoActionCacheEntry {
   parsedAt: number
 }
 
-function transaction<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+function transaction<T>(
+  mode: IDBTransactionMode,
+  action: (store: IDBObjectStore) => IDBRequest<T>
+): Promise<T> {
   return runStoreRequest(STORE_NAME, mode, action)
 }
 
@@ -35,7 +38,11 @@ export async function saveX6GameDirectoryHandle(handle: FileSystemDirectoryHandl
 }
 
 export async function getSavedAlbumDirectoryHandle(): Promise<FileSystemDirectoryHandle | null> {
-  try { return await transaction('readonly', (store) => store.get(SAVED_DIRECTORY_KEY)) } catch { return null }
+  try {
+    return await transaction('readonly', (store) => store.get(SAVED_DIRECTORY_KEY))
+  } catch {
+    return null
+  }
 }
 
 export async function clearSavedAlbumDirectoryHandle(): Promise<void> {
@@ -43,7 +50,11 @@ export async function clearSavedAlbumDirectoryHandle(): Promise<void> {
 }
 
 export async function getSavedX6GameDirectoryHandle(): Promise<FileSystemDirectoryHandle | null> {
-  try { return await transaction('readonly', (store) => store.get(SAVED_X6GAME_DIRECTORY_KEY)) } catch { return null }
+  try {
+    return await transaction('readonly', (store) => store.get(SAVED_X6GAME_DIRECTORY_KEY))
+  } catch {
+    return null
+  }
 }
 
 export async function clearSavedX6GameDirectoryHandle(): Promise<void> {
@@ -53,8 +64,12 @@ export async function clearSavedX6GameDirectoryHandle(): Promise<void> {
 export async function getSavedCameraParamUids(): Promise<string[]> {
   try {
     const value = await transaction('readonly', (store) => store.get(SAVED_CAMERA_PARAM_UIDS_KEY))
-    return Array.isArray(value) ? value.filter((uid): uid is string => typeof uid === 'string' && uid.trim().length > 0) : []
-  } catch { return [] }
+    return Array.isArray(value)
+      ? value.filter((uid): uid is string => typeof uid === 'string' && uid.trim().length > 0)
+      : []
+  } catch {
+    return []
+  }
 }
 
 export async function addSavedCameraParamUid(uid: string): Promise<void> {
@@ -62,30 +77,29 @@ export async function addSavedCameraParamUid(uid: string): Promise<void> {
   if (!normalized) return
   const current = await getSavedCameraParamUids()
   if (current.includes(normalized)) return
-  await transaction('readwrite', (store) => store.put([...current, normalized], SAVED_CAMERA_PARAM_UIDS_KEY))
-}
-
-export async function clearSavedCameraParamUids(): Promise<void> {
-  await transaction('readwrite', (store) => store.delete(SAVED_CAMERA_PARAM_UIDS_KEY))
+  await transaction('readwrite', (store) =>
+    store.put([...current, normalized], SAVED_CAMERA_PARAM_UIDS_KEY)
+  )
 }
 
 export async function getSavedOutfitParseResult(code: string): Promise<unknown> {
-  return transaction('readonly', (store) => store.get(`${OUTFIT_PARSE_CACHE_KEY_PREFIX}${OUTFIT_PARSE_CACHE_VERSION}${code}`))
+  return transaction('readonly', (store) =>
+    store.get(`${OUTFIT_PARSE_CACHE_KEY_PREFIX}${OUTFIT_PARSE_CACHE_VERSION}${code}`)
+  )
 }
 
 function photoActionCacheKey(albumKey: string, photoKey: string): string {
   return `${PHOTO_ACTION_CACHE_KEY_PREFIX}${encodeURIComponent(albumKey)}:${encodeURIComponent(photoKey)}`
 }
 
-export async function getSavedPhotoActionCache(albumKey: string, photoKey: string): Promise<PhotoActionCacheEntry | null> {
-  try {
-    const value = await transaction('readonly', (store) => store.get(photoActionCacheKey(albumKey, photoKey)))
-    return value && typeof value === 'object' ? value as PhotoActionCacheEntry : null
-  } catch { return null }
-}
-
-export async function savePhotoActionCache(albumKey: string, photoKey: string, entry: PhotoActionCacheEntry): Promise<void> {
-  await transaction('readwrite', (store) => store.put(entry, photoActionCacheKey(albumKey, photoKey)))
+export async function savePhotoActionCache(
+  albumKey: string,
+  photoKey: string,
+  entry: PhotoActionCacheEntry
+): Promise<void> {
+  await transaction('readwrite', (store) =>
+    store.put(entry, photoActionCacheKey(albumKey, photoKey))
+  )
 }
 
 export async function clearSavedPhotoActionCache(): Promise<void> {
@@ -96,18 +110,30 @@ export async function clearSavedPhotoActionCache(): Promise<void> {
     const request = store.getAllKeys()
     request.onsuccess = () => {
       for (const key of request.result) {
-        if (typeof key === 'string' && key.startsWith(PHOTO_ACTION_CACHE_KEY_PREFIX)) store.delete(key)
+        if (typeof key === 'string' && key.startsWith(PHOTO_ACTION_CACHE_KEY_PREFIX))
+          store.delete(key)
       }
     }
     request.onerror = () => reject(request.error)
-    tx.oncomplete = () => { db.close(); resolve() }
-    tx.onerror = () => { db.close(); reject(tx.error) }
-    tx.onabort = () => { db.close(); reject(tx.error) }
+    tx.oncomplete = () => {
+      db.close()
+      resolve()
+    }
+    tx.onerror = () => {
+      db.close()
+      reject(tx.error)
+    }
+    tx.onabort = () => {
+      db.close()
+      reject(tx.error)
+    }
   })
 }
 
 export async function saveOutfitParseResult(code: string, result: unknown): Promise<void> {
-  await transaction('readwrite', (store) => store.put(result, `${OUTFIT_PARSE_CACHE_KEY_PREFIX}${OUTFIT_PARSE_CACHE_VERSION}${code}`))
+  await transaction('readwrite', (store) =>
+    store.put(result, `${OUTFIT_PARSE_CACHE_KEY_PREFIX}${OUTFIT_PARSE_CACHE_VERSION}${code}`)
+  )
 }
 
 export async function clearSavedOutfitParseResults(): Promise<void> {
@@ -118,22 +144,36 @@ export async function clearSavedOutfitParseResults(): Promise<void> {
     const request = store.getAllKeys()
     request.onsuccess = () => {
       for (const key of request.result) {
-        if (typeof key === 'string' && key.startsWith(OUTFIT_PARSE_CACHE_KEY_PREFIX)) store.delete(key)
+        if (typeof key === 'string' && key.startsWith(OUTFIT_PARSE_CACHE_KEY_PREFIX))
+          store.delete(key)
       }
     }
     request.onerror = () => reject(request.error)
-    tx.oncomplete = () => { db.close(); resolve() }
-    tx.onerror = () => { db.close(); reject(tx.error) }
-    tx.onabort = () => { db.close(); reject(tx.error) }
+    tx.oncomplete = () => {
+      db.close()
+      resolve()
+    }
+    tx.onerror = () => {
+      db.close()
+      reject(tx.error)
+    }
+    tx.onabort = () => {
+      db.close()
+      reject(tx.error)
+    }
   })
 }
 
 export async function getSavedHomeSchemeParseResult(code: string): Promise<unknown> {
-  return transaction('readonly', (store) => store.get(`${HOME_SCHEME_PARSE_CACHE_KEY_PREFIX}${code}`))
+  return transaction('readonly', (store) =>
+    store.get(`${HOME_SCHEME_PARSE_CACHE_KEY_PREFIX}${code}`)
+  )
 }
 
 export async function saveHomeSchemeParseResult(code: string, result: unknown): Promise<void> {
-  await transaction('readwrite', (store) => store.put(result, `${HOME_SCHEME_PARSE_CACHE_KEY_PREFIX}${code}`))
+  await transaction('readwrite', (store) =>
+    store.put(result, `${HOME_SCHEME_PARSE_CACHE_KEY_PREFIX}${code}`)
+  )
 }
 
 /** 仅删除家园方案解析缓存，不触碰相册授权句柄、搭配码缓存或方案文件。 */
@@ -145,31 +185,55 @@ export async function clearSavedHomeSchemeParseResults(): Promise<void> {
     const request = store.getAllKeys()
     request.onsuccess = () => {
       for (const key of request.result) {
-        if (typeof key === 'string' && key.startsWith(HOME_SCHEME_PARSE_CACHE_KEY_PREFIX)) store.delete(key)
+        if (typeof key === 'string' && key.startsWith(HOME_SCHEME_PARSE_CACHE_KEY_PREFIX))
+          store.delete(key)
       }
     }
     request.onerror = () => reject(request.error)
-    tx.oncomplete = () => { db.close(); resolve() }
-    tx.onerror = () => { db.close(); reject(tx.error) }
-    tx.onabort = () => { db.close(); reject(tx.error) }
+    tx.oncomplete = () => {
+      db.close()
+      resolve()
+    }
+    tx.onerror = () => {
+      db.close()
+      reject(tx.error)
+    }
+    tx.onabort = () => {
+      db.close()
+      reject(tx.error)
+    }
   })
 }
 
 /** One readonly transaction for an album instead of one connection per photo. */
-export async function getSavedPhotoActionCaches(albumKey: string): Promise<Map<string, PhotoActionCacheEntry>> {
+export async function getSavedPhotoActionCaches(
+  albumKey: string
+): Promise<Map<string, PhotoActionCacheEntry>> {
   const prefix = PHOTO_ACTION_CACHE_KEY_PREFIX + encodeURIComponent(albumKey) + ':'
   try {
     let keys: IDBValidKey[] = []
     const values = await transaction('readonly', (store) => {
       const range = IDBKeyRange.bound(prefix, prefix + '\uffff')
       const request = store.getAllKeys(range)
-      request.onsuccess = () => { keys = request.result }
+      request.onsuccess = () => {
+        keys = request.result
+      }
       return store.getAll(range)
     })
-    return new Map(values.flatMap((value, index) => {
-      const key = keys[index]
-      if (typeof key !== 'string' || !value || typeof value !== 'object') return []
-      try { return [[decodeURIComponent(key.slice(prefix.length)), value as PhotoActionCacheEntry] as const] } catch { return [] }
-    }))
-  } catch { return new Map() }
+    return new Map(
+      values.flatMap((value, index) => {
+        const key = keys[index]
+        if (typeof key !== 'string' || !value || typeof value !== 'object') return []
+        try {
+          return [
+            [decodeURIComponent(key.slice(prefix.length)), value as PhotoActionCacheEntry] as const
+          ]
+        } catch {
+          return []
+        }
+      })
+    )
+  } catch {
+    return new Map()
+  }
 }

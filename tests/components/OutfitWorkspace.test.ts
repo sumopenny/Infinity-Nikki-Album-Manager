@@ -45,7 +45,11 @@ describe('outfit workspace components', () => {
     })
 
     expect(wrapper.findAll('.outfit-filter-button').map((button) => button.text())).toEqual([
-      '全部2', '待填写1', '未分类1', '甜美1', '清新0'
+      '全部2',
+      '待填写1',
+      '未分类1',
+      '甜美1',
+      '清新0'
     ])
     await wrapper.findAll('.outfit-filter-button')[3].trigger('click')
     expect(wrapper.emitted('changeFilter')).toEqual([['tag:甜美']])
@@ -79,10 +83,21 @@ describe('outfit workspace components', () => {
     const rows = wrapper.findAll('.outfit-filter-row')
     const target = rows[2].element as HTMLElement
     vi.spyOn(target, 'getBoundingClientRect').mockReturnValue({
-      top: 100, bottom: 134, left: 0, right: 200, width: 200, height: 34, x: 0, y: 100, toJSON: () => ({})
+      top: 100,
+      bottom: 134,
+      left: 0,
+      right: 200,
+      width: 200,
+      height: 34,
+      x: 0,
+      y: 100,
+      toJSON: () => ({})
     })
     const originalElementFromPoint = document.elementFromPoint
-    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: vi.fn(() => target) })
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: vi.fn(() => target)
+    })
 
     await rows[0].get('.outfit-tag-drag-handle').trigger('pointerdown', { button: 0 })
     window.dispatchEvent(new MouseEvent('pointermove', { clientX: 10, clientY: 130 }))
@@ -90,9 +105,14 @@ describe('outfit workspace components', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.emitted('reorderTags')).toEqual([[['甜美', '清新', '最新']]])
-    expect(wrapper.findAll('.outfit-filter-row').map((row) => row.attributes('data-outfit-tag'))).toEqual(['甜美', '清新', '最新'])
+    expect(
+      wrapper.findAll('.outfit-filter-row').map((row) => row.attributes('data-outfit-tag'))
+    ).toEqual(['甜美', '清新', '最新'])
     if (originalElementFromPoint) {
-      Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: originalElementFromPoint })
+      Object.defineProperty(document, 'elementFromPoint', {
+        configurable: true,
+        value: originalElementFromPoint
+      })
     } else {
       Reflect.deleteProperty(document, 'elementFromPoint')
     }
@@ -234,10 +254,24 @@ describe('outfit workspace components', () => {
   it('shows four footer icons in order and keeps actions separate from selection and preview', async () => {
     const item = outfit('1', 'ABC-123')
     const messages = getOutfitMessages('zh')
-    const wrapper = mount(OutfitGrid, { props: { outfits: [item], selectedIds: new Set<string>(), thumbnailMode: 'portrait-standard', messages, disabled: false }, global: { stubs: { LazyPhotoImage: true } } })
+    const wrapper = mount(OutfitGrid, {
+      props: {
+        outfits: [item],
+        selectedIds: new Set<string>(),
+        thumbnailMode: 'portrait-standard',
+        messages,
+        disabled: false
+      },
+      global: { stubs: { LazyPhotoImage: true } }
+    })
     const buttons = wrapper.findAll('.outfit-card-actions button')
-    expect(buttons.map(button => button.attributes('aria-label'))).toEqual([messages.copy, messages.edit, messages.delete, messages.parse])
-    expect(buttons.every(button => button.text() === '')).toBe(true)
+    expect(buttons.map((button) => button.attributes('aria-label'))).toEqual([
+      messages.copy,
+      messages.edit,
+      messages.delete,
+      messages.parse
+    ])
+    expect(buttons.every((button) => button.text() === '')).toBe(true)
     expect(wrapper.find('.card-menu-trigger').exists()).toBe(false)
     for (const [index, event] of ['copy', 'edit', 'delete', 'parse'].entries()) {
       await buttons[index]!.trigger('click')
@@ -253,7 +287,11 @@ describe('outfit workspace components', () => {
     expect(buttons[3]!.attributes('disabled')).toBeDefined()
     expect(buttons[1]!.attributes('disabled')).toBeUndefined()
     await wrapper.setProps({ disabled: true })
-    expect(wrapper.findAll('.outfit-card-actions button').every(button => button.attributes('disabled') !== undefined)).toBe(true)
+    expect(
+      wrapper
+        .findAll('.outfit-card-actions button')
+        .every((button) => button.attributes('disabled') !== undefined)
+    ).toBe(true)
   })
 
   it('ignores an older asynchronous preview after the editor is reopened', async () => {
@@ -267,7 +305,13 @@ describe('outfit workspace components', () => {
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })
 
     const wrapper = mount(OutfitEditor, {
-      props: { visible: false, outfit: item, tags: [], busy: false, messages: getOutfitMessages('zh') }
+      props: {
+        visible: false,
+        outfit: item,
+        tags: [],
+        busy: false,
+        messages: getOutfitMessages('zh')
+      }
     })
     await wrapper.setProps({ visible: true })
     await wrapper.setProps({ visible: false })
@@ -278,20 +322,30 @@ describe('outfit workspace components', () => {
     expect(document.body.querySelector('.outfit-editor img')).toBeNull()
     files[1](secondFile)
     await flushPromises()
-    expect(document.body.querySelector('.outfit-editor img')?.getAttribute('src')).toBe('blob:second.webp')
+    expect(document.body.querySelector('.outfit-editor img')?.getAttribute('src')).toBe(
+      'blob:second.webp'
+    )
     expect(createObjectURL).toHaveBeenCalledTimes(1)
   })
 
   it('opens the inline tag creation popover and closes it with Escape', async () => {
     const wrapper = mount(OutfitEditor, {
       attachTo: document.body,
-      props: { visible: true, outfit: null, tags: ['甜美'], busy: false, messages: getOutfitMessages('zh') }
+      props: {
+        visible: true,
+        outfit: null,
+        tags: ['甜美'],
+        busy: false,
+        messages: getOutfitMessages('zh')
+      }
     })
 
     ;(document.body.querySelector('.outfit-editor-add-tag') as HTMLButtonElement).click()
     await wrapper.vm.$nextTick()
     expect(document.body.querySelector('.outfit-tag-editor-popover')).not.toBeNull()
-    expect(document.activeElement).toBe(document.body.querySelector('.outfit-tag-editor-popover input'))
+    expect(document.activeElement).toBe(
+      document.body.querySelector('.outfit-tag-editor-popover input')
+    )
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     await wrapper.vm.$nextTick()
     expect(document.body.querySelector('.outfit-tag-editor-popover')).toBeNull()
@@ -300,7 +354,13 @@ describe('outfit workspace components', () => {
   it('keeps the editor open when the backdrop closes the tag popover', async () => {
     const wrapper = mount(OutfitEditor, {
       attachTo: document.body,
-      props: { visible: true, outfit: null, tags: ['甜美'], busy: false, messages: getOutfitMessages('zh') }
+      props: {
+        visible: true,
+        outfit: null,
+        tags: ['甜美'],
+        busy: false,
+        messages: getOutfitMessages('zh')
+      }
     })
 
     ;(document.body.querySelector('.outfit-editor-add-tag') as HTMLButtonElement).click()
@@ -317,12 +377,20 @@ describe('outfit workspace components', () => {
   it('selects a newly created tag after the parent confirms persistence', async () => {
     const wrapper = mount(OutfitEditor, {
       attachTo: document.body,
-      props: { visible: true, outfit: null, tags: ['甜美'], busy: false, messages: getOutfitMessages('zh') }
+      props: {
+        visible: true,
+        outfit: null,
+        tags: ['甜美'],
+        busy: false,
+        messages: getOutfitMessages('zh')
+      }
     })
 
     ;(document.body.querySelector('.outfit-editor-add-tag') as HTMLButtonElement).click()
     await wrapper.vm.$nextTick()
-    const tagInput = document.body.querySelector('.outfit-tag-editor-popover input') as HTMLInputElement
+    const tagInput = document.body.querySelector(
+      '.outfit-tag-editor-popover input'
+    ) as HTMLInputElement
     tagInput.value = '清新'
     tagInput.dispatchEvent(new Event('input', { bubbles: true }))
     ;(document.body.querySelector('.outfit-tag-editor-popover') as HTMLFormElement).requestSubmit()
@@ -330,7 +398,9 @@ describe('outfit workspace components', () => {
     expect(wrapper.emitted('addTag')).toEqual([['清新']])
     ;(wrapper.vm as unknown as { selectCreatedTag: (tag: string) => void }).selectCreatedTag('清新')
     await wrapper.setProps({ tags: ['甜美', '清新'] })
-    expect(document.body.querySelectorAll('.outfit-tag-choices button')[1].classList).toContain('active')
+    expect(document.body.querySelectorAll('.outfit-tag-choices button')[1].classList).toContain(
+      'active'
+    )
     expect(document.body.querySelector('.outfit-tag-editor-popover')).toBeNull()
   })
 })

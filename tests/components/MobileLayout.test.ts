@@ -13,10 +13,13 @@ import ResonanceSidebar from '../../src/components/ResonanceSidebar.vue'
 
 const wrappers: { unmount: () => void }[] = []
 beforeEach(() => {
-  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+  )
 })
 afterEach(() => {
-  wrappers.splice(0).forEach(wrapper => wrapper.unmount())
+  wrappers.splice(0).forEach((wrapper) => wrapper.unmount())
   vi.unstubAllGlobals()
   document.body.innerHTML = ''
 })
@@ -25,15 +28,27 @@ describe('mobile navigation and collection controls', () => {
   it('moves one like instance between active tag rows and desktop while a request is pending', async () => {
     let compact = true
     const layoutListeners = new Set<() => void>()
-    vi.stubGlobal('matchMedia', vi.fn(() => ({
-      get matches() { return compact },
-      addEventListener: (_event: string, listener: () => void) => layoutListeners.add(listener),
-      removeEventListener: (_event: string, listener: () => void) => layoutListeners.delete(listener)
-    })))
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({
+        get matches() {
+          return compact
+        },
+        addEventListener: (_event: string, listener: () => void) => layoutListeners.add(listener),
+        removeEventListener: (_event: string, listener: () => void) =>
+          layoutListeners.delete(listener)
+      }))
+    )
     let resolvePost!: (response: Response) => void
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ count: 12000 }) })
-      .mockImplementationOnce(() => new Promise<Response>(resolve => { resolvePost = resolve }))
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolvePost = resolve
+          })
+      )
     vi.stubGlobal('fetch', fetchMock)
     const view = ref('outfits')
     const language = ref<'zh' | 'en'>('zh')
@@ -41,11 +56,21 @@ describe('mobile navigation and collection controls', () => {
       components: { TopBar, CollectionFilterBar },
       setup() {
         provide('mobileLikeTarget', ref<HTMLElement | null>(null))
-        return { view, language, topBarProps: {
-          directoryName: '', isLoading: false, isDeleting: false, hasAlbumDirectory: false,
-          hasX6GameAuthorization: false, thumbnailMode: 'default', thumbnailModeOptions: [],
-          themeMode: 'light', messages: messages.zh.topBar
-        } }
+        return {
+          view,
+          language,
+          topBarProps: {
+            directoryName: '',
+            isLoading: false,
+            isDeleting: false,
+            hasAlbumDirectory: false,
+            hasX6GameAuthorization: false,
+            thumbnailMode: 'default',
+            thumbnailModeOptions: [],
+            themeMode: 'light',
+            messages: messages.zh.topBar
+          }
+        }
       },
       template: `<div>
         <TopBar v-bind="topBarProps" :language="language" :active-view="view" />
@@ -60,10 +85,14 @@ describe('mobile navigation and collection controls', () => {
     const wrapper = mount(root, { attachTo: document.body })
     wrappers.push(wrapper)
     await flushPromises()
-    const button = document.querySelector<HTMLButtonElement>('.collection-like-target .like-counter')!
+    const button = document.querySelector<HTMLButtonElement>(
+      '.collection-like-target .like-counter'
+    )!
     expect(button).not.toBeNull()
     expect(button.nextElementSibling).toBeNull()
-    expect(button.parentElement!.nextElementSibling!.classList.contains('collection-tag-select')).toBe(true)
+    expect(
+      button.parentElement!.nextElementSibling!.classList.contains('collection-tag-select')
+    ).toBe(true)
     expect(document.querySelector('.mobile-header-row .like-counter')).toBeNull()
     expect(document.querySelectorAll('.like-counter')).toHaveLength(1)
     expect(button.querySelector('.like-counter-number')!.textContent).toBe('1.2万')
@@ -87,14 +116,14 @@ describe('mobile navigation and collection controls', () => {
     await flushPromises()
     expect(document.querySelector('.retained-camera .like-counter')).toBe(button)
     compact = false
-    layoutListeners.forEach(listener => listener())
+    layoutListeners.forEach((listener) => listener())
     await flushPromises()
     expect(document.querySelector('.header-actions .like-counter')).toBe(button)
     resolvePost({ ok: true, json: async () => ({ count: 12005 }) } as Response)
     await flushPromises()
     expect(button.querySelector('.like-counter-number')!.textContent).toBe('12,005')
     compact = true
-    layoutListeners.forEach(listener => listener())
+    layoutListeners.forEach((listener) => listener())
     language.value = 'en'
     await flushPromises()
     expect(document.querySelector('.retained-camera .like-counter')).toBe(button)
@@ -104,8 +133,19 @@ describe('mobile navigation and collection controls', () => {
   })
 
   it('navigates to resonance once even after a compatibility hover event', async () => {
-    const wrapper = mount(AlbumViewSwitcher, { props: { activeView: 'outfits', allCount: 0, outfitsCount: 0,
-      homeSchemesCount: 0, favoriteCount: 0, trashCount: 0, outfitLabel: '搭配码', disabled: false, messages: messages.zh.viewNav } })
+    const wrapper = mount(AlbumViewSwitcher, {
+      props: {
+        activeView: 'outfits',
+        allCount: 0,
+        outfitsCount: 0,
+        homeSchemesCount: 0,
+        favoriteCount: 0,
+        trashCount: 0,
+        outfitLabel: '搭配码',
+        disabled: false,
+        messages: messages.zh.viewNav
+      }
+    })
     wrappers.push(wrapper)
     const entry = wrapper.findAll('.album-view-item')[3]!
     await entry.trigger('pointerenter', { pointerType: 'touch' })
@@ -116,20 +156,40 @@ describe('mobile navigation and collection controls', () => {
   })
 
   it('opens More from the mobile header and omits unsupported album actions', async () => {
-    const wrapper = mount(TopBar, { attachTo: document.body, props: { directoryName: '', isLoading: false,
-      isDeleting: false, hasAlbumDirectory: false, hasX6GameAuthorization: false, thumbnailMode: 'default',
-      thumbnailModeOptions: [], themeMode: 'light', language: 'zh', messages: messages.zh.topBar,
-      viewMessages: messages.zh.viewNav, directorySupported: false }, global: { stubs: { transition: false } } })
+    const wrapper = mount(TopBar, {
+      attachTo: document.body,
+      props: {
+        directoryName: '',
+        isLoading: false,
+        isDeleting: false,
+        hasAlbumDirectory: false,
+        hasX6GameAuthorization: false,
+        thumbnailMode: 'default',
+        thumbnailModeOptions: [],
+        themeMode: 'light',
+        language: 'zh',
+        messages: messages.zh.topBar,
+        viewMessages: messages.zh.viewNav,
+        directorySupported: false
+      },
+      global: { stubs: { transition: false } }
+    })
     wrappers.push(wrapper)
     await wrapper.get('.mobile-header-row button[aria-label="打开更多菜单"]').trigger('click')
     await flushPromises()
-    expect(wrapper.findAll('.mobile-header-row button').map(button => button.attributes('aria-label'))).toEqual(['搜索当前页面', messages.zh.topBar.viewMenuAria, messages.zh.topBar.moreMenuAria])
+    expect(
+      wrapper.findAll('.mobile-header-row button').map((button) => button.attributes('aria-label'))
+    ).toEqual(['搜索当前页面', messages.zh.topBar.viewMenuAria, messages.zh.topBar.moreMenuAria])
     expect(wrapper.get('.mobile-header-row button').find('svg.lucide-search').exists()).toBe(true)
     const sheet = document.querySelector('.mobile-menu-sheet')!
     expect(sheet).not.toBeNull()
     expect(sheet.textContent).toContain(messages.zh.topBar.importAllData)
     expect(sheet.textContent).not.toContain('显示、主题与语言')
-    expect([...sheet.querySelectorAll('button')].some(button => button.textContent === messages.zh.viewNav.allPhotos)).toBe(false)
+    expect(
+      [...sheet.querySelectorAll('button')].some(
+        (button) => button.textContent === messages.zh.viewNav.allPhotos
+      )
+    ).toBe(false)
     expect(document.body.style.overflow).toBe('clip')
     wrapper.vm.closeMenus()
     await flushPromises()
@@ -138,54 +198,106 @@ describe('mobile navigation and collection controls', () => {
     await wrapper.get('.mobile-header-row button[aria-label="打开视图菜单"]').trigger('click')
     await flushPromises()
     expect(document.querySelector('.view-dropdown')).not.toBeNull()
-    expect(wrapper.get('.mobile-header-row button[aria-label="打开更多菜单"]').attributes('aria-expanded')).toBe('false')
-    expect(document.querySelector('.view-dropdown')!.textContent).toContain(messages.zh.topBar.thumbnail)
+    expect(
+      wrapper
+        .get('.mobile-header-row button[aria-label="打开更多菜单"]')
+        .attributes('aria-expanded')
+    ).toBe('false')
+    expect(document.querySelector('.view-dropdown')!.textContent).toContain(
+      messages.zh.topBar.thumbnail
+    )
   })
 
-  it.each([true, false])('disables only ratio choices in the view menu (compact=%s)', async compact => {
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: compact, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
-    const wrapper = mount(TopBar, { attachTo: document.body, props: { directoryName: '', isLoading: false,
-      isDeleting: false, hasAlbumDirectory: false, hasX6GameAuthorization: false, thumbnailMode: 'default',
-      thumbnailModeOptions: [{ value: 'default', label: '1:1' }, { value: 'wide', label: '16:9' }, { value: 'half', label: '半尺寸 1:1' }],
-      thumbnailModeDisabled: true, themeMode: 'light', language: 'zh', messages: messages.zh.topBar } })
-    wrappers.push(wrapper)
-    await wrapper.get(compact ? '.mobile-header-row button[aria-label="打开视图菜单"]' : '.view-menu-button').trigger('click')
-    await flushPromises()
-    const options = [...document.querySelectorAll<HTMLButtonElement>('.thumbnail-options button')]
-    expect(options).toHaveLength(3)
-    expect(options.every(button => button.disabled)).toBe(true)
-    options[1]!.click()
-    expect(wrapper.emitted('changeThumbnailMode')).toBeUndefined()
-    expect([...document.querySelectorAll<HTMLButtonElement>('.view-toggle-option')].every(button => !button.disabled)).toBe(true)
-    await wrapper.setProps({ thumbnailModeDisabled: false })
-    expect(options[0]!.disabled).toBe(false)
-    expect(options[1]!.disabled).toBe(false)
-    expect(options[2]!.disabled).toBe(compact)
-    if (compact) {
-      options[2]!.click()
+  it.each([true, false])(
+    'disables only ratio choices in the view menu (compact=%s)',
+    async (compact) => {
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn(() => ({ matches: compact, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+      )
+      const wrapper = mount(TopBar, {
+        attachTo: document.body,
+        props: {
+          directoryName: '',
+          isLoading: false,
+          isDeleting: false,
+          hasAlbumDirectory: false,
+          hasX6GameAuthorization: false,
+          thumbnailMode: 'default',
+          thumbnailModeOptions: [
+            { value: 'default', label: '1:1' },
+            { value: 'wide', label: '16:9' },
+            { value: 'half', label: '半尺寸 1:1' }
+          ],
+          thumbnailModeDisabled: true,
+          themeMode: 'light',
+          language: 'zh',
+          messages: messages.zh.topBar
+        }
+      })
+      wrappers.push(wrapper)
+      await wrapper
+        .get(compact ? '.mobile-header-row button[aria-label="打开视图菜单"]' : '.view-menu-button')
+        .trigger('click')
+      await flushPromises()
+      const options = [...document.querySelectorAll<HTMLButtonElement>('.thumbnail-options button')]
+      expect(options).toHaveLength(3)
+      expect(options.every((button) => button.disabled)).toBe(true)
+      options[1]!.click()
       expect(wrapper.emitted('changeThumbnailMode')).toBeUndefined()
+      expect(
+        [...document.querySelectorAll<HTMLButtonElement>('.view-toggle-option')].every(
+          (button) => !button.disabled
+        )
+      ).toBe(true)
+      await wrapper.setProps({ thumbnailModeDisabled: false })
+      expect(options[0]!.disabled).toBe(false)
+      expect(options[1]!.disabled).toBe(false)
+      expect(options[2]!.disabled).toBe(compact)
+      if (compact) {
+        options[2]!.click()
+        expect(wrapper.emitted('changeThumbnailMode')).toBeUndefined()
+      }
+      options[1]!.click()
+      expect(wrapper.emitted('changeThumbnailMode')).toEqual([['wide']])
     }
-    options[1]!.click()
-    expect(wrapper.emitted('changeThumbnailMode')).toEqual([['wide']])
-  })
+  )
 
   it('uses a separate search popover with clear, close and menu/view coordination', async () => {
     let finishLeave = () => {}
     const transitionStub = defineComponent({
-      props: { name: String, css: Boolean }, emits: ['after-leave', 'before-enter', 'before-leave'],
+      props: { name: String, css: Boolean },
+      emits: ['after-leave', 'before-enter', 'before-leave'],
       setup(props, { emit, slots }) {
         if (props.name === 'mobile-search-popover') finishLeave = () => emit('after-leave')
         return () => slots.default?.()
       }
     })
-    const wrapper = mount(TopBar, { attachTo: document.body, props: { directoryName: '', isLoading: false,
-      isDeleting: false, hasAlbumDirectory: false, hasX6GameAuthorization: false, thumbnailMode: 'default',
-      thumbnailModeOptions: [], themeMode: 'light', language: 'zh', messages: messages.zh.topBar,
-      activeView: 'outfits', searchQuery: '' }, global: { stubs: {
-        transition: transitionStub
-      } } })
+    const wrapper = mount(TopBar, {
+      attachTo: document.body,
+      props: {
+        directoryName: '',
+        isLoading: false,
+        isDeleting: false,
+        hasAlbumDirectory: false,
+        hasX6GameAuthorization: false,
+        thumbnailMode: 'default',
+        thumbnailModeOptions: [],
+        themeMode: 'light',
+        language: 'zh',
+        messages: messages.zh.topBar,
+        activeView: 'outfits',
+        searchQuery: ''
+      },
+      global: {
+        stubs: {
+          transition: transitionStub
+        }
+      }
+    })
     wrappers.push(wrapper)
-    const popup = () => new DOMWrapper(document.querySelector<HTMLElement>('.mobile-header-search')!)
+    const popup = () =>
+      new DOMWrapper(document.querySelector<HTMLElement>('.mobile-header-search')!)
     const search = wrapper.get('.mobile-header-row button[aria-label="搜索当前页面"]')
     await search.trigger('click')
     await flushPromises()
@@ -204,7 +316,9 @@ describe('mobile navigation and collection controls', () => {
     await search.trigger('click')
     // 模拟清除按钮在事件冒泡前卸载，点击仍应被认作浮层内部操作。
     const clearButton = popup().get('button[aria-label="清除搜索"]')
-    clearButton.element.addEventListener('click', () => clearButton.element.remove(), { once: true })
+    clearButton.element.addEventListener('click', () => clearButton.element.remove(), {
+      once: true
+    })
     await clearButton.get('svg').trigger('click')
     expect(wrapper.emitted('updateSearch')?.at(-1)).toEqual([''])
     await wrapper.setProps({ searchQuery: '' })
@@ -248,8 +362,17 @@ describe('mobile navigation and collection controls', () => {
   })
 
   it('keeps the full filter slot mounted when switching between the desktop and mobile presentations', async () => {
-    const wrapper = mount(AdaptiveFilterPanel, { attachTo: document.body, props: { compact: false, open: false,
-      title: '筛选', closeLabel: '关闭', applyLabel: '查看结果' }, slots: { default: '<input value="保留输入" data-filter-input />' } })
+    const wrapper = mount(AdaptiveFilterPanel, {
+      attachTo: document.body,
+      props: {
+        compact: false,
+        open: false,
+        title: '筛选',
+        closeLabel: '关闭',
+        applyLabel: '查看结果'
+      },
+      slots: { default: '<input value="保留输入" data-filter-input />' }
+    })
     wrappers.push(wrapper)
     const input = document.querySelector('[data-filter-input]')
     await wrapper.setProps({ compact: true, open: true })
@@ -263,7 +386,14 @@ describe('mobile navigation and collection controls', () => {
   })
 
   it('limits forty quick categories while keeping a selected distant tag visible', async () => {
-    const wrapper = mount(CollectionFilterBar, { props: { entries: Array.from({ length: 40 }, (_, i) => ({ key: String(i), label: `标签${i}` })), active: '39', count: 2, language: 'zh' } })
+    const wrapper = mount(CollectionFilterBar, {
+      props: {
+        entries: Array.from({ length: 40 }, (_, i) => ({ key: String(i), label: `标签${i}` })),
+        active: '39',
+        count: 2,
+        language: 'zh'
+      }
+    })
     wrappers.push(wrapper)
     expect(wrapper.findAll('.collection-filter-chips button')).toHaveLength(4)
     expect(wrapper.get('[aria-pressed="true"]').text()).toBe('标签39')
@@ -274,7 +404,15 @@ describe('mobile navigation and collection controls', () => {
   })
 
   it('offers Add beside search before management and keeps drag sorting', async () => {
-    const wrapper = mount(OutfitSidebar, { props: { outfits: [], tags: ['甜美', '帅气'], activeFilter: 'all', disabled: false, messages: messages.zh.outfit } })
+    const wrapper = mount(OutfitSidebar, {
+      props: {
+        outfits: [],
+        tags: ['甜美', '帅气'],
+        activeFilter: 'all',
+        disabled: false,
+        messages: messages.zh.outfit
+      }
+    })
     wrappers.push(wrapper)
     expect(wrapper.find('.outfit-delete-tag').exists()).toBe(false)
     expect(wrapper.find('.outfit-tag-drag-handle').exists()).toBe(false)
@@ -304,11 +442,16 @@ describe('mobile navigation and collection controls', () => {
       await flushPromises()
       expect(wrapper.emitted('reorderTags')).toEqual([[['帅气', '甜美']]])
     } finally {
-      if (original) Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: original })
+      if (original)
+        Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: original })
       else Reflect.deleteProperty(document, 'elementFromPoint')
     }
     await wrapper.setProps({ disabled: true })
-    expect(wrapper.findAll('.outfit-tag-drag-handle').every(button => button.attributes('disabled') !== undefined)).toBe(true)
+    expect(
+      wrapper
+        .findAll('.outfit-tag-drag-handle')
+        .every((button) => button.attributes('disabled') !== undefined)
+    ).toBe(true)
     await wrapper.setProps({ disabled: false })
     await wrapper.get('.tag-manage-toggle').trigger('click')
     await wrapper.setProps({ disabled: true })
@@ -316,8 +459,13 @@ describe('mobile navigation and collection controls', () => {
   })
 
   it('collects forty tags into one entry and shows the selected label and inline clear action', async () => {
-    const entries = [{ key: 'all', label: '全部' }, ...Array.from({ length: 40 }, (_, i) => ({ key: `tag:${i}`, label: `标签${i}` }))]
-    const wrapper = mount(CollectionFilterBar, { props: { entries, active: 'all', count: 40, language: 'zh', tagPicker: true } })
+    const entries = [
+      { key: 'all', label: '全部' },
+      ...Array.from({ length: 40 }, (_, i) => ({ key: `tag:${i}`, label: `标签${i}` }))
+    ]
+    const wrapper = mount(CollectionFilterBar, {
+      props: { entries, active: 'all', count: 40, language: 'zh', tagPicker: true }
+    })
     wrappers.push(wrapper)
     expect(wrapper.find('.collection-filter-chips').exists()).toBe(false)
     expect(wrapper.find('.collection-filter-summary').exists()).toBe(false)
@@ -333,14 +481,27 @@ describe('mobile navigation and collection controls', () => {
     expect(wrapper.emitted('clear')).toHaveLength(1)
     await wrapper.setProps({ disabled: true, language: 'en', active: 'all' })
     expect(wrapper.get('.collection-tag-select').text()).toBe('All tags')
-    expect(wrapper.findAll('button').every(button => button.attributes('disabled') !== undefined)).toBe(true)
+    expect(
+      wrapper.findAll('button').every((button) => button.attributes('disabled') !== undefined)
+    ).toBe(true)
   })
 
   it('searches tags without mutating their order and closes only after ordinary selection', async () => {
-    const wrapper = mount(OutfitSidebar, { props: { outfits: [], tags: ['甜美', '帅气', 'Warm'], activeFilter: 'all', disabled: false, messages: messages.zh.outfit, pickerOpen: true } })
+    const wrapper = mount(OutfitSidebar, {
+      props: {
+        outfits: [],
+        tags: ['甜美', '帅气', 'Warm'],
+        activeFilter: 'all',
+        disabled: false,
+        messages: messages.zh.outfit,
+        pickerOpen: true
+      }
+    })
     wrappers.push(wrapper)
     await wrapper.get('.tag-picker-search input').setValue('warm')
-    expect(wrapper.findAll('[data-outfit-tag]').map(row => row.attributes('data-outfit-tag'))).toEqual(['Warm'])
+    expect(
+      wrapper.findAll('[data-outfit-tag]').map((row) => row.attributes('data-outfit-tag'))
+    ).toEqual(['Warm'])
     await wrapper.get('[data-outfit-tag="Warm"] .outfit-filter-button').trigger('click')
     expect(wrapper.emitted('changeFilter')).toEqual([['tag:Warm']])
     expect(wrapper.emitted('filterSelected')).toHaveLength(1)
@@ -359,14 +520,21 @@ describe('mobile navigation and collection controls', () => {
   })
 
   it('moves existing collection actions into the tag row and keeps menu callbacks', async () => {
-    const added = vi.fn(), imported = vi.fn()
-    const wrapper = mount({ components: { CollectionActions, CollectionFilterBar }, template: `
+    const added = vi.fn(),
+      imported = vi.fn()
+    const wrapper = mount(
+      {
+        components: { CollectionActions, CollectionFilterBar },
+        template: `
       <div><CollectionActions label="页面操作" mobile-target="#test-tag-actions">
         <button aria-label="添加方案" @click="added">+</button>
         <template #secondary><button @click="imported">导入</button></template>
       </CollectionActions>
       <CollectionFilterBar tag-picker actions-id="test-tag-actions" :entries="[{key:'all',label:'全部'}]" active="all" :count="0" language="zh" /></div>`,
-      setup: () => ({ added, imported }) }, { attachTo: document.body })
+        setup: () => ({ added, imported })
+      },
+      { attachTo: document.body }
+    )
     wrappers.push(wrapper)
     await flushPromises()
     const actions = document.querySelector('#test-tag-actions .collection-actions')!
@@ -389,11 +557,27 @@ describe('mobile navigation and collection controls', () => {
   })
 
   it('uses resonance labels in the shared row without a duplicate Filter entry', async () => {
-    const wrapper = mount(CollectionFilterBar, { props: { entries: [{ key: 'all', label: '全部' }, { key: '5', label: '五星' }, { key: '4', label: '四星' }], active: 'all', count: 2,
-      language: 'zh', tagPicker: true, allLabel: '全部星级', selectLabel: '筛选共鸣：', actionsId: 'resonance-filter-actions' } })
+    const wrapper = mount(CollectionFilterBar, {
+      props: {
+        entries: [
+          { key: 'all', label: '全部' },
+          { key: '5', label: '五星' },
+          { key: '4', label: '四星' }
+        ],
+        active: 'all',
+        count: 2,
+        language: 'zh',
+        tagPicker: true,
+        allLabel: '全部星级',
+        selectLabel: '筛选共鸣：',
+        actionsId: 'resonance-filter-actions'
+      }
+    })
     wrappers.push(wrapper)
     expect(wrapper.get('.collection-tag-select').text()).toBe('全部星级')
-    expect(wrapper.get('.collection-tag-select').attributes('aria-label')).toBe('筛选共鸣：全部星级')
+    expect(wrapper.get('.collection-tag-select').attributes('aria-label')).toBe(
+      '筛选共鸣：全部星级'
+    )
     expect(wrapper.find('#resonance-filter-actions').exists()).toBe(true)
     expect(wrapper.find('.collection-filter-open').exists()).toBe(false)
     await wrapper.setProps({ active: '5', count: 1 })
@@ -407,7 +591,13 @@ describe('mobile navigation and collection controls', () => {
     wrappers.push(wrapper)
     expect(wrapper.find('.resonance-sort-control').exists()).toBe(false)
     const buttons = wrapper.findAll('.resonance-picker-options button')
-    expect(buttons.map(button => button.text())).toEqual(['最新优先', '最早优先', '全部展示', '只展示五星', '只展示四星'])
+    expect(buttons.map((button) => button.text())).toEqual([
+      '最新优先',
+      '最早优先',
+      '全部展示',
+      '只展示五星',
+      '只展示四星'
+    ])
     await buttons[3]!.trigger('click')
     expect(wrapper.emitted('changeRarityFilter')).toEqual([[5]])
     expect(wrapper.emitted('filterSelected')).toHaveLength(1)
@@ -423,9 +613,19 @@ describe('mobile navigation and collection controls', () => {
   })
 
   it('uses immediate selection for custom home categories and ignores disabled choices', async () => {
-    const wrapper = mount(OutfitSidebar, { props: { outfits: [], tags: [], activeFilter: 'all', disabled: false, messages: messages.zh.outfit }, slots: {
-      filters: ({ selectFilter }: { selectFilter: (filter: string) => void }) => h('button', { onClick: () => selectFilter('home') }, '家园码')
-    } })
+    const wrapper = mount(OutfitSidebar, {
+      props: {
+        outfits: [],
+        tags: [],
+        activeFilter: 'all',
+        disabled: false,
+        messages: messages.zh.outfit
+      },
+      slots: {
+        filters: ({ selectFilter }: { selectFilter: (filter: string) => void }) =>
+          h('button', { onClick: () => selectFilter('home') }, '家园码')
+      }
+    })
     wrappers.push(wrapper)
     await wrapper.get('.outfit-filter-list button').trigger('click')
     expect(wrapper.emitted('changeFilter')).toEqual([['home']])
@@ -436,8 +636,18 @@ describe('mobile navigation and collection controls', () => {
   })
 
   it('presents tag selection without an Apply button and keeps the slot mounted', async () => {
-    const wrapper = mount(AdaptiveFilterPanel, { attachTo: document.body, props: { compact: true, open: true, tagPicker: true,
-      title: '选择标签', closeLabel: '关闭筛选', applyLabel: '查看结果' }, slots: { default: '<input data-tag-picker />' } })
+    const wrapper = mount(AdaptiveFilterPanel, {
+      attachTo: document.body,
+      props: {
+        compact: true,
+        open: true,
+        tagPicker: true,
+        title: '选择标签',
+        closeLabel: '关闭筛选',
+        applyLabel: '查看结果'
+      },
+      slots: { default: '<input data-tag-picker />' }
+    })
     wrappers.push(wrapper)
     expect(document.querySelector('.mobile-tag-picker header h2')!.textContent).toBe('选择标签')
     expect(document.querySelector('.mobile-tag-picker footer')).toBeNull()
@@ -450,21 +660,32 @@ describe('mobile navigation and collection controls', () => {
   })
 
   it('offers batch actions directly and keeps busy and selection behavior', async () => {
-    const wrapper = mount(SelectionBar, { props: { mode: 'album', selectedCount: 2, allSelected: false,
-      allItemsSelected: false, allSelectedFavorited: false, isBusy: false, messages: messages.zh.selectionBar } })
+    const wrapper = mount(SelectionBar, {
+      props: {
+        mode: 'album',
+        selectedCount: 2,
+        allSelected: false,
+        allItemsSelected: false,
+        allSelectedFavorited: false,
+        isBusy: false,
+        messages: messages.zh.selectionBar
+      }
+    })
     wrappers.push(wrapper)
     expect(wrapper.find('.selection-more').exists()).toBe(false)
     const buttons = wrapper.findAll('button')
     for (const [label, event] of [
       [messages.zh.selectionBar.selectAll, 'toggleAll'],
       [messages.zh.selectionBar.exportPhotos, 'export'],
-      [messages.zh.selectionBar.deleteRelated, 'deleteRelated'],
+      [messages.zh.selectionBar.deleteRelated, 'deleteRelated']
     ]) {
-      await buttons.find(button => button.text() === label)!.trigger('click')
+      await buttons.find((button) => button.text() === label)!.trigger('click')
       expect(wrapper.emitted(event)).toHaveLength(1)
     }
     await wrapper.setProps({ isBusy: true })
-    expect(wrapper.findAll('button').every(button => button.attributes('disabled') !== undefined)).toBe(true)
+    expect(
+      wrapper.findAll('button').every((button) => button.attributes('disabled') !== undefined)
+    ).toBe(true)
     await wrapper.setProps({ selectedCount: 0 })
     expect(wrapper.find('.selection-bar').exists()).toBe(false)
     await wrapper.setProps({ selectedCount: 1 })

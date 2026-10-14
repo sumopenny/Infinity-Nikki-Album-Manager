@@ -34,7 +34,14 @@ export function parsePhotoDate(fileName: string): ParsedPhotoDate | null {
   if (!match) return null
 
   const [, year, month, day, hour, minute, second = '00'] = match
-  const timestamp = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)).getTime()
+  const timestamp = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second)
+  ).getTime()
 
   return {
     dateKey: `${year}-${month}-${day}`,
@@ -191,11 +198,21 @@ export function groupPhotosByAction(
     const status = info?.status ?? 'unparsed'
     const isNone = status === 'none'
     const isUnparsed = status !== 'action' && !isNone
-    const key = status === 'action' && info?.actionId ? `action:${info.actionId}` : isNone ? 'special:none' : 'special:unparsed'
+    const key =
+      status === 'action' && info?.actionId
+        ? `action:${info.actionId}`
+        : isNone
+          ? 'special:none'
+          : 'special:unparsed'
     const group = groups.get(key) ?? {
       actionKey: key,
       actionId: status === 'action' ? info?.actionId : undefined,
-      actionName: status === 'action' ? (info?.actionName ?? info?.actionId ?? labels.unparsed) : isNone ? labels.none : labels.unparsed,
+      actionName:
+        status === 'action'
+          ? (info?.actionName ?? info?.actionId ?? labels.unparsed)
+          : isNone
+            ? labels.none
+            : labels.unparsed,
       actionImageUrl: status === 'action' ? info?.actionImageUrl : undefined,
       photos: [],
       latestTimestamp: 0,
@@ -206,14 +223,32 @@ export function groupPhotosByAction(
     groups.set(key, group)
   }
 
-  const specialRank = (group: ActionGroup) => group.isSpecial === 'unparsed' ? 2 : group.isSpecial === 'none' ? 1 : 0
+  const specialRank = (group: ActionGroup) =>
+    group.isSpecial === 'unparsed' ? 2 : group.isSpecial === 'none' ? 1 : 0
   const compare = (left: ActionGroup, right: ActionGroup) => {
     const specialDifference = specialRank(left) - specialRank(right)
     if (specialDifference) return specialDifference
-    if (sort === 'name') return left.actionName.localeCompare(right.actionName) || left.actionKey.localeCompare(right.actionKey)
-    if (sort === 'count') return right.photos.length - left.photos.length || right.latestTimestamp - left.latestTimestamp || left.actionKey.localeCompare(right.actionKey)
-    if (sort === 'latest') return right.latestTimestamp - left.latestTimestamp || left.actionKey.localeCompare(right.actionKey)
-    return String(right.actionId ?? '').localeCompare(String(left.actionId ?? ''), undefined, { numeric: true }) || left.actionName.localeCompare(right.actionName)
+    if (sort === 'name')
+      return (
+        left.actionName.localeCompare(right.actionName) ||
+        left.actionKey.localeCompare(right.actionKey)
+      )
+    if (sort === 'count')
+      return (
+        right.photos.length - left.photos.length ||
+        right.latestTimestamp - left.latestTimestamp ||
+        left.actionKey.localeCompare(right.actionKey)
+      )
+    if (sort === 'latest')
+      return (
+        right.latestTimestamp - left.latestTimestamp ||
+        left.actionKey.localeCompare(right.actionKey)
+      )
+    return (
+      String(right.actionId ?? '').localeCompare(String(left.actionId ?? ''), undefined, {
+        numeric: true
+      }) || left.actionName.localeCompare(right.actionName)
+    )
   }
 
   return [...groups.values()]

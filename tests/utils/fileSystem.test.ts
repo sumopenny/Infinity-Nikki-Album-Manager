@@ -7,15 +7,36 @@ import {
   readAlbumDirectory,
   refreshAlbumDirectory
 } from '../../src/utils/file-system/albumFileSystem'
-import { clearRecentlyDeleted, listRecentlyDeleted, movePhotosToRecentlyDeleted, permanentlyDeleteRecentlyDeleted, restoreRecentlyDeletedPhotos } from '../../src/utils/file-system/trashFileSystem'
-import { executeMatchingPhotoCleanup, executeSpecialCleanup, prepareMatchingPhotoCleanup, prepareSpecialCleanup } from '../../src/utils/file-system/cleanupFileSystem'
-import { listGamePlayPhotoAccounts, resolveX6GameAccountDirectory } from '../../src/utils/file-system/directoryAccess'
+import {
+  clearRecentlyDeleted,
+  listRecentlyDeleted,
+  movePhotosToRecentlyDeleted,
+  permanentlyDeleteRecentlyDeleted,
+  restoreRecentlyDeletedPhotos
+} from '../../src/utils/file-system/trashFileSystem'
+import {
+  executeMatchingPhotoCleanup,
+  executeSpecialCleanup,
+  prepareMatchingPhotoCleanup,
+  prepareSpecialCleanup
+} from '../../src/utils/file-system/cleanupFileSystem'
+import {
+  listGamePlayPhotoAccounts,
+  resolveX6GameAccountDirectory
+} from '../../src/utils/file-system/directoryAccess'
 
 beforeAll(() => {
   let tail = Promise.resolve()
-  Object.defineProperty(navigator, 'locks', { configurable: true, value: { request: (_name: string, action: () => Promise<void>) => {
-    const next = tail.then(action); tail = next.catch(() => undefined); return next
-  } } })
+  Object.defineProperty(navigator, 'locks', {
+    configurable: true,
+    value: {
+      request: (_name: string, action: () => Promise<void>) => {
+        const next = tail.then(action)
+        tail = next.catch(() => undefined)
+        return next
+      }
+    }
+  })
   Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: () => undefined })
 })
 
@@ -36,10 +57,19 @@ class MemoryFileHandle {
 
   async getFile(): Promise<File> {
     if (this.failRead) throw new DOMException('Read failed', 'NotReadableError')
-    const file = new File([this.contents], this.name, { type: this.contents.type, lastModified: this.lastModified })
-    Object.defineProperty(file, 'text', { value: () => new Promise<string>((resolve, reject) => {
-      const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsText(this.contents)
-    }) })
+    const file = new File([this.contents], this.name, {
+      type: this.contents.type,
+      lastModified: this.lastModified
+    })
+    Object.defineProperty(file, 'text', {
+      value: () =>
+        new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(String(reader.result))
+          reader.onerror = () => reject(reader.error)
+          reader.readAsText(this.contents)
+        })
+    })
     return file
   }
 
@@ -64,7 +94,11 @@ class MemoryFileHandle {
 }
 
 class DelayedMemoryFileHandle extends MemoryFileHandle {
-  constructor(name: string, private readonly tracker: { active: number; peak: number }, lastModified: number) {
+  constructor(
+    name: string,
+    private readonly tracker: { active: number; peak: number },
+    lastModified: number
+  ) {
     super(name, new Blob(['photo'], { type: 'image/jpeg' }), false, lastModified)
   }
 
@@ -114,7 +148,10 @@ class MemoryDirectoryHandle {
     return created as unknown as FileSystemFileHandle
   }
 
-  async getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<FileSystemDirectoryHandle> {
+  async getDirectoryHandle(
+    name: string,
+    options?: { create?: boolean }
+  ): Promise<FileSystemDirectoryHandle> {
     const existing = this.directories.get(name)
     if (existing) return existing as unknown as FileSystemDirectoryHandle
     if (!options?.create) throw new DOMException('Missing directory', 'NotFoundError')
@@ -124,7 +161,8 @@ class MemoryDirectoryHandle {
   }
 
   async removeEntry(name: string, options?: { recursive?: boolean }): Promise<void> {
-    if (this.failRemoveName === name) throw new DOMException('Remove failed', 'InvalidModificationError')
+    if (this.failRemoveName === name)
+      throw new DOMException('Remove failed', 'InvalidModificationError')
     if (options?.recursive) this.recursiveRemoveNames.push(name)
     if (this.removeTracker) {
       this.removeTracker.active += 1
@@ -132,7 +170,8 @@ class MemoryDirectoryHandle {
     }
     try {
       if (this.removeTracker) await Promise.resolve()
-      if (!this.files.delete(name) && !this.directories.delete(name)) throw new DOMException('Missing entry', 'NotFoundError')
+      if (!this.files.delete(name) && !this.directories.delete(name))
+        throw new DOMException('Missing entry', 'NotFoundError')
     } finally {
       if (this.removeTracker) this.removeTracker.active -= 1
     }
@@ -171,10 +210,13 @@ function createPhoto(directory: MemoryDirectoryHandle, name: string): PhotoItem 
 
 describe('album refresh and recently deleted filesystem operations', () => {
   it('reports unsupported directory authorization on mobile browsers', async () => {
-    vi.spyOn(window.navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Linux; Android 16)')
+    vi.spyOn(window.navigator, 'userAgent', 'get').mockReturnValue(
+      'Mozilla/5.0 (Linux; Android 16)'
+    )
 
-    await expect(pickAlbumDirectory(messages.zh.fileSystem))
-      .rejects.toThrow(messages.zh.fileSystem.mobileBrowserUnsupported)
+    await expect(pickAlbumDirectory(messages.zh.fileSystem)).rejects.toThrow(
+      messages.zh.fileSystem.mobileBrowserUnsupported
+    )
   })
 
   it('scans album metadata with a maximum of six concurrent file reads', async () => {
@@ -185,10 +227,9 @@ describe('album refresh and recently deleted filesystem operations', () => {
       album.files.set(name, new DelayedMemoryFileHandle(name, tracker, index))
     }
 
-    const result = await readAlbumDirectory(
-      album as unknown as FileSystemDirectoryHandle,
-      { messages: messages.zh.fileSystem }
-    )
+    const result = await readAlbumDirectory(album as unknown as FileSystemDirectoryHandle, {
+      messages: messages.zh.fileSystem
+    })
 
     expect(tracker.peak).toBeGreaterThan(1)
     expect(tracker.peak).toBeLessThanOrEqual(6)
@@ -201,24 +242,27 @@ describe('album refresh and recently deleted filesystem operations', () => {
   it('prefers a valid filename timestamp and falls back to lastModified for unmatched names', async () => {
     const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
     const fallbackTimestamp = new Date(2025, 0, 2, 3, 4).getTime()
-    album.files.set('2026_06_26_11_22_00.jpeg', new MemoryFileHandle(
+    album.files.set(
       '2026_06_26_11_22_00.jpeg',
-      new Blob(['photo']),
-      false,
-      fallbackTimestamp
-    ))
-    album.files.set('shared-image.jpeg', new MemoryFileHandle(
-      'shared-image.jpeg',
-      new Blob(['photo']),
-      false,
-      fallbackTimestamp
-    ))
-    album.files.set('unreadable-image.jpeg', new MemoryFileHandle('unreadable-image.jpeg', new Blob(['photo']), true))
-
-    const result = await readAlbumDirectory(
-      album as unknown as FileSystemDirectoryHandle,
-      { messages: messages.zh.fileSystem }
+      new MemoryFileHandle(
+        '2026_06_26_11_22_00.jpeg',
+        new Blob(['photo']),
+        false,
+        fallbackTimestamp
+      )
     )
+    album.files.set(
+      'shared-image.jpeg',
+      new MemoryFileHandle('shared-image.jpeg', new Blob(['photo']), false, fallbackTimestamp)
+    )
+    album.files.set(
+      'unreadable-image.jpeg',
+      new MemoryFileHandle('unreadable-image.jpeg', new Blob(['photo']), true)
+    )
+
+    const result = await readAlbumDirectory(album as unknown as FileSystemDirectoryHandle, {
+      messages: messages.zh.fileSystem
+    })
 
     expect(result.photos).toHaveLength(2)
     expect(result.photos.find((photo) => photo.name === '2026_06_26_11_22_00.jpeg')).toMatchObject({
@@ -236,36 +280,42 @@ describe('album refresh and recently deleted filesystem operations', () => {
     const album = new MemoryDirectoryHandle('MyPhotoCollection')
     const x6Game = new MemoryDirectoryHandle('X6Game')
 
-    await expect(resolveX6GameAccountDirectory(
-      x6Game as unknown as FileSystemDirectoryHandle,
-      album as unknown as FileSystemDirectoryHandle,
-      messages.zh.fileSystem,
-      true
-    )).resolves.toBe('')
+    await expect(
+      resolveX6GameAccountDirectory(
+        x6Game as unknown as FileSystemDirectoryHandle,
+        album as unknown as FileSystemDirectoryHandle,
+        messages.zh.fileSystem,
+        true
+      )
+    ).resolves.toBe('')
   })
 
   it('rejects a non-X6Game folder even for unrelated album authorization', async () => {
     const album = new MemoryDirectoryHandle('MyPhotoCollection')
     const wrongDirectory = new MemoryDirectoryHandle('InfinityNikki')
 
-    await expect(resolveX6GameAccountDirectory(
-      wrongDirectory as unknown as FileSystemDirectoryHandle,
-      album as unknown as FileSystemDirectoryHandle,
-      messages.zh.fileSystem,
-      true
-    )).rejects.toThrow(messages.zh.fileSystem.invalidX6GameDirectory)
+    await expect(
+      resolveX6GameAccountDirectory(
+        wrongDirectory as unknown as FileSystemDirectoryHandle,
+        album as unknown as FileSystemDirectoryHandle,
+        messages.zh.fileSystem,
+        true
+      )
+    ).rejects.toThrow(messages.zh.fileSystem.invalidX6GameDirectory)
   })
 
   it('still validates the account path when the album is NikkiPhotos_HighQuality', async () => {
     const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
     const unrelatedX6Game = new MemoryDirectoryHandle('X6Game')
 
-    await expect(resolveX6GameAccountDirectory(
-      unrelatedX6Game as unknown as FileSystemDirectoryHandle,
-      album as unknown as FileSystemDirectoryHandle,
-      messages.zh.fileSystem,
-      true
-    )).rejects.toThrow(messages.zh.fileSystem.invalidX6GameDirectory)
+    await expect(
+      resolveX6GameAccountDirectory(
+        unrelatedX6Game as unknown as FileSystemDirectoryHandle,
+        album as unknown as FileSystemDirectoryHandle,
+        messages.zh.fileSystem,
+        true
+      )
+    ).rejects.toThrow(messages.zh.fileSystem.invalidX6GameDirectory)
   })
 
   it('accepts another selected folder at the expected account path', async () => {
@@ -273,11 +323,13 @@ describe('album refresh and recently deleted filesystem operations', () => {
     const x6Game = new MemoryDirectoryHandle('X6Game')
     x6Game.resolvedPaths.set(album, ['Saved', 'GamePlayPhotos', '123456789', 'MyPhotoCollection'])
 
-    await expect(resolveX6GameAccountDirectory(
-      x6Game as unknown as FileSystemDirectoryHandle,
-      album as unknown as FileSystemDirectoryHandle,
-      messages.zh.fileSystem
-    )).resolves.toBe('123456789')
+    await expect(
+      resolveX6GameAccountDirectory(
+        x6Game as unknown as FileSystemDirectoryHandle,
+        album as unknown as FileSystemDirectoryHandle,
+        messages.zh.fileSystem
+      )
+    ).resolves.toBe('123456789')
   })
 
   it('allows X6Game authorization when the album is a cleanup target folder', async () => {
@@ -285,30 +337,41 @@ describe('album refresh and recently deleted filesystem operations', () => {
     const lowQualityAlbum = new MemoryDirectoryHandle('NikkiPhotos_LowQuality')
     const x6Game = new MemoryDirectoryHandle('X6Game')
 
-    await expect(resolveX6GameAccountDirectory(
-      x6Game as unknown as FileSystemDirectoryHandle,
-      screenShotAlbum as unknown as FileSystemDirectoryHandle,
-      messages.zh.fileSystem,
-      true
-    )).resolves.toBe('')
-    await expect(resolveX6GameAccountDirectory(
-      x6Game as unknown as FileSystemDirectoryHandle,
-      lowQualityAlbum as unknown as FileSystemDirectoryHandle,
-      messages.zh.fileSystem,
-      true
-    )).resolves.toBe('')
+    await expect(
+      resolveX6GameAccountDirectory(
+        x6Game as unknown as FileSystemDirectoryHandle,
+        screenShotAlbum as unknown as FileSystemDirectoryHandle,
+        messages.zh.fileSystem,
+        true
+      )
+    ).resolves.toBe('')
+    await expect(
+      resolveX6GameAccountDirectory(
+        x6Game as unknown as FileSystemDirectoryHandle,
+        lowQualityAlbum as unknown as FileSystemDirectoryHandle,
+        messages.zh.fileSystem,
+        true
+      )
+    ).resolves.toBe('')
   })
 
   it('resolves the account id for a low-quality album at the expected account path', async () => {
     const album = new MemoryDirectoryHandle('NikkiPhotos_LowQuality')
     const x6Game = new MemoryDirectoryHandle('X6Game')
-    x6Game.resolvedPaths.set(album, ['Saved', 'GamePlayPhotos', '123456789', 'NikkiPhotos_LowQuality'])
+    x6Game.resolvedPaths.set(album, [
+      'Saved',
+      'GamePlayPhotos',
+      '123456789',
+      'NikkiPhotos_LowQuality'
+    ])
 
-    await expect(resolveX6GameAccountDirectory(
-      x6Game as unknown as FileSystemDirectoryHandle,
-      album as unknown as FileSystemDirectoryHandle,
-      messages.zh.fileSystem
-    )).resolves.toBe('123456789')
+    await expect(
+      resolveX6GameAccountDirectory(
+        x6Game as unknown as FileSystemDirectoryHandle,
+        album as unknown as FileSystemDirectoryHandle,
+        messages.zh.fileSystem
+      )
+    ).resolves.toBe('123456789')
   })
 
   it('skips the ScreenShot cleanup target when it is the current album', async () => {
@@ -337,7 +400,9 @@ describe('album refresh and recently deleted filesystem operations', () => {
     )
 
     expect(plan.skippedDirectories).toEqual(['ScreenShot'])
-    expect(plan.photoTargets.map((target) => target.directoryName)).toEqual(['NikkiPhotos_LowQuality'])
+    expect(plan.photoTargets.map((target) => target.directoryName)).toEqual([
+      'NikkiPhotos_LowQuality'
+    ])
     expect(plan.fileCount).toBe(1)
     expect(plan.missingDirectories).toEqual([])
   })
@@ -373,7 +438,10 @@ describe('album refresh and recently deleted filesystem operations', () => {
     )
 
     expect(plan.skippedDirectories).toEqual(['NikkiPhotos_LowQuality'])
-    expect(plan.photoTargets.map((target) => target.directoryName)).toEqual(['NikkiPhotos_LowQuality', 'ScreenShot'])
+    expect(plan.photoTargets.map((target) => target.directoryName)).toEqual([
+      'NikkiPhotos_LowQuality',
+      'ScreenShot'
+    ])
     expect(plan.fileCount).toBe(2)
   })
 
@@ -445,11 +513,20 @@ describe('album refresh and recently deleted filesystem operations', () => {
 
   it('still attempts permanent deletion when a matched file size cannot be read', async () => {
     const directory = new MemoryDirectoryHandle('ScreenShot')
-    directory.files.set('unreadable.png', new MemoryFileHandle('unreadable.png', new Blob(['x']), true))
+    directory.files.set(
+      'unreadable.png',
+      new MemoryFileHandle('unreadable.png', new Blob(['x']), true)
+    )
     directory.failRemoveName = 'locked.png'
     directory.files.set('locked.png', new MemoryFileHandle('locked.png'))
     const plan = {
-      photoTargets: [{ directoryName: 'ScreenShot', directoryHandle: directory as unknown as FileSystemDirectoryHandle, photoNames: ['unreadable.png', 'locked.png'] }],
+      photoTargets: [
+        {
+          directoryName: 'ScreenShot',
+          directoryHandle: directory as unknown as FileSystemDirectoryHandle,
+          photoNames: ['unreadable.png', 'locked.png']
+        }
+      ],
       matchedCount: 2,
       missingDirectories: [],
       skippedDirectories: []
@@ -466,7 +543,10 @@ describe('album refresh and recently deleted filesystem operations', () => {
     const directory = new MemoryDirectoryHandle('ScreenShot')
     directory.files.set('ok.png', new MemoryFileHandle('ok.png', new Blob(['1234'])))
     directory.files.set('locked.png', new MemoryFileHandle('locked.png', new Blob(['123456'])))
-    directory.files.set('unreadable.png', new MemoryFileHandle('unreadable.png', new Blob(['12']), true))
+    directory.files.set(
+      'unreadable.png',
+      new MemoryFileHandle('unreadable.png', new Blob(['12']), true)
+    )
     directory.failRemoveName = 'locked.png'
 
     const result = await executeSpecialCleanup({
@@ -474,11 +554,13 @@ describe('album refresh and recently deleted filesystem operations', () => {
       fileCount: 3,
       totalBytes: 0,
       totalBytesKnown: true,
-      photoTargets: [{
-        directoryName: 'ScreenShot',
-        directoryHandle: directory as unknown as FileSystemDirectoryHandle,
-        photoNames: ['ok.png', 'locked.png', 'unreadable.png']
-      }],
+      photoTargets: [
+        {
+          directoryName: 'ScreenShot',
+          directoryHandle: directory as unknown as FileSystemDirectoryHandle,
+          photoNames: ['ok.png', 'locked.png', 'unreadable.png']
+        }
+      ],
       directoryTargets: [],
       missingDirectories: [],
       skippedDirectories: []
@@ -504,7 +586,10 @@ describe('album refresh and recently deleted filesystem operations', () => {
     saved.directories.set('Crashes', crashes)
     x6Game.directories.set('Saved', saved)
 
-    const plan = await prepareSpecialCleanup(x6Game as unknown as FileSystemDirectoryHandle, 'crashes')
+    const plan = await prepareSpecialCleanup(
+      x6Game as unknown as FileSystemDirectoryHandle,
+      'crashes'
+    )
 
     expect(plan.fileCount).toBe(2)
     expect(plan.totalBytes).toBe(6)
@@ -562,10 +647,14 @@ describe('album refresh and recently deleted filesystem operations', () => {
     saved.directories.set('GamePlayPhotos', gamePlayPhotos)
     x6Game.directories.set('Saved', saved)
 
-    await expect(listGamePlayPhotoAccounts(x6Game as unknown as FileSystemDirectoryHandle)).resolves.toEqual(['11111', '22222'])
+    await expect(
+      listGamePlayPhotoAccounts(x6Game as unknown as FileSystemDirectoryHandle)
+    ).resolves.toEqual(['11111', '22222'])
 
     const emptyX6Game = new MemoryDirectoryHandle('X6Game')
-    await expect(listGamePlayPhotoAccounts(emptyX6Game as unknown as FileSystemDirectoryHandle)).resolves.toEqual([])
+    await expect(
+      listGamePlayPhotoAccounts(emptyX6Game as unknown as FileSystemDirectoryHandle)
+    ).resolves.toEqual([])
   })
 
   it('reuses unchanged photo state and reports added and externally removed files', async () => {
@@ -589,10 +678,20 @@ describe('album refresh and recently deleted filesystem operations', () => {
 
   it('replaces a same-name photo when its file metadata changes', async () => {
     const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
-    const currentHandle = new MemoryFileHandle('2026_06_26_11_22_00.jpeg', new Blob(['old']), false, 1)
+    const currentHandle = new MemoryFileHandle(
+      '2026_06_26_11_22_00.jpeg',
+      new Blob(['old']),
+      false,
+      1
+    )
     album.files.set(currentHandle.name, currentHandle)
     const current = createPhoto(album, currentHandle.name)
-    const replacementHandle = new MemoryFileHandle(currentHandle.name, new Blob(['new content']), false, 2)
+    const replacementHandle = new MemoryFileHandle(
+      currentHandle.name,
+      new Blob(['new content']),
+      false,
+      2
+    )
     album.files.set(replacementHandle.name, replacementHandle)
 
     const result = await refreshAlbumDirectory(
@@ -614,7 +713,11 @@ describe('album refresh and recently deleted filesystem operations', () => {
     const trashPhotos = await listRecentlyDeleted(album as unknown as FileSystemDirectoryHandle)
 
     expect(result.succeeded).toEqual([photo])
-    expect(result.movedPhotos[0]).toMatchObject({ originalName: photo.name, wasFavorite: true, size: 5 })
+    expect(result.movedPhotos[0]).toMatchObject({
+      originalName: photo.name,
+      wasFavorite: true,
+      size: 5
+    })
     expect(album.files.has(photo.name)).toBe(false)
     expect(trashPhotos).toHaveLength(1)
     expect(trashPhotos[0]).toMatchObject({ originalName: photo.name, wasFavorite: true, size: 5 })
@@ -627,7 +730,8 @@ describe('album refresh and recently deleted filesystem operations', () => {
     trash.writeTracker = moveTracker
     album.directories.set('trash', trash)
     const photos = Array.from({ length: 28 }, (_, index) =>
-      createPhoto(album, `2026_06_26_11_${String(index).padStart(2, '0')}_00.jpeg`))
+      createPhoto(album, `2026_06_26_11_${String(index).padStart(2, '0')}_00.jpeg`)
+    )
 
     const moved = await movePhotosToRecentlyDeleted(photos, new Set())
     expect(moved.succeeded).toHaveLength(28)
@@ -636,7 +740,10 @@ describe('album refresh and recently deleted filesystem operations', () => {
 
     const restoreTracker = { active: 0, peak: 0 }
     album.writeTracker = restoreTracker
-    const restored = await restoreRecentlyDeletedPhotos(moved.movedPhotos, album as unknown as FileSystemDirectoryHandle)
+    const restored = await restoreRecentlyDeletedPhotos(
+      moved.movedPhotos,
+      album as unknown as FileSystemDirectoryHandle
+    )
     expect(restored.restoredPhotos).toHaveLength(28)
     expect(restoreTracker.peak).toBeGreaterThan(1)
     expect(restoreTracker.peak).toBeLessThanOrEqual(27)
@@ -645,7 +752,8 @@ describe('album refresh and recently deleted filesystem operations', () => {
   it('deletes at most ten recently deleted photos concurrently', async () => {
     const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
     const photos = Array.from({ length: 15 }, (_, index) =>
-      createPhoto(album, `2026_06_26_12_${String(index).padStart(2, '0')}_00.jpeg`))
+      createPhoto(album, `2026_06_26_12_${String(index).padStart(2, '0')}_00.jpeg`)
+    )
     const moved = await movePhotosToRecentlyDeleted(photos, new Set())
     const trash = album.directories.get('trash')!
     const removeTracker = { active: 0, peak: 0 }
@@ -662,7 +770,10 @@ describe('album refresh and recently deleted filesystem operations', () => {
     const photo = createPhoto(album, '2026_06_26_13_00_00.jpeg')
     const moved = await movePhotosToRecentlyDeleted([photo], new Set())
 
-    const cleared = await clearRecentlyDeleted(album as unknown as FileSystemDirectoryHandle, moved.movedPhotos)
+    const cleared = await clearRecentlyDeleted(
+      album as unknown as FileSystemDirectoryHandle,
+      moved.movedPhotos
+    )
     expect(cleared.succeeded).toHaveLength(1)
     expect(album.recursiveRemoveNames).toEqual(['trash'])
     expect(album.directories.has('trash')).toBe(false)
@@ -673,7 +784,10 @@ describe('album refresh and recently deleted filesystem operations', () => {
     trash.files.set('keep.txt', new MemoryFileHandle('keep.txt'))
     album.recursiveRemoveNames.length = 0
 
-    const fallback = await clearRecentlyDeleted(album as unknown as FileSystemDirectoryHandle, nextMoved.movedPhotos)
+    const fallback = await clearRecentlyDeleted(
+      album as unknown as FileSystemDirectoryHandle,
+      nextMoved.movedPhotos
+    )
     expect(fallback.succeeded).toHaveLength(1)
     expect(album.recursiveRemoveNames).toEqual([])
     expect(trash.files.has('keep.txt')).toBe(true)
@@ -682,17 +796,28 @@ describe('album refresh and recently deleted filesystem operations', () => {
   it('keeps a fallback-timestamp photo visible after moving it to recently deleted', async () => {
     const album = new MemoryDirectoryHandle('NikkiPhotos_HighQuality')
     const timestamp = new Date(2025, 0, 2, 3, 4).getTime()
-    album.files.set('shared-image.jpeg', new MemoryFileHandle('shared-image.jpeg', new Blob(['photo']), false, timestamp))
-    const [photo] = (await readAlbumDirectory(
-      album as unknown as FileSystemDirectoryHandle,
-      { messages: messages.zh.fileSystem }
-    )).photos
+    album.files.set(
+      'shared-image.jpeg',
+      new MemoryFileHandle('shared-image.jpeg', new Blob(['photo']), false, timestamp)
+    )
+    const [photo] = (
+      await readAlbumDirectory(album as unknown as FileSystemDirectoryHandle, {
+        messages: messages.zh.fileSystem
+      })
+    ).photos
 
     await movePhotosToRecentlyDeleted([photo], new Set([photo.id]))
     const [trashPhoto] = await listRecentlyDeleted(album as unknown as FileSystemDirectoryHandle)
-    const restored = await restoreRecentlyDeletedPhotos([trashPhoto], album as unknown as FileSystemDirectoryHandle)
+    const restored = await restoreRecentlyDeletedPhotos(
+      [trashPhoto],
+      album as unknown as FileSystemDirectoryHandle
+    )
 
-    expect(trashPhoto).toMatchObject({ originalName: 'shared-image.jpeg', timestamp: 1, lastModified: 1 })
+    expect(trashPhoto).toMatchObject({
+      originalName: 'shared-image.jpeg',
+      timestamp: 1,
+      lastModified: 1
+    })
     expect(restored.failedNames).toEqual([])
     expect(restored.restoredPhotos).toHaveLength(1)
   })
@@ -717,7 +842,10 @@ describe('album refresh and recently deleted filesystem operations', () => {
     album.files.set(photo.name, new MemoryFileHandle(photo.name, new Blob(['replacement'])))
     const [trashPhoto] = await listRecentlyDeleted(album as unknown as FileSystemDirectoryHandle)
 
-    const result = await restoreRecentlyDeletedPhotos([trashPhoto], album as unknown as FileSystemDirectoryHandle)
+    const result = await restoreRecentlyDeletedPhotos(
+      [trashPhoto],
+      album as unknown as FileSystemDirectoryHandle
+    )
 
     expect(result.failedNames).toEqual([])
     expect(result.restoredPhotos[0].name).toBe('2026_06_26_11_22_00_restored_1.jpeg')
@@ -725,7 +853,6 @@ describe('album refresh and recently deleted filesystem operations', () => {
     expect(album.files.has('2026_06_26_11_22_00_restored_1.jpeg')).toBe(true)
   })
 })
-
 
 it('refreshes changed and removed notes while retaining the original photo URL', async () => {
   const directory = new MemoryDirectoryHandle('album')
@@ -735,11 +862,16 @@ it('refreshes changed and removed notes while retaining the original photo URL',
   const first = await readAlbumDirectory(handle, { messages: messages.zh.fileSystem })
   first.photos[0].url = 'blob:kept'
   await savePhotoNote(handle, first.photos[0].name, 'new')
-  const second = await refreshAlbumDirectory(handle, first.photos, { messages: messages.zh.fileSystem })
+  const second = await refreshAlbumDirectory(handle, first.photos, {
+    messages: messages.zh.fileSystem
+  })
   expect(second.photos[0]).toBe(first.photos[0])
   expect(second.photos[0]).toMatchObject({ note: 'new', url: 'blob:kept' })
   await savePhotoNote(handle, first.photos[0].name, '')
-  expect((await refreshAlbumDirectory(handle, second.photos, { messages: messages.zh.fileSystem })).photos[0].note).toBe('')
+  expect(
+    (await refreshAlbumDirectory(handle, second.photos, { messages: messages.zh.fileSystem }))
+      .photos[0].note
+  ).toBe('')
 })
 
 it('persists trash notes across reload and restores them under a conflict-free new name', async () => {
@@ -774,7 +906,9 @@ it('keeps source notes and files when move or restore deletion fails', async () 
   directory.failRemoveName = null
   const moved = await movePhotosToRecentlyDeleted([photo], new Set())
   directory.directories.get('trash')!.failRemoveName = moved.movedPhotos[0].trashName
-  expect((await restoreRecentlyDeletedPhotos(moved.movedPhotos, handle)).failedNames).toEqual([photo.name])
+  expect((await restoreRecentlyDeletedPhotos(moved.movedPhotos, handle)).failedNames).toEqual([
+    photo.name
+  ])
   expect(directory.files.has(photo.name)).toBe(false)
   expect((await listRecentlyDeleted(handle))[0].note).toBe('kept')
 })
@@ -786,5 +920,7 @@ it('does not resurrect a note removed after the album was loaded', async () => {
   const result = await movePhotosToRecentlyDeleted([photo], new Set())
   expect(result.failedNames).toEqual([])
   expect(result.movedPhotos[0].note).toBe('')
-  expect((await listRecentlyDeleted(directory as unknown as FileSystemDirectoryHandle))[0].note).toBe('')
+  expect(
+    (await listRecentlyDeleted(directory as unknown as FileSystemDirectoryHandle))[0].note
+  ).toBe('')
 })

@@ -5,7 +5,10 @@ import { basename, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 export const DEFAULT_GALLERY_API = 'https://www.nikkigallery.vip/api/v1'
-export const GALLERY_IMAGE_TEMPLATE = { baseUrl: 'https://nikkigallery.vip/static/img/photography/{}', replace: '{}' }
+export const GALLERY_IMAGE_TEMPLATE = {
+  baseUrl: 'https://nikkigallery.vip/static/img/photography/{}',
+  replace: '{}'
+}
 
 function parseArgs(argv) {
   const result = {}
@@ -26,18 +29,25 @@ function parseArgs(argv) {
 
 /** 超时覆盖响应头及 JSON 正文读取，正文完成前不能清除中止定时器。 */
 export async function fetchJson(url, timeoutMs) {
-  return fetchResource(url, { timeoutMs }, response => response.json())
+  return fetchResource(url, { timeoutMs }, (response) => response.json())
 }
 
 /** 严格校验外部动作记录，避免异常或不完整响应覆盖可用的静态目录。 */
 export function buildGalleryPoseEntries(poses) {
-  if (!Array.isArray(poses) || poses.length === 0) throw new Error('NikkiGallery 响应中缺少有效 pose 数组')
+  if (!Array.isArray(poses) || poses.length === 0)
+    throw new Error('NikkiGallery 响应中缺少有效 pose 数组')
   const entries = new Map()
   for (const pose of poses) {
     const key = String(pose?.gid ?? '').trim()
     const name = typeof pose?.posename === 'string' ? pose.posename.trim() : ''
     const image = typeof pose?.filename === 'string' ? pose.filename.trim() : ''
-    if (!/^\d+$/u.test(key) || !name || !image || basename(image) !== image || !image.toLowerCase().endsWith('.png')) {
+    if (
+      !/^\d+$/u.test(key) ||
+      !name ||
+      !image ||
+      basename(image) !== image ||
+      !image.toLowerCase().endsWith('.png')
+    ) {
       throw new Error(`NikkiGallery 动作记录无效: ${key || 'unknown'}`)
     }
     if (entries.has(key)) throw new Error(`NikkiGallery 动作 ID 重复: ${key}`)
@@ -46,7 +56,11 @@ export function buildGalleryPoseEntries(poses) {
   return [...entries.values()]
 }
 
-export async function readGalleryCatalog(apiBase = DEFAULT_GALLERY_API, timeoutMs = 10000, forceData = true) {
+export async function readGalleryCatalog(
+  apiBase = DEFAULT_GALLERY_API,
+  timeoutMs = 10000,
+  forceData = true
+) {
   const baseUrl = String(apiBase).replace(/\/$/u, '')
   const versionPayload = await fetchJson(`${baseUrl}/clothes/version`, timeoutMs)
   const version = String(versionPayload?.version ?? '').trim()
@@ -57,8 +71,10 @@ export async function readGalleryCatalog(apiBase = DEFAULT_GALLERY_API, timeoutM
 }
 
 export function mergePoseCatalog(catalog, gallery) {
-  if (!catalog?.source || !catalog?.templates || !catalog?.resources) throw new Error('本地资源目录结构无效')
-  if (!Array.isArray(gallery?.poses) || gallery.poses.length === 0) throw new Error('待写入的动作目录为空')
+  if (!catalog?.source || !catalog?.templates || !catalog?.resources)
+    throw new Error('本地资源目录结构无效')
+  if (!Array.isArray(gallery?.poses) || gallery.poses.length === 0)
+    throw new Error('待写入的动作目录为空')
   return {
     ...catalog,
     source: { ...catalog.source, pose: gallery.version },
@@ -78,15 +94,24 @@ async function writeJsonAtomic(path, value) {
   }
 }
 
-export async function updateGalleryPoses({ catalogPath, apiBase = DEFAULT_GALLERY_API, timeoutMs = 10000, force = false }) {
+export async function updateGalleryPoses({
+  catalogPath,
+  apiBase = DEFAULT_GALLERY_API,
+  timeoutMs = 10000,
+  force = false
+}) {
   const catalog = JSON.parse(await readFile(catalogPath, 'utf8'))
   const versionResult = await readGalleryCatalog(apiBase, timeoutMs, false)
-  const hasUsablePoses = Array.isArray(catalog?.resources?.pose) && catalog.resources.pose.length > 0 && catalog?.templates?.pose
+  const hasUsablePoses =
+    Array.isArray(catalog?.resources?.pose) &&
+    catalog.resources.pose.length > 0 &&
+    catalog?.templates?.pose
   if (!force && hasUsablePoses && String(catalog?.source?.pose ?? '') === versionResult.version) {
     return { updated: false, version: versionResult.version, count: catalog.resources.pose.length }
   }
   const gallery = await readGalleryCatalog(apiBase, timeoutMs, true)
-  if (gallery.version !== versionResult.version) throw new Error('NikkiGallery 数据版本在同步过程中发生变化，请下次构建重试')
+  if (gallery.version !== versionResult.version)
+    throw new Error('NikkiGallery 数据版本在同步过程中发生变化，请下次构建重试')
   const updatedCatalog = mergePoseCatalog(catalog, gallery)
   await writeJsonAtomic(catalogPath, updatedCatalog)
   return { updated: true, version: gallery.version, count: gallery.poses.length }
@@ -98,10 +123,17 @@ async function main() {
   const apiBase = args.api ?? process.env.NIKKIGALLERY_API_BASE ?? DEFAULT_GALLERY_API
   const timeoutMs = Number(args.timeout ?? process.env.NIKKIGALLERY_API_TIMEOUT_MS ?? 10000)
   try {
-    const result = await updateGalleryPoses({ catalogPath, apiBase, timeoutMs, force: args.force === true })
-    console.log(result.updated
-      ? `NikkiGallery 动作目录已更新: ${result.version} (${result.count})`
-      : `NikkiGallery 动作目录已是最新版本: ${result.version} (${result.count})`)
+    const result = await updateGalleryPoses({
+      catalogPath,
+      apiBase,
+      timeoutMs,
+      force: args.force === true
+    })
+    console.log(
+      result.updated
+        ? `NikkiGallery 动作目录已更新: ${result.version} (${result.count})`
+        : `NikkiGallery 动作目录已是最新版本: ${result.version} (${result.count})`
+    )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     if (args.strict === true) throw error

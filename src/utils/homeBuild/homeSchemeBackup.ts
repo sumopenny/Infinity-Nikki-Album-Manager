@@ -1,8 +1,29 @@
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from 'fflate'
-import { HOME_BACKUP_LIMITS, planBackupParts, downloadBackupParts, type BackupDownload } from '../backup/zipBackup'
+import {
+  HOME_BACKUP_LIMITS,
+  planBackupParts,
+  downloadBackupParts,
+  type BackupDownload
+} from '../backup/zipBackup'
 import { HOME_SCHEMES_STORE, HOME_IMAGES_STORE, HOME_TAGS_STORE } from '../file-system/database'
-import { homeRequest, homeTransaction, readHomeSchemeSnapshot, readHomeSchemeLibrary, normalizeHomeSchemeTags, prepareHomeSchemeImage, type HomeSchemeImage } from './homeSchemeStorage'
-import { createHomeSchemeId, normalizeHomeSchemeRecord, normalizeHomeSchemeCode, normalizeHomeSchemeTag, type HomeSchemeRecord, type HomeSchemeItem, type HomeSchemeMetadata } from './homeSchemeTypes'
+import {
+  homeRequest,
+  homeTransaction,
+  readHomeSchemeSnapshot,
+  readHomeSchemeLibrary,
+  normalizeHomeSchemeTags,
+  prepareHomeSchemeImage,
+  type HomeSchemeImage
+} from './homeSchemeStorage'
+import {
+  createHomeSchemeId,
+  normalizeHomeSchemeRecord,
+  normalizeHomeSchemeCode,
+  normalizeHomeSchemeTag,
+  type HomeSchemeRecord,
+  type HomeSchemeItem,
+  type HomeSchemeMetadata
+} from './homeSchemeTypes'
 
 const BACKUP_FORMAT = 'infinity-nikki-home-scheme-backup'
 const BACKUP_VERSION = 1
@@ -32,16 +53,29 @@ interface BackupManifest {
 }
 
 function isSafePath(path: string): boolean {
-  return Boolean(path) && !path.startsWith('/') && !path.startsWith('\\') && !path.includes('\\') && !path.includes('\0') &&
+  return (
+    Boolean(path) &&
+    !path.startsWith('/') &&
+    !path.startsWith('\\') &&
+    !path.includes('\\') &&
+    !path.includes('\0') &&
     path.split('/').every((part) => part && part !== '.' && part !== '..')
+  )
 }
 
 function isSafeId(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= 128 && value !== '.' && value !== '..' && !/[\\/\0]/.test(value)
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= 128 &&
+    value !== '.' &&
+    value !== '..' &&
+    !/[\\/\0]/.test(value)
+  )
 }
 
 function normalizeBackupMetadata(value: unknown): HomeSchemeMetadata {
-  const raw = value && typeof value === 'object' ? value as Partial<HomeSchemeMetadata> : {}
+  const raw = value && typeof value === 'object' ? (value as Partial<HomeSchemeMetadata>) : {}
   return {
     version: typeof raw.version === 'string' ? raw.version : null,
     furnitureCount: typeof raw.furnitureCount === 'number' ? raw.furnitureCount : null,
@@ -59,8 +93,18 @@ function normalizeBackupDate(value: unknown, fallback: string): string {
 function backupBaseName(): string {
   const date = new Date()
   const pad = (value: number) => String(value).padStart(2, '0')
-  return 'InfinityNikkiHomeSchemes_' + date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' +
-    pad(date.getDate()) + '_' + pad(date.getHours()) + pad(date.getMinutes()) + pad(date.getSeconds())
+  return (
+    'InfinityNikkiHomeSchemes_' +
+    date.getFullYear() +
+    '-' +
+    pad(date.getMonth() + 1) +
+    '-' +
+    pad(date.getDate()) +
+    '_' +
+    pad(date.getHours()) +
+    pad(date.getMinutes()) +
+    pad(date.getSeconds())
+  )
 }
 
 export async function exportHomeSchemeBackup(
@@ -77,33 +121,73 @@ export async function exportHomeSchemeBackup(
       if (checked.sha256 !== cover.sha256) throw new Error('home_scheme_image_invalid')
     }
     items.push({
-      record: { id: scheme.id, image, code: scheme.code, name: scheme.name, schemeType: scheme.schemeType, tags: scheme.tags, note: scheme.note, metadata: scheme.metadata, createdAt: scheme.createdAt, updatedAt: scheme.updatedAt },
+      record: {
+        id: scheme.id,
+        image,
+        code: scheme.code,
+        name: scheme.name,
+        schemeType: scheme.schemeType,
+        tags: scheme.tags,
+        note: scheme.note,
+        metadata: scheme.metadata,
+        createdAt: scheme.createdAt,
+        updatedAt: scheme.updatedAt
+      },
       files: image && cover ? [{ name: image, blob: cover.blob }] : []
     })
   }
-  const parts = planBackupParts(items, homeSchemes => ({ format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt, tags: library.tags, homeSchemes }), 'manifest.json', HOME_BACKUP_LIMITS)
-  const fileNames = await downloadBackupParts(backupBaseName(), parts, 'manifest.json', HOME_BACKUP_LIMITS, download)
+  const parts = planBackupParts(
+    items,
+    (homeSchemes) => ({
+      format: BACKUP_FORMAT,
+      version: BACKUP_VERSION,
+      exportedAt,
+      tags: library.tags,
+      homeSchemes
+    }),
+    'manifest.json',
+    HOME_BACKUP_LIMITS
+  )
+  const fileNames = await downloadBackupParts(
+    backupBaseName(),
+    parts,
+    'manifest.json',
+    HOME_BACKUP_LIMITS,
+    download
+  )
   return { fileNames, count: library.records.length }
 }
 
 async function extractBackup(file: File): Promise<Map<string, Uint8Array>> {
   if (!file.size || file.size > MAX_BACKUP_BYTES) throw new Error('home_scheme_backup_size_invalid')
   const entries = new Map<string, Uint8Array>()
-  let count = 0, expandedBytes = 0, failure: Error | null = null
+  let count = 0,
+    expandedBytes = 0,
+    failure: Error | null = null
   const unzip = new Unzip((entry) => {
     try {
       count += 1
-      if (count > MAX_ENTRIES || !isSafePath(entry.name)) throw new Error('home_scheme_backup_path_invalid')
+      if (count > MAX_ENTRIES || !isSafePath(entry.name))
+        throw new Error('home_scheme_backup_path_invalid')
       const manifest = entry.name === 'manifest.json'
-      if (!manifest && !/^images\/[^/]+\.webp$/i.test(entry.name)) throw new Error('home_scheme_backup_entry_invalid')
+      if (!manifest && !/^images\/[^/]+\.webp$/i.test(entry.name))
+        throw new Error('home_scheme_backup_entry_invalid')
       const chunks: Uint8Array[] = []
       let size = 0
       entry.ondata = (error, chunk, final) => {
-        if (error) { failure = error; entry.terminate(); return }
+        if (error) {
+          failure = error
+          entry.terminate()
+          return
+        }
         if (chunk?.byteLength) {
           size += chunk.byteLength
           expandedBytes += chunk.byteLength
-          if ((manifest && size > HOME_BACKUP_LIMITS.manifest) || (!manifest && size > MAX_IMAGE_BYTES) || expandedBytes > MAX_BACKUP_BYTES) {
+          if (
+            (manifest && size > HOME_BACKUP_LIMITS.manifest) ||
+            (!manifest && size > MAX_IMAGE_BYTES) ||
+            expandedBytes > MAX_BACKUP_BYTES
+          ) {
             failure = new Error('home_scheme_backup_expanded_size_invalid')
             entry.terminate()
             return
@@ -111,10 +195,16 @@ async function extractBackup(file: File): Promise<Map<string, Uint8Array>> {
           chunks.push(chunk)
         }
         if (final && !failure) {
-          if (entries.has(entry.name)) { failure = new Error('home_scheme_backup_duplicate_entry'); return }
+          if (entries.has(entry.name)) {
+            failure = new Error('home_scheme_backup_duplicate_entry')
+            return
+          }
           const bytes = new Uint8Array(size)
           let offset = 0
-          for (const part of chunks) { bytes.set(part, offset); offset += part.byteLength }
+          for (const part of chunks) {
+            bytes.set(part, offset)
+            offset += part.byteLength
+          }
           entries.set(entry.name, bytes)
         }
       }
@@ -148,13 +238,28 @@ function parseManifest(entries: Map<string, Uint8Array>): BackupManifest {
   const raw: unknown = JSON.parse(strFromU8(bytes))
   if (!raw || typeof raw !== 'object') throw new Error('home_scheme_backup_manifest_invalid')
   const manifest = raw as Partial<BackupManifest>
-  if (manifest.format !== BACKUP_FORMAT || manifest.version !== BACKUP_VERSION ||
-      !Array.isArray(manifest.homeSchemes) || !Array.isArray(manifest.tags)) throw new Error('home_scheme_backup_format_unsupported')
+  if (
+    manifest.format !== BACKUP_FORMAT ||
+    manifest.version !== BACKUP_VERSION ||
+    !Array.isArray(manifest.homeSchemes) ||
+    !Array.isArray(manifest.tags)
+  )
+    throw new Error('home_scheme_backup_format_unsupported')
   for (const item of manifest.homeSchemes) {
-    if (!item || !isSafeId(item.id) || typeof item.name !== 'string' || typeof item.code !== 'string' ||
-        (item.schemeType !== 'home' && item.schemeType !== 'combo') || !Array.isArray(item.tags) ||
-        typeof item.createdAt !== 'string' || typeof item.updatedAt !== 'string' ||
-        (item.image !== null && (typeof item.image !== 'string' || !isSafePath(item.image) || item.image !== `images/${item.id}.webp`))) {
+    if (
+      !item ||
+      !isSafeId(item.id) ||
+      typeof item.name !== 'string' ||
+      typeof item.code !== 'string' ||
+      (item.schemeType !== 'home' && item.schemeType !== 'combo') ||
+      !Array.isArray(item.tags) ||
+      typeof item.createdAt !== 'string' ||
+      typeof item.updatedAt !== 'string' ||
+      (item.image !== null &&
+        (typeof item.image !== 'string' ||
+          !isSafePath(item.image) ||
+          item.image !== `images/${item.id}.webp`))
+    ) {
       throw new Error('home_scheme_backup_record_invalid')
     }
     if (item.image && !entries.has(item.image)) throw new Error('home_scheme_backup_image_missing')
@@ -170,44 +275,82 @@ export async function prepareHomeSchemeBackup(backupFile: File) {
   for (const raw of manifest.homeSchemes) {
     // An invalid image rejects the archive before any database write.
     const bytes = raw.image ? entries.get(raw.image)! : null
-    const image = bytes ? await prepareHomeSchemeImage(new Blob([bytes], { type: 'image/webp' }), raw.id) : null
+    const image = bytes
+      ? await prepareHomeSchemeImage(new Blob([bytes], { type: 'image/webp' }), raw.id)
+      : null
     try {
       const createdAt = normalizeBackupDate(raw.createdAt, new Date().toISOString())
-      prepared.push({ record: normalizeHomeSchemeRecord({ ...raw, version: 1,
-        image: image ? `${raw.id}.webp` : null,
-        tags: raw.tags.map(normalizeHomeSchemeTag).filter(tag => tag && [...tag].length <= 5).slice(0, 1),
-        metadata: normalizeBackupMetadata(raw.metadata), createdAt,
-        updatedAt: normalizeBackupDate(raw.updatedAt, createdAt) }), image })
-    } catch { invalidCount++ }
+      prepared.push({
+        record: normalizeHomeSchemeRecord({
+          ...raw,
+          version: 1,
+          image: image ? `${raw.id}.webp` : null,
+          tags: raw.tags
+            .map(normalizeHomeSchemeTag)
+            .filter((tag) => tag && [...tag].length <= 5)
+            .slice(0, 1),
+          metadata: normalizeBackupMetadata(raw.metadata),
+          createdAt,
+          updatedAt: normalizeBackupDate(raw.updatedAt, createdAt)
+        }),
+        image
+      })
+    } catch {
+      invalidCount++
+    }
   }
   return { manifest, prepared, invalidCount }
 }
 
-export async function importHomeSchemeBackup(
-  backupFile: File
-): Promise<{ addedCount: number; duplicateCount: number; failedCount: number; schemes: HomeSchemeItem[]; tags: string[] }> {
+export async function importHomeSchemeBackup(backupFile: File): Promise<{
+  addedCount: number
+  duplicateCount: number
+  failedCount: number
+  schemes: HomeSchemeItem[]
+  tags: string[]
+}> {
   const { manifest, prepared, invalidCount } = await prepareHomeSchemeBackup(backupFile)
-  const counts = await homeTransaction([HOME_SCHEMES_STORE, HOME_IMAGES_STORE, HOME_TAGS_STORE], 'readwrite', async tx => {
-    const store = tx.objectStore(HOME_SCHEMES_STORE)
-    const [current, rawTags] = await Promise.all([homeRequest(store.getAll()), homeRequest(tx.objectStore(HOME_TAGS_STORE).get('default'))])
-    const codes = new Set(current.map((record: HomeSchemeRecord) => normalizeHomeSchemeCode(record.code)))
-    const ids = new Set(current.map((record: HomeSchemeRecord) => record.id))
-    const tags = normalizeHomeSchemeTags(rawTags ?? [])
-    for (const rawTag of manifest.tags) {
-      const tag = normalizeHomeSchemeTag(rawTag)
-      if (tag && [...tag].length <= 5 && !tags.includes(tag) && tags.length < 40) tags.push(tag)
+  const counts = await homeTransaction(
+    [HOME_SCHEMES_STORE, HOME_IMAGES_STORE, HOME_TAGS_STORE],
+    'readwrite',
+    async (tx) => {
+      const store = tx.objectStore(HOME_SCHEMES_STORE)
+      const [current, rawTags] = await Promise.all([
+        homeRequest(store.getAll()),
+        homeRequest(tx.objectStore(HOME_TAGS_STORE).get('default'))
+      ])
+      const codes = new Set(
+        current.map((record: HomeSchemeRecord) => normalizeHomeSchemeCode(record.code))
+      )
+      const ids = new Set(current.map((record: HomeSchemeRecord) => record.id))
+      const tags = normalizeHomeSchemeTags(rawTags ?? [])
+      for (const rawTag of manifest.tags) {
+        const tag = normalizeHomeSchemeTag(rawTag)
+        if (tag && [...tag].length <= 5 && !tags.includes(tag) && tags.length < 40) tags.push(tag)
+      }
+      let addedCount = 0,
+        duplicateCount = 0
+      for (const { record, image } of prepared) {
+        if (codes.has(record.code)) {
+          duplicateCount++
+          continue
+        }
+        const id = ids.has(record.id) ? createHomeSchemeId() : record.id
+        store.put({
+          ...record,
+          id,
+          image: image ? `${id}.webp` : null,
+          tags: record.tags.filter((tag) => tags.includes(tag))
+        })
+        if (image) tx.objectStore(HOME_IMAGES_STORE).put({ ...image, id })
+        codes.add(record.code)
+        ids.add(id)
+        addedCount++
+      }
+      tx.objectStore(HOME_TAGS_STORE).put(tags, 'default')
+      return { addedCount, duplicateCount, failedCount: invalidCount }
     }
-    let addedCount = 0, duplicateCount = 0
-    for (const { record, image } of prepared) {
-      if (codes.has(record.code)) { duplicateCount++; continue }
-      const id = ids.has(record.id) ? createHomeSchemeId() : record.id
-      store.put({ ...record, id, image: image ? `${id}.webp` : null, tags: record.tags.filter(tag => tags.includes(tag)) })
-      if (image) tx.objectStore(HOME_IMAGES_STORE).put({ ...image, id })
-      codes.add(record.code); ids.add(id); addedCount++
-    }
-    tx.objectStore(HOME_TAGS_STORE).put(tags, 'default')
-    return { addedCount, duplicateCount, failedCount: invalidCount }
-  })
+  )
   const library = await readHomeSchemeLibrary()
   return { ...counts, ...library }
 }

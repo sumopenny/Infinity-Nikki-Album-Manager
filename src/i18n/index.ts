@@ -9,7 +9,14 @@ export * from './types'
 export { zh } from './zh'
 export { en } from './en'
 export const DEFAULT_LANGUAGE: Language = 'zh'
-const thumbnailModeValues: ThumbnailMode[] = ['default', 'half', 'wide', 'standard', 'portrait-wide', 'portrait-standard']
+const thumbnailModeValues: ThumbnailMode[] = [
+  'default',
+  'half',
+  'wide',
+  'standard',
+  'portrait-wide',
+  'portrait-standard'
+]
 
 const thumbnailModeLabels: Record<Language, Record<ThumbnailMode, string>> = {
   zh: {
@@ -30,9 +37,13 @@ const thumbnailModeLabels: Record<Language, Record<ThumbnailMode, string>> = {
   }
 }
 
-export function getThumbnailModeOptions(language: Language): Array<{ value: ThumbnailMode; label: string }> {
-  return thumbnailModeValues.map((value) => ({ value, label: thumbnailModeLabels[language][value] }))
+export function getThumbnailModeOptions(
+  language: Language
+): Array<{ value: ThumbnailMode; label: string }> {
+  return thumbnailModeValues.map((value) => ({
+    value,
+    label: thumbnailModeLabels[language][value]
+  }))
 }
-
 
 export const messages: Record<Language, LocaleMessages> = { zh, en }

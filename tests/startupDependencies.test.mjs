@@ -1,6 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -22,12 +30,15 @@ function fixture(t) {
     dependencies: { snappyjs: '^0.7.0' },
     devDependencies: { vite: '^5.4.11', '@types/node': '22.18.6' }
   })
-  writeJson(join(dir, 'package-lock.json'), { lockfileVersion: 3, packages: {
-    'node_modules/snappyjs': { version: '0.7.0' },
-    'node_modules/vite': { version: '5.4.21' },
-    'node_modules/@types/node': { version: '22.18.6' },
-    'node_modules/transitive': { version: '1.0.0' }
-  } })
+  writeJson(join(dir, 'package-lock.json'), {
+    lockfileVersion: 3,
+    packages: {
+      'node_modules/snappyjs': { version: '0.7.0' },
+      'node_modules/vite': { version: '5.4.21' },
+      'node_modules/@types/node': { version: '22.18.6' },
+      'node_modules/transitive': { version: '1.0.0' }
+    }
+  })
   return dir
 }
 function installFixture(dir) {
@@ -52,7 +63,10 @@ test('check-only identifies the missing dependency without installing or recordi
 test('a verified installation skips the next install, including in a path with spaces', (t) => {
   const dir = fixture(t)
   let calls = 0
-  const install = () => { calls++; installFixture(dir) }
+  const install = () => {
+    calls++
+    installFixture(dir)
+  }
   assert.equal(ensureDependencies(options(dir, install)).installed, true)
   assert.deepEqual(ensureDependencies(options(dir, install)), { ready: true, installed: false })
   assert.equal(calls, 1)
@@ -96,7 +110,15 @@ test('a wrong installed version is repaired despite a current marker', (t) => {
 
 test('installation failure never records success', (t) => {
   const dir = fixture(t)
-  assert.throws(() => ensureDependencies(options(dir, () => { throw new Error('network unavailable') })), /network unavailable/)
+  assert.throws(
+    () =>
+      ensureDependencies(
+        options(dir, () => {
+          throw new Error('network unavailable')
+        })
+      ),
+    /network unavailable/
+  )
   assert.equal(existsSync(stateFile(dir)), false)
 })
 
@@ -104,63 +126,93 @@ test('an installer reporting success with a dependency still missing is rejected
   const dir = fixture(t)
   ensureDependencies(options(dir))
   rmSync(join(dir, 'node_modules/snappyjs'), { recursive: true })
-  assert.throws(() => ensureDependencies(options(dir, () => {})), /installation is incomplete.*snappyjs/)
+  assert.throws(
+    () => ensureDependencies(options(dir, () => {})),
+    /installation is incomplete.*snappyjs/
+  )
   assert.equal(ensureDependencies({ ...options(dir), checkOnly: true }).ready, false)
 })
 
 test('dependency files changing during installation are not recorded as verified', (t) => {
   const dir = fixture(t)
-  assert.throws(() => ensureDependencies(options(dir, () => {
-    installFixture(dir)
-    const manifestPath = join(dir, 'package.json')
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-    manifest.description = 'changed during installation'
-    writeJson(manifestPath, manifest)
-  })), /changed during installation/)
+  assert.throws(
+    () =>
+      ensureDependencies(
+        options(dir, () => {
+          installFixture(dir)
+          const manifestPath = join(dir, 'package.json')
+          const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+          manifest.description = 'changed during installation'
+          writeJson(manifestPath, manifest)
+        })
+      ),
+    /changed during installation/
+  )
   assert.equal(existsSync(stateFile(dir)), false)
 })
 
-test('Windows install dispatch uses npm ci with dev dependencies and propagates failure', { skip: process.platform !== 'win32' }, (t) => {
-  const dir = fixture(t)
-  mkdirSync(join(dir, 'start'))
-  copyFileSync(join(repoDir, 'start/ensure-dependencies.mjs'), join(dir, 'start/ensure-dependencies.mjs'))
-  const fakeBin = join(dir, 'fake-bin')
-  mkdirSync(fakeBin)
-  writeFileSync(join(fakeBin, 'npm.cmd'), '@echo off\r\necho %*>"%~dp0npm-args.txt"\r\nexit /b 1\r\n')
-  const env = { ...process.env }
-  const pathKey = Object.keys(env).find((key) => key.toLowerCase() === 'path') || 'Path'
-  env[pathKey] = fakeBin + ';' + env[pathKey]
-  const result = spawnSync(process.execPath, [join(dir, 'start/ensure-dependencies.mjs')], { env, encoding: 'utf8' })
-  assert.equal(result.status, 1)
-  assert.match(result.stderr, /npm ci failed/)
-  assert.equal(readFileSync(join(fakeBin, 'npm-args.txt'), 'utf8').trim(), 'ci --include=dev')
-  assert.equal(existsSync(stateFile(dir)), false)
-})
+test(
+  'Windows install dispatch uses npm ci with dev dependencies and propagates failure',
+  { skip: process.platform !== 'win32' },
+  (t) => {
+    const dir = fixture(t)
+    mkdirSync(join(dir, 'start'))
+    copyFileSync(
+      join(repoDir, 'start/ensure-dependencies.mjs'),
+      join(dir, 'start/ensure-dependencies.mjs')
+    )
+    const fakeBin = join(dir, 'fake-bin')
+    mkdirSync(fakeBin)
+    writeFileSync(
+      join(fakeBin, 'npm.cmd'),
+      '@echo off\r\necho %*>"%~dp0npm-args.txt"\r\nexit /b 1\r\n'
+    )
+    const env = { ...process.env }
+    const pathKey = Object.keys(env).find((key) => key.toLowerCase() === 'path') || 'Path'
+    env[pathKey] = fakeBin + ';' + env[pathKey]
+    const result = spawnSync(process.execPath, [join(dir, 'start/ensure-dependencies.mjs')], {
+      env,
+      encoding: 'utf8'
+    })
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /npm ci failed/)
+    assert.equal(readFileSync(join(fakeBin, 'npm-args.txt'), 'utf8').trim(), 'ci --include=dev')
+    assert.equal(existsSync(stateFile(dir)), false)
+  }
+)
 
-test('the remote D1 launcher stops before opening the website when the dependency check fails', { skip: process.platform !== 'win32' }, (t) => {
-  const name = 'Start-Remote-D1-Website.bat'
-  const dir = fixture(t)
-  const startDir = join(dir, 'start')
-  mkdirSync(startDir)
-  copyFileSync(join(repoDir, 'start', name), join(startDir, name))
-  writeFileSync(join(startDir, 'ensure-dependencies.mjs'), 'process.exit(1)\n')
-  // 只验证启动脚本的失败短路，不依赖测试机全局安装 npm/node。
-  const fakeBin = join(dir, 'launcher-bin')
-  mkdirSync(fakeBin)
-  writeFileSync(join(fakeBin, 'npm.cmd'), '@echo off\r\nexit /b 0\r\n')
-  const env = { ...process.env }
-  const pathKey = Object.keys(env).find(key => key.toLowerCase() === 'path') || 'Path'
-  env[pathKey] = fakeBin + ';' + dirname(process.execPath) + ';' + env[pathKey]
-  const result = spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', name], {
-    cwd: startDir, env, input: '\r\n', encoding: 'utf8', timeout: 10000
-  })
-  assert.equal(result.status, 1, result.stdout + result.stderr)
-  assert.match(result.stdout, /Website startup stopped/)
-  assert.doesNotMatch(result.stdout, /Starting local website/)
-})
+test(
+  'the remote D1 launcher stops before opening the website when the dependency check fails',
+  { skip: process.platform !== 'win32' },
+  (t) => {
+    const name = 'Start-Remote-D1-Website.bat'
+    const dir = fixture(t)
+    const startDir = join(dir, 'start')
+    mkdirSync(startDir)
+    copyFileSync(join(repoDir, 'start', name), join(startDir, name))
+    writeFileSync(join(startDir, 'ensure-dependencies.mjs'), 'process.exit(1)\n')
+    // 只验证启动脚本的失败短路，不依赖测试机全局安装 npm/node。
+    const fakeBin = join(dir, 'launcher-bin')
+    mkdirSync(fakeBin)
+    writeFileSync(join(fakeBin, 'npm.cmd'), '@echo off\r\nexit /b 0\r\n')
+    const env = { ...process.env }
+    const pathKey = Object.keys(env).find((key) => key.toLowerCase() === 'path') || 'Path'
+    env[pathKey] = fakeBin + ';' + dirname(process.execPath) + ';' + env[pathKey]
+    const result = spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', name], {
+      cwd: startDir,
+      env,
+      input: '\r\n',
+      encoding: 'utf8',
+      timeout: 10000
+    })
+    assert.equal(result.status, 1, result.stdout + result.stderr)
+    assert.match(result.stdout, /Website startup stopped/)
+    assert.doesNotMatch(result.stdout, /Starting local website/)
+  }
+)
 
 /** 使用真实 Vite 生命周期验证监听成功才打开，避免用固定延时模拟“就绪”。 */
-test('launcher browser opening waits for Vite initialization and a listening HTTP server', async t => {
+test('launcher browser opening waits for Vite initialization and a listening HTTP server', async (t) => {
   const batch = readFileSync(join(repoDir, 'start/Start-Remote-D1-Website.bat'), 'ascii')
   assert.match(batch, /npm run dev:remote/)
   assert.match(batch, /--port 5173 --strictPort --open http:\/\/localhost:5173/)
@@ -169,27 +221,46 @@ test('launcher browser opening waits for Vite initialization and a listening HTT
   const dir = fixture(t)
   writeFileSync(join(dir, 'index.html'), '<html><body>startup-ready-test</body></html>')
   const reserved = createHttpServer()
-  await new Promise(resolve => reserved.listen(0, '127.0.0.1', resolve))
+  await new Promise((resolve) => reserved.listen(0, '127.0.0.1', resolve))
   const port = reserved.address().port
-  await new Promise(resolve => reserved.close(resolve))
+  await new Promise((resolve) => reserved.close(resolve))
   let release, initialized
-  const gate = new Promise(resolve => { release = resolve })
-  const entered = new Promise(resolve => { initialized = resolve })
-  const server = await createServer({ configFile: false, root: dir, logLevel: 'silent',
+  const gate = new Promise((resolve) => {
+    release = resolve
+  })
+  const entered = new Promise((resolve) => {
+    initialized = resolve
+  })
+  const server = await createServer({
+    configFile: false,
+    root: dir,
+    logLevel: 'silent',
     css: { postcss: {} },
     optimizeDeps: { noDiscovery: true, include: [] },
     server: { host: '127.0.0.1', port, strictPort: true, open: true },
-    plugins: [{ name: 'startup-gate', async buildStart() { initialized(); await gate } }] })
+    plugins: [
+      {
+        name: 'startup-gate',
+        async buildStart() {
+          initialized()
+          await gate
+        }
+      }
+    ]
+  })
   t.after(() => server.close())
-  let opened = 0, response
+  let opened = 0,
+    response
   // 截获浏览器打开动作，验证 HTTP 可访问，不启动测试机的默认浏览器。
   server.openBrowser = () => {
     opened++
     assert.equal(server.httpServer.listening, true)
     response = new Promise((resolve, reject) => {
-      httpGet(`http://127.0.0.1:${port}/`, { agent: false }, result => {
+      httpGet(`http://127.0.0.1:${port}/`, { agent: false }, (result) => {
         let html = ''
-        result.on('data', data => { html += data })
+        result.on('data', (data) => {
+          html += data
+        })
         result.on('end', () => resolve({ status: result.statusCode, html }))
       }).on('error', reject)
     })
@@ -206,18 +277,24 @@ test('launcher browser opening waits for Vite initialization and a listening HTT
   assert.match(result.html, /startup-ready-test/)
 })
 
-test('a strict-port startup failure never opens the browser', async t => {
+test('a strict-port startup failure never opens the browser', async (t) => {
   const { createServer } = await import('vite')
   const occupied = createHttpServer()
-  await new Promise(resolve => occupied.listen(0, '127.0.0.1', resolve))
-  t.after(() => new Promise(resolve => occupied.close(resolve)))
-  const server = await createServer({ configFile: false, root: fixture(t), logLevel: 'silent',
+  await new Promise((resolve) => occupied.listen(0, '127.0.0.1', resolve))
+  t.after(() => new Promise((resolve) => occupied.close(resolve)))
+  const server = await createServer({
+    configFile: false,
+    root: fixture(t),
+    logLevel: 'silent',
     css: { postcss: {} },
     optimizeDeps: { noDiscovery: true, include: [] },
-    server: { host: '127.0.0.1', port: occupied.address().port, strictPort: true, open: true } })
+    server: { host: '127.0.0.1', port: occupied.address().port, strictPort: true, open: true }
+  })
   t.after(() => server.close())
   let opened = 0
-  server.openBrowser = () => { opened++ }
+  server.openBrowser = () => {
+    opened++
+  }
   await assert.rejects(server.listen(), /already in use/)
   assert.equal(opened, 0)
 })

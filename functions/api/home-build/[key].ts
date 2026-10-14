@@ -6,10 +6,13 @@ interface PagesFunctionContext {
 }
 
 function jsonError(status: number, code: string): Response {
-  return Response.json({ ok: false, errorCode: code }, {
-    status,
-    headers: { 'cache-control': 'no-store' }
-  })
+  return Response.json(
+    { ok: false, errorCode: code },
+    {
+      status,
+      headers: { 'cache-control': 'no-store' }
+    }
+  )
 }
 
 /** 只代理家园方案固定 CDN 的对象键，限制响应大小以避免代理被用于大流量转发。 */
@@ -27,7 +30,8 @@ export async function onRequestGet(context: PagesFunctionContext): Promise<Respo
     return jsonError(502, 'upstream_unavailable')
   }
 
-  if (upstream.status !== 200 && upstream.status !== 206) return jsonError(502, 'upstream_response_invalid')
+  if (upstream.status !== 200 && upstream.status !== 206)
+    return jsonError(502, 'upstream_response_invalid')
   const declaredLength = Number(upstream.headers.get('content-length') ?? 0)
   if (declaredLength > MAX_RESPONSE_BYTES) return jsonError(413, 'response_too_large')
   if (!upstream.body) return jsonError(502, 'upstream_body_missing')
