@@ -16,13 +16,62 @@ function validateImageDimensions(width: number, height: number): void {
   if (width * height > MAX_IMAGE_PIXELS) throw new Error('Image dimensions are too large')
 }
 
+// 统一供转换和校验使用；部分手机浏览器能显示图片，但无法通过 ImageBitmap 解码。
+async function decodeImage(blob: Blob): Promise<{
+  source: CanvasImageSource
+  width: number
+  height: number
+  release: () => void
+}> {
+  if (typeof createImageBitmap === 'function') {
+    try {
+      // 默认使用图片自身方向，避免旧浏览器拒绝显式的 from-image 参数。
+      const bitmap = await createImageBitmap(blob)
+      return {
+        source: bitmap,
+        width: bitmap.width,
+        height: bitmap.height,
+        release: () => bitmap.close()
+      }
+    } catch {
+      // 使用与图片预览一致的加载路径重试。
+    }
+  }
+
+  const url = URL.createObjectURL(blob)
+  const image = new Image()
+  try {
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve()
+      image.onerror = () => reject(new Error('Image could not be decoded'))
+      image.src = url
+    })
+    return {
+      source: image,
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+      release: () => {
+        image.removeAttribute('src')
+        URL.revokeObjectURL(url)
+      }
+    }
+  } catch (error) {
+    image.removeAttribute('src')
+    URL.revokeObjectURL(url)
+    throw error
+  } finally {
+    image.onload = null
+    image.onerror = null
+  }
+}
+
 export async function validateImageBlob(blob: Blob): Promise<void> {
   if (!blob.size) throw new Error('Image is empty')
-  const bitmap = await createImageBitmap(blob)
+  const bitmap = await decodeImage(blob)
   try {
     validateImageDimensions(bitmap.width, bitmap.height)
   } finally {
-    bitmap.close()
+    bitmap.release()
   }
 }
 export async function convertImageToWebp(file: File): Promise<Blob> {
@@ -32,7 +81,7 @@ export async function convertImageToWebp(file: File): Promise<Blob> {
     await validateImageBlob(webp)
     return webp
   }
-  const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+  const bitmap = await decodeImage(file)
   try {
     validateImageDimensions(bitmap.width, bitmap.height)
     const canvas = document.createElement('canvas')
@@ -40,7 +89,7 @@ export async function convertImageToWebp(file: File): Promise<Blob> {
     canvas.height = bitmap.height
     const context = canvas.getContext('2d')
     if (!context) throw new Error('Canvas is unavailable')
-    context.drawImage(bitmap, 0, 0)
+    context.drawImage(bitmap.source, 0, 0)
     return await new Promise((resolve, reject) => {
       canvas.toBlob(
         (blob) => (blob ? resolve(blob) : reject(new Error('WebP conversion failed'))),
@@ -49,6 +98,6 @@ export async function convertImageToWebp(file: File): Promise<Blob> {
       )
     })
   } finally {
-    bitmap.close()
+    bitmap.release()
   }
 }
