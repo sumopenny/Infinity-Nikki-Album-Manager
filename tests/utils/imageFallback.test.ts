@@ -69,6 +69,66 @@ describe('image decoding fallback', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledOnce()
   })
 
+  it('reads the original WebP using FileReader after a NotReadableError', async () => {
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn().mockResolvedValue({ width: 20, height: 10, close: vi.fn() })
+    )
+    const file = new File(['original-webp'], 'photo.webp', { type: 'image/webp' })
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: vi
+        .fn()
+        .mockRejectedValue(
+          new DOMException('The requested file could not be read', 'NotReadableError')
+        )
+    })
+    const read = vi.spyOn(FileReader.prototype, 'readAsArrayBuffer')
+    const canvas = vi.spyOn(HTMLCanvasElement.prototype, 'toBlob')
+    const result = await convertImageToWebp(file)
+    const bytes = await new Promise<ArrayBuffer>((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as ArrayBuffer)
+      reader.readAsArrayBuffer(result)
+    })
+    expect(new TextDecoder().decode(bytes)).toBe('original-webp')
+    expect(read).toHaveBeenCalledWith(file)
+    expect(canvas).not.toHaveBeenCalled()
+  })
+
+  it('re-encodes WebP when both byte readers fail but image loading succeeds', async () => {
+    vi.stubGlobal('createImageBitmap', undefined)
+    mockImage()
+    const file = new File(['webp'], 'photo.webp', { type: 'image/webp' })
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: vi.fn().mockRejectedValue(new Error('not readable'))
+    })
+    vi.spyOn(FileReader.prototype, 'readAsArrayBuffer').mockImplementation(() => {
+      throw new DOMException('not readable', 'NotReadableError')
+    })
+    const output = new Blob(['encoded'], { type: 'image/webp' })
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage: vi.fn()
+    } as unknown as CanvasRenderingContext2D)
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback) =>
+      callback(output)
+    )
+    await expect(convertImageToWebp(file)).resolves.toBe(output)
+    expect(URL.revokeObjectURL).toHaveBeenCalledOnce()
+  })
+
+  it('rejects WebP when neither byte reading nor image loading succeeds', async () => {
+    vi.stubGlobal('createImageBitmap', undefined)
+    mockImage({ fail: true })
+    const file = new File(['invalid'], 'photo.webp', { type: 'image/webp' })
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: vi.fn().mockRejectedValue(new Error('not readable'))
+    })
+    vi.spyOn(FileReader.prototype, 'readAsArrayBuffer').mockImplementation(() => {
+      throw new DOMException('not readable', 'NotReadableError')
+    })
+    await expect(convertImageToWebp(file)).rejects.toThrow('Image could not be decoded')
+  })
+
   it('works when ImageBitmap is unavailable', async () => {
     vi.stubGlobal('createImageBitmap', undefined)
     mockImage()

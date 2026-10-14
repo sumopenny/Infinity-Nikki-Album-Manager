@@ -580,25 +580,28 @@ describe('camera cover conversion', () => {
     expect(mocks.webp).toHaveBeenCalledTimes(1)
     expect(mocks.save.mock.calls[2][1]).toBe(cover)
   })
-  it('converts a manually uploaded replacement and skips conversion when the album cover is removed', async () => {
-    await openAlbum()
-    const upload = new File(['manual'], 'manual.png', { type: 'image/png' })
-    const input = document.querySelector('#camera-favorite-cover')!
-    Object.defineProperty(input, 'files', { value: [upload] })
-    input.dispatchEvent(new Event('change', { bubbles: true }))
-    await submit()
-    expect(mocks.webp).toHaveBeenCalledTimes(1)
-    expect(mocks.save.mock.calls[0][1].type).toBe('image/webp')
-    expect(mocks.save.mock.calls[0][0].cover.name).toBe('manual.webp')
-    wrapper?.unmount()
-    wrapper = null
-    await openAlbum()
-    button('移除封面').click()
-    await flushPromises()
-    await submit()
-    expect(mocks.webp).toHaveBeenCalledTimes(1)
-    expect(mocks.save.mock.calls[1][1]).toBeNull()
-  })
+  it.each(['png', 'webp'])(
+    'prepares an uploaded %s replacement and skips conversion when the album cover is removed',
+    async (extension) => {
+      await openAlbum()
+      const upload = new File(['manual'], `manual.${extension}`, { type: `image/${extension}` })
+      const input = document.querySelector('#camera-favorite-cover')!
+      Object.defineProperty(input, 'files', { value: [upload] })
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+      await submit()
+      expect(mocks.webp).toHaveBeenCalledTimes(1)
+      expect(mocks.save.mock.calls[0][1].type).toBe('image/webp')
+      expect(mocks.save.mock.calls[0][0].cover.name).toBe('manual.webp')
+      wrapper?.unmount()
+      wrapper = null
+      await openAlbum()
+      button('移除封面').click()
+      await flushPromises()
+      await submit()
+      expect(mocks.webp).toHaveBeenCalledTimes(1)
+      expect(mocks.save.mock.calls[1][1]).toBeNull()
+    }
+  )
 })
 
 it('converts an existing non-WebP cover when saving an edit', async () => {

@@ -519,7 +519,13 @@ async function save() {
     busy.value = true
     error.value = ''
     try {
-      if (cover.value && (cover.value.type !== 'image/webp' || !/\.webp$/i.test(coverName.value))) {
+      // 新上传的 WebP 也先复制到内存，避免后续计算哈希时再次读取原文件引用。
+      if (
+        cover.value &&
+        (cover.value instanceof File ||
+          cover.value.type !== 'image/webp' ||
+          !/\.webp$/i.test(coverName.value))
+      ) {
         try {
           const file = new File([cover.value], coverName.value, { type: cover.value.type })
           const webp = await convertImageToWebp(file)

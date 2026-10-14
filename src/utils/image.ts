@@ -74,12 +74,37 @@ export async function validateImageBlob(blob: Blob): Promise<void> {
     bitmap.release()
   }
 }
+async function readImageBytes(file: File): Promise<ArrayBuffer> {
+  try {
+    return await file.arrayBuffer()
+  } catch {
+    return new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        if (reader.result instanceof ArrayBuffer) resolve(reader.result)
+        else reject(new Error('Image file could not be read'))
+      }
+      reader.onerror = () => reject(reader.error ?? new Error('Image file could not be read'))
+      reader.onabort = () => reject(new Error('Image file reading was aborted'))
+      reader.readAsArrayBuffer(file)
+    })
+  }
+}
+
 export async function convertImageToWebp(file: File): Promise<Blob> {
   if (file.size > MAX_IMAGE_BYTES) throw new Error('Image is too large')
   if (imageExtension(file.name) === 'webp' || file.type === 'image/webp') {
-    const webp = new Blob([await file.arrayBuffer()], { type: 'image/webp' })
-    await validateImageBlob(webp)
-    return webp
+    let bytes: ArrayBuffer | undefined
+    try {
+      bytes = await readImageBytes(file)
+    } catch {
+      // 原文件字节无法读取时，尝试与其他格式一样解码并重新生成 WebP。
+    }
+    if (bytes) {
+      const webp = new Blob([bytes], { type: 'image/webp' })
+      await validateImageBlob(webp)
+      return webp
+    }
   }
   const bitmap = await decodeImage(file)
   try {
