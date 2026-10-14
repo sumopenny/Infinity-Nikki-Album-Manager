@@ -1,3 +1,5 @@
+import resourceNetwork from './resource-network.cjs'
+const { fetchResource } = resourceNetwork
 import { readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -6,9 +8,7 @@ import { buildMappedEntries, categoryTranslations, decodeMessagePack, decodeNuan
 export const DEFAULT_MANIFEST_URL = 'https://raw.githubusercontent.com/RanAxro/nikki_albums/main/app_api/hot_update.json'
 
 async function download(url, timeoutMs) {
-  const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) })
-  if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`)
-  return Buffer.from(await response.arrayBuffer())
+  return fetchResource(url, { timeoutMs }, async response => Buffer.from(await response.arrayBuffer()))
 }
 
 function manifestFiles(manifest) {

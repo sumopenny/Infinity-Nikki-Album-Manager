@@ -1,3 +1,5 @@
+import resourceNetwork from './resource-network.cjs'
+const { fetchResource } = resourceNetwork
 import { createHash } from 'node:crypto'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
@@ -48,12 +50,7 @@ export function compareGameVersions(left, right) {
 
 async function fetchText(url, timeoutMs) {
   try {
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(timeoutMs),
-      headers: { Accept: 'application/json' }
-    })
-    if (!response.ok) throw new Error('HTTP ' + response.status)
-    return await response.text()
+    return await fetchResource(url, { timeoutMs, headers: { Accept: 'application/json' } })
   } catch (error) {
     const cause = error?.cause
     const detail = cause?.code ? ' [' + cause.code + ': ' + cause.message + ']' : ''

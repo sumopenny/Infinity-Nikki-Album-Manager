@@ -1276,6 +1276,14 @@
       "金涛浪涌",
       "Surging Golden Waves"
     ],
+    "1020100431": [
+      "茸茸心绪",
+      "Fluffy Feelings"
+    ],
+    "1020100455": [
+      "无声的守誓",
+      "Silent Oathkeeper"
+    ],
     "1020200002": [
       "软烟罗",
       "Misty Veil"
@@ -1423,6 +1431,10 @@
     "1020200168": [
       "映斓焦点",
       "Radiant Spotlight"
+    ],
+    "1020200170": [
+      "守夜者",
+      "Night Watcher"
     ],
     "1020200172": [
       "跳格子溪",
@@ -1699,6 +1711,10 @@
     "1020200419": [
       "绒绒抱",
       "Puffy Hug"
+    ],
+    "1020200431": [
+      "浮浮轻影",
+      "Floating Shadow"
     ],
     "1020200490": [
       "暮巷赤影",
@@ -2124,6 +2140,10 @@
       "甜心跳",
       "Cute Pulse"
     ],
+    "1020300455": [
+      "当长夜降临",
+      "When Long Night Falls"
+    ],
     "1020300490": [
       "隐游旧衫",
       "Wanderer's Pursuit"
@@ -2432,6 +2452,10 @@
       "林中漫游",
       "Roaming in the Woods"
     ],
+    "1020410277": [
+      "水光晨曦",
+      "Dawnlit Waters"
+    ],
     "1020410278": [
       "绿野信歌",
       "Verdant Song"
@@ -2551,6 +2575,10 @@
     "1020410419": [
       "漫游者",
       "Street Wanderer"
+    ],
+    "1020410455": [
+      "无人知的愿",
+      "Unknown Wish"
     ],
     "1020410490": [
       "环圃行纪",
@@ -3371,6 +3399,10 @@
     "1020500430": [
       "勇气无疆",
       "Boundless Courage"
+    ],
+    "1020500431": [
+      "微微星芒",
+      "Dimming Stars"
     ],
     "1020600001": [
       "黎明舞步",
@@ -4280,6 +4312,10 @@
       "未言之约",
       "Unspoken Vow"
     ],
+    "1020600276": [
+      "旷野的欢歌",
+      "Joyous Song"
+    ],
     "1020600277": [
       "落羽停青",
       "Fallen Feathers"
@@ -4723,6 +4759,14 @@
     "1020600430": [
       "循梦拾金",
       "Gold-Gathering Reverie"
+    ],
+    "1020600431": [
+      "迟迟孤影",
+      "A Lone Shadow"
+    ],
+    "1020600455": [
+      "踏尽长眠路",
+      "Road of Eternal Sleep"
     ],
     "1020600490": [
       "旷野同尘",
@@ -6460,9 +6504,17 @@
       "沉金旧梦",
       "Sunken Dream"
     ],
+    "1020720455": [
+      "幽径巡夜人",
+      "Shadowy Nightwatch"
+    ],
     "1020720490": [
       "无冕之辉",
       "Crownless Radiance"
+    ],
+    "1020720550": [
+      "归羽守望",
+      "Vigil of Feathers"
     ],
     "1020730001": [
       "飘摇心意",
@@ -7200,6 +7252,10 @@
       "春茸攒动",
       "Sproutborne Stirring"
     ],
+    "1020730303": [
+      "听风叩问",
+      "Wind's Inquiry"
+    ],
     "1020730304": [
       "承辉之坠",
       "Lightbearer's Fall"
@@ -7443,6 +7499,10 @@
     "1020730418": [
       "方位锚",
       "Steering Wheels"
+    ],
+    "1020730431": [
+      "声声幽扬",
+      "Haunting Sounds"
     ],
     "1020740002": [
       "素白珠韵",
@@ -8708,6 +8768,14 @@
       "往日秘藏",
       "Secrets of Past"
     ],
+    "1020760431": [
+      "盼盼归期",
+      "Longing for Return"
+    ],
+    "1020760455": [
+      "归来的呼唤",
+      "Call of Return"
+    ],
     "1020770001": [
       "温情眷恋",
       "Tender Affection"
@@ -9404,6 +9472,14 @@
       "时代奏鸣",
       "Sonata of the Age"
     ],
+    "1020770431": [
+      "翩翩无拘",
+      "Carefree Flutter"
+    ],
+    "1020770455": [
+      "执守的茧痕",
+      "Calluses of Vigilance"
+    ],
     "1020780002": [
       "含香扣",
       "Scented Clasp"
@@ -9887,6 +9963,14 @@
     "1020780430": [
       "开拓者",
       "The Trailblazer"
+    ],
+    "1020780431": [
+      "幢幢微光",
+      "Flickering Glimmers"
+    ],
+    "1020780455": [
+      "向光而行",
+      "Lightward Path"
     ],
     "1020790033": [
       "循星指引",
@@ -11700,6 +11784,10 @@
       "烈火的赞歌",
       "Hymn of Flame"
     ],
+    "1020900431": [
+      "幽幽嬉夜",
+      "Faint Night Revels"
+    ],
     "1020920012": [
       "盈盈花意",
       "Blossoming Grace"
@@ -12060,6 +12148,10 @@
       "超逸行迹",
       "Transcendent Traces"
     ],
+    "1020940200": [
+      "落日甜梦",
+      "Sunset Sweet Dream"
+    ],
     "1020940207": [
       "此时朦胧",
       "Hazy Moment"
@@ -12115,6 +12207,10 @@
     "1020940419": [
       "抱抱出发",
       "Sweet Cuddle"
+    ],
+    "1020940455": [
+      "千年的伫影",
+      "A Millennium's Vigil"
     ],
     "1020950001": [
       "炽热心意",
@@ -15788,6 +15884,14 @@
       "金涛浪涌·残响",
       "Surging Golden Waves: Faint Echoes"
     ],
+    "1022100431": [
+      "茸茸心绪·巡守",
+      "Fluffy Feelings: Patrol"
+    ],
+    "1022100455": [
+      "无声的守誓·苍守",
+      "Silent Oathkeeper: Azure Guard"
+    ],
     "1022200011": [
       "挚意相拥·新声",
       "Sincere Embrace: New Voice"
@@ -15863,6 +15967,10 @@
     "1022200164": [
       "浮想画翩翩·奇境",
       "Imaginative Painting: Wonderland"
+    ],
+    "1022200170": [
+      "守夜者·破晓",
+      "Night Watcher: Break of Day"
     ],
     "1022200173": [
       "清润明光·初阳",
@@ -16032,6 +16140,10 @@
       "万象纭纭·晚霁",
       "Myriad Wonders: Clear Night"
     ],
+    "1022200431": [
+      "浮浮轻影·巡守",
+      "Floating Shadow: Patrol"
+    ],
     "1022300012": [
       "暖绒甜梦·酣眠",
       "Warm Sweet Dream: Slumber"
@@ -16192,6 +16304,10 @@
       "焰羽独行·叛影",
       "Lone Blazefeather: Rebel"
     ],
+    "1022300455": [
+      "当长夜降临·苍守",
+      "When Long Night Falls: Azure Guard"
+    ],
     "1022410028": [
       "潺潺清溪·落照",
       "Babbling Brook: Sunset"
@@ -16296,6 +16412,10 @@
       "林中漫游·远流",
       "Roaming in the Woods: Distant Current"
     ],
+    "1022410277": [
+      "水光晨曦·暖阳",
+      "Dawnlit Waters: Warm Sun"
+    ],
     "1022410282": [
       "翎羽云游·云霞",
       "Feathered Journey: Dusk Clouds"
@@ -16335,6 +16455,10 @@
     "1022410387": [
       "新的诠释·叛影",
       "New Interpretation: Rebel"
+    ],
+    "1022410455": [
+      "无人知的愿·苍守",
+      "Unknown Wish: Azure Guard"
     ],
     "1022500001": [
       "黎明序曲·小星曲",
@@ -16815,6 +16939,10 @@
     "1022500430": [
       "勇气无疆·残响",
       "Boundless Courage: Faint Echoes"
+    ],
+    "1022500431": [
+      "微微星芒·巡守",
+      "Dimming Stars: Patrol"
     ],
     "1022600001": [
       "黎明舞步·小星曲",
@@ -17308,6 +17436,10 @@
       "未言之约·初愿",
       "Unspoken Vow: First Wish"
     ],
+    "1022600276": [
+      "旷野的欢歌·伴行",
+      "Joyous Song: Companion"
+    ],
     "1022600277": [
       "落羽停青·风息",
       "Fallen Feathers: Wind's Rest"
@@ -17607,6 +17739,14 @@
     "1022600430": [
       "循梦拾金·残响",
       "Gold-Gathering Reverie: Faint Echoes"
+    ],
+    "1022600431": [
+      "迟迟孤影·巡守",
+      "A Lone Shadow: Patrol"
+    ],
+    "1022600455": [
+      "踏尽长眠路·苍守",
+      "Road of Eternal Sleep: Azure Guard"
     ],
     "1022710001": [
       "礼焰绽响·小星曲",
@@ -18680,6 +18820,14 @@
       "沉金旧梦·残响",
       "Sunken Dream: Faint Echoes"
     ],
+    "1022720455": [
+      "幽径巡夜人·苍守",
+      "Shadowy Nightwatch: Azure Guard"
+    ],
+    "1022720550": [
+      "归羽守望·轻歌",
+      "Vigil of Feathers: Soft Melody"
+    ],
     "1022730001": [
       "飘摇心意·小星曲",
       "Swaying Heart: Star Melody"
@@ -19136,6 +19284,10 @@
       "春茸攒动·轮回",
       "Sproutborne Stirring: Cycle"
     ],
+    "1022730303": [
+      "听风叩问·释然",
+      "Wind's Inquiry: Letting Go"
+    ],
     "1022730304": [
       "承辉之坠·砥锋",
       "Lightbearer's Fall: Honed Edge"
@@ -19303,6 +19455,10 @@
     "1022730404": [
       "如影遗风·梦沼",
       "Shadowed Legacy: Dream Swamp"
+    ],
+    "1022730431": [
+      "声声幽扬·巡守",
+      "Haunting Sounds: Patrol"
     ],
     "1022740051": [
       "心绪摇曳·远方",
@@ -20092,6 +20248,14 @@
       "往日秘藏·残响",
       "Secrets of Past: Faint Echoes"
     ],
+    "1022760431": [
+      "盼盼归期·巡守",
+      "Longing for Return: Patrol"
+    ],
+    "1022760455": [
+      "归来的呼唤·苍守",
+      "Call of Return: Azure Guard"
+    ],
     "1022770001": [
       "温情眷恋·小星曲",
       "Tender Affection: Star Melody"
@@ -20591,6 +20755,14 @@
     "1022770430": [
       "时代奏鸣·残响",
       "Sonata of the Age: Faint Echoes"
+    ],
+    "1022770431": [
+      "翩翩无拘·巡守",
+      "Carefree Flutter: Patrol"
+    ],
+    "1022770455": [
+      "执守的茧痕·苍守",
+      "Calluses of Vigilance: Azure Guard"
     ],
     "1022780002": [
       "含香扣·夜渡",
@@ -21460,6 +21632,10 @@
       "烈火的赞歌·残响",
       "Hymn of Flame: Faint Echoes"
     ],
+    "1022900431": [
+      "幽幽嬉夜·巡守",
+      "Faint Night Revels: Patrol"
+    ],
     "1022920012": [
       "盈盈花意·晴窗",
       "Blossoming Grace: Sunlit Pane"
@@ -21676,6 +21852,10 @@
       "鱼尾告别曲·辉芒",
       "Farewell Tail: Radiance"
     ],
+    "1022940200": [
+      "落日甜梦·留香",
+      "Sunset Sweet Dream: Lingering Aroma"
+    ],
     "1022940207": [
       "此时朦胧·念卿",
       "Hazy Moment: Wistfulness"
@@ -21703,6 +21883,10 @@
     "1022940383": [
       "余下一人的歌·清晓",
       "Songs Left Behind: Morningtide"
+    ],
+    "1022940455": [
+      "千年的伫影·苍守",
+      "A Millennium's Vigil: Azure Guard"
     ],
     "1022950001": [
       "炽热心意·小星曲",
@@ -22740,6 +22924,14 @@
       "溺梦溯光",
       "Drowned Dreams"
     ],
+    "1023100431": [
+      "遥遥远方",
+      "The Far Distance"
+    ],
+    "1023100455": [
+      "晨昏千度",
+      "Thousandfold Twilight"
+    ],
     "1023200011": [
       "叹息之拥",
       "Sighing Embrace"
@@ -22964,6 +23156,10 @@
       "浮生昭明",
       "Fleeting Life Aglow"
     ],
+    "1023200431": [
+      "缥缥迎归",
+      "Fluttering Welcome"
+    ],
     "1023300028": [
       "鱼跃之欢",
       "Joy of Fish"
@@ -23100,6 +23296,10 @@
       "从海潮中来",
       "From the Rising Tide"
     ],
+    "1023300455": [
+      "星熄之前",
+      "Before the Stars Dim"
+    ],
     "1023410028": [
       "晶鳞添彩",
       "Colorful Scales"
@@ -23235,6 +23435,10 @@
     "1023410387": [
       "向晴空中去",
       "Toward the Open Sky"
+    ],
+    "1023410455": [
+      "长夜终曦",
+      "Dawn at Night's End"
     ],
     "1023500001": [
       "信念织昼",
@@ -23699,6 +23903,10 @@
     "1023500430": [
       "沉默纪元",
       "Silent Era"
+    ],
+    "1023500431": [
+      "渡渡遥期",
+      "Distant Promise"
     ],
     "1023600001": [
       "黑夜无阻",
@@ -24459,6 +24667,14 @@
     "1023600430": [
       "长夜孤途",
       "Long Night and Road"
+    ],
+    "1023600431": [
+      "步步相随",
+      "Steps Together"
+    ],
+    "1023600455": [
+      "曙光奔赴",
+      "Toward the Dawnlight"
     ],
     "1023710001": [
       "星火礼花",
@@ -25480,6 +25696,10 @@
       "长梦边缘",
       "At Dream's Edge"
     ],
+    "1023720455": [
+      "风过碑林",
+      "Wind Through the Steles"
+    ],
     "1023730001": [
       "落幕彩带",
       "Curtain Call"
@@ -26067,6 +26287,10 @@
     "1023730404": [
       "无瑕祈愿",
       "Flawless Wish"
+    ],
+    "1023730431": [
+      "念念余音",
+      "Lingering Echoes"
     ],
     "1023740051": [
       "温情寄语",
@@ -26816,6 +27040,14 @@
       "风霜逝影",
       "Fading Frost"
     ],
+    "1023760431": [
+      "恍恍寻迹",
+      "Hazy Search"
+    ],
+    "1023760455": [
+      "远去的深林",
+      "Distant Deepwood"
+    ],
     "1023770001": [
       "暖意传递",
       "Sharing Warmth"
@@ -27295,6 +27527,14 @@
     "1023770430": [
       "终结之誓",
       "Oath of the End"
+    ],
+    "1023770431": [
+      "眷眷执念",
+      "Remaining Obsession"
+    ],
+    "1023770455": [
+      "归心之约",
+      "Homeward Vow"
     ],
     "1023780028": [
       "波光微漾",
@@ -28116,6 +28356,10 @@
       "终夜馈赠",
       "Final Night's Gift"
     ],
+    "1023900431": [
+      "渺渺故影",
+      "Bygone Silhouette"
+    ],
     "1023920036": [
       "甜酷守护",
       "Sweet Protection"
@@ -28327,6 +28571,10 @@
     "1023940383": [
       "越过眷恋的歌",
       "Song Beyond Longing"
+    ],
+    "1023940455": [
+      "守望归处",
+      "Vigil of Homecoming"
     ],
     "1023950001": [
       "暖阳祝语",
@@ -33160,6 +33408,10 @@
       "心愿结成歌·灿然",
       "Wishwoven Song: Radiant"
     ],
+    "1026760076": [
+      "毛绒呢喃·回响",
+      "Fluffy Murmurs: Echo"
+    ],
     "1026770006": [
       "虫虫指挥·即兴",
       "Bug Commander: Impromptu"
@@ -34595,6 +34847,10 @@
     "1029760072": [
       "翠英藏辉",
       "Veiled Emerald"
+    ],
+    "1029760076": [
+      "毛绒呢喃",
+      "Fluffy Murmurs"
     ],
     "1029760090": [
       "珠泪涟涟",

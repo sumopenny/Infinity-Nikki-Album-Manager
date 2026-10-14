@@ -1,3 +1,4 @@
+const { fetchResource } = require('./resource-network.cjs')
 // 从 gongeo.us-nikki-tracker 的中英文图鉴文案提取部件/妆容名称,刷新 src/data/itemCatalog.json
 // 用法: node scripts/generate-item-catalog.cjs [gongeo仓库根目录]
 // 远程构建: node scripts/generate-item-catalog.cjs --remote [--strict]
@@ -74,35 +75,17 @@ function parseOptions(argv) {
   return options
 }
 
-function wait(milliseconds) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds))
-}
-
+/** 所有目录更新共用网络选择和一次直连兜底，JSON 无效时不重复请求。 */
 async function fetchJson(url, timeoutMs) {
-  let lastError = null
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), timeoutMs)
-    try {
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: { Accept: 'application/json', 'User-Agent': 'Infinity-Nikki-Album-Manager' }
-      })
-      if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`)
-      try {
-        return JSON.parse(await response.text())
-      } catch {
-        throw new Error(`图鉴接口返回的 JSON 无效: ${url}`)
-      }
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error)
-      lastError = new Error(`${reason}: ${url}`, { cause: error })
-      if (attempt === 0) await wait(250)
-    } finally {
-      clearTimeout(timeout)
+  return fetchResource(url, {
+    timeoutMs,
+    headers: { Accept: 'application/json', 'User-Agent': 'Infinity-Nikki-Album-Manager' }
+  }, async response => {
+    try { return JSON.parse(await response.text()) } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error
+      throw new Error(`图鉴接口返回的 JSON 无效: ${url}`)
     }
-  }
-  throw lastError instanceof Error ? lastError : new Error(String(lastError))
+  })
 }
 
 async function readSourceJson(options, lang, kind) {

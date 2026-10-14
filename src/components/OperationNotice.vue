@@ -1,4 +1,20 @@
 <script setup lang="ts">
+import { onMounted, onBeforeUnmount, ref } from 'vue'
+
+const noticeTarget = ref<HTMLElement | string>('body')
+let modalObserver: MutationObserver | undefined
+/** 原生模态窗口位于浏览器顶层；提示挂到打开的 dialog 内，避免遮挡和无法点击关闭。 */
+function updateNoticeTarget() {
+  const dialogs = document.querySelectorAll<HTMLDialogElement>('dialog[open]')
+  noticeTarget.value = dialogs[dialogs.length - 1] ?? 'body'
+}
+onMounted(() => {
+  updateNoticeTarget()
+  modalObserver = new MutationObserver(updateNoticeTarget)
+  modalObserver.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['open'] })
+})
+onBeforeUnmount(() => modalObserver?.disconnect())
+
 export type OperationNoticeTone = 'info' | 'success' | 'warning' | 'error'
 
 defineProps<{
@@ -18,7 +34,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport :to="noticeTarget">
     <Transition name="operation-notice">
       <aside
         v-if="visible"

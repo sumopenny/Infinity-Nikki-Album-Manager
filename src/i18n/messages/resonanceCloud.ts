@@ -7,8 +7,8 @@ export const resonanceCloudMessages = {
     persistent: '保持登录，直到主动退出或浏览器清除登录凭证。第一版不提供修改或找回密码，请妥善保存。',
     uploadWarning: '本地全部记录将完整覆盖云端，不受当前筛选影响。云端独有的记录会删除，本地不变。',
     downloadWarning: '云端全部记录将完整覆盖本地。本地独有的记录会删除，云端不变。建议先导出本地备份。',
-    deleteWarning: '输入当前密码并确认，将删除全部云端共鸣记录。账号、登录状态和本地记录保留。',
-    ready: '请核对账号和记录数量后确认。', success: '操作成功。', retry: '核实结果并重试', refresh: '重新读取预览',
+    deleteWarning: '确认后将删除全部云端共鸣记录。账号、登录状态和本地记录保留。',
+    ready: '请核对账号和记录数量后确认。', success: '操作成功。', loginSuccess: '登录成功', registerSuccess: '注册成功', retry: '核实结果并重试', refresh: '重新读取预览',
     errors: {
       CREDENTIAL_FORMAT: '账号名或密码格式不符合要求。', PASSWORD_MISMATCH: '两次输入的密码不一致。',
       USERNAME_TAKEN: '该账号名已被使用。', CREDENTIALS: '账号名或密码错误。', LOGIN_REQUIRED: '请重新登录。',
@@ -31,8 +31,8 @@ export const resonanceCloudMessages = {
     persistent: 'Stay signed in until you log out or your browser removes the credentials. Password changes and recovery are not available; keep your password safe.',
     uploadWarning: 'All local records will replace the cloud save, regardless of filters. Cloud-only records will be removed. Local data stays unchanged.',
     downloadWarning: 'All cloud records will replace local records. Local-only records will be removed. Cloud data stays unchanged. Export a local backup first if needed.',
-    deleteWarning: 'Enter your current password to delete all cloud resonance records. Your account, login and local records will remain.',
-    ready: 'Check the account and record counts before confirming.', success: 'Operation completed.', retry: 'Check result and retry', refresh: 'Refresh preview',
+    deleteWarning: 'Confirm to delete all cloud resonance records. Your account, login and local records will remain.',
+    ready: 'Check the account and record counts before confirming.', success: 'Operation completed.', loginSuccess: 'Logged in successfully', registerSuccess: 'Registered successfully', retry: 'Check result and retry', refresh: 'Refresh preview',
     errors: {
       CREDENTIAL_FORMAT: 'Invalid username or password format.', PASSWORD_MISMATCH: 'The passwords do not match.', USERNAME_TAKEN: 'This username is already taken.',
       CREDENTIALS: 'Incorrect username or password.', LOGIN_REQUIRED: 'Please log in again.', ACCOUNT_CHANGED: 'Another tab changed accounts. Close this dialog and log in again or refresh the page.',

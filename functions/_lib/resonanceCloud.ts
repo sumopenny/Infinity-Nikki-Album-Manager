@@ -180,7 +180,6 @@ export async function handleCloud(request: Request, env: CloudEnv): Promise<Resp
     const body = await readBody(request, action === 'delete' ? 4096 : MAX_CLOUD_BYTES + 4096)
     if (action === 'delete') {
       await limit(db, `delete:${user.id}`, 10)
-      if (typeof body.password !== 'string' || body.password.length > 256 || !(await verifyPassword(body.password, user.password_hash))) fail(401, 'CREDENTIALS')
     }
     return json(await replace(db, user, { ...body, sessionHash }, action === 'delete'))
   } catch (error) {

@@ -1,7 +1,7 @@
 import * as resonanceImport from '../../src/utils/resonance/resonanceImport'
 import * as resonanceStorage from '../../src/utils/resonance/resonanceStorage'
 import 'fake-indexeddb/auto'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import ResonanceRecords from '../../src/components/ResonanceRecords.vue'
 import { loadResonanceRecords, saveResonanceRecords } from '../../src/utils/resonance/resonanceStorage'
@@ -11,6 +11,13 @@ import { encodeSnappyLiteral } from '../utils/resonanceSnappyFixture'
 const dbName = 'infinity-nikki-album-manager'
 const HAIR = '1020100347'
 const wrappers: Array<ReturnType<typeof mount>> = []
+const originalScrollTo = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollTo')
+beforeEach(() => {
+  vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+  Object.defineProperty(HTMLElement.prototype, 'scrollTo', { configurable: true, value: vi.fn(function (this: HTMLElement, options: ScrollToOptions) {
+    this.scrollTop = options.top ?? 0
+  }) })
+})
 const savedRecord: ResonanceRecord = {
   id: '77:10347', bannerId: '77', bannerName: { zh: '示例阁', en: 'Sample Banner' }, bannerStartAt: '2026-01-01T00:00:00.000Z',
   outfitId: '10347', outfitName: { zh: '示例套装', en: 'Sample Outfit' }, rarity: 5, outfitImageUrl: '/outfit.png',
@@ -24,6 +31,8 @@ afterEach(async () => {
   wrappers.splice(0).forEach((wrapper) => wrapper.unmount())
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+  if (originalScrollTo) Object.defineProperty(HTMLElement.prototype, 'scrollTo', originalScrollTo)
+  else delete (HTMLElement.prototype as Partial<HTMLElement>).scrollTo
   await new Promise<void>((resolve) => {
     const request = indexedDB.deleteDatabase(dbName)
     request.onsuccess = request.onerror = request.onblocked = () => resolve()
@@ -181,6 +190,8 @@ describe('ResonanceRecords', () => {
     await saveResonanceRecords([oldRecord, savedRecord])
     const { wrapper, panel } = await openDialog()
     const methods = panel.querySelectorAll<HTMLButtonElement>('.resonance-choice-row:first-child button')
+    const body = panel.querySelector<HTMLElement>('.resonance-import-body')!
+    Object.defineProperty(body, 'scrollHeight', { configurable: true, value: 900 })
     methods[1]!.click()
     await flushPromises()
     const input = panel.querySelector<HTMLInputElement>('input[type="file"]')!
@@ -192,6 +203,8 @@ describe('ResonanceRecords', () => {
     panel.querySelector<HTMLButtonElement>('.resonance-import-footer .primary-button')!.click()
     await flushPromises()
     expect(panel.textContent).toContain('导入预览 (1)')
+    expect(body.scrollTop).toBe(900)
+    expect(body.scrollTo).toHaveBeenCalledWith({ top: 900, behavior: 'smooth' })
     expect(panel.querySelectorAll('.resonance-import-footer button')).toHaveLength(1)
     expect(panel.textContent).toContain('替换全部本地共鸣记录')
     expect(await loadResonanceRecords()).toEqual([oldRecord, savedRecord])
@@ -337,8 +350,23 @@ describe('ResonanceRecords', () => {
     ;(document.body.querySelector('.confirm-dialog-button.primary') as HTMLButtonElement).click()
     await vi.waitFor(async () => expect(await loadResonanceRecords()).toEqual([]))
     expect(wrapper.emitted('recordsChange')?.at(-1)?.[0]).toEqual([])
-    expect(latestNotice(wrapper)).toMatchObject({ message: '共鸣记录已清空。', tone: 'success', source: 'resonance' })
+    expect(latestNotice(wrapper)).toMatchObject({ message: '本地共鸣记录已清空，云端存档保留。', tone: 'success', source: 'resonance' })
   })
+})
+
+it.each([[false, false], [true, false], [false, true], [true, true]])('scrolls a successful Cookie preview on compact=%s reducedMotion=%s', async (compact, reducedMotion) => {
+  vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('prefers-reduced-motion') ? reducedMotion : compact, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+  vi.spyOn(resonanceImport, 'importFromPearpal').mockResolvedValueOnce({ records: [savedRecord], skippedPools: 0 })
+  const { panel } = await openDialog()
+  const body = panel.querySelector<HTMLElement>('.resonance-import-body')!
+  Object.defineProperty(body, 'scrollHeight', { configurable: true, value: 1200 })
+  await pasteCredentials(panel)
+  panel.querySelector<HTMLButtonElement>('.resonance-import-footer .primary-button')!.click()
+  await vi.waitFor(() => expect(body.scrollTop).toBe(1200))
+  expect(body.scrollTo).toHaveBeenCalledWith({ top: 1200, behavior: reducedMotion ? 'instant' : 'smooth' })
+  expect(panel.querySelector('.resonance-preview')).not.toBeNull()
+  expect(panel.querySelector('.resonance-import-footer')?.textContent).toContain('确认导入')
+  expect(await loadResonanceRecords()).toEqual([])
 })
 
 it.each([false, true])('handles partial replacement with save failure=%s', async failSaving => {
@@ -389,6 +417,8 @@ it('blocks import after a storage read failure without overwriting existing reco
 it.each(['zh', 'en'] as const)('shows actionable credential guidance instead of OK in %s', async language => {
   await saveResonanceRecords([savedRecord])
   const { wrapper, panel } = await openDialog(language)
+  const body = panel.querySelector<HTMLElement>('.resonance-import-body')!
+  body.scrollTop = 37
   await pasteCredentials(panel)
   vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json(
     { code: 0, info: 'OK' }, { headers: { 'cache-control': 'no-store' } }
@@ -398,6 +428,7 @@ it.each(['zh', 'en'] as const)('shows actionable credential guidance instead of 
   expect(latestNotice(wrapper)?.message).toContain(language === 'zh' ? '请重新登录美鸭梨并获取新凭据' : 'Sign in to Pear-Pal again and get fresh credentials')
   expect(latestNotice(wrapper)?.message).toContain(language === 'zh' ? '无痕窗口' : 'private browser window')
   expect(panel.querySelector('.resonance-preview')).toBeNull()
+  expect(body.scrollTop).toBe(37)
   expect(await loadResonanceRecords()).toEqual([savedRecord])
 })
 

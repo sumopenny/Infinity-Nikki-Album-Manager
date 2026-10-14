@@ -2,7 +2,10 @@ import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
+
+beforeEach(() => vi.stubEnv('NO_PROXY', '*'))
+afterEach(() => vi.unstubAllEnvs())
 // @ts-expect-error Native ESM build scripts are outside the frontend TypeScript compilation.
 import { compareGameVersions, formatGongeoResult, updateGongeoCatalog } from '../../scripts/update-gongeo-catalog.mjs'
 

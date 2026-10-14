@@ -1,3 +1,5 @@
+import resourceNetwork from './resource-network.cjs'
+const { fetchResource } = resourceNetwork
 import { createDecipheriv, hkdfSync } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
@@ -36,9 +38,7 @@ async function readSource(source) {
   const normalized = sourceToPathOrUrl(source)
   if (!normalized) throw new Error('缺少资源输入路径或 URL')
   if (/^https?:\/\//u.test(normalized)) {
-    const response = await fetch(normalized)
-    if (!response.ok) throw new Error(`下载失败 ${response.status}: ${normalized}`)
-    return Buffer.from(await response.arrayBuffer())
+    return fetchResource(normalized, {}, async response => Buffer.from(await response.arrayBuffer()))
   }
   return readFile(normalized)
 }

@@ -21,10 +21,20 @@ migrations_dir = "migrations-resonance"
 npx wrangler d1 migrations apply wxnn-resonance --remote
 ```
 
-4. 按现有流程构建并重新部署 Pages。若使用控制台管理绑定，在 Pages 项目的设置 → 绑定中将 `RESONANCE_DB` 关联到共鸣数据库；保持控制台与已提交 Wrangler 配置一致。
+4. 本项目包含 `pages_build_output_dir`，采用 Wrangler 配置部署后，以 `wrangler.toml` 为绑定配置来源；Git 自动构建和 Wrangler 上传均可使用该配置。控制台中的对应字段可能只读。仍由控制台管理绑定的项目，可在 Pages 设置 → Bindings → Add → D1 database bindings 中关联 `RESONANCE_DB`，保存后重新部署。不要假定 Git 部署会忽略 Wrangler 配置。
 5. Preview 环境使用另一个测试数据库并单独应用迁移，不能指向生产共鸣数据库。生产部署后验证注册、刷新登录、上传、下载、删除和退出。
 
-当前数据库已由维护者创建，仓库已配置其真实 UUID；远程迁移和 Pages 部署仍需执行。未生效的绑定会使 API 返回 `503 / NOT_CONFIGURED`，本地共鸣功能继续可用。
+根据维护者提供的执行结果，数据库创建、仓库绑定配置和首次云端迁移 `0001_cloud.sql` 已完成；线上 Pages 部署及接口验证状态需另行核实。其他部署请按自己的环境执行上述步骤。未生效的绑定会使 API 返回 `503 / NOT_CONFIGURED`，本地共鸣功能继续可用。
+
+## 页面操作与备份
+
+电脑端按钮在共鸣操作行展开，手机端通过“⋯”菜单使用。账号名／密码用于本站云同步，美鸭梨导入凭据用于获取游戏记录，两者互不替代。注册、登录不会自动上传或下载；本地导入、清空或修改也不会自动同步。登录、注册的成功和失败统一显示顶部提示，成功分别显示“登录成功”“注册成功”，失败保留表单输入。
+
+一个账号只有一份云端存档。上传以全部本地记录完整覆盖云端，下载完整覆盖本地，先核对账号和数量再确认；不受筛选影响。空本地不能上传，云端无存档不能清空本地，版本冲突需重新预览。清空本地记录不删除云端；删除云端无需再次输入密码，保留账号、会话和本地数据。
+
+全部数据 ZIP 和共鸣 JSON 只备份本地记录，不包含云端账号、密码或会话，也不自动读取云端存档。需要备份最新云端记录时，先下载再导出；导入备份不更新云端。“清除数据”清理当前浏览器数据，保留云端账号和存档，不主动撤销登录 Cookie；浏览器清除站点数据则可能移除登录凭据。
+
+构建 `npm run build:cloudflare` 只生成本地部署文件；通过 Git 推送触发 Pages 构建或在项目根目录执行 `npx wrangler pages deploy dist --project-name infinity-nikki-album-manager --branch main` 才更新线上。命令中的项目名和生产分支需与实际项目一致。
 
 ## 本地验证
 
@@ -50,11 +60,11 @@ npx wrangler pages functions build --outdir .wrangler-functions-build
 
 - 用户名为 4～32 位 ASCII 字母、数字、下划线，去除首尾空格后转为小写；密码按 Unicode 字符计数为 6～128 位，不裁剪空格。
 - 密码使用 Argon2id：19 MiB 内存、2 次迭代、并行度 1、16 字节随机盐、32 字节输出。数据库保存算法版本、盐及哈希。原始密码、会话令牌不写日志或本地存储。
-- 该实现使用现有 `@noble/hashes`，不增加密码依赖。密码哈希属于 CPU 密集操作；**D1 免费存储额度不等于 Pages Functions 的免费计算额度**。Workers Free 的 10 ms CPU 限额不能作为本实现可用的部署保证；生产使用应准备 Workers Paid 计算额度，并在实际 Pages 环境测量注册、登录和密码确认删除的 CPU。不要通过降低哈希强度规避限额。
+- 该实现使用现有 `@noble/hashes`，不增加密码依赖。密码哈希属于 CPU 密集操作；**D1 免费存储额度不等于 Pages Functions 的免费计算额度**。Workers Free 的 10 ms CPU 限额不能作为本实现可用的部署保证；生产使用应准备 Workers Paid 计算额度，并在实际 Pages 环境测量注册和登录的 CPU。不要通过降低哈希强度规避限额。
 - 本地 workerd 测试验证 API/算法可运行，不代表模拟了生产 CPU 计费限制。
 - 会话是 32 字节随机令牌，D1 仅保存 SHA-256 摘要。Cookie 使用 HttpOnly、SameSite=Strict，HTTPS 时使用 Secure；会话无服务端固定到期日，浏览器 Cookie 设置 400 天并在恢复会话时续期。浏览器仍可能主动清理凭据，不能承诺绝对永久登录。
 - 退出撤销当前设备会话；其他设备不退出。第一版无密码修改、找回和邮箱绑定。用户应自行保存密码。
-- 注册/登录按 IP 每 15 分钟最多 30 次、按账号最多 10 次；同步按账号最多 60 次；删除密码校验额外最多 10 次。跨源写请求被拒绝；所有写请求要求 JSON 和自定义请求头。
+- 注册/登录按 IP 每 15 分钟最多 30 次、按账号最多 10 次；同步按账号最多 60 次；删除操作额外最多 10 次。跨源写请求被拒绝；所有写请求要求 JSON 和自定义请求头。
 
 ## 存档与覆盖协议
 
@@ -64,7 +74,7 @@ npx wrangler pages functions build --outdir .wrangler-functions-build
 
 下载在同一 D1 批事务内读取版本和全部记录；确认时重读并核对云端版本，再在同一个 IndexedDB 事务内比较本地预览快照并替换。两边任一发生变化时阻止旧预览覆盖。
 
-空本地不能上传，云端无存档不能清空本地。删除云端要求重新输入当前密码，原子清空云端指针并清理旧版本数据，保留账号、会话和本地记录。上传/下载不受页面星级筛选影响。
+空本地不能上传，云端无存档不能清空本地。删除云端要求已登录并确认，无需重新输入密码，原子清空云端指针并清理旧版本数据，保留账号、会话和本地记录。上传/下载不受页面星级筛选影响。
 
 写请求使用 UUID 和内容摘要作为幂等标识；请求结果不明时原窗口重试同一个 ID，服务端返回已有回执，不重复覆盖。关闭窗口或刷新后丢弃内存中的待重试请求，下一次操作先重新读取云端预览。回执保留 30 天，不保留旧存档内容；中断上传最多两个，在下次写操作中清理超过 24 小时的暂存数据。无后台定时清理，长期不活跃账号的暂存数据由管理员维护。
 
@@ -81,6 +91,6 @@ npx wrangler pages functions build --outdir .wrangler-functions-build
 | POST | logout | `{}`，撤销当前会话 |
 | GET | snapshot | 返回版本、更新时间和完整记录 |
 | POST | upload | `{ requestId, revision, records }`，完整覆盖 |
-| POST | delete | `{ requestId, revision, password }`，删除云端存档 |
+| POST | delete | `{ requestId, revision }`，删除云端存档 |
 
 官方参考：[Pages D1 绑定](https://developers.cloudflare.com/pages/functions/bindings/#d1-databases)、[Pages Functions 价格](https://developers.cloudflare.com/pages/functions/pricing/)、[Workers 限制](https://developers.cloudflare.com/workers/platform/limits/)、[D1 限制](https://developers.cloudflare.com/d1/platform/limits/)。

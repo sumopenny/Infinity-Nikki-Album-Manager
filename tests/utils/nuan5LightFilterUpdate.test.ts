@@ -2,7 +2,10 @@ import { createCipheriv, hkdfSync, randomBytes } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
+
+beforeEach(() => vi.stubEnv('NO_PROXY', '*'))
+afterEach(() => vi.unstubAllEnvs())
 // @ts-expect-error Node 构建脚本保持原生 ESM，不参与前端 TypeScript 编译。
 import { updateLightFilters } from '../../scripts/update-nuan5-light-filters.mjs'
 

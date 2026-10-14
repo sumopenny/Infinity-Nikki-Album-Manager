@@ -1,4 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
+
+beforeEach(() => vi.stubEnv('NO_PROXY', '*'))
+afterEach(() => vi.unstubAllEnvs())
 // @ts-expect-error Node 构建脚本保持原生 ESM，不参与前端 TypeScript 编译。
 import { fetchJson, buildGalleryPoseEntries, GALLERY_IMAGE_TEMPLATE, mergePoseCatalog } from '../../scripts/update-nikkigallery-poses.mjs'
 
@@ -47,7 +50,7 @@ it('keeps timeout active while response headers arrive but the body stalls', asy
     init.signal.addEventListener('abort', () => reject(new Error('body aborted')), { once: true })
   }) })))
   const result = fetchJson('https://example.test/poses', 5)
-  const rejected = expect(result).rejects.toThrow('body aborted')
+  const rejected = expect(result).rejects.toMatchObject({ name: 'TimeoutError' })
   await vi.advanceTimersByTimeAsync(6)
   await rejected
   expect(vi.getTimerCount()).toBe(0)

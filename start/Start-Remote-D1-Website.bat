@@ -16,8 +16,8 @@ echo.
 echo This launcher serves the local website and proxies /api to:
 echo %REMOTE_API_ORIGIN%
 echo.
-echo WARNING: Like actions from this local website will write to
-echo the remote production database.
+echo WARNING: Likes, resonance accounts, uploads and cloud deletion
+echo affect real cloud data at the target site. Check the address above.
 echo.
 
 where node >nul 2>nul
@@ -65,15 +65,13 @@ echo Website address: http://localhost:5173
 echo Remote API origin: %REMOTE_API_ORIGIN%
 echo.
 
-start "Remote D1 Dev Server" cmd /k "cd /d ""%PROJECT_DIR%"" && npm run dev:remote -- --port 5173 --strictPort"
+start "Remote D1 Dev Server" cmd /k "cd /d ""%PROJECT_DIR%"" && npm run dev:remote -- --port 5173 --strictPort --open http://localhost:5173"
 
-echo Waiting for the website to start...
-timeout /t 4 /nobreak >nul
-
-start "" http://localhost:5173
+echo The dev server will open your browser only after startup succeeds.
+echo Resource updates may take a while. Check the dev server window for progress.
 
 echo.
-echo If the browser did not open, visit this address manually:
+echo Once the dev server reports ready, you can also visit:
 echo http://localhost:5173
 echo.
 echo Keep the dev server window open while using the site.

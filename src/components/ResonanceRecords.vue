@@ -4,7 +4,7 @@ import { useModuleOperation } from '../composables/useOperationCoordinator'
 const trackOperation = useModuleOperation('resonance')
 import CollectionActions from './CollectionActions.vue'
 import ResonanceCloudActions from './ResonanceCloudActions.vue'
-import { computed, onMounted, ref, toRaw, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, toRaw, watch } from 'vue'
 import {
   Bookmark,
   Copy,
@@ -99,6 +99,18 @@ const preview = ref<ResonanceRecord[]>([])
 const skippedPools = ref(0)
 const progressText = ref('')
 const dialogRef = ref<HTMLElement | null>(null)
+
+/** 预览渲染完成后平滑滚动正文到底部；遵循减少动态效果设置，并忽略已关闭或替换的预览。 */
+watch(preview, async (result) => {
+  if (!result.length) return
+  await nextTick()
+  if (!showAddDialog.value || preview.value !== result) return
+  const body = dialogRef.value?.querySelector<HTMLElement>('.resonance-import-body')
+  if (body) body.scrollTo({
+    top: body.scrollHeight,
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
+  })
+})
 let previousActiveElement: HTMLElement | null = null
 let activeNoticeId: string | null = null
 useBodyScrollLock(showAddDialog)
@@ -477,7 +489,7 @@ defineExpose({ reload })
         <h2 id="resonance-title">{{ t.title }}</h2>
       </div>
       <CollectionActions persistent-secondary :mobile-target="mobileActionsTarget" class="resonance-actions" :label="language === 'zh' ? '共鸣操作' : 'Resonance actions'"><button class="primary-button" type="button" :aria-label="t.addData" :title="t.addData" :disabled="disabled || cloudOpen" @click="openDialog"><Plus :size="16" aria-hidden="true" /><span class="collection-action-label">{{ t.addData }}</span></button><template #secondary>
-        <ResonanceCloudActions :language="language" :disabled="disabled || showAddDialog || showClearConfirm" @lock="cloudOpen = $event" @restored="records = $event; selectedSet = {}" @notice="notify('cloud-success', $event, 'success')" />
+        <ResonanceCloudActions :language="language" :disabled="disabled || showAddDialog || showClearConfirm" @lock="cloudOpen = $event" @restored="records = $event; selectedSet = {}" @notice="(message, tone) => notify('cloud-' + tone, message, tone)" />
         <button type="button" :disabled="disabled || cloudOpen || !records.length || clearing" @click="requestClearRecords"><Trash2 :size="16" aria-hidden="true" />{{ t.clearRecords }}</button>
         <button type="button" :disabled="disabled || cloudOpen || !records.length" @click="exportRecords"><Upload :size="16" aria-hidden="true" />{{ t.exportData }}</button>
 

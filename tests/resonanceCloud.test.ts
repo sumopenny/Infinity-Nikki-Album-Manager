@@ -88,10 +88,11 @@ describe('resonance cloud accounts and complete replacement', () => {
     await env.RESONANCE_DB!.prepare("UPDATE cloud_rate_limits SET count=10 WHERE key='account:nikki_test'").run()
     expect((await request('login', { username: 'nikki_test', password: '123456' })).status).toBe(429)
   }, 30000)
-  it('requires password for cloud deletion, preserves account/session, and permits uploading again', async () => {
-    const body = { requestId: crypto.randomUUID(), revision: 3, password: 'wrong1' }
-    expect((await request('delete', body)).status).toBe(401)
-    body.password = '123456'
+  it('requires a session but no password for cloud deletion, preserves account/session, and permits uploading again', async () => {
+    const body = { requestId: crypto.randomUUID(), revision: 3 }
+    expect((await request('delete', body, { Cookie: '' })).status).toBe(401)
+    expect((await request('delete', body, { 'X-Resonance-Account': 'another-user' })).status).toBe(409)
+    expect((await request('delete', { ...body, revision: 2 })).status).toBe(409)
     expect((await request('delete', body)).status).toBe(200)
     expect(await (await request('delete', body)).json()).toMatchObject({ revision: 4, replayed: true })
     expect(await (await request('snapshot')).json()).toMatchObject({ revision: 4, active_snapshot: null, records: [] })

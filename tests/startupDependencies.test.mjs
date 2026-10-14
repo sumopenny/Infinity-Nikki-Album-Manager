@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
+import { createServer as createHttpServer, get as httpGet } from 'node:http'
 import { ensureDependencies, inspectDependencies } from '../start/ensure-dependencies.mjs'
 
 const repoDir = dirname(dirname(fileURLToPath(import.meta.url)))
@@ -136,18 +137,87 @@ test('Windows install dispatch uses npm ci with dev dependencies and propagates 
   assert.equal(existsSync(stateFile(dir)), false)
 })
 
-test('both Windows launchers stop before opening the website when the dependency check fails', { skip: process.platform !== 'win32' }, (t) => {
-  for (const name of ['Start-Project.bat', 'Start-Remote-D1-Website.bat']) {
-    const dir = fixture(t)
-    const startDir = join(dir, 'start')
-    mkdirSync(startDir)
-    copyFileSync(join(repoDir, 'start', name), join(startDir, name))
-    writeFileSync(join(startDir, 'ensure-dependencies.mjs'), 'process.exit(1)\n')
-    const result = spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', name], {
-      cwd: startDir, input: '\r\n', encoding: 'utf8', timeout: 10000
+test('the remote D1 launcher stops before opening the website when the dependency check fails', { skip: process.platform !== 'win32' }, (t) => {
+  const name = 'Start-Remote-D1-Website.bat'
+  const dir = fixture(t)
+  const startDir = join(dir, 'start')
+  mkdirSync(startDir)
+  copyFileSync(join(repoDir, 'start', name), join(startDir, name))
+  writeFileSync(join(startDir, 'ensure-dependencies.mjs'), 'process.exit(1)\n')
+  // 只验证启动脚本的失败短路，不依赖测试机全局安装 npm/node。
+  const fakeBin = join(dir, 'launcher-bin')
+  mkdirSync(fakeBin)
+  writeFileSync(join(fakeBin, 'npm.cmd'), '@echo off\r\nexit /b 0\r\n')
+  const env = { ...process.env }
+  const pathKey = Object.keys(env).find(key => key.toLowerCase() === 'path') || 'Path'
+  env[pathKey] = fakeBin + ';' + dirname(process.execPath) + ';' + env[pathKey]
+  const result = spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', name], {
+    cwd: startDir, env, input: '\r\n', encoding: 'utf8', timeout: 10000
+  })
+  assert.equal(result.status, 1, result.stdout + result.stderr)
+  assert.match(result.stdout, /Website startup stopped/)
+  assert.doesNotMatch(result.stdout, /Starting local website/)
+})
+
+/** 使用真实 Vite 生命周期验证监听成功才打开，避免用固定延时模拟“就绪”。 */
+test('launcher browser opening waits for Vite initialization and a listening HTTP server', async t => {
+  const batch = readFileSync(join(repoDir, 'start/Start-Remote-D1-Website.bat'), 'ascii')
+  assert.match(batch, /npm run dev:remote/)
+  assert.match(batch, /--port 5173 --strictPort --open http:\/\/localhost:5173/)
+  assert.doesNotMatch(batch, /timeout \/t 4|start "" http:\/\/localhost:5173/)
+  const { createServer } = await import('vite')
+  const dir = fixture(t)
+  writeFileSync(join(dir, 'index.html'), '<html><body>startup-ready-test</body></html>')
+  const reserved = createHttpServer()
+  await new Promise(resolve => reserved.listen(0, '127.0.0.1', resolve))
+  const port = reserved.address().port
+  await new Promise(resolve => reserved.close(resolve))
+  let release, initialized
+  const gate = new Promise(resolve => { release = resolve })
+  const entered = new Promise(resolve => { initialized = resolve })
+  const server = await createServer({ configFile: false, root: dir, logLevel: 'silent',
+    css: { postcss: {} },
+    optimizeDeps: { noDiscovery: true, include: [] },
+    server: { host: '127.0.0.1', port, strictPort: true, open: true },
+    plugins: [{ name: 'startup-gate', async buildStart() { initialized(); await gate } }] })
+  t.after(() => server.close())
+  let opened = 0, response
+  // 截获浏览器打开动作，验证 HTTP 可访问，不启动测试机的默认浏览器。
+  server.openBrowser = () => {
+    opened++
+    assert.equal(server.httpServer.listening, true)
+    response = new Promise((resolve, reject) => {
+      httpGet(`http://127.0.0.1:${port}/`, { agent: false }, result => {
+        let html = ''
+        result.on('data', data => { html += data })
+        result.on('end', () => resolve({ status: result.statusCode, html }))
+      }).on('error', reject)
     })
-    assert.equal(result.status, 1, result.stdout + result.stderr)
-    assert.match(result.stdout, /Website startup stopped/)
-    assert.doesNotMatch(result.stdout, /Starting local website/)
   }
+  const starting = server.listen()
+  await entered
+  assert.equal(opened, 0)
+  assert.equal(server.httpServer.listening, false)
+  release()
+  await starting
+  assert.equal(opened, 1)
+  const result = await response
+  assert.equal(result.status, 200)
+  assert.match(result.html, /startup-ready-test/)
+})
+
+test('a strict-port startup failure never opens the browser', async t => {
+  const { createServer } = await import('vite')
+  const occupied = createHttpServer()
+  await new Promise(resolve => occupied.listen(0, '127.0.0.1', resolve))
+  t.after(() => new Promise(resolve => occupied.close(resolve)))
+  const server = await createServer({ configFile: false, root: fixture(t), logLevel: 'silent',
+    css: { postcss: {} },
+    optimizeDeps: { noDiscovery: true, include: [] },
+    server: { host: '127.0.0.1', port: occupied.address().port, strictPort: true, open: true } })
+  t.after(() => server.close())
+  let opened = 0
+  server.openBrowser = () => { opened++ }
+  await assert.rejects(server.listen(), /already in use/)
+  assert.equal(opened, 0)
 })

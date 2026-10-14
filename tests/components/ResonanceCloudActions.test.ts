@@ -29,6 +29,46 @@ const submit = async () => { panel().querySelector('form')!.dispatchEvent(new Ev
 const click = async (w: ReturnType<typeof mount>, text: string) => { await w.findAll('button').find(b => b.text() === text)!.trigger('click'); await settled() }
 
 describe('cloud menu and confirmations', () => {
+  it.each([['登录', 'login', '登录成功'], ['注册', 'register', '注册成功']])('reports %s success with a specific top notice', async (label, action, success) => {
+    api.mockImplementation(async request => request === 'session' ? { user: null } : { user })
+    const w = mount(ResonanceCloudActions, { props: { language: 'zh' } }); wrappers.push(w)
+    await flushPromises(); await click(w, label)
+    for (const input of panel().querySelectorAll<HTMLInputElement>('input')) {
+      input.value = input.name === 'username' ? 'nikki' : 'abcdef'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    await submit()
+    expect(api.mock.calls.some(([name]) => name === action)).toBe(true)
+    expect(w.emitted('notice')?.at(-1)).toEqual([success, 'success'])
+  })
+  it.each([['登录', 'CREDENTIALS', '账号名或密码错误。'], ['注册', 'USERNAME_TAKEN', '该账号名已被使用。']])('reports %s failures at the top and retains the form', async (label, code, message) => {
+    api.mockImplementation(async request => { if (request === 'session') return { user: null }; throw new Error(code) })
+    const w = mount(ResonanceCloudActions, { props: { language: 'zh' } }); wrappers.push(w)
+    await flushPromises(); await click(w, label)
+    for (const input of panel().querySelectorAll<HTMLInputElement>('input')) {
+      input.value = input.name === 'username' ? 'nikki' : 'abcdef'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    await submit()
+    expect(w.emitted('notice')?.at(-1)).toEqual([message, 'error'])
+    expect(panel().querySelector('.resonance-cloud-error')).toBeNull()
+    expect(panel().hasAttribute('open')).toBe(true)
+    expect(panel().querySelector<HTMLInputElement>('[name=username]')?.value).toBe('nikki')
+  })
+  it('deletes only after confirmation without a password and preserves local records', async () => {
+    await saveResonanceRecords([record('local')])
+    api.mockImplementation(async action => action === 'session' ? { user } : { revision: 1, active_snapshot: 'save', records: [record('cloud')] })
+    const w = mount(ResonanceCloudActions, { props: { language: 'zh' } }); wrappers.push(w)
+    await flushPromises(); await click(w, '删除云端存档')
+    expect(panel().querySelector('input[type=password]')).toBeNull()
+    expect(panel().textContent).toContain('确认后将删除全部云端共鸣记录')
+    expect(api.mock.calls.filter(([action]) => action === 'delete')).toHaveLength(0)
+    await submit()
+    const calls = api.mock.calls.filter(([action]) => action === 'delete')
+    expect(calls).toHaveLength(1)
+    expect(calls[0][2]).toEqual({ requestId: expect.any(String), revision: 1 })
+    expect(await loadResonanceRecords()).toEqual([record('local')])
+  })
   it('keeps mobile authentication dialog mounted after the ellipsis menu closes and after a breakpoint change', async () => {
     let listener: (() => void) | undefined
     const query = { matches: true, addEventListener: (_: string, cb: () => void) => { listener = cb }, removeEventListener: vi.fn() }

@@ -3,7 +3,7 @@
 <div align="center">
   <img src="img/wxnn.ico" alt="Nikki³ NikkiCube" width="72" height="72">
   <p><strong>Nikki³ · Infinity Nikki Toolkit</strong></p>
-  <p>NikkiCube runs locally in your browser to manage albums, outfit codes, photo parameters, and targeted cleanup.</p>
+  <p>NikkiCube manages albums, outfit codes, home schemes, camera parameters and resonance records in your browser, with optional resonance cloud sync and targeted cleanup.</p>
   <p style="color: orange;">If you run into any issues, please fill out the survey in the site's Feedback section, or report them through GitHub/Gitee Issues or the author's social platforms.</p>
   <p>
     <a href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases">GitHub Releases</a> ·
@@ -52,7 +52,7 @@
 - Batch actions appear above bottom navigation, with select-all, export and related-image cleanup directly available. Existing deletion confirmations remain in place.
 - Large previews support horizontal swipes, pinch zoom and panning after zooming. Ending a pinch does not turn the page. The mobile preview toolbar keeps at least 12px of horizontal spacing and 20px corners, with buttons wrapping on narrow screens. Mobile dialogs keep at least 12px of horizontal spacing and 20px corners. Editors keep headers and save actions fixed, scroll the form and adapt to the visible viewport when the keyboard opens.
 - The camera favorite editor uses 16px text for the parameter code on phones, matching the name field; desktop keeps its compact 12px code text.
-- To transfer between devices, export a full data ZIP from More on your computer and import it from More on your phone. The empty outfit list also provides a full-data import entry.
+- For resonance, upload on the source device, then sign in to the same account and download on the destination. Transfer outfits, home schemes and camera favorites using full-data ZIP export/import in More; the empty outfit list also provides an import entry. Login and local edits do not sync automatically.
 - Full-data import/export also works when a phone uses a Network HTTP address shown by the local server. SHA-256 verification automatically uses a fallback implementation without changing the backup format.
 
 ## Outfit codes
@@ -103,15 +103,17 @@ Home scheme batch deletion only affects selected schemes in the current filtered
 
 ### Resonance records
 
-Resonance supports username/password registration and login, Upload to cloud, Sync from cloud, and Delete cloud save. Actions stay expanded on desktop and appear in the ellipsis menu on phones. Each account has one save. Upload replaces the entire cloud save with all local records; download replaces all local records. Both require account/count confirmation and ignore display filters. Empty sources never clear the destination; conflicts require a fresh preview. Interrupted writes do not publish partial saves. Login, logout and cloud deletion preserve local records; cloud deletion requires the current password.
+Resonance supports username/password registration and login, Upload to cloud, Sync from cloud, and Delete cloud save. Actions stay expanded on desktop and appear in the ellipsis menu on phones. Each account has one save. Upload replaces the entire cloud save with all local records; download replaces all local records. Both require account/count confirmation and ignore display filters. Empty sources never clear the destination; conflicts require a fresh preview. Interrupted writes do not publish partial saves. Login, logout and cloud deletion preserve local records; cloud deletion requires confirmation while signed in, without entering the password again. Login and registration results appear in the top notice, with distinct success messages; failures retain form input.
 
-Usernames contain 4–32 ASCII letters, digits or underscores and are case-insensitive. Passwords contain 6–128 characters. Sessions persist until logout, browser credential removal or similar events. Password changes and recovery are not available in this first version. Cloud data uses Pages Functions with a separate D1 `RESONANCE_DB`, one JSON record per row. Create the database, apply migrations and configure the binding before deployment. See the [deployment guide](docs/resonance-cloud.md), including the Pages Functions CPU requirements for Argon2id password hashing.
+Usernames contain 4–32 ASCII letters, digits or underscores and are case-insensitive. Passwords contain 6–128 characters. Login does not upload or download automatically, and local imports or edits do not update the cloud. Clearing local records leaves the cloud save intact. Sessions persist until logout, browser credential removal or similar events. Password changes and recovery are not available in this first version. Cloud data uses Pages Functions with a separate D1 `RESONANCE_DB`, one JSON record per row. Create the database, apply migrations and configure the binding before deployment. See the [deployment guide](docs/resonance-cloud.md), including the Pages Functions CPU requirements for Argon2id password hashing. Pear-Pal import credentials fetch game records and are separate from this site’s cloud-sync username and password. Full-data ZIPs and resonance JSON back up local records without cloud accounts, passwords or sessions. Importing a backup does not update the cloud; download the latest cloud records before exporting if needed.
 
 For local cloud-sync development, use `npm run dev:remote`: like likes, it calls deployed Pages Functions backed by real cloud D1. Set `REMOTE_API_ORIGIN` in `.env.remote.local` to the deployed site. The same account accesses the same cloud save from local and deployed sites, with separate login sessions. Redeploy Pages after backend changes; plain `dev` and locally emulated `dev:pages` are not this remote workflow.
 
 Cloud login, registration and sync confirmations share the existing Resonance dialog appearance, with fixed headers and actions and a separately scrolling body. Phones use shared safe-area spacing, 20px corners and 16px input text. Scroll locks remain active until the closing animation finishes.
 
 Import resonance records from the Mainland China Whim-Log or a local JSON file, preview first, then save. View outfit sets and the first/second-set piece pull counts, total pulls and averages per banner, with sorting, rarity filtering, and JSON export.
+
+On desktop and phones, a successful resonance import preview smoothly scrolls the dialog body to the bottom to show the results (instantly when the system prefers reduced motion), with Confirm import in the footer. Failed previews keep the current scroll position, and previewing never saves records automatically.
 
 If credential verification fails, role information is missing, or the notebook API requires sign-in, the app asks you to sign in to Pear-Pal again and get fresh credentials. If the error persists, sign in and get new credentials in a private browser window, then try again.
 
@@ -231,8 +233,9 @@ Browsers block web pages from accessing system folders. Please select `NikkiPhot
 ## Privacy and Safety
 
 - Photos are read locally in your browser.
+- Resonance cloud sync contacts this site’s Pages service. Manual upload stores resonance records in cloud D1 without uploading local photos. Other collections remain browser-stored; cloud sync covers resonance only.
 - Photo-tail extraction, account-key derivation, AES decryption, and CameraParams parsing run locally inside WASM; photos and parsed results are not uploaded.
-- Album folder authorization, Favorites, and outfit-code, home-scheme-code, and photo-action parse results are stored locally in the current browser. Clear cache in More clears these three parse caches without affecting other authorizations, settings, saved schemes or tags. After confirmation, Clear data permanently deletes all schemes, images, tags, resonance records, favorites, parse caches, UIDs, saved directory handles, game sources and migration records in this browser. It also clears local and session settings, then reloads to the initial state for the current device. This cannot be undone; export a backup first. Clearing site data in the browser itself may also delete local records.
+- Album folder authorization, Favorites, and outfit-code, home-scheme-code, and photo-action parse results are stored locally in the current browser. Clear cache in More clears these three parse caches without affecting other authorizations, settings, saved schemes or tags. After confirmation, Clear data permanently deletes all schemes, images, tags, resonance records, favorites, parse caches, UIDs, saved directory handles, game sources and migration records in this browser. It also clears local and session settings, then reloads to the initial state for the current device. This cannot be undone; export a backup first. This preserves cloud accounts and saves without actively signing out. Clearing site data through browser settings may also remove local records and login credentials; uploaded cloud saves remain.
 - Browser security policies may require folder authorization again.
 - Delete and Special Cleanup modify real files on your computer; Clear cache and Clear data do not delete real photos, `clothe`, `trash`, or other files on your computer.
 
@@ -260,12 +263,12 @@ Both commands should print version numbers, which means installation succeeded. 
 
 1. Download and extract the project from [GitHub Releases](https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases) or [Gitee Releases](https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager/releases), or clone the source repository.
 2. Double-click `网站启动器.exe` in the project root.
-3. On first run, dependencies are installed automatically and `http://localhost:5173` opens.
+3. On first run, dependencies are installed automatically. The browser opens `http://localhost:5173` only after resource updates finish and the dev server successfully starts listening. It does not open during updates or after a startup failure or port conflict; check the dev server window for errors.
 4. Keep the window open while using it.
 
-If the launcher is unavailable, double-click `start\Start-Remote-D1-Website.bat`, or use the development commands below to start manually. The root `网站启动器.exe` also uses this remote D1 launcher.
+Local startup uses remote D1 mode exclusively; the standalone launcher without D1 has been removed. If the launcher is unavailable, double-click `start\Start-Remote-D1-Website.bat`, or use the development commands below to start manually. The root `网站启动器.exe` also uses this remote D1 launcher.
 
-To run the local site against the online D1 data, double-click `start\Start-Remote-D1-Website.bat`. The local server proxies outfit-code data, home-scheme data, and Gongeo catalog details directly to their upstream services; D1 requests such as likes go to the deployed Pages API, so the browser never receives D1 credentials. Production deployments expose same-origin data proxies at `functions/api/gongeo/[[path]].ts` and `functions/api/home-build/[key].ts`. Like actions from this local site write to the online database; use this launcher carefully. The script defaults to `https://infinity-nikki-album-manager.pages.dev`, and accepts another Pages URL as its first argument.
+The local site uses online D1 data; double-click `start\Start-Remote-D1-Website.bat`. The local server proxies outfit-code data, home-scheme data, and Gongeo catalog details directly to their upstream services; Likes, resonance accounts and cloud-sync requests go to the deployed Pages API, so the browser never receives D1 credentials. Production deployments expose same-origin data proxies at `functions/api/gongeo/[[path]].ts` and `functions/api/home-build/[key].ts`. Likes, resonance registration, uploads and cloud deletion affect the target site’s real cloud data; check the target address first. The script defaults to `https://infinity-nikki-album-manager.pages.dev`, and accepts another Pages URL as its first argument.
 
 ### Development Commands
 
@@ -279,7 +282,6 @@ Home operations distinguish permission, storage capacity, image, data, and tag c
 
 ```bash
 npm install       # Install dependencies
-npm run dev       # Refresh poses, lights/filters, bilingual item catalogs, and Gongeo mappings before starting the dev server
 set REMOTE_API_ORIGIN=https://infinity-nikki-album-manager.pages.dev
 npm run dev:remote # Refresh poses, lights/filters, item catalogs, and Gongeo mappings; proxy outfit and home-scheme data to storage and other /api calls to Pages
 npm test          # Run automated tests
@@ -292,6 +294,8 @@ npm run preview   # Preview the build result
 EXE launcher, `dev`, `dev:remote`, and Cloudflare builds share one resource-update chain.
 
 The local EXE launcher, `dev`, `dev:remote`, and Cloudflare builds share the resource update chain. Lights/filters check database and bilingual language-pack versions in Nikki Albums' remote hot-update manifest. Changed versions trigger downloads and validation; only light/filter names, ID mappings, and image templates are replaced, preserving normal poses and Momo data. Matching versions skip resource downloads. Failures print a warning and keep the existing snapshot. Standard `npm run build` only type-checks and builds.
+
+Resource updates first check HTTPS_PROXY/HTTP_PROXY (including lowercase names), then enabled manual Windows system proxies. Only reachable local HTTP/HTTPS proxies are used; common ports are not scanned. With no configured or listening proxy, requests connect directly. A proxy connection failure or timeout triggers one direct attempt and switches subsequent requests in that process to direct access. HTTP errors and validation failures are not retried. Failed updates retain local resources and startup continues; explicit --strict mode still fails. NO_PROXY is respected, with local addresses bypassed by default. Detection applies only to resource-update requests and does not change system proxy settings, npm configuration or website API forwarding. PAC and SOCKS settings are not detected.
 
 The light/filter script accepts `--force` to refresh, `--strict` to fail on errors, and `--manifest <URL>` / `--timeout <milliseconds>`. Environment overrides are `NUAN5_HOT_UPDATE_MANIFEST` for the remote manifest URL and `NUAN5_HOT_UPDATE_TIMEOUT_MS` for the timeout (15000 milliseconds by default). When passing options through npm, put `--` before them.
 

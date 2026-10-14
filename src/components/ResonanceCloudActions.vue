@@ -11,7 +11,7 @@ import { loadResonanceRecords, replaceResonanceRecordsIfUnchanged } from '../uti
 import type { ResonanceRecord } from '../utils/resonance/resonanceTypes'
 
 const props = defineProps<{ language: 'zh' | 'en'; disabled?: boolean }>()
-const emit = defineEmits<{ lock: [value: boolean]; restored: [records: ResonanceRecord[]]; notice: [message: string] }>()
+const emit = defineEmits<{ lock: [value: boolean]; restored: [records: ResonanceRecord[]]; notice: [message: string, tone: 'success' | 'error'] }>()
 type Action = 'login' | 'register' | 'upload' | 'download' | 'delete'
 const user = ref<CloudUser | null>(null)
 const action = ref<Action>('login')
@@ -27,7 +27,7 @@ const local = ref<ResonanceRecord[]>([])
 const localJSON = ref('')
 const dialog = ref<HTMLDialogElement | null>(null)
 let opener: HTMLElement | null = null
-let pending: { requestId: string; revision: number; records?: ResonanceRecord[]; password?: string } | null = null
+let pending: { requestId: string; revision: number; records?: ResonanceRecord[] } | null = null
 const t = computed(() => resonanceCloudMessages[props.language])
 const auth = computed(() => action.value === 'login' || action.value === 'register')
 const track = useModuleOperation('resonance-cloud')
@@ -62,7 +62,8 @@ async function run(task: () => Promise<void>) {
   try { await track(task) }
   catch (cause) {
     error.value = cause instanceof Error ? cause.message : 'SERVER_ERROR'
-    if (error.value === 'CREDENTIALS' && action.value === 'delete') pending = null
+    // 登录注册失败保留表单，通过统一顶部提示报告，不在弹窗内重复显示。
+    if (auth.value) emit('notice', message.value, 'error')
     if (['LOGIN_REQUIRED', 'ACCOUNT_CHANGED'].includes(error.value)) user.value = null
   } finally { busy.value = false }
 }
@@ -126,13 +127,13 @@ async function submit() {
       if (!pending) {
         if (action.value === 'upload' && JSON.stringify(await loadResonanceRecords()) !== localJSON.value) throw new Error('LOCAL_CHANGED')
         pending = { requestId: crypto.randomUUID(), revision: snapshot.value.revision,
-          ...(action.value === 'upload' ? { records: JSON.parse(localJSON.value) } : { password: password.value }) }
+          ...(action.value === 'upload' ? { records: JSON.parse(localJSON.value) } : {}) }
       }
       // 超时重试使用同一请求 ID 和数据，服务端先查询提交回执再决定是否写入。
       await cloudRequest(action.value, user.value, pending)
     }
     pending = null; password.value = ''; confirmation.value = ''; visible.value = false
-    emit('notice', t.value.success)
+    emit('notice', action.value === 'login' ? t.value.loginSuccess : action.value === 'register' ? t.value.registerSuccess : t.value.success, 'success')
   })
 }
 
@@ -145,7 +146,7 @@ async function logout() {
       await refreshSession()
       if (user.value) throw cause
     }
-    emit('notice', t.value.success)
+    emit('notice', t.value.success, 'success')
   })
   if (error.value) { action.value = 'login'; visible.value = true }
 }
@@ -167,7 +168,7 @@ async function logout() {
     <dialog ref="dialog" class="resonance-cloud-dialog" :aria-label="t[action]" @cancel.prevent="close">
       <Transition name="confirm-dialog" @before-enter="modal.beforeEnter" @before-leave="modal.beforeLeave" @after-leave="modal.afterLeave">
       <div v-if="visible" class="dialog-overlay resonance-import-dialog" @click.self="close">
-      <form class="dialog-panel resonance-import-panel resonance-cloud-panel" @submit.prevent="submit">
+      <form class="dialog-panel resonance-import-panel resonance-cloud-panel" :novalidate="auth" @submit.prevent="submit">
         <header><h2>{{ t[action] }}</h2><button type="button" :disabled="busy" :aria-label="t.cancel" @click="close"><X :size="20" /></button></header>
         <div class="resonance-import-body resonance-cloud-body">
         <template v-if="auth">
@@ -181,10 +182,9 @@ async function logout() {
           <p><strong>{{ t.account }}: {{ user?.username }}</strong></p>
           <p>{{ action === 'upload' ? t.uploadWarning : action === 'download' ? t.downloadWarning : t.deleteWarning }}</p>
           <p v-if="snapshot">{{ t.local }}: {{ local.length }} {{ t.count }} · {{ t.remote }}: {{ snapshot.records.length }} {{ t.count }}</p>
-          <label v-if="action === 'delete'">{{ t.password }}<input v-model="password" type="password" name="delete-password" autocomplete="current-password" required :disabled="busy || !!pending" /></label>
           <p v-if="snapshot">{{ t.ready }}</p>
         </template>
-        <p v-if="error" class="resonance-cloud-error" role="alert">{{ message }}</p>
+        <p v-if="error && !auth" class="resonance-cloud-error" role="alert">{{ message }}</p>
         </div>
         <footer class="resonance-import-footer">
           <button type="button" class="confirm-dialog-button ghost" :disabled="busy" @click="close">{{ t.cancel }}</button>

@@ -1,3 +1,5 @@
+import resourceNetwork from './resource-network.cjs'
+const { fetchResource } = resourceNetwork
 import { readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -24,15 +26,7 @@ function parseArgs(argv) {
 
 /** 超时覆盖响应头及 JSON 正文读取，正文完成前不能清除中止定时器。 */
 export async function fetchJson(url, timeoutMs) {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    const response = await fetch(url, { signal: controller.signal })
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`)
-    return await response.json()
-  } finally {
-    clearTimeout(timeout)
-  }
+  return fetchResource(url, { timeoutMs }, response => response.json())
 }
 
 /** 严格校验外部动作记录，避免异常或不完整响应覆盖可用的静态目录。 */
