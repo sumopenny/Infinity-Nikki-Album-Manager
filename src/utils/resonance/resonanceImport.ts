@@ -55,6 +55,7 @@ async function postPearpal(action: 'verify' | 'snapshot', credentials: Resonance
   return response
 }
 
+/** 验证必须包含角色 UID；缺少角色时统一提示重新登录，不能把上游 OK 当成错误原因。 */
 async function verifyPearpalUid(credentials: ResonanceCredentials, signal?: AbortSignal): Promise<void> {
   const response = await postPearpal('verify', credentials, signal)
   const payload = await response.json() as {
@@ -64,7 +65,7 @@ async function verifyPearpalUid(credentials: ResonanceCredentials, signal?: Abor
   }
   const role = payload.data?.role
   if (payload.code !== 0 || !role || role.uid === undefined || role.uid === null) {
-    throw new Error(payload.info || PEARPAL_AUTH_FAILED)
+    throw new Error(PEARPAL_AUTH_FAILED)
   }
   if (String(role.uid) !== credentials.roleid.trim() || (role.zone_id !== undefined && role.zone_id !== 1)) {
     throw new Error(PEARPAL_UID_MISMATCH)
@@ -101,7 +102,7 @@ function toPullRow(row: PearpalRow) {
   }
 }
 
-/** 先核对用户 UID，再解压手账快照并逐卡池转换；单池解析失败不会覆盖该池本地数据。 */
+/** 先核对用户 UID，再解压手账快照并逐卡池转换；仅成功解析的记录进入整批替换预览。 */
 export async function importFromPearpal(
   credentials: ResonanceCredentials,
   onProgress?: (value: ResonanceImportProgress) => void,
@@ -111,6 +112,11 @@ export async function importFromPearpal(
   await verifyPearpalUid(credentials, signal)
   signal?.throwIfAborted()
   const response = await postPearpal('snapshot', credentials, signal)
+  // 登录失效时快照返回 JSON 而非 Snappy，先识别登录错误，避免显示解压异常。
+  if (response.headers.get('content-type')?.includes('application/json')) {
+    const payload = await response.clone().json() as { code?: number }
+    if (payload.code === 1801) throw new Error(PEARPAL_AUTH_FAILED)
+  }
   const decoded = decodePearpal(await response.arrayBuffer()) as { info_from_self?: { gacha_list?: unknown } }
   signal?.throwIfAborted()
   const gachaList = asGachaRows(decoded?.info_from_self?.gacha_list)

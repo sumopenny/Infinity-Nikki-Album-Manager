@@ -35,16 +35,16 @@ describe('mobile modal transition lifecycle', () => {
     open.value = true
     await flushPromises()
     expect(document.activeElement).toBe(panel.value)
-    expect(document.body.style.overflow).toBe('hidden')
+    expect(document.body.style.overflow).toBe('clip')
     open.value = false
     motion.beforeLeave(panel.value!)
     await flushPromises()
     expect(panel.value!.hasAttribute('inert')).toBe(true)
-    expect(document.body.style.overflow).toBe('hidden')
+    expect(document.body.style.overflow).toBe('clip')
     expect(document.activeElement).not.toBe(trigger)
     motion.afterLeave(panel.value!)
     await flushPromises()
-    expect(document.body.style.overflow).not.toBe('hidden')
+    expect(document.body.style.overflow).not.toBe('clip')
     expect(document.activeElement).toBe(trigger)
   })
 
@@ -65,10 +65,10 @@ describe('mobile modal transition lifecycle', () => {
     motion.beforeLeave(panel.value!)
     motion.afterLeave(previous)
     await flushPromises()
-    expect(document.body.style.overflow).toBe('hidden')
+    expect(document.body.style.overflow).toBe('clip')
     motion.afterLeave(panel.value!)
     await flushPromises()
-    expect(document.body.style.overflow).not.toBe('hidden')
+    expect(document.body.style.overflow).not.toBe('clip')
   })
 
   it('does not steal focus from the next dialog after exit', async () => {
@@ -91,12 +91,12 @@ describe('mobile modal transition lifecycle', () => {
     await flushPromises()
     enabled.value = false
     await flushPromises()
-    expect(document.body.style.overflow).not.toBe('hidden')
+    expect(document.body.style.overflow).not.toBe('clip')
     enabled.value = true
     await flushPromises()
-    expect(document.body.style.overflow).toBe('hidden')
+    expect(document.body.style.overflow).toBe('clip')
     wrapper.unmount()
     wrappers.pop()
-    expect(document.body.style.overflow).not.toBe('hidden')
+    expect(document.body.style.overflow).not.toBe('clip')
   })
 })

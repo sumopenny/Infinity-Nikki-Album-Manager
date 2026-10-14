@@ -19,7 +19,8 @@ export function useModalFocus(active: Ref<boolean>, panel: Ref<HTMLElement | nul
       previous = trigger?.value ?? document.activeElement as HTMLElement | null
       await nextTick()
       if (!active.value) return
-      panel.value?.focus()
+      // 打开浮层只转移键盘焦点，不改变被锁定页面的滚动位置。
+      panel.value?.focus({ preventScroll: true })
       document.addEventListener('keydown', keydown)
     } else {
       document.removeEventListener('keydown', keydown)

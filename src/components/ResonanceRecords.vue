@@ -3,10 +3,10 @@ import { useLatestRequest } from '../composables/useLatestRequest'
 import { useModuleOperation } from '../composables/useOperationCoordinator'
 const trackOperation = useModuleOperation('resonance')
 import CollectionActions from './CollectionActions.vue'
+import ResonanceCloudActions from './ResonanceCloudActions.vue'
 import { computed, onMounted, ref, toRaw, watch } from 'vue'
 import {
   Bookmark,
-  Cloud,
   Copy,
   ExternalLink,
   FileUp,
@@ -73,6 +73,7 @@ type ImportMethod = 'pearpal' | 'file'
 
 const records = ref<ResonanceRecord[]>([])
 const recordsLoaded = ref(false)
+const cloudOpen = ref(false)
 const selectedSet = ref<Record<string, 1 | 2>>({})
 const showAddDialog = ref(false)
 const showClearConfirm = ref(false)
@@ -181,7 +182,7 @@ function toggleSet(record: ResonanceRecord) {
 }
 
 function openDialog() {
-  if (props.disabled) return
+  if (props.disabled || cloudOpen.value) return
   clearNotice()
   invalidatePreview()
   showAddDialog.value = true
@@ -257,7 +258,7 @@ async function createFilePreview() {
 }
 
 function exportRecords() {
-  if (props.disabled) return
+  if (props.disabled || cloudOpen.value) return
   if (!records.value.length) return
   try {
     const blob = new Blob([JSON.stringify(createResonanceExport(records.value), null, 2)], {
@@ -475,10 +476,10 @@ defineExpose({ reload })
         <p class="eyebrow">RESONANCE</p>
         <h2 id="resonance-title">{{ t.title }}</h2>
       </div>
-      <CollectionActions :mobile-target="mobileActionsTarget" class="resonance-actions" :label="language === 'zh' ? '共鸣操作' : 'Resonance actions'"><button class="primary-button" type="button" :aria-label="t.addData" :title="t.addData" :disabled="disabled" @click="openDialog"><Plus :size="16" aria-hidden="true" /><span class="collection-action-label">{{ t.addData }}</span></button><template #secondary>
-        <button class="resonance-cloud-sync-placeholder" type="button" disabled><Cloud :size="16" aria-hidden="true" />{{ t.cloudSyncComingSoon }}</button>
-        <button type="button" :disabled="disabled || !records.length || clearing" @click="requestClearRecords"><Trash2 :size="16" aria-hidden="true" />{{ t.clearRecords }}</button>
-        <button type="button" :disabled="disabled || !records.length" @click="exportRecords"><Upload :size="16" aria-hidden="true" />{{ t.exportData }}</button>
+      <CollectionActions persistent-secondary :mobile-target="mobileActionsTarget" class="resonance-actions" :label="language === 'zh' ? '共鸣操作' : 'Resonance actions'"><button class="primary-button" type="button" :aria-label="t.addData" :title="t.addData" :disabled="disabled || cloudOpen" @click="openDialog"><Plus :size="16" aria-hidden="true" /><span class="collection-action-label">{{ t.addData }}</span></button><template #secondary>
+        <ResonanceCloudActions :language="language" :disabled="disabled || showAddDialog || showClearConfirm" @lock="cloudOpen = $event" @restored="records = $event; selectedSet = {}" @notice="notify('cloud-success', $event, 'success')" />
+        <button type="button" :disabled="disabled || cloudOpen || !records.length || clearing" @click="requestClearRecords"><Trash2 :size="16" aria-hidden="true" />{{ t.clearRecords }}</button>
+        <button type="button" :disabled="disabled || cloudOpen || !records.length" @click="exportRecords"><Upload :size="16" aria-hidden="true" />{{ t.exportData }}</button>
 
 </template></CollectionActions>
     </header>
@@ -486,7 +487,7 @@ defineExpose({ reload })
     <div v-if="!records.length" class="resonance-empty">
       <h3>{{ t.emptyTitle }}</h3>
       <p>{{ t.emptyDescription }}</p>
-      <button class="primary-button desktop-only" type="button" :disabled="disabled" @click="openDialog"><Plus :size="16" aria-hidden="true" />{{ t.addData }}</button>
+      <button class="primary-button desktop-only" type="button" :disabled="disabled || cloudOpen" @click="openDialog"><Plus :size="16" aria-hidden="true" />{{ t.addData }}</button>
     </div>
 
     <div v-else-if="!sortedRecords.length" class="resonance-empty">
@@ -672,6 +673,8 @@ defineExpose({ reload })
 .resonance-actions { flex-wrap: wrap; }
 .resonance-empty { display: grid; min-height: 280px; place-items: center; align-content: center; gap: 10px; padding: 32px; border: 1px dashed var(--line); border-radius: var(--ui-radius); color: var(--muted); text-align: center; }
 .resonance-empty h3, .resonance-empty p { margin: 0; }
+/* 空列表按钮沿用公共高度，图标与文字在按钮内部横向、垂直居中。 */
+.resonance-empty > button { align-items: center; justify-content: center; gap: 6px; }
 .resonance-record { scroll-margin-top: calc(var(--sidebar-sticky-top) + 12px); margin-bottom: 16px; padding: 18px; border: 1px solid var(--line); border-radius: var(--ui-radius); background: var(--surface); }
 /* 标题独占一行；两侧允许收缩并省略长名称，窄屏仍保持卡池居右。 */
 .resonance-record-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }

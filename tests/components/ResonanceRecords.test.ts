@@ -34,7 +34,7 @@ async function openDialog(language: 'zh' | 'en' = 'zh') {
   const wrapper = mount(ResonanceRecords, { props: { language } })
   wrappers.push(wrapper)
   await flushPromises()
-  await wrapper.find('.resonance-actions button:last-child').trigger('click')
+  await wrapper.find('.resonance-actions .primary-button').trigger('click')
   await flushPromises()
   return { wrapper, panel: document.body.querySelector('.resonance-import-panel') as HTMLElement }
 }
@@ -254,7 +254,7 @@ describe('ResonanceRecords', () => {
     const wrapper = mount(ResonanceRecords, { props: { language: 'zh' } })
     wrappers.push(wrapper)
     await flushPromises()
-    await wrapper.find('.resonance-actions button:last-child').trigger('click')
+    await wrapper.find('.resonance-actions .primary-button').trigger('click')
     await flushPromises()
     const panel = document.body.querySelector('.resonance-import-panel') as HTMLElement
     await pasteCredentials(panel)
@@ -279,7 +279,7 @@ describe('ResonanceRecords', () => {
     const wrapper = mount(ResonanceRecords, { props: { language: 'zh' } })
     wrappers.push(wrapper)
     await flushPromises()
-    await wrapper.find('.resonance-actions button:last-child').trigger('click')
+    await wrapper.find('.resonance-actions .primary-button').trigger('click')
     await flushPromises()
     const panel = document.body.querySelector('.resonance-import-panel') as HTMLElement
     await pasteCredentials(panel)
@@ -331,7 +331,7 @@ describe('ResonanceRecords', () => {
     wrappers.push(wrapper)
     await vi.waitFor(() => expect(wrapper.findAll('.resonance-record')).toHaveLength(1))
 
-    await wrapper.find('.resonance-actions button:nth-child(2)').trigger('click')
+    await wrapper.findAll('.resonance-actions button').find(button => button.text().includes('清空'))!.trigger('click')
     await flushPromises()
     expect(document.body.querySelector('.confirm-dialog')?.textContent).toContain('无法撤销')
     ;(document.body.querySelector('.confirm-dialog-button.primary') as HTMLButtonElement).click()
@@ -383,6 +383,21 @@ it('blocks import after a storage read failure without overwriting existing reco
   await flushPromises()
   expect(save).not.toHaveBeenCalled()
   expect(latestNotice(wrapper)).toMatchObject({ tone: 'error', message: expect.stringContaining('读取失败') })
+  expect(await loadResonanceRecords()).toEqual([savedRecord])
+})
+
+it.each(['zh', 'en'] as const)('shows actionable credential guidance instead of OK in %s', async language => {
+  await saveResonanceRecords([savedRecord])
+  const { wrapper, panel } = await openDialog(language)
+  await pasteCredentials(panel)
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json(
+    { code: 0, info: 'OK' }, { headers: { 'cache-control': 'no-store' } }
+  )))
+  panel.querySelector<HTMLButtonElement>('.resonance-import-footer .primary-button')!.click()
+  await vi.waitFor(() => expect(latestNotice(wrapper)?.tone).toBe('error'))
+  expect(latestNotice(wrapper)?.message).toContain(language === 'zh' ? '请重新登录美鸭梨并获取新凭据' : 'Sign in to Pear-Pal again and get fresh credentials')
+  expect(latestNotice(wrapper)?.message).toContain(language === 'zh' ? '无痕窗口' : 'private browser window')
+  expect(panel.querySelector('.resonance-preview')).toBeNull()
   expect(await loadResonanceRecords()).toEqual([savedRecord])
 })
 

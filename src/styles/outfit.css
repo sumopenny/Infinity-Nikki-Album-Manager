@@ -580,7 +580,9 @@
   margin-left: auto;
 }
 
-.outfit-header-actions > button {
+/* display:contents 保持桌面横排，但不会改变 DOM 层级，次级按钮也需匹配。 */
+.outfit-header-actions > button,
+.outfit-header-actions .collection-desktop-actions > button {
   display: inline-flex;
   min-height: 34px;
   align-items: center;
@@ -596,11 +598,13 @@
 }
 
 /* 悬停只改边框色和文字色；主按钮有自己的过渡，用 :not 排除避免顶掉它 */
-.outfit-header-actions > button:not(.primary-button) {
+.outfit-header-actions > button:not(.primary-button),
+.outfit-header-actions .collection-desktop-actions > button:not(.primary-button) {
   transition: border-color var(--motion-base) ease, color var(--motion-base) ease;
 }
 
-.outfit-header-actions > button:hover:not(:disabled) {
+.outfit-header-actions > button:hover:not(:disabled),
+.outfit-header-actions .collection-desktop-actions > button:hover:not(:disabled) {
   border-color: var(--pink-deep);
   color: var(--heading);
 }
@@ -1033,7 +1037,8 @@
     display: flex;
   }
 
-  .outfit-header-actions > button {
+  .outfit-header-actions > button,
+  .outfit-header-actions .collection-desktop-actions > button {
     justify-content: center;
     white-space: normal;
   }

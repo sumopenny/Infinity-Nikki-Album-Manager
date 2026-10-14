@@ -9,3 +9,10 @@ compatibility_date = "2026-09-19"
 binding = "DB"
 database_name = "wxnn-likes"
 database_id = "1fc2cb15-3458-4035-acdd-2a2caa203aa4"
+
+# 共鸣云同步使用独立云端数据库；绑定名与 Pages Function 一致，详见 docs/resonance-cloud.md。
+[[d1_databases]]
+binding = "RESONANCE_DB"
+database_name = "wxnn-resonance"
+database_id = "ddf3454b-71e3-4b96-8e67-3554cc386fce"
+migrations_dir = "migrations-resonance"

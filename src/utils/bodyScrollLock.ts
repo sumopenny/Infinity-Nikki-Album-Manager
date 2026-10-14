@@ -1,6 +1,6 @@
 import { onBeforeUnmount, watch, type Ref } from 'vue'
 
-// 锁定页面背景滚动并隐藏根滚动条，支持多个模态窗口共享锁。
+// 根节点负责锁定滚动；body 使用 clip，避免创建新滚动容器导致手机 sticky 头栏移出屏幕。
 let lockCount = 0
 let previousBodyOverflow = ''
 let previousRootOverflowY = ''
@@ -9,7 +9,7 @@ export function acquireBodyScrollLock(): () => void {
   if (lockCount === 0) {
     previousBodyOverflow = document.body.style.overflow
     previousRootOverflowY = document.documentElement.style.overflowY
-    document.body.style.overflow = 'hidden'
+    document.body.style.overflow = 'clip'
     document.documentElement.style.overflowY = 'hidden'
   }
   lockCount += 1

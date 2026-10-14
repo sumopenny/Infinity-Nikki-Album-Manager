@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { DB_VERSION, runStoreRequest } from '../../src/utils/file-system/database'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { loadResonanceRecords, mergeResonanceRecords, saveResonanceRecords } from '../../src/utils/resonance/resonanceStorage'
+import { loadResonanceRecords, mergeResonanceRecords, saveResonanceRecords, replaceResonanceRecordsIfUnchanged } from '../../src/utils/resonance/resonanceStorage'
 import type { ResonanceRecord } from '../../src/utils/resonance/resonanceTypes'
 
 const dbName = 'infinity-nikki-album-manager'
@@ -30,6 +30,16 @@ const record: ResonanceRecord = {
 }
 
 describe('resonanceStorage', () => {
+  it('does not overwrite another tab changes after a cloud preview', async () => {
+    await saveResonanceRecords([record])
+    const preview = JSON.stringify(await loadResonanceRecords())
+    const changed = { ...record, id: 'another-tab' }
+    await saveResonanceRecords([changed])
+    await expect(replaceResonanceRecordsIfUnchanged(preview, [record])).rejects.toThrow('LOCAL_CHANGED')
+    expect(await loadResonanceRecords()).toEqual([changed])
+    await replaceResonanceRecordsIfUnchanged(JSON.stringify([changed]), [record])
+    expect(await loadResonanceRecords()).toEqual([record])
+  })
   it('adds the resonance store to the shared database without replacing the album handle store', async () => {
     const albumDb = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(dbName, 3)

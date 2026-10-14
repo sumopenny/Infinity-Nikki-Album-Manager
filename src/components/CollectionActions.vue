@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { MoreHorizontal } from 'lucide-vue-next'
 import { useCompactLayout } from '../composables/useCompactLayout'
-defineProps<{ label: string; mobileTarget?: string }>()
+defineProps<{ label: string; mobileTarget?: string; persistentSecondary?: boolean }>()
 defineOptions({ inheritAttrs: false })
 const compact = useCompactLayout()
 const menu = ref<HTMLElement | null>(null)
@@ -41,13 +41,19 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOutside))
   <Teleport :to="mobileTarget || 'body'" :disabled="!compact || !mobileTarget" defer>
   <div v-bind="$attrs" class="outfit-header-actions collection-actions" :class="{ 'collection-icon-actions': mobileTarget }">
     <template v-if="compact"><slot /></template>
-    <div v-if="compact" ref="menu" class="collection-action-menu" @keydown.esc.stop.prevent="closeMenu(true)" @focusout="menuOpen && !menu?.contains($event.relatedTarget as Node) && closeMenu()">
-      <button ref="trigger" class="collection-action-trigger" type="button" :aria-label="label" :title="label" :aria-expanded="menuOpen" @click="toggleMenu"><MoreHorizontal :size="20" aria-hidden="true" /></button>
+    <div ref="menu" :class="compact ? 'collection-action-menu' : 'collection-desktop-actions'" @keydown.esc.stop.prevent="closeMenu(true)" @focusout="menuOpen && !menu?.contains($event.relatedTarget as Node) && closeMenu()">
+      <button v-if="compact" ref="trigger" class="collection-action-trigger" type="button" :aria-label="label" :title="label" :aria-expanded="menuOpen" @click="toggleMenu"><MoreHorizontal :size="20" aria-hidden="true" /></button>
       <Transition name="mobile-action-menu" @after-leave="finishClose" @before-enter="element => element.removeAttribute('inert')" @before-leave="element => element.setAttribute('inert', '')">
-        <div v-if="menuOpen" class="collection-action-options" @click="closeMenu()"><slot name="secondary" /></div>
+        <!-- 共鸣账户弹窗需要菜单关闭后仍保留组件实例与会话状态。 -->
+        <div v-if="!compact || menuOpen || persistentSecondary" v-show="!compact || menuOpen" :class="compact ? 'collection-action-options' : 'collection-desktop-actions'" @click="closeMenu()"><slot name="secondary" /></div>
       </Transition>
     </div>
-    <template v-else><slot name="secondary" /><slot /></template>
+    <template v-if="!compact"><slot /></template>
   </div>
   </Teleport>
 </template>
+
+<style scoped>
+/* 桌面仍在同一操作行展开；保持次级组件挂载，跨断点不丢失登录弹窗。 */
+.collection-desktop-actions { display: contents; }
+</style>

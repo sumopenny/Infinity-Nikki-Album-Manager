@@ -11,7 +11,6 @@ export interface ResonanceMessages {
   noMatchingRarity: string
   emptyTitle: string
   emptyDescription: string
-  cloudSyncComingSoon: string
   clearRecords: string
   clearTitle: string
   clearMessage: string
@@ -105,7 +104,6 @@ export const resonanceZh: ResonanceMessages = {
   noMatchingRarity: '当前星级没有套装记录',
   emptyTitle: '还没有共鸣记录',
   emptyDescription: '从美鸭梨奇想手账同步抽卡记录，查看套装部件的获取顺序。',
-  cloudSyncComingSoon: '云端同步（待上线）',
   clearRecords: '清空共鸣记录',
   clearTitle: '清空共鸣记录',
   clearMessage: '将删除当前浏览器保存的全部共鸣记录，且无法撤销。',
@@ -162,7 +160,7 @@ export const resonanceZh: ResonanceMessages = {
   openId: 'Momo ID',
   credentialsRequired: '请填写完整的凭据信息。',
   uidMismatch: '美鸭梨账号 UID 与输入的 UID 不一致。',
-  authFailed: '凭据验证失败，请确认已登录美鸭梨并重新获取凭据。',
+  authFailed: '请重新登录美鸭梨并获取新凭据。若仍然报错，请在浏览器无痕窗口中登录美鸭梨，重新获取凭据后重试。',
   processBanner: (current, total) => `正在处理第 ${current} 个卡池，共 ${total} 个`,
   import: '获取预览',
   previewTitle: '导入预览',
@@ -199,7 +197,6 @@ export const resonanceEn: ResonanceMessages = {
   noMatchingRarity: 'No outfits match this rarity',
   emptyTitle: 'No resonance records yet',
   emptyDescription: 'Sync pull history from Pear-Pal Whim-Log to review outfit piece acquisition order.',
-  cloudSyncComingSoon: 'Cloud sync (coming soon)',
   clearRecords: 'Clear resonance records',
   clearTitle: 'Clear resonance records',
   clearMessage: 'This deletes all resonance records saved in this browser and cannot be undone.',
@@ -256,7 +253,7 @@ export const resonanceEn: ResonanceMessages = {
   openId: 'Momo ID',
   credentialsRequired: 'Please fill in all required credential fields.',
   uidMismatch: 'The UID from Pear-Pal does not match the entered UID.',
-  authFailed: 'Credential verification failed. Sign in to Pear-Pal and get fresh credentials.',
+  authFailed: 'Sign in to Pear-Pal again and get fresh credentials. If the error persists, sign in to Pear-Pal in a private browser window, get new credentials, and try again.',
   processBanner: (current, total) => `Processing banner ${current} of ${total}`,
   import: 'Preview import',
   previewTitle: 'Import preview',

@@ -125,7 +125,8 @@ async function toggleMenu(menu: Exclude<OpenMenu, null>, event: MouseEvent) {
   if (menu === 'more') emit('refreshBackupAvailability')
   await nextTick()
   await alignOpenMenu()
-  if (compact.value) dropdownRef.value?.focus()
+  // 手机菜单获取焦点时保持背景滚动位置，避免浏览器自动将窗口滚入视野。
+  if (compact.value) dropdownRef.value?.focus({ preventScroll: true })
 }
 
 /** 让菜单优先在触发项下方居中，并在临近屏幕边缘时保持完整可见。参数：无。 */

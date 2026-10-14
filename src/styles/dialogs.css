@@ -1369,7 +1369,8 @@
 }
 
 .photo-params-uid-form input,
-.resonance-form input {
+.resonance-form input,
+.resonance-cloud-body input {
   width: 100%;
   min-width: 0;
   height: 38px;
@@ -1380,8 +1381,13 @@
   color: var(--text);
 }
 
+/* 云端账号表单复用共鸣输入框，聚焦使用主题边框光晕，避免原生深色外框。 */
+.resonance-cloud-body input { box-sizing: border-box; outline: none; }
+
 .resonance-form input:focus,
 .resonance-form input:focus-visible,
+.resonance-cloud-body input:focus,
+.resonance-cloud-body input:focus-visible,
 .resonance-paste textarea:focus {
   border-color: var(--pink-deep);
   background: var(--surface-strong);

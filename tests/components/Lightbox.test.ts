@@ -181,12 +181,12 @@ describe('Lightbox preview navigation', () => {
     })
     await flushPromises()
 
-    expect(document.body.style.overflow).toBe('hidden')
+    expect(document.body.style.overflow).toBe('clip')
     await wrapper.setProps({ photo: null })
     expect(document.body.style.overflow).toBe('')
 
     await wrapper.setProps({ photo: createPhoto('2026_07_21_11_21_00.jpeg') })
-    expect(document.body.style.overflow).toBe('hidden')
+    expect(document.body.style.overflow).toBe('clip')
     wrapper.unmount()
     expect(document.body.style.overflow).toBe('')
   })

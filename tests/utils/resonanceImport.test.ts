@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import outfitItems from '../../src/data/gongeo/outfitItems.json'
 import { buildResonanceRecords, loadResonanceBanners, normalizeBannerPulls, sortResonanceParts, sortResonanceRecords } from '../../src/utils/resonance/resonanceCatalog'
-import { importFromPearpal, PEARPAL_NO_RECORDS, PEARPAL_UID_MISMATCH } from '../../src/utils/resonance/resonanceImport'
+import { importFromPearpal, PEARPAL_AUTH_FAILED, PEARPAL_NO_RECORDS, PEARPAL_UID_MISMATCH } from '../../src/utils/resonance/resonanceImport'
 import { decodePearpal } from '../../src/utils/resonance/resonancePearpalData'
 import { parseResonanceCookie, resonanceBookmarkScript, resonanceConsoleScript } from '../../src/utils/resonance/resonanceScripts'
 import { encodeSnappyLiteral } from './resonanceSnappyFixture'
@@ -175,6 +175,27 @@ describe('Pearpal import', () => {
 
     await expect(importFromPearpal(CREDENTIALS)).rejects.toThrow(PEARPAL_UID_MISMATCH)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    { code: 0, info: 'OK' },
+    { code: 0, info: 'OK', data: { role: {} } },
+    { code: 1801, info: 'need login.' }
+  ])('classifies missing role or invalid credentials as an authentication failure: %j', async payload => {
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json(payload, { headers: { 'cache-control': 'no-store' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(importFromPearpal(CREDENTIALS)).rejects.toThrow(PEARPAL_AUTH_FAILED)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('classifies login expiry between verification and snapshot as an authentication failure', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async input => Response.json(
+      new URL(String(input), 'https://local.test').searchParams.get('action') === 'verify'
+        ? { code: 0, data: { role: { uid: '123456', zone_id: 1 } } }
+        : { code: 1801, info: 'need login.' },
+      { headers: { 'cache-control': 'no-store' } }
+    )))
+    await expect(importFromPearpal(CREDENTIALS)).rejects.toThrow(PEARPAL_AUTH_FAILED)
   })
 
   it('processes every known banner and reports an unparseable pool', async () => {

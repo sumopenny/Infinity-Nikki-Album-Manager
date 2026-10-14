@@ -11,10 +11,10 @@ describe('body scroll lock', () => {
     const releaseFirst = acquireBodyScrollLock()
     const releaseSecond = acquireBodyScrollLock()
 
-    expect(document.body.style.overflow).toBe('hidden')
+    expect(document.body.style.overflow).toBe('clip')
     expect(document.documentElement.style.overflowY).toBe('hidden')
     releaseFirst()
-    expect(document.body.style.overflow).toBe('hidden')
+    expect(document.body.style.overflow).toBe('clip')
     expect(document.documentElement.style.overflowY).toBe('hidden')
     releaseSecond()
     expect(document.body.style.overflow).toBe('scroll')

@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { resonanceCloudProxy } from './scripts/resonance-cloud-proxy'
 import { onRequestPost as forwardPearpalRequest } from './functions/api/resonance/pearpal'
 
 /** 本地开发复用 Pages Function：只接受固定 POST 动作，并沿用凭据校验、超时与禁缓存响应。 */
@@ -94,6 +95,8 @@ export default defineConfig(({ mode }) => {
           secure: true,
           rewrite: (path: string) => path.replace(/^\/api\/gongeo/, '/v1')
         },
+        // 共鸣与点赞都访问线上 Pages/D1；共鸣额外适配本地同源认证和 Cookie。
+        '^/api/resonance/cloud(?:\\?|$)': resonanceCloudProxy(remoteApiOrigin),
         // 远程 D1 点赞接口仍转发到 Pages 服务。
         '/api': {
           target: remoteApiOrigin,

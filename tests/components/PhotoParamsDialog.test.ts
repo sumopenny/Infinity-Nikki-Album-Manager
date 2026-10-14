@@ -70,7 +70,7 @@ it('locks scrolling, cycles focus, closes with Escape and returns focus to its t
   await wrapper.setProps({ visible: true }); await nextTick()
   const panel = document.querySelector<HTMLElement>('.photo-params-dialog')!
   expect(document.activeElement).toBe(panel)
-  expect(document.body.style.overflow).toBe('hidden')
+  expect(document.body.style.overflow).toBe('clip')
   const buttons = [...panel.querySelectorAll<HTMLElement>('button:not(:disabled),input')]
   for (const element of buttons) Object.defineProperty(element, 'getClientRects', { value: () => [{}] })
   buttons.at(-1)!.focus()
