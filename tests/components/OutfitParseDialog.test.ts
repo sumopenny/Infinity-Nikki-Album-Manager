@@ -133,3 +133,27 @@ describe('OutfitParseDialog', () => {
     wrapper.unmount()
   })
 })
+
+it.each([false, true])('ignores older detail success/error and late results after close (%s)', async rejectOld => {
+  parseOutfitCodeMock.mockResolvedValue({ code: 'CODE', wearingClothes: [{ itemId: 1, outfitId: null, clothType: null }, { itemId: 2, outfitId: null, clothType: null }], dyeItems: [] })
+  loadItemCatalogMock.mockResolvedValue(new Map([[1, { id: 1, zh: '甲', en: 'A' }], [2, { id: 2, zh: '乙', en: 'B' }]]))
+  let finishOld!: (value: typeof detail) => void, failOld!: (reason: Error) => void
+  loadOutfitDetailMock.mockImplementationOnce(() => new Promise((resolve, reject) => { finishOld = resolve; failOld = reject }))
+    .mockResolvedValueOnce({ ...detail, itemName: '最新详情', outfitName: '最新套装' })
+  const wrapper = mount(OutfitParseDialog, { props: { visible: false, code: 'CODE', language: 'zh', messages: getOutfitMessages('zh') }, global: { stubs: { Teleport: true } } })
+  try {
+    await wrapper.setProps({ visible: true }); await flushPromises()
+    await wrapper.findAll('.outfit-parse-item-button')[0]!.trigger('click')
+    await wrapper.findAll('.outfit-parse-item-button')[1]!.trigger('click'); await flushPromises()
+    expect(wrapper.get('.outfit-detail-panel').text()).toContain('最新套装')
+    if (rejectOld) failOld(new Error('old failed')); else finishOld(detail)
+    await flushPromises()
+    expect(wrapper.get('.outfit-detail-panel').text()).toContain('最新套装')
+    let late!: (value: typeof detail) => void
+    loadOutfitDetailMock.mockImplementationOnce(() => new Promise(resolve => { late = resolve }))
+    await wrapper.findAll('.outfit-parse-item-button')[0]!.trigger('click')
+    await wrapper.get('.outfit-detail-panel header button').trigger('click')
+    late(detail); await flushPromises()
+    expect(wrapper.find('.outfit-detail-panel').exists()).toBe(false)
+  } finally { wrapper.unmount() }
+})

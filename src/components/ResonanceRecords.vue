@@ -1,19 +1,66 @@
 <script setup lang="ts">
+import { useLatestRequest } from '../composables/useLatestRequest'
+import { useModuleOperation } from '../composables/useOperationCoordinator'
+const trackOperation = useModuleOperation('resonance')
 import CollectionActions from './CollectionActions.vue'
 import { computed, onMounted, ref, toRaw, watch } from 'vue'
-import { Bookmark, Cloud, Copy, ExternalLink, FileUp, Plus, Terminal, Trash2, Upload, X } from 'lucide-vue-next'
+import {
+  Bookmark,
+  Cloud,
+  Copy,
+  ExternalLink,
+  FileUp,
+  Plus,
+  Terminal,
+  Trash2,
+  Upload,
+  X
+} from 'lucide-vue-next'
 import ConfirmDialog from './ConfirmDialog.vue'
 import type { Language } from '../i18n/types'
 import { messages } from '../i18n'
-import { importFromPearpal, PEARPAL_AUTH_FAILED, PEARPAL_NO_RECORDS, PEARPAL_UID_MISMATCH } from '../utils/resonance/resonanceImport'
-import { createResonanceExport, parseResonanceFile, RESONANCE_FILE_EMPTY, RESONANCE_FILE_INVALID } from '../utils/resonance/resonanceFile'
-import { getResonancePartIconUrl, sortResonanceParts, sortResonanceRecords, type ResonanceBannerOrder, type ResonanceRarityFilter } from '../utils/resonance/resonanceCatalog'
-import { parseResonanceCookie, resonanceBookmarkScript, resonanceConsoleScript } from '../utils/resonance/resonanceScripts'
-import { loadResonanceRecords, mergeResonanceRecords, saveResonanceRecords } from '../utils/resonance/resonanceStorage'
+import {
+  importFromPearpal,
+  PEARPAL_AUTH_FAILED,
+  PEARPAL_NO_RECORDS,
+  PEARPAL_UID_MISMATCH
+} from '../utils/resonance/resonanceImport'
+import {
+  createResonanceExport,
+  parseResonanceFile,
+  RESONANCE_FILE_EMPTY,
+  RESONANCE_FILE_INVALID
+} from '../utils/resonance/resonanceFile'
+import {
+  getResonancePartIconUrl,
+  sortResonanceParts,
+  sortResonanceRecords,
+  type ResonanceBannerOrder,
+  type ResonanceRarityFilter
+} from '../utils/resonance/resonanceCatalog'
+import {
+  parseResonanceCookie,
+  resonanceBookmarkScript,
+  resonanceConsoleScript
+} from '../utils/resonance/resonanceScripts'
+import {
+  loadResonanceRecords,
+  mergeResonanceRecords,
+  saveResonanceRecords
+} from '../utils/resonance/resonanceStorage'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { ResonanceLocalizedName, ResonanceRecord } from '../utils/resonance/resonanceTypes'
 
-const props = withDefaults(defineProps<{ language?: Language; bannerOrder?: ResonanceBannerOrder; rarityFilter?: ResonanceRarityFilter; disabled?: boolean; mobileActionsTarget?: string }>(), { language: 'zh', bannerOrder: 'newest', rarityFilter: 'all' })
+const props = withDefaults(
+  defineProps<{
+    language?: Language
+    bannerOrder?: ResonanceBannerOrder
+    rarityFilter?: ResonanceRarityFilter
+    disabled?: boolean
+    mobileActionsTarget?: string
+  }>(),
+  { language: 'zh', bannerOrder: 'newest', rarityFilter: 'all' }
+)
 const t = computed(() => messages[props.language].resonance)
 const emit = defineEmits<{
   busyChange: [busy: boolean]
@@ -32,9 +79,19 @@ const selectedSet = ref<Record<string, 1 | 2>>({})
 const showAddDialog = ref(false)
 const showClearConfirm = ref(false)
 const importing = ref(false)
+const previewRequest = useLatestRequest()
+/** 关闭、切换输入时取消预览，晚到的结果和错误不能写入新窗口。 */
+function invalidatePreview() {
+  previewRequest.invalidate()
+  importing.value = false
+  progressText.value = ''
+}
 const confirming = ref(false)
 const clearing = ref(false)
-watch(() => importing.value || confirming.value || clearing.value, value => emit('busyChange', value))
+watch(
+  () => importing.value || confirming.value || clearing.value,
+  (value) => emit('busyChange', value)
+)
 const cookieMethod = ref<CookieMethod>('bookmark')
 const importMethod = ref<ImportMethod>('pearpal')
 const selectedFile = ref<File | null>(null)
@@ -58,8 +115,11 @@ function handleKeydown(event: KeyboardEvent) {
     return
   }
   if (event.key !== 'Tab' || !dialogRef.value) return
-  const focusable = [...dialogRef.value.querySelectorAll<HTMLElement>('button, [href], input:not(.visually-hidden), textarea, [tabindex]:not([tabindex="-1"])')]
-    .filter((element) => !element.hasAttribute('disabled'))
+  const focusable = [
+    ...dialogRef.value.querySelectorAll<HTMLElement>(
+      'button, [href], input:not(.visually-hidden), textarea, [tabindex]:not([tabindex="-1"])'
+    )
+  ].filter((element) => !element.hasAttribute('disabled'))
   if (!focusable.length) return
   const first = focusable[0]
   const last = focusable[focusable.length - 1]
@@ -73,18 +133,28 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 watch(showAddDialog, (visible) => {
-  if (visible) previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  if (visible)
+    previousActiveElement =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
   else {
     previousActiveElement?.focus()
     previousActiveElement = null
   }
 })
 
-const sortedRecords = computed(() => sortResonanceRecords(records.value, props.bannerOrder, props.rarityFilter))
+const sortedRecords = computed(() =>
+  sortResonanceRecords(records.value, props.bannerOrder, props.rarityFilter)
+)
 watch(records, (value) => emit('recordsChange', value), { flush: 'sync' })
 const consoleScript = computed(() => resonanceConsoleScript)
-const bookmarkScript = computed(() => resonanceBookmarkScript(props.language === 'zh' ? '请在美鸭梨网站上使用此书签' : 'Please use this bookmark on the Pear-Pal site'))
-const clearConfirmLabel = computed(() => clearing.value ? t.value.clearing : t.value.clearConfirm)
+const bookmarkScript = computed(() =>
+  resonanceBookmarkScript(
+    props.language === 'zh'
+      ? '请在美鸭梨网站上使用此书签'
+      : 'Please use this bookmark on the Pear-Pal site'
+  )
+)
+const clearConfirmLabel = computed(() => (clearing.value ? t.value.clearing : t.value.clearConfirm))
 
 function displayName(value: ResonanceLocalizedName): string {
   return value[props.language] || value.zh || value.en
@@ -101,7 +171,9 @@ function clearNotice(id?: string) {
   emit('clearNotice')
 }
 
-function currentSet(record: ResonanceRecord) { return record.sets[(selectedSet.value[record.id] ?? 1) - 1] }
+function currentSet(record: ResonanceRecord) {
+  return record.sets[(selectedSet.value[record.id] ?? 1) - 1]
+}
 function totalPullsLabel(record: ResonanceRecord): string {
   return t.value.pulls(outfitPulls(record).total)
 }
@@ -110,11 +182,14 @@ function outfitPulls(record: ResonanceRecord): { total: number; average: number 
   const total = obtained.reduce((sum, part) => sum + part.pullNumber, 0)
   return { total, average: obtained.length ? total / obtained.length : 0 }
 }
-function toggleSet(record: ResonanceRecord) { selectedSet.value[record.id] = (selectedSet.value[record.id] ?? 1) === 1 ? 2 : 1 }
+function toggleSet(record: ResonanceRecord) {
+  selectedSet.value[record.id] = (selectedSet.value[record.id] ?? 1) === 1 ? 2 : 1
+}
 
 function openDialog() {
   if (props.disabled) return
   clearNotice()
+  invalidatePreview()
   showAddDialog.value = true
   preview.value = []
   skippedPools.value = 0
@@ -125,6 +200,7 @@ function openDialog() {
 
 function closeDialog() {
   if (confirming.value) return
+  invalidatePreview()
   clearNotice()
   showAddDialog.value = false
   preview.value = []
@@ -139,6 +215,7 @@ function closeDialog() {
 }
 
 function selectImportMethod(value: ImportMethod) {
+  invalidatePreview()
   importMethod.value = value
   preview.value = []
   skippedPools.value = 0
@@ -146,6 +223,7 @@ function selectImportMethod(value: ImportMethod) {
 }
 
 function selectFile(event: Event) {
+  invalidatePreview()
   selectedFile.value = (event.target as HTMLInputElement).files?.[0] ?? null
   preview.value = []
   skippedPools.value = 0
@@ -153,25 +231,44 @@ function selectFile(event: Event) {
 }
 
 async function createFilePreview() {
-  clearNotice()
-  if (!selectedFile.value) { notify('file-required', t.value.fileRequired, 'warning'); return }
-  importing.value = true
-  try {
-    const result = parseResonanceFile(JSON.parse(await selectedFile.value.text()) as unknown)
-    preview.value = result.records
-    skippedPools.value = result.skippedPools
-  } catch (caught) {
-    const message = caught instanceof Error ? caught.message : ''
-    notify('file-error', message === RESONANCE_FILE_EMPTY ? t.value.fileEmpty :
-      message === RESONANCE_FILE_INVALID || caught instanceof SyntaxError ? t.value.fileInvalid : t.value.importError, 'error')
-  } finally { importing.value = false }
+  return trackOperation(async () => {
+    clearNotice()
+    if (!selectedFile.value) {
+      notify('file-required', t.value.fileRequired, 'warning')
+      return
+    }
+    const request = previewRequest.begin()
+    importing.value = true
+    try {
+      const result = parseResonanceFile(JSON.parse(await selectedFile.value.text()) as unknown)
+      if (!request.isCurrent()) return
+      preview.value = result.records
+      skippedPools.value = result.skippedPools
+    } catch (caught) {
+      if (!request.isCurrent()) return
+      const message = caught instanceof Error ? caught.message : ''
+      notify(
+        'file-error',
+        message === RESONANCE_FILE_EMPTY
+          ? t.value.fileEmpty
+          : message === RESONANCE_FILE_INVALID || caught instanceof SyntaxError
+            ? t.value.fileInvalid
+            : t.value.importError,
+        'error'
+      )
+    } finally {
+      if (request.isCurrent()) importing.value = false
+    }
+  })
 }
 
 function exportRecords() {
   if (props.disabled) return
   if (!records.value.length) return
   try {
-    const blob = new Blob([JSON.stringify(createResonanceExport(records.value), null, 2)], { type: 'application/json' })
+    const blob = new Blob([JSON.stringify(createResonanceExport(records.value), null, 2)], {
+      type: 'application/json'
+    })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -179,11 +276,17 @@ function exportRecords() {
     link.click()
     setTimeout(() => URL.revokeObjectURL(url), 0)
     notify('export-success', t.value.exportSuccess, 'success')
-  } catch { notify('export-error', t.value.exportError, 'error') }
+  } catch {
+    notify('export-error', t.value.exportError, 'error')
+  }
 }
 
-function selectCookieMethod(value: CookieMethod) { cookieMethod.value = value }
-function hideBrokenImage(event: Event) { (event.target as HTMLImageElement).hidden = true }
+function selectCookieMethod(value: CookieMethod) {
+  cookieMethod.value = value
+}
+function hideBrokenImage(event: Event) {
+  ;(event.target as HTMLImageElement).hidden = true
+}
 
 watch(cookieInput, (value) => {
   if (!value) {
@@ -207,6 +310,16 @@ watch(cookieInput, (value) => {
   }
 })
 
+watch(
+  [token, openid, roleid],
+  () => {
+    invalidatePreview()
+    preview.value = []
+    skippedPools.value = 0
+  },
+  { flush: 'sync' }
+)
+
 watch(roleid, (value) => {
   if (value.trim()) clearNotice('cookie-no-uid')
 })
@@ -222,53 +335,90 @@ async function copyScript(kind: CookieMethod) {
 }
 
 async function createPreview() {
-  importing.value = true
-  clearNotice()
-  preview.value = []
-  skippedPools.value = 0
-  progressText.value = ''
-  try {
-    const credentials = { token: token.value.trim(), roleid: roleid.value.trim(), id: openid.value.trim() }
-    if (!credentials.token || !credentials.id || !credentials.roleid) throw new Error('MISSING_CREDENTIALS')
-    const result = await importFromPearpal(credentials, (value) => {
-      progressText.value = t.value.processBanner(value.current, value.total)
-    })
-    preview.value = result.records
-    skippedPools.value = result.skippedPools
-    if (!preview.value.length) throw new Error(PEARPAL_NO_RECORDS)
-  } catch (caught) {
-    const message = caught instanceof Error ? caught.message : ''
-    const displayMessage = message === 'MISSING_CREDENTIALS' ? t.value.credentialsRequired
-      : message === PEARPAL_UID_MISMATCH ? t.value.uidMismatch
-        : message === PEARPAL_AUTH_FAILED ? t.value.authFailed
-          : message === PEARPAL_NO_RECORDS ? t.value.noRecords
-            : message || t.value.importError
-    notify('preview-error', displayMessage, 'error')
-  } finally {
-    importing.value = false
+  return trackOperation(async () => {
+    const request = previewRequest.begin()
+    importing.value = true
+    clearNotice()
+    preview.value = []
+    skippedPools.value = 0
     progressText.value = ''
-  }
+    try {
+      const credentials = {
+        token: token.value.trim(),
+        roleid: roleid.value.trim(),
+        id: openid.value.trim()
+      }
+      if (!credentials.token || !credentials.id || !credentials.roleid)
+        throw new Error('MISSING_CREDENTIALS')
+      const result = await importFromPearpal(
+        credentials,
+        (value) => {
+          if (request.isCurrent())
+            progressText.value = t.value.processBanner(value.current, value.total)
+        },
+        request.signal
+      )
+      if (!request.isCurrent()) return
+      preview.value = result.records
+      skippedPools.value = result.skippedPools
+      if (!preview.value.length) throw new Error(PEARPAL_NO_RECORDS)
+    } catch (caught) {
+      if (!request.isCurrent()) return
+      const message = caught instanceof Error ? caught.message : ''
+      const displayMessage =
+        message === 'MISSING_CREDENTIALS'
+          ? t.value.credentialsRequired
+          : message === PEARPAL_UID_MISMATCH
+            ? t.value.uidMismatch
+            : message === PEARPAL_AUTH_FAILED
+              ? t.value.authFailed
+              : message === PEARPAL_NO_RECORDS
+                ? t.value.noRecords
+                : message || t.value.importError
+      notify('preview-error', displayMessage, 'error')
+    } finally {
+      if (request.isCurrent()) {
+        importing.value = false
+        progressText.value = ''
+      }
+    }
+  })
 }
 
 async function confirmImport() {
-  if (props.disabled || confirming.value || !preview.value.length) return
-  if (!recordsLoaded.value) { notify('load-error', props.language === 'zh' ? '共鸣记录读取失败，请刷新页面后重试。' : 'Records could not be loaded. Reload the page and retry.', 'error'); return }
-  confirming.value = true
-  clearNotice()
-  try {
-    const importedRecords = preview.value.map((record) => toRaw(record))
-    const importedCount = preview.value.length
-    const skippedCount = skippedPools.value
-    // 合并以事务内的最新数据为准，不能回写页面加载时的旧记录列表。
-    records.value = await mergeResonanceRecords(importedRecords)
-    confirming.value = false
-    closeDialog()
-    notify('import-success', skippedCount ? t.value.partialImport(skippedCount) : t.value.importSuccess(importedCount), skippedCount ? 'warning' : 'success')
-  } catch {
-    notify('save-error', t.value.saveError, 'error')
-  } finally {
-    confirming.value = false
-  }
+  return trackOperation(async () => {
+    if (props.disabled || confirming.value || !preview.value.length) return
+    if (!recordsLoaded.value) {
+      notify(
+        'load-error',
+        props.language === 'zh'
+          ? '共鸣记录读取失败，请刷新页面后重试。'
+          : 'Records could not be loaded. Reload the page and retry.',
+        'error'
+      )
+      return
+    }
+    confirming.value = true
+    clearNotice()
+    try {
+      const importedRecords = preview.value.map((record) => toRaw(record))
+      const importedCount = preview.value.length
+      const skippedCount = skippedPools.value
+      // 合并以事务内的最新数据为准，不能回写页面加载时的旧记录列表。
+      records.value = await mergeResonanceRecords(importedRecords)
+      confirming.value = false
+      closeDialog()
+      notify(
+        'import-success',
+        skippedCount ? t.value.partialImport(skippedCount) : t.value.importSuccess(importedCount),
+        skippedCount ? 'warning' : 'success'
+      )
+    } catch {
+      notify('save-error', t.value.saveError, 'error')
+    } finally {
+      confirming.value = false
+    }
+  })
 }
 
 function requestClearRecords() {
@@ -285,29 +435,39 @@ function closeClearConfirm() {
 }
 
 async function clearRecords() {
-  if (props.disabled || clearing.value || !records.value.length) return
-  clearing.value = true
-  clearNotice()
-  try {
-    await saveResonanceRecords([])
-    records.value = []
-    selectedSet.value = {}
-    showClearConfirm.value = false
-    notify('clear-success', t.value.clearSuccess, 'success')
-  } catch {
-    notify('clear-error', t.value.clearError, 'error')
-  } finally {
-    clearing.value = false
-  }
+  return trackOperation(async () => {
+    if (props.disabled || clearing.value || !records.value.length) return
+    clearing.value = true
+    clearNotice()
+    try {
+      await saveResonanceRecords([])
+      records.value = []
+      selectedSet.value = {}
+      showClearConfirm.value = false
+      notify('clear-success', t.value.clearSuccess, 'success')
+    } catch {
+      notify('clear-error', t.value.clearError, 'error')
+    } finally {
+      clearing.value = false
+    }
+  })
 }
 
 async function reload() {
-  try {
-    records.value = await loadResonanceRecords()
-    recordsLoaded.value = true
-  } catch {
-    notify('load-error', props.language === 'zh' ? '共鸣记录读取失败，请刷新页面后重试。' : 'Records could not be loaded. Reload the page and retry.', 'error')
-  }
+  return trackOperation(async () => {
+    try {
+      records.value = await loadResonanceRecords()
+      recordsLoaded.value = true
+    } catch {
+      notify(
+        'load-error',
+        props.language === 'zh'
+          ? '共鸣记录读取失败，请刷新页面后重试。'
+          : 'Records could not be loaded. Reload the page and retry.',
+        'error'
+      )
+    }
+  })
 }
 onMounted(reload)
 defineExpose({ reload })

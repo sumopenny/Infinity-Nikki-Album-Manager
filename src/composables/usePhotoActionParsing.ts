@@ -1,9 +1,21 @@
-import { cacheGeneration, isCurrentCacheGeneration, persistCacheIfCurrent } from '../utils/cacheLifecycle'
+import {
+  cacheGeneration,
+  isCurrentCacheGeneration,
+  persistCacheIfCurrent
+} from '../utils/cacheLifecycle'
 import { getCurrentScope, onScopeDispose, ref, type Ref } from 'vue'
 import type { Language } from '../i18n'
 import type { PhotoActionInfo, PhotoItem } from '../utils/photoGrouping'
-import { getSavedPhotoActionCaches, savePhotoActionCache, type PhotoActionCacheEntry } from '../utils/file-system/directoryStorage'
-import { parsePhotoAction, photoActionFingerprint, PHOTO_ACTION_PARSER_VERSION } from '../utils/photo-params/photoActionParser'
+import {
+  getSavedPhotoActionCaches,
+  savePhotoActionCache,
+  type PhotoActionCacheEntry
+} from '../utils/file-system/directoryStorage'
+import {
+  parsePhotoAction,
+  photoActionFingerprint,
+  PHOTO_ACTION_PARSER_VERSION
+} from '../utils/photo-params/photoActionParser'
 import { PHOTO_ACTION_CATALOG_VERSION } from '../utils/photo-params/resourceManifest'
 import { runWithConcurrency } from '../utils/concurrency'
 
@@ -28,9 +40,15 @@ function toInfo(entry: PhotoActionCacheEntry): PhotoActionInfo {
 
 export function usePhotoActionParsing(options: {
   language: Ref<Language>
+  onError?: (error: unknown) => void
 }) {
   const actionInfo = ref(new Map<string, PhotoActionInfo>())
-  const progress = ref<PhotoActionParseProgress>({ running: false, completed: 0, total: 0, failed: 0 })
+  const progress = ref<PhotoActionParseProgress>({
+    running: false,
+    completed: 0,
+    total: 0,
+    failed: 0
+  })
   let runId = 0
   let controller: AbortController | null = null
 
@@ -41,83 +59,150 @@ export function usePhotoActionParsing(options: {
   }
 
   // 缓存始终加载；开关只决定是否继续解析未命中的照片。
-  async function start(photos: PhotoItem[], albumKey: string, resolveCandidateUids: () => Promise<string[]>, parseMissing = true) {
+  async function start(
+    photos: PhotoItem[],
+    albumKey: string,
+    resolveCandidateUids: () => Promise<string[]>,
+    parseMissing = true
+  ) {
     cancel()
     controller = new AbortController()
     const signal = controller.signal
     const generation = cacheGeneration()
     const run = ++runId
     progress.value = { running: parseMissing, completed: 0, total: photos.length, failed: 0 }
+    actionInfo.value = new Map()
     const next = new Map<string, PhotoActionInfo>()
     const pending: PhotoItem[] = []
 
-    const caches = await getSavedPhotoActionCaches(albumKey)
-    for (const photo of photos) {
-      const fingerprint = photoActionFingerprint(albumKey, photo)
-      const cache = caches.get(photo.name)
-      if (run !== runId || !isCurrentCacheGeneration(generation)) return
-      if (cache && cache.fingerprint === fingerprint && cache.parserVersion === PHOTO_ACTION_PARSER_VERSION && cache.catalogVersion === PHOTO_ACTION_CATALOG_VERSION) {
-        next.set(photo.id, { ...toInfo(cache), fingerprint })
-      } else {
-        next.set(photo.id, { status: parseMissing ? 'pending' : 'unparsed', fingerprint })
-        pending.push(photo)
-      }
-    }
-    if (run !== runId || !isCurrentCacheGeneration(generation)) return
-    actionInfo.value = next
-    const cachedCount = photos.length - pending.length
-    const cachedFailed = [...next.values()].filter((item) => item.status === 'unparsed').length
-    progress.value = { ...progress.value, completed: cachedCount, failed: cachedFailed }
-    // 关闭时仅展示缓存，不获取 UID、不弹授权，也不读取原图解码。
-    if (!parseMissing) {
-      progress.value = { running: false, completed: cachedCount, total: photos.length, failed: 0 }
-      return
-    }
-    if (!pending.length) {
-      progress.value = { running: false, completed: photos.length, total: photos.length, failed: cachedFailed }
-      return
-    }
-
-    const candidateUids = await resolveCandidateUids()
-    if (run !== runId || !isCurrentCacheGeneration(generation)) return
-    const parsed = candidateUids.length
-      ? await runWithConcurrency(pending, (photo) => parsePhotoAction(photo, candidateUids, options.language.value), {
-          concurrency: 15,
-          signal,
-          onItemComplete: (photo, _index, result) => {
-            if (run !== runId || !isCurrentCacheGeneration(generation)) return
-            const fingerprint = photoActionFingerprint(albumKey, photo)
-            const info = { ...result, fingerprint }
-            actionInfo.value.set(photo.id, info)
-            progress.value = { ...progress.value, completed: progress.value.completed + 1, failed: progress.value.failed + (result.status === 'unparsed' ? 1 : 0) }
-            if (result.status !== 'unparsed') {
-              void persistCacheIfCurrent(generation, () => savePhotoActionCache(albumKey, photo.name, {
-                fingerprint,
-                parserVersion: PHOTO_ACTION_PARSER_VERSION,
-                catalogVersion: PHOTO_ACTION_CATALOG_VERSION,
-                status: result.status as PhotoActionCacheEntry['status'],
-                actionId: result.actionId,
-                actionName: result.actionName,
-                actionImageUrl: result.actionImageUrl,
-                parsedAt: result.parsedAt ?? Date.now()
-              })).catch(() => undefined)
-            }
-          }
-        })
-      : []
-    if (run !== runId || !isCurrentCacheGeneration(generation)) return
-    if (!candidateUids.length) {
-      const updated = new Map(actionInfo.value)
-      for (const photo of pending) {
+    try {
+      const caches = await getSavedPhotoActionCaches(albumKey)
+      for (const photo of photos) {
         const fingerprint = photoActionFingerprint(albumKey, photo)
-        const info: PhotoActionInfo = { status: 'unparsed', fingerprint, errorCode: 'uid_missing', parsedAt: Date.now() }
-        updated.set(photo.id, info)
+        const cache = caches.get(photo.name)
+        if (run !== runId || signal.aborted || !isCurrentCacheGeneration(generation)) return
+        if (
+          cache &&
+          cache.fingerprint === fingerprint &&
+          cache.parserVersion === PHOTO_ACTION_PARSER_VERSION &&
+          cache.catalogVersion === PHOTO_ACTION_CATALOG_VERSION
+        ) {
+          next.set(photo.id, { ...toInfo(cache), fingerprint })
+        } else {
+          next.set(photo.id, { status: parseMissing ? 'pending' : 'unparsed', fingerprint })
+          pending.push(photo)
+        }
+      }
+      if (run !== runId || signal.aborted || !isCurrentCacheGeneration(generation)) return
+      actionInfo.value = next
+      const cachedCount = photos.length - pending.length
+      const cachedFailed = [...next.values()].filter((item) => item.status === 'unparsed').length
+      progress.value = { ...progress.value, completed: cachedCount, failed: cachedFailed }
+      // 关闭时仅展示缓存，不获取 UID、不弹授权，也不读取原图解码。
+      if (!parseMissing) {
+        progress.value = { running: false, completed: cachedCount, total: photos.length, failed: 0 }
+        return
+      }
+      if (!pending.length) {
+        progress.value = {
+          running: false,
+          completed: photos.length,
+          total: photos.length,
+          failed: cachedFailed
+        }
+        return
+      }
+
+      const candidateUids = await resolveCandidateUids()
+      if (run !== runId || signal.aborted || !isCurrentCacheGeneration(generation)) return
+      const parsed = candidateUids.length
+        ? await runWithConcurrency(
+            pending,
+            (photo) => parsePhotoAction(photo, candidateUids, options.language.value),
+            {
+              concurrency: 15,
+              signal,
+              onItemComplete: (photo, _index, result) => {
+                if (run !== runId || signal.aborted || !isCurrentCacheGeneration(generation)) return
+                const fingerprint = photoActionFingerprint(albumKey, photo)
+                const info = { ...result, fingerprint }
+                actionInfo.value.set(photo.id, info)
+                progress.value = {
+                  ...progress.value,
+                  completed: progress.value.completed + 1,
+                  failed: progress.value.failed + (result.status === 'unparsed' ? 1 : 0)
+                }
+                if (result.status !== 'unparsed') {
+                  void persistCacheIfCurrent(generation, () =>
+                    savePhotoActionCache(albumKey, photo.name, {
+                      fingerprint,
+                      parserVersion: PHOTO_ACTION_PARSER_VERSION,
+                      catalogVersion: PHOTO_ACTION_CATALOG_VERSION,
+                      status: result.status as PhotoActionCacheEntry['status'],
+                      actionId: result.actionId,
+                      actionName: result.actionName,
+                      actionImageUrl: result.actionImageUrl,
+                      parsedAt: result.parsedAt ?? Date.now()
+                    })
+                  ).catch(() => undefined)
+                }
+              }
+            }
+          )
+        : []
+      if (run !== runId || signal.aborted || !isCurrentCacheGeneration(generation)) return
+      if (!candidateUids.length) {
+        const updated = new Map(actionInfo.value)
+        for (const photo of pending) {
+          const fingerprint = photoActionFingerprint(albumKey, photo)
+          const info: PhotoActionInfo = {
+            status: 'unparsed',
+            fingerprint,
+            errorCode: 'uid_missing',
+            parsedAt: Date.now()
+          }
+          updated.set(photo.id, info)
+        }
+        actionInfo.value = updated
+        progress.value = {
+          running: false,
+          completed: photos.length,
+          total: photos.length,
+          failed: pending.length
+        }
+        return
+      }
+      progress.value = {
+        running: false,
+        completed: photos.length,
+        total: photos.length,
+        failed: parsed.filter((item) => item.status === 'unparsed').length + cachedFailed
+      }
+    } catch (error) {
+      // 旧任务失败不得覆盖新任务；准备阶段失败也应结束 pending，而不是悬挂进度。
+      if (run !== runId || signal.aborted || !isCurrentCacheGeneration(generation)) return
+      controller?.abort()
+      const updated = new Map(actionInfo.value)
+      for (const photo of photos) {
+        if (!updated.has(photo.id) || updated.get(photo.id)?.status === 'pending') {
+          updated.set(photo.id, {
+            status: 'unparsed',
+            errorCode: 'prepare_failed',
+            fingerprint: photoActionFingerprint(albumKey, photo)
+          })
+        }
       }
       actionInfo.value = updated
-      progress.value = { running: false, completed: photos.length, total: photos.length, failed: pending.length }
-      return
+      progress.value = {
+        running: false,
+        completed: photos.length,
+        total: photos.length,
+        failed: [...updated.values()].filter((item) => item.status === 'unparsed').length
+      }
+      options.onError?.(error)
+    } finally {
+      if (run === runId) progress.value = { ...progress.value, running: false }
     }
-    progress.value = { running: false, completed: photos.length, total: photos.length, failed: parsed.filter((item) => item.status === 'unparsed').length + cachedFailed }
   }
 
   function reset() {

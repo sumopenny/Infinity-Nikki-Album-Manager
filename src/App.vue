@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { useOutfitWorkspace } from './composables/useOutfitWorkspace'
+import { useDirectorySession, type DirectoryState } from './composables/useDirectorySession'
+import { createOperationCoordinator, operationCoordinatorKey } from './composables/useOperationCoordinator'
+const operations = createOperationCoordinator()
+provide(operationCoordinatorKey, operations)
 import { invalidateCacheWrites } from './utils/cacheLifecycle'
 import { clearBrowserSessionData } from './utils/file-system/database'
 import { clearOutfitDetailCache } from './utils/outfit/outfitDetails'
@@ -46,9 +51,6 @@ import { type ActionSort, type PhotoDisplayItem, type PhotoItem, type RecentlyDe
 import {
   clearSavedAlbumDirectoryHandle,
   formatFileSize,
-  getSavedAlbumDirectoryHandle,
-  pickAlbumDirectory,
-  readAlbumDirectory,
   refreshAlbumPhotos,
   refreshAlbumDirectory,
   saveAlbumDirectoryHandle,
@@ -63,23 +65,15 @@ import { PhotoMetadataError, readAlbumMetadata, savePhotoNote } from './utils/fi
 import { releasePhotoUrl, releasePhotoUrls } from './utils/file-system/photoUrl'
 import { preparePhotoTransfer, runPhotoTransfer } from './utils/file-system/photoTransfer'
 import {
-  deleteOutfit,
-  deleteOutfits,
-  deleteOutfitTag,
   readOutfitLibrary,
-  saveOutfit,
-  saveOutfitTags,
   type OutfitItem,
   type OutfitLibraryResult,
-  type SaveOutfitInput,
   type SharedOutfitSource,
   MAX_OUTFIT_CODE_LENGTH,
   normalizeOutfitCode
 } from './utils/outfit/outfitFileSystem'
 import { readOutfitCollection } from './utils/outfit/outfitStorage'
 import { DuplicateOutfitCodeError } from './utils/outfit/outfitTypes'
-import { exportOutfitBackup, importOutfitBackup } from './utils/outfit/outfitBackup'
-import { isValidOutfitTag, MAX_OUTFIT_TAG_LENGTH, MAX_OUTFIT_TAGS, normalizeOutfitTag } from './utils/outfit/outfitTypes'
 import { useOperationNotice, type StatusState, type StatusTone } from './composables/useOperationNotice'
 import { copyTextToClipboard } from './utils/clipboard'
 import { useConfirmDialog } from './composables/useConfirmDialog'
@@ -158,11 +152,6 @@ const storedLanguage = readLocalStorage(LANGUAGE_STORAGE_KEY)
 const storedAutoParseActions = readLocalStorage(AUTO_PARSE_ACTIONS_STORAGE_KEY)
 
 const storedAboutState = readStoredAboutState()
-
-type DirectoryState =
-  | { type: 'none' }
-  | { type: 'remembered'; name: string }
-  | { type: 'selected'; name: string }
 
 const photos = ref<PhotoItem[]>([])
 const outfits = ref<OutfitItem[]>([])
@@ -270,8 +259,7 @@ const cameraFavoritesRef = ref<InstanceType<typeof CameraFavorites> | null>(null
 const allDataBackupRef = ref<InstanceType<typeof AllDataBackup> | null>(null)
 const resonanceRecordsRef = ref<InstanceType<typeof ResonanceRecords> | null>(null)
 const hasBackupData = ref(false)
-const moduleOperations = ref({ camera: false, home: false, resonance: false })
-const allBackupDisabled = computed(() => isAnyFileOperationBusy.value || Object.values(moduleOperations.value).some(Boolean))
+const allBackupDisabled = operations.isBusy
 function handleAllBackupBusy(busy: boolean) {
   if (busy) activeOperation.value = 'all-data-backup'
   else if (activeOperation.value === 'all-data-backup') activeOperation.value = null
@@ -296,13 +284,14 @@ const isCameraFavoritesView = computed(() => activeView.value === 'favorites' &&
 const isThumbnailModeDisabled = computed(() => isCameraFavoritesView.value || activeView.value === 'resonance')
 const photoParamsSaved = computed(() => cameraFavoriteCodes.value.includes(normalizeCameraCode(photoParamsResult.value?.rawCameraParams ?? '')))
 function changeFavoriteTab(tab: 'photos' | 'camera') {
+  if (operations.isBusy.value) return
   favoriteTab.value = tab
   selectedIds.value = new Set()
   currentPreview.value = null
 }
 const photoParamsMessages = computed(() => locale.value.photoParams)
 const photoParams = usePhotoParams({ language, messages: photoParamsMessages })
-const photoActionParsing = usePhotoActionParsing({ language })
+const photoActionParsing = usePhotoActionParsing({ language, onError: error => { statusState.value = createErrorStatus(error, { type: 'readFailed' }) } })
 const { actionInfo, progress: actionParseProgress } = photoActionParsing
 const {
   photo: photoParamsPhoto,
@@ -336,7 +325,7 @@ const {
   createErrorStatus,
   isUserCancelledFilePicker,
   dispose: disposeStatusNotice
-} = useOperationNotice(locale)
+} = useOperationNotice(locale, operations)
 const {
   outfitLocale,
   visiblePhotos,
@@ -661,58 +650,7 @@ function toggleLanguage() {
   return applyPreference('language')
 }
 
-/** 恢复浏览器记住的相册目录。参数：无。 */
-async function restoreSavedDirectory() {
-  activeOperation.value = 'loading'
-  try {
-    const savedHandle = await getSavedAlbumDirectoryHandle()
-    if (!savedHandle) return
-    directoryState.value = { type: 'remembered', name: savedHandle.name }
-    const result = await readAlbumDirectory(savedHandle, { requestPermission: false, messages: locale.value.fileSystem })
-    await replaceAlbum(result, { type: 'initial' })
-  } catch (error) {
-    statusState.value = createErrorStatus(error, { type: 'restoreFailed' })
-  } finally {
-    if (activeOperation.value === 'loading') activeOperation.value = null
-  }
-}
-
-/** 静默检查是否存在可复用的 X6Game 授权，用于显示“重新授权”入口。参数：无。 */
-async function restoreSavedX6GameAuthorization() {
-  try {
-    const savedHandle = await getSavedX6GameDirectoryHandle()
-    if (!savedHandle || savedHandle.name !== 'X6Game') return
-    const permission = savedHandle.queryPermission ? await savedHandle.queryPermission({ mode: 'readwrite' }) : 'granted'
-    hasX6GameAuthorization.value = permission === 'granted'
-  } catch {
-    hasX6GameAuthorization.value = false
-  }
-}
-
-/** 选择或重新授权相册目录。参数：无。 */
-async function chooseDirectory() {
-  if (isAnyFileOperationBusy.value) return
-  activeOperation.value = 'loading'
-  statusState.value = { type: 'reading' }
-  try {
-    const savedHandle = await getSavedAlbumDirectoryHandle()
-    if (savedHandle && !photos.value.length) {
-      try {
-        const restored = await readAlbumDirectory(savedHandle, { requestPermission: true, messages: locale.value.fileSystem })
-        await replaceAlbum(restored, { type: 'initial' })
-        return
-      } catch {
-        statusState.value = { type: 'restorePathFailed' }
-      }
-    }
-    const result = await pickAlbumDirectory(locale.value.fileSystem)
-    await replaceAlbum(result, { type: 'success', count: result.photos.length, prefix: 'read', suffix: 'remembered' })
-  } catch (error) {
-    statusState.value = createErrorStatus(error, { type: 'readFailed' })
-  } finally {
-    if (activeOperation.value === 'loading') activeOperation.value = null
-  }
-}
+const { restoreSavedDirectory, restoreSavedX6GameAuthorization, chooseDirectory } = useDirectorySession({ activeOperation, isAnyFileOperationBusy, statusState, locale, directoryState, photos, hasX6GameAuthorization, replaceAlbum, createErrorStatus })
 
 /** 清除页面内已加载的相册和选择状态。参数：无。 */
 function resetLoadedAlbumState(options: { clearSharedOutfit?: boolean } = {}) {
@@ -1061,6 +999,7 @@ async function updateOutfitLibrary(announce = true, promptSharedAccess = announc
 
 /** 切换相册视图并清空上个视图的选中状态（重复点击当前视图不清空）。参数：view 为目标视图；电脑端进入搭配码时按用户偏好显示操作指南。 */
 function changeAlbumView(view: AlbumView) {
+  if (operations.isBusy.value) return
   const isViewChanged = view !== activeView.value
   const isEnteringOutfits = view === 'outfits' && isViewChanged
   // 点击收藏夹入口时默认显示相机参数。
@@ -1256,202 +1195,14 @@ async function closeOutfitEditor(scan = true) {
   await updateOutfitLibrary(false)
 }
 
-/** 保存全局搭配并重新读取收藏库，成功后关闭编辑窗口。 */
-async function handleSaveOutfit(input: Omit<SaveOutfitInput, 'outfit'>) {
-  if (isAnyFileOperationBusy.value) return
-  activeOperation.value = 'saving-outfit'
-  showOutfitStatus(outfitLocale.value.saving, 'info', true)
-  try {
-    await saveOutfit({ ...input, outfit: editingOutfit.value ?? undefined })
-    const wasEditing = Boolean(editingOutfit.value)
-    await reloadOutfitCollection()
-    isOutfitEditorVisible.value = false
-    editingOutfit.value = null
-    showOutfitStatus(
-      outfitLocale.value.operations.saveSucceeded(wasEditing),
-      'success'
-    )
-  } catch (error) {
-    showOutfitStorageError(error)
-  } finally {
-    if (activeOperation.value === 'saving-outfit') activeOperation.value = null
-  }
-}
-
-/** 新增搭配标签。参数：用户输入的原始标签文本。 */
-async function addOutfitTag(rawTag: string, selectInEditor = false) {
-  if (isAnyFileOperationBusy.value) return
-  const tag = normalizeOutfitTag(rawTag)
-  const reserved = new Set(['全部', '待填写', '未分类', 'all', 'pending', 'uncategorized'])
-  if (!isValidOutfitTag(tag)) {
-    showOutfitStatus(outfitLocale.value.operations.invalidTag(MAX_OUTFIT_TAG_LENGTH), 'warning')
-    return
-  }
-  if (reserved.has(tag.toLowerCase()) || outfitTags.value.includes(tag)) {
-    showOutfitStatus(outfitLocale.value.operations.duplicateOrReservedTag, 'warning')
-    return
-  }
-  if (outfitTags.value.length >= MAX_OUTFIT_TAGS) {
-    showOutfitStatus(outfitLocale.value.operations.tagLimitReached(MAX_OUTFIT_TAGS), 'warning')
-    return
-  }
-  activeOperation.value = 'mutating-outfits'
-  try {
-    outfitTags.value = await saveOutfitTags([tag, ...outfitTags.value], outfitTags.value)
-    outfitSidebarRef.value?.closeTagInput()
-    if (selectInEditor) outfitEditorRef.value?.selectCreatedTag(tag)
-    showOutfitStatus(outfitLocale.value.operations.tagAdded)
-  } catch (error) {
-    showOutfitStorageError(error)
-  } finally {
-    if (activeOperation.value === 'mutating-outfits') activeOperation.value = null
-  }
-}
-
-/** 保存用户在左侧栏调整后的标签顺序。参数：tags 为拖拽完成后的完整标签数组。 */
-async function reorderOutfitTags(tags: string[]) {
-  if (isAnyFileOperationBusy.value) return
-  const previousTags = [...outfitTags.value]
-  outfitTags.value = [...tags]
-  activeOperation.value = 'mutating-outfits'
-  try {
-    outfitTags.value = await saveOutfitTags(tags, previousTags)
-  } catch (error) {
-    outfitTags.value = previousTags
-    showOutfitStorageError(error)
-  } finally {
-    if (activeOperation.value === 'mutating-outfits') activeOperation.value = null
-  }
-}
-
-async function removeOutfitTag(tag: string) {
-  if (isAnyFileOperationBusy.value) return
-  const usedCount = outfits.value.filter((outfit) => outfit.tags[0] === tag).length
-  if (usedCount) {
-    const confirmed = await openConfirmDialog({
-      title: outfitLocale.value.operations.deleteTagTitle,
-      message: outfitLocale.value.operations.deleteTagMessage(tag, usedCount),
-      tone: 'warning',
-      confirmLabel: outfitLocale.value.operations.deleteTagTitle,
-      cancelLabel: locale.value.app.dialogCancel
-    })
-    if (!confirmed) return
-  }
-  try {
-    activeOperation.value = 'mutating-outfits'
-    const result = await deleteOutfitTag(tag)
-    outfitTags.value = result.tags
-    await reloadOutfitCollection()
-    showOutfitStatus(outfitLocale.value.operations.tagDeleted)
-  } catch (error) {
-    showOutfitStorageError(error)
-  } finally {
-    if (activeOperation.value === 'mutating-outfits') activeOperation.value = null
-  }
-}
-
-async function copyOutfitCode(outfit: OutfitItem) {
-  if (!outfit.code) return
-  await copyOutfitCodeValue(outfit.code)
-}
-
-/** 统一复制搭配码并通过顶部操作通知反馈结果。 */
-async function copyOutfitCodeValue(code: string) {
-  if (!code) return
-  if (await copyTextToClipboard(code)) {
-    showOutfitStatus(locale.value.app.copySucceeded)
-  } else showOutfitStatus(locale.value.app.copyFailed(code), 'warning')
-}
-
-/** 删除单个搭配方案，先弹确认框再执行删除。参数：outfit 为待删除的搭配方案。 */
-async function removeOutfit(outfit: OutfitItem) {
-  if (isAnyFileOperationBusy.value) return
-  const confirmed = await openConfirmDialog({ title: outfitLocale.value.operations.deleteOutfitTitle,
-    message: outfitLocale.value.operations.confirmPermanentDelete, tone: 'danger',
-    confirmLabel: outfitLocale.value.operations.permanentlyDelete, cancelLabel: locale.value.app.dialogCancel })
-  if (!confirmed) return
-  activeOperation.value = 'mutating-outfits'
-  try {
-    await deleteOutfit(outfit)
-    releasePhotoUrl(outfit)
-    if (currentPreview.value?.id === outfit.id) currentPreview.value = null
-    selectedOutfitIds.value = new Set([...selectedOutfitIds.value].filter(id => id !== outfit.id))
-    outfits.value = outfits.value.filter(item => item.id !== outfit.id)
-    showOutfitStatus(outfitLocale.value.operations.outfitDeleted)
-  } catch (error) { await reloadOutfitCollection().catch(() => undefined); showOutfitStorageError(error) }
-  finally { if (activeOperation.value === 'mutating-outfits') activeOperation.value = null }
-}
-
-/** 永久删除当前选中的搭配方案。参数：无；删除结果不会进入最近删除。 */
-async function deleteSelectedOutfits() {
-  const targets = visibleOutfits.value.filter(outfit => selectedOutfitIds.value.has(outfit.id))
-  if (!targets.length || isAnyFileOperationBusy.value) return
-  const confirmed = await openConfirmDialog({ title: outfitLocale.value.operations.deleteSelectedTitle,
-    message: outfitLocale.value.operations.confirmPermanentDelete, tone: 'danger',
-    confirmLabel: outfitLocale.value.operations.permanentlyDelete, cancelLabel: locale.value.app.dialogCancel })
-  if (!confirmed) return
-  activeOperation.value = 'mutating-outfits'
-  showOutfitStatus(outfitLocale.value.operations.deletingSelected, 'info', true)
-  try {
-    const result = await deleteOutfits(targets)
-    const deletedIds = new Set(result.deleted.map(item => item.id))
-    result.deleted.forEach(releasePhotoUrl)
-    if (currentPreview.value && deletedIds.has(currentPreview.value.id)) currentPreview.value = null
-    selectedOutfitIds.value = new Set([...selectedOutfitIds.value].filter(id => !deletedIds.has(id)))
-    outfits.value = outfits.value.filter(item => !deletedIds.has(item.id))
-    showOutfitStatus(outfitLocale.value.operations.deletedSelected(deletedIds.size, result.failedNames.length), result.failedNames.length ? 'warning' : 'success')
-  } catch (error) { await reloadOutfitCollection().catch(() => undefined); showOutfitStorageError(error) }
-  finally { if (activeOperation.value === 'mutating-outfits') activeOperation.value = null }
-}
-
-/** 通过浏览器直接下载搭配码 ZIP。 */
-async function exportOutfits() {
-  if (isAnyFileOperationBusy.value || (!outfits.value.length && !outfitTags.value.length)) return
-  activeOperation.value = 'exporting-outfits'
-  showOutfitStatus(outfitLocale.value.exporting, 'info', true)
-  try {
-    const result = await exportOutfitBackup()
-    statusState.value = {
-      type: 'custom',
-      message: outfitLocale.value.operations.exportSucceeded(result.fileNames.join('、'), result.count),
-      tone: 'success'
-    }
-  } catch (error) {
-    showOutfitStorageError(error)
-  } finally {
-    if (activeOperation.value === 'exporting-outfits') activeOperation.value = null
-  }
-}
+const { handleSaveOutfit, addOutfitTag, reorderOutfitTags, removeOutfitTag, copyOutfitCode, copyOutfitCodeValue, removeOutfit, deleteSelectedOutfits, exportOutfits, importOutfits } = useOutfitWorkspace({
+  activeOperation, isAnyFileOperationBusy, outfitLocale, locale, editingOutfit, isOutfitEditorVisible, outfits, outfitTags, selectedOutfitIds, currentPreview, visibleOutfits, outfitSidebarRef, outfitEditorRef, statusState, reloadOutfitCollection, applyOutfitLibraryResult, showOutfitStatus, showOutfitStorageError, openConfirmDialog, onImportPicked: () => { suppressNextFocusRefresh = false }
+})
 
 function chooseOutfitBackup() {
   if (isAnyFileOperationBusy.value) return
   suppressNextFocusRefresh = true
   outfitImportInput.value?.click()
-}
-
-async function importOutfits(event: Event) {
-  const input = event.target as HTMLInputElement
-  suppressNextFocusRefresh = false
-  const file = input.files?.[0]
-  input.value = ''
-  if (!file || isAnyFileOperationBusy.value) return
-  activeOperation.value = 'importing-outfits'
-  showOutfitStatus(outfitLocale.value.importing, 'info', true)
-  try {
-    const result = await importOutfitBackup(file)
-    applyOutfitLibraryResult(result.library)
-    const tagNote = result.rejectedTagCount
-      ? outfitLocale.value.operations.rejectedTags(result.rejectedTagCount)
-      : ''
-    showOutfitStatus(
-      outfitLocale.value.operations.importCompleted(result.addedCount, result.duplicateCount, result.failedCount, tagNote),
-      result.failedCount || result.rejectedTagCount ? 'warning' : 'success'
-    )
-  } catch (error) {
-    showOutfitStorageError(error)
-  } finally {
-    if (activeOperation.value === 'importing-outfits') activeOperation.value = null
-  }
 }
 
 function openPhotoImportPicker() {
@@ -2018,7 +1769,7 @@ onBeforeUnmount(() => {
           </template></CollectionActions>
           <div id="favorites-camera-actions" v-show="isCameraFavoritesView" class="favorites-toolbar-actions"></div>
         </div>
-        <CameraFavorites @open-filters="mobileFiltersOpen = true" @close-filters="mobileFiltersOpen = false" :filters-open="mobileFiltersOpen" @visible-count-change="cameraVisibleCount = $event" :disabled="activeOperation === 'all-data-backup'" @busy-change="moduleOperations.camera = $event" ref="cameraFavoritesRef" sidebar-target="#album-sidebar-column" actions-target="#favorites-camera-actions" :active="isCameraFavoritesView" :language="language" :messages="photoParamsMessages" :search-query="searchQuery" :confirm-action="confirmHomeSchemeAction" @codes-change="cameraFavoriteCodes = $event" @modal-change="cameraFavoriteModal = $event" @status="handleHomeSchemeStatus" />
+        <CameraFavorites @open-filters="mobileFiltersOpen = true" @close-filters="mobileFiltersOpen = false" :filters-open="mobileFiltersOpen" @visible-count-change="cameraVisibleCount = $event" :disabled="activeOperation === 'all-data-backup'" ref="cameraFavoritesRef" sidebar-target="#album-sidebar-column" actions-target="#favorites-camera-actions" :active="isCameraFavoritesView" :language="language" :messages="photoParamsMessages" :search-query="searchQuery" :confirm-action="confirmHomeSchemeAction" @codes-change="cameraFavoriteCodes = $event" @modal-change="cameraFavoriteModal = $event" @status="handleHomeSchemeStatus" />
         <div v-if="!albumDirectoryHandle && activeView !== 'outfits' && activeView !== 'home' && activeView !== 'resonance' && !isCameraFavoritesView" class="empty-album-start">
           <div class="empty-start-mark" aria-hidden="true"></div>
           <h2>{{ locale.grid.emptyTitle }}</h2>
@@ -2082,12 +1833,11 @@ onBeforeUnmount(() => {
           @close-filters="mobileFiltersOpen = false"
           :filters-open="mobileFiltersOpen"
           @visible-count-change="homeVisibleCount = $event"
-          @busy-change="moduleOperations.home = $event"
           v-if="activeView === 'home'"
           :library-revision="homeLibraryRevision"
           :messages="locale.homeScheme"
           :copy-messages="locale.app"
-          :disabled="isAnyFileOperationBusy"
+          :disabled="activeOperation !== null"
           :confirm-action="confirmHomeSchemeAction"
           :search-query="searchQuery"
           :selection-messages="locale.selectionBar"
@@ -2101,7 +1851,6 @@ onBeforeUnmount(() => {
           ref="resonanceRecordsRef"
           mobile-actions-target="#resonance-filter-actions"
           :disabled="activeOperation === 'all-data-backup'"
-          @busy-change="moduleOperations.resonance = $event"
           v-else-if="activeView === 'resonance'"
           :language="language"
           :banner-order="resonanceBannerOrder"

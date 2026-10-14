@@ -1,3 +1,4 @@
+import { createOperationCoordinator, type OperationCoordinator } from './useOperationCoordinator'
 // 操作通知状态机：统一管理操作忙碌状态、提示文案、错误映射和通知生命周期。
 import { computed, ref, watch, type ComputedRef } from 'vue'
 import type { LocaleMessages, StatusPrefix, StatusSuffix } from '../i18n'
@@ -40,9 +41,9 @@ export interface ConfirmableStatus {
 }
 
 /** 集中管理操作状态、错误映射和顶部通知生命周期，避免页面组件重复维护计时器与 busy 判断。 */
-export function useOperationNotice(locale: ComputedRef<LocaleMessages>) {
+export function useOperationNotice(locale: ComputedRef<LocaleMessages>, operations: OperationCoordinator = createOperationCoordinator()) {
   const statusState = ref<StatusState>({ type: 'initial' })
-  const activeOperation = ref<ActiveOperation | null>(null)
+  const activeOperation = operations.activeOperation
   const isVisible = ref(false)
   let timer: number | undefined
   let deadline = 0
@@ -61,7 +62,7 @@ export function useOperationNotice(locale: ComputedRef<LocaleMessages>) {
   const isExportingPhotos = computed(() => activeOperation.value === 'exporting-photos')
   const isUpdatingOutfits = computed(() => activeOperation.value === 'updating-outfits')
   const isOutfitMutationBusy = computed(() => activeOperation.value === 'mutating-outfits')
-  const isAnyFileOperationBusy = computed(() => activeOperation.value !== null)
+  const isAnyFileOperationBusy = operations.isBusy
 
   const statusMessage = computed(() => {
     const app = locale.value.app

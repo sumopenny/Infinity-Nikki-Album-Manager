@@ -1,3 +1,4 @@
+import { useModuleOperation } from '../src/composables/useOperationCoordinator'
 import { Blob as NodeBlob } from 'node:buffer'
 import 'fake-indexeddb/auto'
 import { runStoreRequest } from '../src/utils/file-system/database'
@@ -268,10 +269,11 @@ describe('App lifecycle coordination', () => {
       global: { stubs: { ResonanceRecords: { template: '<div class="resonance-workspace-stub" />' } } }
     })
     await flushPromises()
+    await vi.waitFor(() => expect(wrapper.findComponent({ name: 'AlbumViewSwitcher' }).props('disabled')).toBe(false))
 
     for (const index of [1, 2, 4, 5, 0]) {
       const button = wrapper.findAll('.album-view-button')[index]
-      expect((button.element as HTMLButtonElement).disabled).toBe(false)
+      await vi.waitFor(() => expect((button.element as HTMLButtonElement).disabled).toBe(false))
       await button.trigger('click')
       await flushPromises()
       expect(button.attributes('aria-pressed')).toBe('true')
@@ -340,6 +342,7 @@ describe('App lifecycle coordination', () => {
     })
     const wrapper = mount(App)
     await flushPromises()
+    await vi.waitFor(() => expect(wrapper.findComponent({ name: 'AlbumViewSwitcher' }).props('disabled')).toBe(false))
     const scanCount = readOutfitLibraryMock.mock.calls.length
     const input = wrapper.get('#outfit-backup-input')
     const backup = new File(['zip'], 'backup.zip', { type: 'application/zip' })
@@ -446,6 +449,7 @@ describe('App lifecycle coordination', () => {
       }
     })
     await flushPromises()
+    await vi.waitFor(() => expect(wrapper.findComponent({ name: 'AlbumViewSwitcher' }).props('disabled')).toBe(false))
 
     await wrapper.get('.tools-menu-button').trigger('click')
     await wrapper.get('.header-dropdown').findAll('button')[2].trigger('click')
@@ -484,6 +488,7 @@ describe('App lifecycle coordination', () => {
       }
     })
     await flushPromises()
+    await vi.waitFor(() => expect(wrapper.findComponent({ name: 'AlbumViewSwitcher' }).props('disabled')).toBe(false))
 
     await wrapper.get('.tools-menu-button').trigger('click')
     await wrapper.get('.header-dropdown').findAll('button')[2].trigger('click')
@@ -498,4 +503,28 @@ describe('App lifecycle coordination', () => {
     expect((wrapper.findAll('.parse-tools-section input:not([type="file"])')[0].element as HTMLInputElement).value).toBe('')
     wrapper.unmount()
   })
+})
+
+it('blocks desktop and mobile navigation until a child operation settles', async () => {
+  getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+  readOutfitCollectionMock.mockResolvedValue({ outfits: [], tags: [] })
+  let finish!: () => void
+  const wrapper = mount(App, { global: { stubs: { CameraFavorites: {
+    setup() { const run = useModuleOperation('camera'); void run(() => new Promise<void>(resolve => { finish = resolve })); return () => null }
+  } } } })
+  try {
+    await flushPromises()
+    const desktop = wrapper.findComponent({ name: 'AlbumViewSwitcher' })
+    const mobile = wrapper.findComponent({ name: 'MobileNavigation' })
+    const previous = desktop.props('activeView')
+    expect(desktop.props('disabled')).toBe(true)
+    expect(mobile.props('disabled')).toBe(true)
+    desktop.vm.$emit('changeView', 'resonance'); await flushPromises()
+    expect(desktop.props('activeView')).toBe(previous)
+    finish(); await flushPromises()
+    expect(desktop.props('disabled')).toBe(false)
+    expect(mobile.props('disabled')).toBe(false)
+    desktop.vm.$emit('changeView', 'resonance'); await flushPromises()
+    expect(desktop.props('activeView')).toBe('resonance')
+  } finally { wrapper.unmount() }
 })

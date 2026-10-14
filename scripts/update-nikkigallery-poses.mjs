@@ -22,13 +22,14 @@ function parseArgs(argv) {
   return result
 }
 
-async function fetchJson(url, timeoutMs) {
+/** 超时覆盖响应头及 JSON 正文读取，正文完成前不能清除中止定时器。 */
+export async function fetchJson(url, timeoutMs) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const response = await fetch(url, { signal: controller.signal })
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`)
-    return response.json()
+    return await response.json()
   } finally {
     clearTimeout(timeout)
   }

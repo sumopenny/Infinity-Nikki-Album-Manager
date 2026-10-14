@@ -1088,19 +1088,6 @@
   }
 }
 
-.primary-button,
-.confirm-dialog-button,
-.header-dropdown,
-.header-dropdown button,
-.header-dropdown a {
-  border-radius: var(--ui-radius);
-}
-
-.primary-button,
-.confirm-dialog-button {
-  min-height: 48px;
-}
-
 /* 搭配码解析窗口：复用编辑窗口的遮罩与面板骨架，仅定制内容区 */
 .outfit-parse-panel {
   display: flex;
@@ -1165,7 +1152,8 @@
   margin: 0;
 }
 
-.outfit-parse-retry {
+/* 业务重试按钮覆盖公共按钮尺寸，不依赖公共样式的加载先后。 */
+.outfit-parse-retry.primary-button {
   display: inline-flex;
   min-width: 104px;
   min-height: 38px;
@@ -1633,17 +1621,6 @@
 @media (max-width: 540px) {
   .outfit-parse-grid {
     grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
   }
 }
 

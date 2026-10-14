@@ -81,8 +81,8 @@ defineEmits<{
         @pointerenter="handlePointerEnter"
         @pointerleave="$event.pointerType === 'mouse' && closeResonanceMenu()"
       >
-        <button type="button" role="menuitem" :class="{ active: activeView === 'resonance' }" @click.stop="$emit('changeView', 'resonance')">共鸣记录</button>
-        <button type="button" role="menuitem" disabled @click.stop>其余模块开发中</button>
+        <button type="button" role="menuitem" :class="{ active: activeView === 'resonance' }" @click.stop="$emit('changeView', 'resonance')">{{ messages.resonanceRecords }}</button>
+        <button type="button" role="menuitem" disabled @click.stop>{{ messages.comingSoon }}</button>
       </div>
     </div>
   </nav>

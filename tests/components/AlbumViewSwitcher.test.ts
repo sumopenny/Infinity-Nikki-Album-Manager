@@ -54,3 +54,17 @@ describe('album view controls', () => {
     expect(wrapper.emitted('changeView')).toEqual([['resonance']])
   })
 })
+
+it('localizes the resonance submenu and updates it when the language changes', async () => {
+  const wrapper = mount(AlbumViewSwitcher, { props: {
+    activeView: 'all', allCount: 0, outfitsCount: 0, homeSchemesCount: 0,
+    favoriteCount: 0, trashCount: 0, outfitLabel: 'Outfits', disabled: false, messages: messages.en.viewNav
+  } })
+  try {
+    const item = wrapper.findAll('.album-view-item')[3]!
+    await item.trigger('pointerenter', { pointerType: 'mouse' })
+    expect(item.findAll('[role="menuitem"]').map(button => button.text())).toEqual(['Resonance records', 'More modules coming soon'])
+    await wrapper.setProps({ messages: messages.zh.viewNav })
+    expect(item.findAll('[role="menuitem"]').map(button => button.text())).toEqual(['共鸣记录', '其余模块开发中'])
+  } finally { wrapper.unmount() }
+})

@@ -1,3 +1,4 @@
+import * as resonanceImport from '../../src/utils/resonance/resonanceImport'
 import * as resonanceStorage from '../../src/utils/resonance/resonanceStorage'
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -357,4 +358,43 @@ it('blocks import after a storage read failure without overwriting existing reco
   expect(save).not.toHaveBeenCalled()
   expect(latestNotice(wrapper)).toMatchObject({ tone: 'error', message: expect.stringContaining('读取失败') })
   expect(await loadResonanceRecords()).toEqual([savedRecord])
+})
+
+it.each(['close', 'method', 'credentials', 'unmount'])('discards a late Pearpal preview after %s', async action => {
+  let finish!: (value: { records: ResonanceRecord[]; skippedPools: number }) => void
+  const pending = vi.spyOn(resonanceImport, 'importFromPearpal').mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+  const { wrapper, panel } = await openDialog()
+  await pasteCredentials(panel)
+  panel.querySelector<HTMLButtonElement>('.resonance-import-footer button')!.click()
+  await vi.waitFor(() => expect(pending).toHaveBeenCalled())
+  const signal = pending.mock.calls[0]![2]!
+  if (action === 'close') panel.querySelector<HTMLButtonElement>('.resonance-import-header button')!.click()
+  if (action === 'method') panel.querySelectorAll<HTMLButtonElement>('.resonance-choice-row:first-child button')[1]!.click()
+  if (action === 'credentials') {
+    const input = panel.querySelector<HTMLInputElement>('.resonance-form input')!
+    input.value = 'different'; input.dispatchEvent(new Event('input', { bubbles: true }))
+  }
+  if (action === 'unmount') wrapper.unmount()
+  await flushPromises()
+  expect(signal.aborted).toBe(true)
+  const notices = wrapper.emitted('notice')?.length ?? 0
+  finish({ records: [savedRecord], skippedPools: 0 }); await flushPromises()
+  expect(document.body.querySelector('.resonance-preview')).toBeNull()
+  expect(wrapper.emitted('notice')?.length ?? 0).toBe(notices)
+})
+
+it('does not let an old file preview overwrite a newer selection', async () => {
+  const { panel } = await openDialog()
+  panel.querySelectorAll<HTMLButtonElement>('.resonance-choice-row:first-child button')[1]!.click()
+  await flushPromises()
+  const input = panel.querySelector<HTMLInputElement>('input[type="file"]')!
+  let finish!: (value: string) => void
+  Object.defineProperty(input, 'files', { configurable: true, value: [{ name: 'old.json', text: () => new Promise<string>(resolve => { finish = resolve }) }] })
+  input.dispatchEvent(new Event('change', { bubbles: true })); await flushPromises()
+  panel.querySelector<HTMLButtonElement>('.resonance-import-footer .primary-button')!.click(); await flushPromises()
+  Object.defineProperty(input, 'files', { configurable: true, value: [{ name: 'new.json', text: async () => '{}' }] })
+  input.dispatchEvent(new Event('change', { bubbles: true })); await flushPromises()
+  finish(JSON.stringify({ 77: [['2026-01-01', HAIR]] })); await flushPromises()
+  expect(panel.querySelector('.resonance-preview')).toBeNull()
+  expect(panel.textContent).toContain('new.json')
 })

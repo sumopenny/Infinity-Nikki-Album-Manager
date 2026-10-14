@@ -260,6 +260,8 @@ export interface LocaleMessages {
     allPhotos: string
     homeSchemes: string
     resonance: string
+    resonanceRecords: string
+    comingSoon: string
     favorites: string
     recentlyDeleted: string
     count: (count: number) => string

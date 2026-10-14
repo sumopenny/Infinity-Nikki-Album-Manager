@@ -90,3 +90,50 @@ it('cancels queued tasks and discards all late results without saving cache', as
   await parser.start([missing], 'album', async () => ['123'])
   expect(parser.actionInfo.value.get(missing.id)?.status).toBe('none')
 })
+
+it.each(['cache', 'uids', 'parse'])('settles progress after %s failure and supports retry', async stage => {
+  vi.mocked(getSavedPhotoActionCaches).mockReset().mockResolvedValue(new Map())
+  vi.mocked(parsePhotoAction).mockReset().mockResolvedValue({ status: 'none' })
+  const uid = vi.fn().mockResolvedValue(['123'])
+  if (stage === 'cache') vi.mocked(getSavedPhotoActionCaches).mockRejectedValueOnce(new Error('cache failed'))
+  if (stage === 'uids') uid.mockRejectedValueOnce(new Error('permission denied'))
+  if (stage === 'parse') vi.mocked(parsePhotoAction).mockRejectedValueOnce(new Error('decoder failed'))
+  const onError = vi.fn()
+  const parser = usePhotoActionParsing({ language: ref('zh'), onError })
+  await expect(parser.start([missing], 'album', uid)).resolves.toBeUndefined()
+  expect(parser.progress.value).toMatchObject({ running: false, completed: 1, failed: 1 })
+  expect(parser.actionInfo.value.get(missing.id)?.status).toBe('unparsed')
+  expect(onError).toHaveBeenCalledTimes(1)
+  await parser.start([missing], 'album', uid)
+  expect(parser.progress.value).toMatchObject({ running: false, failed: 0 })
+})
+
+it('does not let an old preparation rejection end a newer task', async () => {
+  vi.mocked(getSavedPhotoActionCaches).mockResolvedValue(new Map())
+  let fail!: (reason: Error) => void
+  let finish!: (value: string[]) => void
+  const onError = vi.fn()
+  const parser = usePhotoActionParsing({ language: ref('zh'), onError })
+  const old = parser.start([cached], 'old', () => new Promise((_, reject) => { fail = reject }))
+  await vi.waitFor(() => expect(fail).toBeTypeOf('function'))
+  const next = parser.start([missing], 'new', () => new Promise(resolve => { finish = resolve }))
+  await vi.waitFor(() => expect(finish).toBeTypeOf('function'))
+  fail(new Error('old failed')); await old
+  expect(parser.progress.value.running).toBe(true)
+  expect(onError).not.toHaveBeenCalled()
+  finish([]); await next
+  expect(parser.progress.value.running).toBe(false)
+})
+
+it('ignores another worker finishing after the current parse batch fails', async () => {
+  vi.mocked(getSavedPhotoActionCaches).mockResolvedValue(new Map())
+  vi.mocked(savePhotoActionCache).mockClear()
+  let late!: (value: { status: 'none' }) => void
+  vi.mocked(parsePhotoAction).mockReset().mockRejectedValueOnce(new Error('failed')).mockImplementationOnce(() => new Promise(resolve => { late = resolve }))
+  const parser = usePhotoActionParsing({ language: ref('zh') })
+  await parser.start([cached, missing], 'album', async () => ['123'])
+  expect(parser.progress.value).toMatchObject({ running: false, completed: 2, failed: 2 })
+  late({ status: 'none' }); await Promise.resolve(); await Promise.resolve()
+  expect(parser.progress.value).toMatchObject({ running: false, completed: 2, failed: 2 })
+  expect(savePhotoActionCache).not.toHaveBeenCalled()
+})

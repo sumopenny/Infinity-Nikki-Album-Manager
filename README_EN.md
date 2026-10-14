@@ -107,6 +107,8 @@ On phones and desktop, each card shows the outfit and banner names on the same r
 
 Targeted cleanup of low-quality photos and game screenshots, crash snapshots, runtime logs, and the game's built-in browser cache.
 
+During module reads, writes, and imports, desktop/mobile navigation and full backups share the same busy state. Work remains tracked until it settles even if its component unmounts. Photo action preparation failures stop progress and report an error so you can retry. Outfit details and resonance previews discard stale results after closing, changing inputs, or unmounting; Pear-Pal previews also abort network requests.
+
 ### Tools and help
 
 Lucky pull times, Release history, Help and introduction, and issue feedback.
@@ -250,6 +252,14 @@ If the launcher is unavailable, double-click `start\Start-Remote-D1-Website.bat`
 To run the local site against the online D1 data, double-click `start\Start-Remote-D1-Website.bat`. The local server proxies outfit-code data, home-scheme data, and Gongeo catalog details directly to their upstream services; D1 requests such as likes go to the deployed Pages API, so the browser never receives D1 credentials. Production deployments expose same-origin data proxies at `functions/api/gongeo/[[path]].ts` and `functions/api/home-build/[key].ts`. Like actions from this local site write to the online database; use this launcher carefully. The script defaults to `https://infinity-nikki-album-manager.pages.dev`, and accepts another Pages URL as its first argument.
 
 ### Development Commands
+
+Internally, `useOperationCoordinator` tracks module work and `useLatestRequest` invalidates stale reads. `useDirectorySession` and `useOutfitWorkspace` handle directory authorization and outfit operations. Home and Outfit storage share commit/rollback handling in `file-system/transaction.ts`. Pose resource request timeouts cover response body reading.
+
+Development and local Pages/D1 commands use the exact Wrangler 4.149.0 dev dependency and require Node.js 22 or newer. Use `npm ci` to install from the lockfile. `dev:pages`, `d1:migrate:local`, and `d1:migrate:remote` no longer download latest on each run.
+
+The reviewed Home/Camera components and shared controls use pinned Prettier: run `npm run format:review` to format or `npm run format:review:check` to check. Shared button, menu, and reduced-motion rules live in `src/styles/controls.css`; business styles provide their own overrides.
+
+Home operations distinguish permission, storage capacity, image, data, and tag conflicts. Console diagnostics contain only the operation and error category, without raw exceptions or credentials. The Resonance submenu follows the selected language.
 
 ```bash
 npm install       # Install dependencies

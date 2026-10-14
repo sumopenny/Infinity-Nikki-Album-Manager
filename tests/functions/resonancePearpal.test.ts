@@ -3,7 +3,7 @@ import { onRequestPost } from '../../functions/api/resonance/pearpal'
 
 const credentials = { token: 'sample-token', openid: 'sample-openid' }
 
-function request(action: string, body = credentials, headers: HeadersInit = { 'content-type': 'application/json' }) {
+function request(action: string, body: unknown = credentials, headers: HeadersInit = { 'content-type': 'application/json' }) {
   return new Request(`https://album.test/api/resonance/pearpal?action=${action}`, {
     method: 'POST',
     headers,
@@ -14,6 +14,16 @@ function request(action: string, body = credentials, headers: HeadersInit = { 'c
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Pearpal Pages Function', () => {
+  it.each([null, [], 'text', 1, true])('rejects non-object JSON before contacting upstream: %s', async body => {
+    const upstream = vi.fn()
+    vi.stubGlobal('fetch', upstream)
+    const response = await onRequestPost({ request: request('verify', body) })
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'invalid_body' })
+    expect(response.headers.get('cache-control')).toContain('no-store')
+    expect(upstream).not.toHaveBeenCalled()
+  })
+
   it('allows only the fixed user-info and notebook actions', async () => {
     const upstream = vi.fn<typeof fetch>(async () => Response.json({ code: 0, data: { role: { uid: '123' } } }))
     vi.stubGlobal('fetch', upstream)

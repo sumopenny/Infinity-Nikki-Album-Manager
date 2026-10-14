@@ -16,6 +16,7 @@ import {
 } from '../utils/outfit/outfitCodeParser'
 import { getClothTypeLabel, inferClothTypeFromItemId } from '../utils/outfit/clothType'
 import { loadOutfitDetail, type OutfitDetail } from '../utils/outfit/outfitDetails'
+import { useLatestRequest } from '../composables/useLatestRequest'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
 const props = defineProps<{
@@ -47,6 +48,8 @@ const panelRef = ref<HTMLElement | null>(null)
 const detailPanelRef = ref<HTMLElement | null>(null)
 const detailVisible = ref(false)
 const detailLoading = ref(false)
+const detailError = ref(false)
+const detailRequest = useLatestRequest()
 const selectedDetail = ref<OutfitDetail | null>(null)
 const loadedItemImages = ref(new Set<number>())
 const failedItemImages = ref(new Set<number>())
@@ -88,15 +91,24 @@ const items = computed<ParseItemView[]>(() => {
 
 async function openItemDetail(item: ParseItemView, event: Event) {
   if (!item.resolved || !item.imageUrl) return
+  const request = detailRequest.begin()
+  detailError.value = false
   detailTrigger = event.currentTarget instanceof HTMLButtonElement ? event.currentTarget : null
   detailVisible.value = true
   detailLoading.value = true
   detailImageState.value = 'idle'
   selectedDetail.value = null
   void nextTick(() => detailPanelRef.value?.querySelector('button')?.focus())
-  selectedDetail.value = await loadOutfitDetail(item.id, item.outfitId, props.language, item.name, item.dyes, item.clothType, item.hasSpecialEffect)
-  detailLoading.value = false
-  void nextTick(() => detailPanelRef.value?.querySelector('button')?.focus())
+  try {
+    const result = await loadOutfitDetail(item.id, item.outfitId, props.language, item.name, item.dyes, item.clothType, item.hasSpecialEffect)
+    if (!request.isCurrent()) return
+    selectedDetail.value = result
+    void nextTick(() => { if (request.isCurrent()) detailPanelRef.value?.querySelector('button')?.focus() })
+  } catch {
+    if (request.isCurrent()) detailError.value = true
+  } finally {
+    if (request.isCurrent()) detailLoading.value = false
+  }
 }
 
 function markItemImageLoaded(itemId: number) {
@@ -117,6 +129,8 @@ function markDetailImageFailed() {
 }
 
 function closeItemDetail() {
+  detailRequest.invalidate()
+  detailError.value = false
   const trigger = detailTrigger
   detailVisible.value = false
   detailLoading.value = false
@@ -128,6 +142,7 @@ function closeItemDetail() {
 
 /** 解析当前搭配码；重复解析会作废旧请求结果，避免慢响应覆盖新状态。 */
 async function startParse() {
+  closeItemDetail()
   const currentRequest = (requestId += 1)
   const code = props.code
   decoded.value = null
@@ -198,7 +213,8 @@ watch(() => props.visible, (visible) => {
 })
 
 window.addEventListener('keydown', handleKeydown)
-onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
+watch(() => [props.code, props.language], () => { if (props.visible) void startParse() })
+onBeforeUnmount(() => { requestId++; window.removeEventListener('keydown', handleKeydown) })
 </script>
 
 <template>
@@ -316,6 +332,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
             <span class="outfit-parse-spinner" aria-hidden="true"></span>
             <p>{{ messages.detailLoading }}</p>
           </div>
+          <p v-else-if="detailError" class="outfit-detail-error" role="alert">{{ messages.detailLoadFailed }}</p>
           <div
             v-else-if="selectedDetail"
             class="outfit-detail-content"

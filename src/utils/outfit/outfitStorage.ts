@@ -1,4 +1,5 @@
-import { openDb, runStoreRequest, OUTFITS_STORE, OUTFIT_IMAGES_STORE, OUTFIT_TAGS_STORE, OUTFIT_IGNORED_CODES_STORE } from '../file-system/database'
+import { databaseRequest as outfitRequest, runDatabaseTransaction as outfitTransaction } from '../file-system/transaction'
+import { runStoreRequest, OUTFITS_STORE, OUTFIT_IMAGES_STORE, OUTFIT_TAGS_STORE, OUTFIT_IGNORED_CODES_STORE } from '../file-system/database'
 import { convertImageToWebp, MAX_IMAGE_BYTES, validateImageBlob } from '../image'
 import { displayOutfit } from './outfitImageLoader'
 import { sha256Hex } from '../sha256'
@@ -7,24 +8,7 @@ import { createOutfitId, DEFAULT_OUTFIT_TAGS, DuplicateOutfitCodeError, normaliz
 
 export interface OutfitImage { id: string; blob: Blob; size: number; sha256: string }
 export interface OutfitSnapshot { records: OutfitRecord[]; images: Map<string, OutfitImage>; tags: string[]; ignoredCodes: string[] }
-export function outfitRequest<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
-}
-
-/** Only await IndexedDB requests inside action; decode/hash/file work precedes the transaction. */
-export async function outfitTransaction<T>(stores: string[], mode: IDBTransactionMode, action: (tx: IDBTransaction) => Promise<T>): Promise<T> {
-  const db = await openDb()
-  return new Promise((resolve, reject) => {
-    let tx: IDBTransaction | undefined, result: T, failure: unknown
-    try {
-      tx = db.transaction(stores, mode)
-      tx.oncomplete = () => { db.close(); resolve(result) }
-      tx.onabort = () => { db.close(); const error = failure ?? tx!.error; reject(error instanceof DOMException && error.name === 'ConstraintError' ? new DuplicateOutfitCodeError() : error ?? new Error('outfit_transaction_aborted')) }
-      tx.onerror = () => { /* Abort reports final failure. */ }
-      action(tx).then(value => { result = value }).catch(error => { failure = error; try { tx!.abort() } catch { db.close(); reject(error) } })
-    } catch (error) { try { tx?.abort() } catch { /* Already inactive. */ } db.close(); reject(error) }
-  })
-}
+export { databaseRequest as outfitRequest, runDatabaseTransaction as outfitTransaction } from '../file-system/transaction'
 export async function hashOutfitBlob(blob: Blob): Promise<string> {
   return sha256Hex(await blob.arrayBuffer())
 }

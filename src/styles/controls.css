@@ -1,0 +1,24 @@
+/* 跨模块控件和减少动态效果规则：由入口统一加载，不再依赖搭配业务样式。 */
+.primary-button,
+.confirm-dialog-button,
+.header-dropdown,
+.header-dropdown button,
+.header-dropdown a {
+  border-radius: var(--ui-radius);
+}
+
+.primary-button,
+.confirm-dialog-button {
+  min-height: 48px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

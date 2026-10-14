@@ -1,4 +1,5 @@
-import { openDb, runStoreRequest, HOME_SCHEMES_STORE, HOME_IMAGES_STORE, HOME_TAGS_STORE } from '../file-system/database'
+import { databaseRequest as homeRequest, runDatabaseTransaction as homeTransaction } from '../file-system/transaction'
+import { runStoreRequest, HOME_SCHEMES_STORE, HOME_IMAGES_STORE, HOME_TAGS_STORE } from '../file-system/database'
 import { convertImageToWebp, validateImageBlob, MAX_IMAGE_BYTES } from '../image'
 import { sha256Hex } from '../sha256'
 import { createHomeSchemeId, normalizeHomeSchemeRecord, isValidHomeSchemeTag, normalizeHomeSchemeTag,
@@ -7,35 +8,7 @@ import { createHomeSchemeId, normalizeHomeSchemeRecord, isValidHomeSchemeTag, no
 export interface HomeSchemeImage { id: string; blob: Blob; size: number; sha256: string }
 export interface HomeSchemeSnapshot { records: HomeSchemeRecord[]; images: Map<string, HomeSchemeImage>; tags: string[] }
 
-export function homeRequest<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error)
-  })
-}
-
-/** Only IndexedDB requests may be awaited in action; file/image work runs before the transaction. */
-export async function homeTransaction<T>(stores: string[], mode: IDBTransactionMode, action: (tx: IDBTransaction) => Promise<T>): Promise<T> {
-  const db = await openDb()
-  return new Promise((resolve, reject) => {
-    let tx: IDBTransaction | undefined
-    let result: T
-    let failure: unknown
-    try {
-      tx = db.transaction(stores, mode)
-      tx.oncomplete = () => { db.close(); resolve(result) }
-      tx.onabort = () => { db.close(); reject(failure ?? tx!.error ?? new Error('home_scheme_transaction_aborted')) }
-      tx.onerror = () => { /* onabort reports the final failure */ }
-      action(tx).then(value => { result = value }).catch(error => {
-        failure = error
-        try { tx!.abort() } catch { db.close(); reject(error) }
-      })
-    } catch (error) {
-      try { tx?.abort() } catch { /* already inactive */ }
-      db.close(); reject(error)
-    }
-  })
-}
+export { databaseRequest as homeRequest, runDatabaseTransaction as homeTransaction } from '../file-system/transaction'
 
 export async function prepareHomeSchemeImage(blob: Blob, id: string): Promise<HomeSchemeImage> {
   if (!blob.size || blob.size > MAX_IMAGE_BYTES) throw new Error('home_scheme_image_invalid')

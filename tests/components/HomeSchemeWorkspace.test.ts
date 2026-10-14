@@ -1,3 +1,4 @@
+import { createOperationCoordinator, operationCoordinatorKey } from '../../src/composables/useOperationCoordinator'
 import 'fake-indexeddb/auto'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
@@ -127,4 +128,33 @@ it('reloads global data after migration revision changes and preserves it when t
     expect(wrapper.text()).toContain('迁入方案')
     expect((await readHomeSchemeSnapshot()).records).toHaveLength(1)
   } finally { wrapper.unmount() }
+})
+
+it('releases the application operation after an unmounted home load settles', async () => {
+  let finish!: (value: { schemes: never[]; tags: never[] }) => void
+  vi.spyOn(homeStorage, 'readHomeSchemeLibrary').mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+  const coordinator = createOperationCoordinator()
+  const wrapper = mount(HomeSchemeWorkspace, { props, global: { provide: { [operationCoordinatorKey as symbol]: coordinator } } })
+  expect(coordinator.isBusy.value).toBe(true)
+  wrapper.unmount()
+  expect(coordinator.isBusy.value).toBe(true)
+  finish({ schemes: [], tags: [] })
+  await flushPromises()
+  expect(coordinator.isBusy.value).toBe(false)
+})
+
+it('does not release an in-flight deletion merely because the component unmounts', async () => {
+  await saveHomeScheme({ code: 'KEEP', name: 'Keep', schemeType: 'home', tags: [], note: '', metadata: createEmptyHomeSchemeMetadata() })
+  let finish!: () => void
+  const deletion = vi.spyOn(homeStorage, 'deleteHomeScheme').mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve }))
+  const coordinator = createOperationCoordinator()
+  const wrapper = mount(HomeSchemeWorkspace, { props, global: { provide: { [operationCoordinatorKey as symbol]: coordinator } } })
+  await vi.waitFor(() => expect(wrapper.findAll('.home-scheme-card')).toHaveLength(1))
+  await wrapper.get('.home-scheme-card').trigger('click')
+  wrapper.findComponent(SelectionBar).vm.$emit('delete')
+  await vi.waitFor(() => expect(deletion).toHaveBeenCalled())
+  wrapper.unmount()
+  expect(coordinator.isBusy.value).toBe(true)
+  finish(); await flushPromises()
+  expect(coordinator.isBusy.value).toBe(false)
 })

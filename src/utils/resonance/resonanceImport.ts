@@ -40,9 +40,10 @@ async function request(url: string, init?: RequestInit): Promise<Response> {
   return response
 }
 
-async function postPearpal(action: 'verify' | 'snapshot', credentials: ResonanceCredentials): Promise<Response> {
+async function postPearpal(action: 'verify' | 'snapshot', credentials: ResonanceCredentials, signal?: AbortSignal): Promise<Response> {
   const response = await request(`/api/resonance/pearpal?action=${action}`, {
     method: 'POST',
+    signal,
     cache: 'no-store',
     headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
     body: JSON.stringify({ client_id: 1106, token: credentials.token, openid: credentials.id })
@@ -54,8 +55,8 @@ async function postPearpal(action: 'verify' | 'snapshot', credentials: Resonance
   return response
 }
 
-async function verifyPearpalUid(credentials: ResonanceCredentials): Promise<void> {
-  const response = await postPearpal('verify', credentials)
+async function verifyPearpalUid(credentials: ResonanceCredentials, signal?: AbortSignal): Promise<void> {
+  const response = await postPearpal('verify', credentials, signal)
   const payload = await response.json() as {
     code?: number
     info?: string
@@ -103,11 +104,15 @@ function toPullRow(row: PearpalRow) {
 /** 先核对用户 UID，再解压手账快照并逐卡池转换；单池解析失败不会覆盖该池本地数据。 */
 export async function importFromPearpal(
   credentials: ResonanceCredentials,
-  onProgress?: (value: ResonanceImportProgress) => void
+  onProgress?: (value: ResonanceImportProgress) => void,
+  signal?: AbortSignal
 ): Promise<ResonanceImportResult> {
-  await verifyPearpalUid(credentials)
-  const response = await postPearpal('snapshot', credentials)
+  signal?.throwIfAborted()
+  await verifyPearpalUid(credentials, signal)
+  signal?.throwIfAborted()
+  const response = await postPearpal('snapshot', credentials, signal)
   const decoded = decodePearpal(await response.arrayBuffer()) as { info_from_self?: { gacha_list?: unknown } }
+  signal?.throwIfAborted()
   const gachaList = asGachaRows(decoded?.info_from_self?.gacha_list)
   if (!gachaList.length) throw new Error(PEARPAL_NO_RECORDS)
 

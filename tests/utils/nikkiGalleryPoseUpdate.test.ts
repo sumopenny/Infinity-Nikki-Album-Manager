@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 // @ts-expect-error Node 构建脚本保持原生 ESM，不参与前端 TypeScript 编译。
-import { buildGalleryPoseEntries, GALLERY_IMAGE_TEMPLATE, mergePoseCatalog } from '../../scripts/update-nikkigallery-poses.mjs'
+import { fetchJson, buildGalleryPoseEntries, GALLERY_IMAGE_TEMPLATE, mergePoseCatalog } from '../../scripts/update-nikkigallery-poses.mjs'
 
 describe('NikkiGallery pose updater', () => {
   it('normalizes numeric and string IDs into runtime entries', () => {
@@ -38,4 +38,24 @@ describe('NikkiGallery pose updater', () => {
     expect(result.resources.light).toEqual(catalog.resources.light)
     expect(result.resources.pose).toEqual(poses)
   })
+})
+
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
+it('keeps timeout active while response headers arrive but the body stalls', async () => {
+  vi.useFakeTimers()
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => ({ ok: true, json: () => new Promise((_, reject) => {
+    init.signal.addEventListener('abort', () => reject(new Error('body aborted')), { once: true })
+  }) })))
+  const result = fetchJson('https://example.test/poses', 5)
+  const rejected = expect(result).rejects.toThrow('body aborted')
+  await vi.advanceTimersByTimeAsync(6)
+  await rejected
+  expect(vi.getTimerCount()).toBe(0)
+})
+it('clears the timeout after successful JSON and parse errors', async () => {
+  vi.useFakeTimers()
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) }).mockResolvedValueOnce({ ok: true, json: async () => { throw new SyntaxError('bad json') } }))
+  expect(await fetchJson('https://example.test', 5)).toEqual({ ok: true })
+  await expect(fetchJson('https://example.test', 5)).rejects.toThrow('bad json')
+  expect(vi.getTimerCount()).toBe(0)
 })

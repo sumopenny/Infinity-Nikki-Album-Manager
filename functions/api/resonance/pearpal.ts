@@ -24,7 +24,12 @@ export async function onRequestPost({ request }: Context): Promise<Response> {
   try {
     const rawBody = await request.text()
     if (rawBody.length > 8192) return Response.json({ error: 'request_too_large' }, { status: 413, headers: CACHE_HEADERS })
-    body = JSON.parse(rawBody) as typeof body
+    const parsed: unknown = JSON.parse(rawBody)
+    // JSON 顶层必须是非空对象；合法 JSON 的 null、数组和标量也不能作为凭据对象。
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return Response.json({ error: 'invalid_body' }, { status: 400, headers: CACHE_HEADERS })
+    }
+    body = parsed as typeof body
   } catch {
     return Response.json({ error: 'invalid_body' }, { status: 400, headers: CACHE_HEADERS })
   }

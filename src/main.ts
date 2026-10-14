@@ -8,6 +8,7 @@ import './styles/album.css'
 import './styles/album-navigation.css'
 import './styles/lightbox.css'
 import './styles/outfit.css'
+import './styles/controls.css'
 import './styles/mobile.css'
 
 createApp(App).mount('#app')

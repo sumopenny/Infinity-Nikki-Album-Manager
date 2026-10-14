@@ -69,11 +69,19 @@ export interface HomeSchemeMessages {
   migrationTagLimit: string
   migrationDirectoryRemoved: string
   migrationCleanupFailed: string
+  permissionDenied: string
+  imageInvalid: string
+  dataInvalid: string
+  tagsChanged: string
   operationFailed: string
 }
 
 export const homeSchemeMessages = {
   zh: {
+    permissionDenied: '没有访问权限，请重新授权后重试。',
+    imageInvalid: '方案图片缺失、损坏或超出限制，请检查图片后重试。',
+    dataInvalid: '家园数据无效或无法读取，请保留备份并重新加载。',
+    tagsChanged: '标签仍在使用或已被修改，请刷新列表后重试。',
     deleteSelectedConfirm: count => `确定删除当前列表中选中的 ${count} 个家园方案吗？此操作无法撤销。`,
     recordChanged: '该方案已被其他窗口修改或删除。当前输入已保留，请复制需要的内容后关闭并重新打开编辑器。',
     viewName: '家园方案', title: '家园方案', add: '添加方案', importData: '导入数据', exportData: '导出数据', importing: '正在导入…', exporting: '正在导出…',
@@ -86,6 +94,10 @@ export const homeSchemeMessages = {
     exportSucceeded: (count, fileName) => '已导出 ' + count + ' 个方案到 ' + fileName + '。', invalidCode: '方案码长度需为 2 到 30 个字符。', duplicateCode: '这个方案码已存在。', nameRequired: '请填写方案名称。', invalidBackup: '备份文件无效或不受支持。', storageFull: '浏览器存储空间不足，请释放空间后重试。', migrationSucceeded: (added, replaced, skipped, failed) => `家园方案迁移完成：新增 ${added} 个，替换 ${replaced} 个，相同跳过 ${skipped} 个，失败 ${failed} 项。`, migrationFailedItems: files => `失败文件：${files}。重新选择或更新相册可重试。`, migrationDirectoryRemoved: '旧 home 文件夹已自动删除。', migrationCleanupFailed: '旧 home 文件夹未删除，请检查写入权限或是否存在未迁移内容，再更新相册重试。', migrationTagLimit: '标签已达到 40 个上限，相关条目未迁移；释放标签名额后可重试。', operationFailed: '操作失败，数据未能完整读取或保存，请重试。'
   },
   en: {
+    permissionDenied: 'Access was denied. Grant permission again and retry.',
+    imageInvalid: 'The scheme image is missing, damaged, or exceeds the limits. Check the image and retry.',
+    dataInvalid: 'Home scheme data is invalid or unreadable. Keep a backup and reload.',
+    tagsChanged: 'Tags are still in use or have changed. Refresh the list and retry.',
     deleteSelectedConfirm: count => `Delete the ${count} selected home schemes in the current list? This cannot be undone.`,
     recordChanged: 'Another window changed or deleted this scheme. Your input is preserved. Copy anything you need, then close and reopen the editor.',
     viewName: 'Home schemes', title: 'Home schemes', add: 'Add scheme', importData: 'Import data', exportData: 'Export data', importing: 'Importing…', exporting: 'Exporting…',

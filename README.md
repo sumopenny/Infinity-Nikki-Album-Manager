@@ -101,6 +101,8 @@
 
 专项清理低画质图片与游戏截图、崩溃快照、运行日志和游戏内置浏览器缓存。
 
+模块读写与导入期间，电脑和手机导航及完整备份入口使用同一忙碌判断；任务即使因组件卸载而离开界面，也会等待实际结束后解锁。照片动作解析准备失败会结束进度并显示错误，可重试。搭配详情和共鸣预览在关闭、切换输入或卸载后丢弃旧结果；奇想手账预览同时中止网络请求。
+
 ### 小工具与帮助
 
 抽卡吉时、更新记录、使用帮助与问题反馈。
@@ -254,6 +256,14 @@ npm -v
 如果希望本地页面直接读取线上 D1 数据，请双击 `start\Start-Remote-D1-Website.bat`。点赞等 D1 请求会在本地转发到线上 Pages，不会让浏览器直接接触 D1；搭配码、家园方案数据和 Gongeo 图鉴详情由本地 Vite 直接代理到上游服务。生产部署通过 `functions/api/gongeo/[[path]].ts` 和 `functions/api/home-build/[key].ts` 提供同源数据代理。点击点赞会真实写入线上数据库，请谨慎使用。脚本默认使用 `https://infinity-nikki-album-manager.pages.dev`，也可把其他 Pages 地址作为脚本参数传入。
 
 ### 开发命令
+
+内部流程由 `useOperationCoordinator` 统一登记模块任务，`useLatestRequest` 管理异步读取失效；`useDirectorySession` 与 `useOutfitWorkspace` 分别负责目录授权和搭配操作，家园/搭配共用 `file-system/transaction.ts` 的提交与回滚机制。动作资源请求的超时覆盖响应正文读取。
+
+开发与本地 Pages/D1 命令使用开发依赖中精确固定的 Wrangler 4.149.0，需 Node.js 22 或以上；建议用 `npm ci` 按 lockfile 安装。`dev:pages`、`d1:migrate:local` 和 `d1:migrate:remote` 不再临时下载 latest 版本。
+
+审查涉及的家园/相机组件与公共控件样式使用固定版本 Prettier：`npm run format:review` 格式化，`npm run format:review:check` 检查。公共按钮、菜单及减少动态效果规则集中在 `src/styles/controls.css`，业务样式只提供自身覆盖。
+
+家园操作错误按权限、存储空间、图片、数据和标签冲突分别提示；控制台仅记录操作名及错误类别，不记录原始异常内容或凭据。共鸣导航子菜单随中英文切换。
 
 ```bash
 npm install       # 安装依赖
