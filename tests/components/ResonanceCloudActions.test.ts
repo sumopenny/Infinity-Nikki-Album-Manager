@@ -29,6 +29,8 @@ const record = (id: string): ResonanceRecord => ({
 })
 let wrappers: ReturnType<typeof mount>[] = []
 beforeEach(() => {
+  // 模拟局域网 HTTP：提供安全随机数，但没有 randomUUID。
+  vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
   api.mockReset()
   api.mockResolvedValue({ user })
   HTMLDialogElement.prototype.showModal = function () {

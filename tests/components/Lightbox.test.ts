@@ -4,6 +4,8 @@ import { messages } from '../../src/i18n'
 import type { PhotoItem } from '../../src/utils/photoGrouping'
 import { outfitMessages } from '../../src/i18n/messages/outfit'
 import type { OutfitItem } from '../../src/utils/outfit/outfitFileSystem'
+import { homeSchemeMessages } from '../../src/i18n/messages/homeScheme'
+import type { HomeSchemeItem } from '../../src/utils/homeBuild/homeSchemeTypes'
 import Lightbox from '../../src/components/Lightbox.vue'
 
 const loadPhotoMock = vi.fn<(photo: PhotoItem) => Promise<string>>()
@@ -371,3 +373,114 @@ describe('Lightbox touch gestures', () => {
     }
   })
 })
+
+it('blocks album actions until the displayed photo matches the target', async () => {
+  let finish!: (value: string) => void
+  loadPhotoMock
+    .mockReset()
+    .mockResolvedValueOnce('blob:first')
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+  const wrapper = mount(Lightbox, {
+    props: {
+      photo: createPhoto('first'),
+      hasPrevious: true,
+      hasNext: true,
+      isDeleting: false,
+      isFavorite: false,
+      keyboardEnabled: true,
+      mode: 'album',
+      messages: messages.zh.lightbox,
+      dateMessages: messages.zh.date
+    },
+    global: { stubs: { Teleport: true } }
+  })
+  await flushPromises()
+  await wrapper.setProps({ photo: createPhoto('second') })
+  const actions = [
+    [messages.zh.lightbox.parsePhoto, 'parsePhoto'],
+    [messages.zh.lightbox.editNote, 'editPhotoNote'],
+    [messages.zh.lightbox.favorite, 'toggleFavorite']
+  ] as const
+  for (const [label, event] of actions) {
+    const button = wrapper.get('button[aria-label="' + label + '"]')
+    expect(button.attributes('disabled')).toBeDefined()
+    await button.trigger('click')
+    expect(wrapper.emitted(event)).toBeUndefined()
+  }
+  finish('blob:second')
+  await flushPromises()
+  for (const [label, event] of actions) {
+    await wrapper.get('button[aria-label="' + label + '"]').trigger('click')
+    expect(wrapper.emitted(event)).toHaveLength(1)
+  }
+  wrapper.unmount()
+})
+
+it.each(['outfit', 'home'] as const)(
+  'blocks %s copy/edit actions while replacing the image',
+  async (mode) => {
+    let finish!: (value: string) => void
+    loadPhotoMock
+      .mockReset()
+      .mockResolvedValueOnce('blob:first')
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve
+          })
+      )
+    const photo = createPhoto('first')
+    const outfit = { ...photo, code: 'ABC', tags: [], note: '' } as unknown as OutfitItem
+    const homeScheme = {
+      id: 'home',
+      code: 'HOME',
+      name: '家园',
+      tags: [],
+      note: '',
+      metadata: {}
+    } as unknown as HomeSchemeItem
+    const locale = mode === 'home' ? homeSchemeMessages.zh : outfitMessages.zh
+    const wrapper = mount(Lightbox, {
+      props: {
+        photo,
+        outfit,
+        homeScheme,
+        outfitMessages: outfitMessages.zh,
+        homeMessages: homeSchemeMessages.zh,
+        hasPrevious: true,
+        hasNext: true,
+        isDeleting: false,
+        isFavorite: false,
+        keyboardEnabled: true,
+        mode,
+        messages: messages.zh.lightbox,
+        dateMessages: messages.zh.date
+      },
+      global: { stubs: { Teleport: true } }
+    })
+    await flushPromises()
+    await wrapper.setProps({ photo: createPhoto('second') })
+    const actions = [
+      [locale.copy, mode === 'home' ? 'copyHomeScheme' : 'copyOutfit'],
+      [locale.edit, mode === 'home' ? 'editHomeScheme' : 'editOutfit']
+    ]
+    for (const [label, event] of actions) {
+      const button = wrapper.get('button[aria-label="' + label + '"]')
+      expect(button.attributes('disabled')).toBeDefined()
+      await button.trigger('click')
+      expect(wrapper.emitted(event!)).toBeUndefined()
+    }
+    finish('blob:second')
+    await flushPromises()
+    for (const [label, event] of actions) {
+      await wrapper.get('button[aria-label="' + label + '"]').trigger('click')
+      expect(wrapper.emitted(event!)).toHaveLength(1)
+    }
+    wrapper.unmount()
+  }
+)

@@ -2914,6 +2914,7 @@ function importAllDataFromMenu() {
         !isOutfitEditorVisible &&
         !isOutfitParseVisible &&
         !isPhotoParamsVisible &&
+        !isNoteDialogVisible &&
         !cameraFavoriteModal
       "
       :mode="activeView === 'trash' ? 'trash' : activeView === 'outfits' ? 'outfit' : 'album'"

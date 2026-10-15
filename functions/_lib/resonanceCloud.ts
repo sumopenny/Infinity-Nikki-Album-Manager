@@ -15,6 +15,21 @@ export interface CloudDB {
 export interface CloudEnv {
   RESONANCE_DB?: CloudDB
 }
+type CloudStage =
+  | 'origin'
+  | 'session'
+  | 'body-read'
+  | 'rate-limit'
+  | 'account-read'
+  | 'password-hash'
+  | 'account-write'
+  | 'session-write'
+  | 'snapshot-read'
+  | 'snapshot-decode'
+  | 'receipt-read'
+  | 'staging'
+  | 'commit'
+  | 'cleanup'
 interface User {
   id: string
   username: string
@@ -138,7 +153,13 @@ async function cleanupRecords(db: CloudDB, userId: string) {
     .run()
 }
 /** 版本化整批覆盖：暂存各行后 CAS 切换指针，失败或中断不影响当前存档。 */
-async function replace(db: CloudDB, user: User, body: Record<string, unknown>, deleting: boolean) {
+async function replace(
+  db: CloudDB,
+  user: User,
+  body: Record<string, unknown>,
+  deleting: boolean,
+  stage: (value: CloudStage) => void
+) {
   const id = body.requestId
   if (
     typeof id !== 'string' ||
@@ -153,16 +174,19 @@ async function replace(db: CloudDB, user: User, body: Record<string, unknown>, d
   const fingerprint = await digest(
     JSON.stringify({ revision: body.revision, records: rows, deleting })
   )
+  stage('receipt-read')
   const previous = await db
     .prepare('SELECT digest,committed_revision FROM cloud_snapshots WHERE user_id=? AND id=?')
     .bind(user.id, id)
     .first<{ digest: string; committed_revision: number | null }>()
   if (previous && previous.digest !== fingerprint) fail(409, 'CONFLICT')
   if (previous?.committed_revision != null) {
+    stage('cleanup')
     await cleanupRecords(db, user.id)
     return { revision: previous.committed_revision, replayed: true }
   }
   if (user.revision !== body.revision) fail(409, 'CONFLICT')
+  stage('staging')
   const now = Date.now()
   // 清理一天前的中断上传与三十天前的重试回执；当前存档永不被清理。
   await db
@@ -209,6 +233,7 @@ async function replace(db: CloudDB, user: User, body: Record<string, unknown>, d
           .bind(user.id, id, value)
       )
     )
+  stage('commit')
   const result = await db.batch([
     db
       .prepare(
@@ -247,19 +272,38 @@ async function replace(db: CloudDB, user: User, body: Record<string, unknown>, d
       .run()
     fail(409, 'CONFLICT')
   }
+  stage('cleanup')
   await cleanupRecords(db, user.id)
   return { revision: Number(body.revision) + 1 }
 }
 
 /** 共鸣账户与单存档 API；所有记录归属来自已验证会话，不接受客户端指定用户。 */
 export async function handleCloud(request: Request, env: CloudEnv): Promise<Response> {
+  // 诊断字段只取服务端生成值和固定枚举，不记录账号、令牌、SQL 或异常原文。
+  const requestId = crypto.randomUUID()
+  let stage: CloudStage = 'origin'
+  const setStage = (value: CloudStage) => {
+    stage = value
+  }
+  const action = new URL(request.url).searchParams.get('action') || 'session'
+  const operation = [
+    'session',
+    'register',
+    'login',
+    'logout',
+    'snapshot',
+    'upload',
+    'delete'
+  ].includes(action)
+    ? action
+    : 'unknown'
   try {
     checkOrigin(request)
     const db = env.RESONANCE_DB
     if (!db) fail(503, 'NOT_CONFIGURED')
-    const action = new URL(request.url).searchParams.get('action') || 'session'
     if (!['GET', 'POST'].includes(request.method)) fail(405, 'METHOD')
     if ((request.method === 'GET') !== ['session', 'snapshot'].includes(action)) fail(405, 'METHOD')
+    setStage('session')
     const token = getToken(request)
     const sessionHash = token ? await digest(token) : ''
     const user = token
@@ -276,6 +320,7 @@ export async function handleCloud(request: Request, env: CloudEnv): Promise<Resp
         token && user ? cookieFor(request, token) : undefined
       )
     if (['register', 'login'].includes(action)) {
+      setStage('body-read')
       const body = await readBody(request, 4096)
       const username = typeof body.username === 'string' ? body.username.trim().toLowerCase() : ''
       const password = body.password
@@ -286,15 +331,19 @@ export async function handleCloud(request: Request, env: CloudEnv): Promise<Resp
         [...password].length > 128
       )
         fail(400, 'CREDENTIAL_FORMAT')
+      setStage('rate-limit')
       await limit(db, `ip:${await digest(request.headers.get('CF-Connecting-IP') || 'local')}`, 30)
       await limit(db, `account:${username}`, 10)
+      setStage('account-read')
       let account = await db
         .prepare('SELECT * FROM cloud_users WHERE username=?')
         .bind(username)
         .first<User>()
       if (action === 'register') {
         if (account) fail(409, 'USERNAME_TAKEN')
+        setStage('password-hash')
         const passwordHash = await hashPassword(password)
+        setStage('account-write')
         const id = crypto.randomUUID()
         account = await db
           .prepare(
@@ -303,10 +352,14 @@ export async function handleCloud(request: Request, env: CloudEnv): Promise<Resp
           .bind(id, username, passwordHash)
           .first<User>()
         if (!account) fail(409, 'USERNAME_TAKEN')
-      } else if (!(await verifyPassword(password, account?.password_hash || '')) || !account) {
-        console.warn('resonance-auth', 'invalid-credentials')
-        fail(401, 'CREDENTIALS')
+      } else {
+        setStage('password-hash')
+        if (!(await verifyPassword(password, account?.password_hash || '')) || !account) {
+          console.warn('resonance-auth', 'invalid-credentials')
+          fail(401, 'CREDENTIALS')
+        }
       }
+      setStage('session-write')
       const next = random()
       await db.batch([
         db.prepare('DELETE FROM cloud_sessions WHERE token_hash=?').bind(sessionHash),
@@ -320,11 +373,14 @@ export async function handleCloud(request: Request, env: CloudEnv): Promise<Resp
     if (!user) fail(401, 'LOGIN_REQUIRED')
     if (request.headers.get('X-Resonance-Account') !== user.id) fail(409, 'ACCOUNT_CHANGED')
     if (action === 'logout') {
+      setStage('session-write')
       await db.prepare('DELETE FROM cloud_sessions WHERE token_hash=?').bind(sessionHash).run()
       return json({ success: true }, cookieFor(request, '', true))
     }
+    setStage('rate-limit')
     await limit(db, `sync:${user.id}`, 60)
     if (action === 'snapshot') {
+      setStage('snapshot-read')
       // 同一批事务读取指针与记录，避免覆盖清理时拿到不完整的下载。
       const result = await db.batch([
         db
@@ -336,25 +392,44 @@ export async function handleCloud(request: Request, env: CloudEnv): Promise<Resp
           )
           .bind(user.id)
       ])
+      setStage('snapshot-decode')
       return json({
         ...result[0].results[0],
         records: result[1].results.map((row) => JSON.parse(String(row.payload_json)))
       })
     }
     if (!['upload', 'delete'].includes(action)) fail(400, 'INVALID_DATA')
+    setStage('body-read')
     const body = await readBody(request, action === 'delete' ? 4096 : MAX_CLOUD_BYTES + 4096)
     if (action === 'delete') {
+      setStage('rate-limit')
       await limit(db, `delete:${user.id}`, 10)
     }
-    return json(await replace(db, user, { ...body, sessionHash }, action === 'delete'))
+    return json(await replace(db, user, { ...body, sessionHash }, action === 'delete', setStage))
   } catch (error) {
     const known =
       error instanceof ApiError ||
       (error instanceof Error && ['INVALID_DATA', 'TOO_LARGE'].includes(error.message))
-    if (!known) console.error('resonance-cloud', 'operation-failed')
+    if (!known)
+      console.error('resonance-cloud', {
+        operation,
+        stage,
+        requestId,
+        category:
+          error instanceof SyntaxError
+            ? 'syntax'
+            : error instanceof TypeError
+              ? 'type'
+              : error instanceof Error
+                ? 'runtime'
+                : 'unknown'
+      })
     return Response.json(
       { error: known ? (error as Error).message : 'SERVER_ERROR' },
-      { status: error instanceof ApiError ? error.status : known ? 400 : 500, headers }
+      {
+        status: error instanceof ApiError ? error.status : known ? 400 : 500,
+        headers: { ...headers, 'X-Request-Id': requestId }
+      }
     )
   }
 }

@@ -69,11 +69,13 @@ export function usePhotoParams(options: {
   async function parsePhotoBytes(bytes: Uint8Array, candidateUids: string[], run: number) {
     setStage('loadingWasm', 50)
     await nextTick()
+    if (run !== runId) return null
     setStage('decryptingPhoto', 70)
     let decoded: Awaited<ReturnType<typeof decodePhoto<DecodedPhoto>>> | null = null
     const errors: string[] = []
     for (const uid of candidateUids) {
       const attempt = await decodePhoto<DecodedPhoto>(bytes, uid)
+      if (run !== runId) return null
       if (attempt.ok && attempt.value) {
         decoded = attempt
         break
@@ -103,17 +105,22 @@ export function usePhotoParams(options: {
     try {
       setStage('resolvingUid', 10)
       await nextTick()
+      if (run !== runId) return null
       const x6Game = await getSavedX6GameDirectoryHandle()
+      if (run !== runId) return
       if (!x6Game) throw new Error(messages.value.authorizationRequired)
       setStage('readingPhoto', 30)
       await nextTick()
+      if (run !== runId) return null
       const bytes = new Uint8Array(await (await selectedPhoto.fileHandle.getFile()).arrayBuffer())
       if (run !== runId) return
       const directoryUids = await listGamePlayPhotoAccounts(x6Game)
+      if (run !== runId) return
       const savedUids = await getSavedCameraParamUids()
+      if (run !== runId) return
       const candidateUids = [...new Set([...directoryUids, ...savedUids])]
       const decoded = await parsePhotoBytes(bytes, candidateUids, run)
-      if (!decoded) return
+      if (!decoded || run !== runId) return
       setStage('parsingCamera', 90)
       presentCameraParams(decoded.camera, decoded.rawCameraParams, decoded.photo)
       setStage('ready', 100)
@@ -136,18 +143,19 @@ export function usePhotoParams(options: {
       setStage('readingPhoto', 30)
       const bytes = new Uint8Array(await file.arrayBuffer())
       if (run !== runId) return
-      const directoryUids = await (async () => {
-        const x6Game = await getSavedX6GameDirectoryHandle()
-        return x6Game ? listGamePlayPhotoAccounts(x6Game) : []
-      })()
+      const x6Game = await getSavedX6GameDirectoryHandle()
+      if (run !== runId) return
+      const directoryUids = x6Game ? await listGamePlayPhotoAccounts(x6Game) : []
+      if (run !== runId) return
       const savedUids = await getSavedCameraParamUids()
+      if (run !== runId) return
       const candidateUids = [...new Set([...directoryUids, ...savedUids])]
       if (!candidateUids.length) {
         uidRequired.value = true
         throw new Error(describeError('photo_structure_invalid'))
       }
       const decoded = await parsePhotoBytes(bytes, candidateUids, run)
-      if (!decoded) return
+      if (!decoded || run !== runId) return
       setStage('parsingCamera', 90)
       presentCameraParams(decoded.camera, decoded.rawCameraParams, decoded.photo)
       setStage('ready', 100)
@@ -174,7 +182,7 @@ export function usePhotoParams(options: {
         : 'fileHandle' in selectedPhoto
           ? new Uint8Array(await (await selectedPhoto.fileHandle.getFile()).arrayBuffer())
           : null
-      if (!bytes) return
+      if (!bytes || run !== runId) return
       const decoded = await decodePhoto<DecodedPhoto>(bytes, normalized)
       if (run !== runId) return
       if (!decoded.ok || !decoded.value) {
@@ -182,6 +190,8 @@ export function usePhotoParams(options: {
         throw new Error(describeError(decoded.errorCode ?? 'photo_parse_failed'))
       }
       await addSavedCameraParamUid(normalized)
+      // 保存 UID 期间也可能切换或关闭窗口，旧结果不能再写入界面。
+      if (run !== runId) return
       presentCameraParams(decoded.value.camera, decoded.value.rawCameraParams, decoded.value.photo)
       setStage('ready', 100)
     } catch (caught) {

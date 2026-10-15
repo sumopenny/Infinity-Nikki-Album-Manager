@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createUuid } from '../utils/uuid'
 import { useModuleOperation } from '../composables/useOperationCoordinator'
 const trackOperation = useModuleOperation('camera')
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRef, watch } from 'vue'
@@ -506,6 +507,7 @@ async function selectCover(event: Event) {
     setCover(file, file.name)
     return
   }
+  // 失败时保留旧封面或空封面，封面可选，不因一次失败锁死保存。
   // 移动布局立即读取原始字节；重选、关闭和卸载后不得采用旧任务结果。
   const run = ++coverReadGeneration
   coverReading.value = true
@@ -537,7 +539,6 @@ async function save() {
       busy.value ||
       parsing.value ||
       coverReading.value ||
-      coverReadFailed.value ||
       !parsed.value ||
       normalizeCameraCode(code.value) !== parsedCode.value
     )
@@ -580,7 +581,7 @@ async function save() {
       }
       const now = new Date().toISOString()
       const record: CameraFavorite = {
-        id: editing.value?.id ?? crypto.randomUUID(),
+        id: editing.value?.id ?? createUuid(),
         version: 1,
         name: name.value.trim(),
         tag: selectedTag.value,
@@ -1059,6 +1060,21 @@ function handleImportChoices(value: typeof choices.value) {
                   }}</span
                 >
               </button>
+              <p
+                v-if="coverReading || coverReadFailed"
+                class="outfit-editor-error"
+                role="status"
+                aria-live="polite"
+              >
+                {{
+                  coverReading
+                    ? t('正在读取图片…', 'Reading image…')
+                    : t(
+                        '图片读取失败，请重新选择；将保留原封面，没有封面时可直接保存。',
+                        'Image reading failed. Select again; the previous cover is retained, or save without a cover.'
+                      )
+                }}
+              </p>
               <input
                 id="camera-favorite-cover"
                 ref="coverInput"
@@ -1171,9 +1187,7 @@ function handleImportChoices(value: typeof choices.value) {
             <button
               class="confirm-dialog-button primary"
               type="submit"
-              :disabled="
-                busy || coverReading || coverReadFailed || parsing || !parsed || !name.trim()
-              "
+              :disabled="busy || coverReading || parsing || !parsed || !name.trim()"
               >{{ busy ? t('保存中…', 'Saving…') : t('保存收藏', 'Save favorite') }}</button
             >
           </footer>

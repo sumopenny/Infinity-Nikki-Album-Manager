@@ -223,9 +223,20 @@ export async function saveHomeSchemeTags(values: string[]): Promise<string[]> {
   })
 }
 
+/** 新增标签时读取事务中的最新列表，保留其他页面刚添加的未使用标签。 */
+export async function addHomeSchemeTag(value: string): Promise<string[]> {
+  return homeTransaction([HOME_TAGS_STORE], 'readwrite', async (tx) => {
+    const store = tx.objectStore(HOME_TAGS_STORE)
+    const actual = normalizeHomeSchemeTags((await homeRequest(store.get('default'))) ?? [])
+    const tags = normalizeHomeSchemeTags([value, ...actual])
+    store.put(tags, 'default')
+    return tags
+  })
+}
+
 export async function deleteHomeSchemeTag(
   removedTag: string
-): Promise<{ tags: string[]; updatedCount: number }> {
+): Promise<{ tags: string[]; updatedCount: number; updatedRecords: HomeSchemeRecord[] }> {
   return homeTransaction([HOME_SCHEMES_STORE, HOME_TAGS_STORE], 'readwrite', async (tx) => {
     const store = tx.objectStore(HOME_SCHEMES_STORE)
     const [records, rawTags] = await Promise.all([
@@ -233,15 +244,20 @@ export async function deleteHomeSchemeTag(
       homeRequest(tx.objectStore(HOME_TAGS_STORE).get('default'))
     ])
     const tags = normalizeHomeSchemeTags(rawTags ?? []).filter((tag) => tag !== removedTag)
-    let updatedCount = 0
+    const updatedRecords: HomeSchemeRecord[] = []
     for (const raw of records) {
       const record = normalizeHomeSchemeRecord(raw)
       if (!record.tags.includes(removedTag)) continue
-      store.put({ ...record, tags: [], updatedAt: new Date().toISOString() })
-      updatedCount++
+      const updated = {
+        ...record,
+        tags: [],
+        updatedAt: new Date(Math.max(Date.now(), Date.parse(record.updatedAt) + 1)).toISOString()
+      }
+      store.put(updated)
+      updatedRecords.push(updated)
     }
     tx.objectStore(HOME_TAGS_STORE).put(tags, 'default')
-    return { tags, updatedCount }
+    return { tags, updatedCount: updatedRecords.length, updatedRecords }
   })
 }
 

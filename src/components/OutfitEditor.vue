@@ -100,8 +100,12 @@ async function selectFile(file: File | undefined) {
     errorMessage.value = props.messages.unsupportedImage
     return
   }
-  revokePreview()
+  // 保留上一张可用图片，只有新图片读取成功后才替换。
+  previewRequestId += 1
+  imageReadFailed.value = false
+  imageReading.value = false
   if (!compact.value) {
+    revokePreview()
     imageFile.value = file
     previewUrl.value = URL.createObjectURL(file)
     errorMessage.value = ''
@@ -113,16 +117,24 @@ async function selectFile(file: File | undefined) {
   try {
     const snapshot = await snapshotImageFile(file)
     if (requestId !== previewRequestId || !props.visible) return
+    if (previewUrl.value?.startsWith('blob:')) URL.revokeObjectURL(previewUrl.value)
     imageFile.value = snapshot
     previewUrl.value = URL.createObjectURL(snapshot)
   } catch (error) {
     if (requestId !== previewRequestId || !props.visible) return
     imageReadFailed.value = true
-    imageFile.value = undefined
     errorMessage.value = `${props.messages.imageLoadFailed}. ${error instanceof Error ? error.message : String(error)}`
   } finally {
     if (requestId === previewRequestId) imageReading.value = false
   }
+}
+
+// 清空 input 值，使失败后重新选择同一个文件也能触发 change。
+function handleImageSelection(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  void selectFile(file)
 }
 
 // 预览失败也输出文件上下文，区分选择后的显示失败与保存转换失败。
@@ -224,7 +236,7 @@ function handleEditorBackdropClick() {
 defineExpose({ selectCreatedTag })
 
 function submit() {
-  if (props.busy || imageReading.value || imageReadFailed.value) return
+  if (props.busy || imageReading.value || (imageReadFailed.value && !hasImage.value)) return
   if (!hasImage.value) {
     errorMessage.value = props.messages.imageRequired
     return
@@ -252,6 +264,14 @@ watch(
       previousActiveElement?.focus()
       previousActiveElement = null
     }
+  }
+)
+
+// 同一弹窗切换记录时重置表单，使旧读取任务失效。
+watch(
+  () => props.outfit,
+  () => {
+    if (props.visible) void resetForm()
   }
 )
 
@@ -318,12 +338,20 @@ onBeforeUnmount(() => {
                   ><Upload :size="15" aria-hidden="true" />{{ messages.replaceImage }}</span
                 >
               </button>
+              <p
+                v-if="imageReading || imageReadFailed"
+                class="outfit-editor-error"
+                role="status"
+                aria-live="polite"
+              >
+                {{ imageReading ? messages.imageReading : messages.imageLoadFailed }}
+              </p>
               <input
                 ref="fileInput"
                 class="visually-hidden"
                 type="file"
                 accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                @change="selectFile(($event.target as HTMLInputElement).files?.[0])"
+                @change="handleImageSelection"
               />
             </div>
 
@@ -419,7 +447,7 @@ onBeforeUnmount(() => {
             <button
               class="confirm-dialog-button primary"
               type="button"
-              :disabled="busy || imageReading || imageReadFailed"
+              :disabled="busy || imageReading || (imageReadFailed && !hasImage)"
               @click="submit"
             >
               {{ imageReading ? messages.imageReading : busy ? messages.saving : messages.confirm }}

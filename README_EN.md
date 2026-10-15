@@ -283,3 +283,9 @@ Image memory copies apply only in compact layouts (viewport width ≤899px). Des
 Camera favorite cover uploads also copy selected images into memory only in compact layouts. Saving waits for reading; failures ask for reselection, and stale results after replacement or closing are discarded. Desktop layouts continue using the original file.
 
 Camera favorite cover reading is shown in the top operation notice, followed by completion or failure. The bottom Save favorite button retains its label and remains disabled during reading.
+
+Camera parameter favorites and resonance cloud upload/delete work over LAN HTTP. Concurrent home tag additions preserve tags from other tabs; schemes remain editable after a tag is deleted. Photo and scheme actions wait until the next preview finishes loading. While editing a note, arrow keys, Delete and Escape do not operate the preview underneath, and Tab stays inside the note dialog. Closing or switching the parameter dialog prevents old tasks from overwriting its new state.
+
+Unexpected cloud API failures produce structured logs containing the operation, stage, error category and a server-generated request ID. The error response's `X-Request-Id` correlates with the log. Logs omit accounts, tokens, request bodies and raw exceptions.
+
+Image read recovery: a persistent status near the image explains reading or failure. Saving waits during reading. Failed replacements retain the previous image; camera favorites can save without an optional cover, while new outfits still require an image. Reselecting the same file retries reading.

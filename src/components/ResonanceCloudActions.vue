@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createUuid } from '../utils/uuid'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { CloudUpload, CloudDownload, LogIn, LogOut, UserPlus, Trash2, X } from 'lucide-vue-next'
 import { useModuleOperation } from '../composables/useOperationCoordinator'
@@ -186,7 +187,7 @@ async function submit() {
         )
           throw new Error('LOCAL_CHANGED')
         pending = {
-          requestId: crypto.randomUUID(),
+          requestId: createUuid(),
           revision: snapshot.value.revision,
           ...(action.value === 'upload' ? { records: JSON.parse(localJSON.value) } : {})
         }

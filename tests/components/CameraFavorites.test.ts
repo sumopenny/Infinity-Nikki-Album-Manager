@@ -89,6 +89,8 @@ function button(label: string) {
   )!
 }
 beforeEach(() => {
+  // 模拟局域网 HTTP：提供安全随机数，但没有 randomUUID。
+  vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
   localStorage.clear()
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   vi.clearAllMocks()
@@ -610,6 +612,35 @@ describe('camera cover conversion', () => {
     await flushPromises()
     expect(vi.mocked(URL.createObjectURL).mock.calls).toHaveLength(calls)
   })
+  it.each([true, false])(
+    'recovers from failed cover selection with previous cover=%s',
+    async (previous) => {
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+      )
+      if (previous) await openAlbum()
+      else {
+        const view = create()
+        await flushPromises()
+        await (view.vm as unknown as { openFromResult: Function }).openFromResult(result, null)
+      }
+      mocks.snapshot.mockRejectedValueOnce(new Error('read denied'))
+      const upload = new File(['bad'], 'bad.jpg', { type: 'image/jpeg' })
+      const input = document.querySelector('#camera-favorite-cover')!
+      Object.defineProperty(input, 'files', { value: [upload] })
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+      await flushPromises()
+      expect(
+        document.querySelector('.camera-favorite-editor [role="status"]')?.textContent
+      ).toContain('读取失败')
+      expect(button('保存收藏').disabled).toBe(false)
+      await submit()
+      expect(mocks.save).toHaveBeenCalledTimes(1)
+      if (previous) expect(mocks.save.mock.calls[0][1]).not.toBeNull()
+      else expect(mocks.save.mock.calls[0][1]).toBeNull()
+    }
+  )
   it('keeps the form on conversion failure and retries without writing a partial favorite', async () => {
     const view = await openAlbum()
     mocks.webp.mockRejectedValueOnce(new Error('decode failed'))

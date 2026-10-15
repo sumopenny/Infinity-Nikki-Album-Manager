@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, toRef, watch } from 'vue'
 import { X } from 'lucide-vue-next'
+import { useModalFocus } from '../composables/useModalFocus'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
 const props = defineProps<{
@@ -23,7 +24,12 @@ const emit = defineEmits<{
 
 const value = ref('')
 const inputRef = ref<HTMLInputElement | null>(null)
+const panelRef = ref<HTMLElement | null>(null)
 useBodyScrollLock(toRef(props, 'visible'))
+// 备注窗口独占焦点与 Escape，防止快捷键落到后方的大图。
+useModalFocus(toRef(props, 'visible'), panelRef, () => {
+  if (!props.busy) emit('cancel')
+})
 
 watch(
   () => props.visible,
@@ -31,12 +37,9 @@ watch(
     if (!visible) return
     value.value = props.initialValue
     void nextTick(() => inputRef.value?.focus())
-  }
+  },
+  { immediate: true }
 )
-
-function handleKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') emit('cancel')
-}
 </script>
 
 <template>
@@ -49,9 +52,11 @@ function handleKeydown(event: KeyboardEvent) {
         aria-modal="true"
         :aria-label="title"
         @click.self="emit('cancel')"
-        @keydown="handleKeydown"
+        @keydown.left.stop
+        @keydown.right.stop
+        @keydown.delete.stop
       >
-        <section class="note-dialog-panel">
+        <section ref="panelRef" class="note-dialog-panel" tabindex="-1">
           <button
             class="note-dialog-close"
             type="button"

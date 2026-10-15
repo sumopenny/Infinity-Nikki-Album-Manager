@@ -10,6 +10,7 @@ import {
   runStoreRequest
 } from '../../src/utils/file-system/database'
 import {
+  addHomeSchemeTag,
   deleteHomeScheme,
   deleteHomeSchemeTag,
   homeTransaction,
@@ -81,12 +82,15 @@ it('keeps images independent of source files and deletes tags without losing sch
   await saveHomeSchemeTags(['庭院'])
   const saved = await saveHomeScheme({ ...input(), imageFile: image() })
   const time = saved.createdAt
-  expect(await deleteHomeSchemeTag('庭院')).toEqual({ tags: [], updatedCount: 1 })
+  const deletion = await deleteHomeSchemeTag('庭院')
+  expect(deletion).toMatchObject({ tags: [], updatedCount: 1 })
+  expect(deletion.updatedRecords[0]?.updatedAt).not.toBe(saved.updatedAt)
   expect((await readHomeSchemeSnapshot()).images.get(saved.id)?.blob.size).toBe(image().size)
   await expect(
     saveHomeScheme({ ...input(), tags: [], item: saved, removeImage: true })
   ).rejects.toThrow('home_scheme_record_changed')
-  const latest = (await readHomeSchemeSnapshot()).records[0]!
+  const latest = deletion.updatedRecords[0]!
+  expect(latest).toEqual((await readHomeSchemeSnapshot()).records[0])
   const changed = await saveHomeScheme({
     ...input(),
     tags: [],
@@ -158,4 +162,15 @@ it('loads list metadata without reading image blobs, but keeps full backup snaps
   expect(blob.size).toBeGreaterThan(0)
   expect((await readHomeSchemeSnapshot()).images.get(saved.id)?.blob.size).toBe(blob.size)
   reads.mockRestore()
+})
+
+// 两个页面都未刷新标签列表时，新增操作仍必须保留对方刚添加的标签。
+it('merges concurrent tag additions and keeps unused tags', async () => {
+  await saveHomeSchemeTags(['原有'])
+  await Promise.all([addHomeSchemeTag('页面A'), addHomeSchemeTag('页面B')])
+  expect((await readHomeSchemeSnapshot()).tags).toEqual(
+    expect.arrayContaining(['原有', '页面A', '页面B'])
+  )
+  await addHomeSchemeTag('页面A')
+  expect((await readHomeSchemeSnapshot()).tags).toHaveLength(3)
 })

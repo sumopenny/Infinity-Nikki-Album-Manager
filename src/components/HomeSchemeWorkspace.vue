@@ -22,7 +22,7 @@ import {
   releaseHomeSchemeUrls,
   reorderHomeSchemeTags,
   saveHomeScheme,
-  saveHomeSchemeTags
+  addHomeSchemeTag
 } from '../utils/homeBuild/homeSchemeStorage'
 import { parseHomeScheme, type HomeSchemeParseResult } from '../utils/homeBuild/homeSchemeParser'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
@@ -618,7 +618,7 @@ async function addTag() {
     const owner = tagInputOwner.value
     busy.value = true
     try {
-      tags.value = await saveHomeSchemeTags([tag, ...tags.value])
+      tags.value = await addHomeSchemeTag(tag)
       homeSidebarRef.value?.closeTagInput()
       if (owner === 'editor') selectedTag.value = tag
       closeTagInput()
@@ -684,10 +684,9 @@ async function removeTag(tag: string) {
     try {
       const result = await deleteHomeSchemeTag(tag)
       tags.value = result.tags
-      schemes.value = schemes.value.map((item) => ({
-        ...item,
-        tags: item.tags.filter((entry) => entry !== tag)
-      }))
+      // 同步事务写入的完整记录，后续保存使用最新的冲突检测基线。
+      const updated = new Map(result.updatedRecords.map((record) => [record.id, record]))
+      schemes.value = schemes.value.map((item) => ({ ...item, ...updated.get(item.id) }))
       if (filter.value === `tag:${tag}`) filter.value = 'all'
       emit('status', props.messages.tagDeleted, 'success')
     } catch (error) {

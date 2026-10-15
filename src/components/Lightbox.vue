@@ -87,6 +87,8 @@ let previewAbortController: AbortController | null = null
 const isPreviewLoading = computed(() =>
   Boolean(props.photo && displayedPhoto.value?.id !== props.photo.id)
 )
+// 加载下一张时仍显示上一张，所有针对当前记录的操作必须等预览就绪。
+const photoActionsDisabled = computed(() => props.isDeleting || isPreviewLoading.value)
 const imageOrientation = computed(() => {
   if (!imageAspectRatio.value) return 'pending'
   if (imageAspectRatio.value < 0.95) return 'portrait'
@@ -305,7 +307,7 @@ watch(
 
 /** 处理预览快捷键；确认弹窗等上层弹窗打开时不响应。参数：event 为键盘事件。 */
 function handleKeydown(event: KeyboardEvent) {
-  if (!props.photo || !props.keyboardEnabled) return
+  if (event.defaultPrevented || !props.photo || !props.keyboardEnabled) return
   if (event.key === 'Escape') emit('close')
   if (event.key === 'ArrowLeft' && props.hasPrevious) emit('previous')
   if (event.key === 'ArrowRight' && props.hasNext) emit('next')
@@ -501,8 +503,8 @@ function navigatePreview(direction: 'previous' | 'next') {
                 type="button"
                 :title="outfitMessages.copy"
                 :aria-label="outfitMessages.copy"
-                :disabled="!outfit?.code"
-                @click="emit('copyOutfit')"
+                :disabled="photoActionsDisabled || !outfit?.code"
+                @click="!photoActionsDisabled && emit('copyOutfit')"
               >
                 <Copy :size="18" />
               </button>
@@ -510,7 +512,8 @@ function navigatePreview(direction: 'previous' | 'next') {
                 type="button"
                 :title="outfitMessages.edit"
                 :aria-label="outfitMessages.edit"
-                @click="emit('editOutfit')"
+                :disabled="photoActionsDisabled"
+                @click="!photoActionsDisabled && emit('editOutfit')"
               >
                 <Edit3 :size="18" />
               </button>
@@ -520,14 +523,16 @@ function navigatePreview(direction: 'previous' | 'next') {
                 type="button"
                 :title="homeMessages.copy"
                 :aria-label="homeMessages.copy"
-                @click="emit('copyHomeScheme')"
+                :disabled="photoActionsDisabled"
+                @click="!photoActionsDisabled && emit('copyHomeScheme')"
                 ><Copy :size="18"
               /></button>
               <button
                 type="button"
                 :title="homeMessages.edit"
                 :aria-label="homeMessages.edit"
-                @click="emit('editHomeScheme')"
+                :disabled="photoActionsDisabled"
+                @click="!photoActionsDisabled && emit('editHomeScheme')"
                 ><Edit3 :size="18"
               /></button>
             </template>
@@ -536,7 +541,8 @@ function navigatePreview(direction: 'previous' | 'next') {
               type="button"
               :title="messages.parsePhoto"
               :aria-label="messages.parsePhoto"
-              @click="emit('parsePhoto')"
+              :disabled="photoActionsDisabled"
+              @click="!photoActionsDisabled && emit('parsePhoto')"
               ><ScanSearch :size="18"
             /></button>
             <button
@@ -544,7 +550,8 @@ function navigatePreview(direction: 'previous' | 'next') {
               type="button"
               :title="messages.editNote"
               :aria-label="messages.editNote"
-              @click="emit('editPhotoNote')"
+              :disabled="photoActionsDisabled"
+              @click="!photoActionsDisabled && emit('editPhotoNote')"
               ><Pencil :size="18"
             /></button>
             <button
@@ -553,7 +560,8 @@ function navigatePreview(direction: 'previous' | 'next') {
               :class="{ active: isFavorite }"
               :title="isFavorite ? messages.removeFavorite : messages.favorite"
               :aria-label="isFavorite ? messages.removeFavorite : messages.favorite"
-              @click="emit('toggleFavorite')"
+              :disabled="photoActionsDisabled"
+              @click="!photoActionsDisabled && emit('toggleFavorite')"
             >
               <Heart :size="18" :fill="isFavorite ? 'currentColor' : 'none'" />
             </button>
