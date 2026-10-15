@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   copy: vi.fn(),
   cover: vi.fn(),
   parse: vi.fn(),
+  snapshot: vi.fn(),
   webp: vi.fn()
 }))
 vi.mock('../../src/utils/photo-params/favorites', async (original) => ({
@@ -24,7 +25,10 @@ vi.mock('../../src/utils/photo-params/favorites', async (original) => ({
   saveCameraFavorite: mocks.save,
   coverMetadata: mocks.cover
 }))
-vi.mock('../../src/utils/image', () => ({ convertImageToWebp: mocks.webp }))
+vi.mock('../../src/utils/image', () => ({
+  convertImageToWebp: mocks.webp,
+  snapshotImageFile: mocks.snapshot
+}))
 vi.mock('../../src/utils/clipboard', () => ({ copyTextToClipboard: mocks.copy }))
 vi.mock('../../src/composables/usePhotoParams', () => ({
   usePhotoParams: () => {
@@ -553,6 +557,59 @@ describe('camera cover conversion', () => {
       .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await flushPromises()
   }
+  it('waits for a mobile cover snapshot and saves using the copied bytes', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    )
+    await openAlbum()
+    let finish!: (file: File) => void
+    mocks.snapshot.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    const upload = new File(['source'], 'mobile.jpg', { type: 'image/jpeg' })
+    const input = document.querySelector('#camera-favorite-cover')!
+    Object.defineProperty(input, 'files', { value: [upload] })
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    await flushPromises()
+    await submit()
+    expect(mocks.save).not.toHaveBeenCalled()
+    expect(mocks.snapshot).toHaveBeenCalledWith(upload)
+    const copy = new File(['copied'], 'mobile.jpg', { type: 'image/jpeg' })
+    finish(copy)
+    await flushPromises()
+    await submit()
+    expect(mocks.save).toHaveBeenCalledTimes(1)
+    expect(mocks.webp.mock.calls[0][0].size).toBe(copy.size)
+  })
+  it('discards a pending mobile snapshot when the editor closes', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    )
+    await openAlbum()
+    let finish!: (file: File) => void
+    mocks.snapshot.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    const upload = new File(['image'], 'mobile.jpg', { type: 'image/jpeg' })
+    const input = document.querySelector('#camera-favorite-cover')!
+    Object.defineProperty(input, 'files', { value: [upload] })
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    await flushPromises()
+    button('取消').click()
+    await flushPromises()
+    const calls = vi.mocked(URL.createObjectURL).mock.calls.length
+    finish(upload)
+    await flushPromises()
+    expect(vi.mocked(URL.createObjectURL).mock.calls).toHaveLength(calls)
+  })
   it('keeps the form on conversion failure and retries without writing a partial favorite', async () => {
     const view = await openAlbum()
     mocks.webp.mockRejectedValueOnce(new Error('decode failed'))

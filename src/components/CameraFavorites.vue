@@ -34,7 +34,8 @@ import type { PhotoItem } from '../utils/photoGrouping'
 import { usePhotoParams } from '../composables/usePhotoParams'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import { copyTextToClipboard } from '../utils/clipboard'
-import { convertImageToWebp } from '../utils/image'
+import { useCompactLayout } from '../composables/useCompactLayout'
+import { convertImageToWebp, snapshotImageFile } from '../utils/image'
 import {
   applyCameraImport,
   cloneFavorite,
@@ -98,6 +99,10 @@ const error = ref('')
 const cover = shallowRef<Blob | null>(null)
 const coverName = ref('')
 const previewUrl = ref('')
+const compact = useCompactLayout()
+const coverReading = ref(false)
+const coverReadFailed = ref(false)
+let coverReadGeneration = 0
 const detail = shallowRef<CameraFavorite | null>(null)
 const importPlan = shallowRef<ImportPlan | null>(null)
 const choices = ref<Record<string, 'local' | 'incoming'>>({})
@@ -389,6 +394,9 @@ async function reload() {
   })
 }
 function setCover(file: Blob | null, filename = '') {
+  coverReadGeneration += 1
+  coverReading.value = false
+  coverReadFailed.value = false
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
   cover.value = file
   coverName.value = filename
@@ -481,11 +489,11 @@ async function parse() {
   source.value = 'manual'
   emit('status', t('参数已解析', 'Parameters parsed'), 'success')
 }
-function selectCover(event: Event) {
+async function selectCover(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
-  if (!file) return
+  if (!file || busy.value) return
   if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'].includes(file.type)) {
     error.value = t(
       '请选择 JPG、PNG、WebP、GIF 或 AVIF 图片',
@@ -494,7 +502,30 @@ function selectCover(event: Event) {
     return
   }
   error.value = ''
-  setCover(file, file.name)
+  if (!compact.value) {
+    setCover(file, file.name)
+    return
+  }
+  // 移动布局立即读取原始字节；重选、关闭和卸载后不得采用旧任务结果。
+  const run = ++coverReadGeneration
+  coverReading.value = true
+  coverReadFailed.value = false
+  emit('status', t('正在读取图片…', 'Reading image…'), 'info')
+  try {
+    const snapshot = await snapshotImageFile(file)
+    if (disposed || !editor.value || run !== coverReadGeneration) return
+    setCover(snapshot, snapshot.name)
+    emit('status', t('图片读取完成', 'Image loaded'), 'success')
+  } catch (caught) {
+    if (disposed || !editor.value || run !== coverReadGeneration) return
+    coverReadFailed.value = true
+    error.value =
+      t('图片读取失败，请重新选择文件：', 'Unable to read image. Please select the file again: ') +
+      (caught instanceof Error ? caught.message : String(caught))
+    emit('status', error.value, 'error')
+  } finally {
+    if (run === coverReadGeneration) coverReading.value = false
+  }
 }
 function notifyChanged() {
   channel?.postMessage('changed')
@@ -505,6 +536,8 @@ async function save() {
     if (
       busy.value ||
       parsing.value ||
+      coverReading.value ||
+      coverReadFailed.value ||
       !parsed.value ||
       normalizeCameraCode(code.value) !== parsedCode.value
     )
@@ -519,7 +552,7 @@ async function save() {
     busy.value = true
     error.value = ''
     try {
-      // 新上传的 WebP 也先复制到内存，避免后续计算哈希时再次读取原文件引用。
+      // 统一转为 WebP；移动端上传的原始字节已在选择时复制到内存。
       if (
         cover.value &&
         (cover.value instanceof File ||
@@ -1138,7 +1171,9 @@ function handleImportChoices(value: typeof choices.value) {
             <button
               class="confirm-dialog-button primary"
               type="submit"
-              :disabled="busy || parsing || !parsed || !name.trim()"
+              :disabled="
+                busy || coverReading || coverReadFailed || parsing || !parsed || !name.trim()
+              "
               >{{ busy ? t('保存中…', 'Saving…') : t('保存收藏', 'Save favorite') }}</button
             >
           </footer>

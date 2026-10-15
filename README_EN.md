@@ -279,3 +279,7 @@ After decoding fails, FileReader / Data URL diagnostics report byte count, file 
 Outfit images are copied into memory immediately upon selection; preview and saving use that copy if the original mobile file reference later becomes unreadable. Confirmation waits while “Reading image…” is shown; select the file again if reading fails. Temporary selection/save rereading comparisons have been removed; failure-stage diagnostics remain.
 
 Image memory copies apply only in compact layouts (viewport width ≤899px). Desktop layouts (≥900px) preview and save the original selected file without an eager copy. The layout at selection time determines the path.
+
+Camera favorite cover uploads also copy selected images into memory only in compact layouts. Saving waits for reading; failures ask for reselection, and stale results after replacement or closing are discarded. Desktop layouts continue using the original file.
+
+Camera favorite cover reading is shown in the top operation notice, followed by completion or failure. The bottom Save favorite button retains its label and remains disabled during reading.
