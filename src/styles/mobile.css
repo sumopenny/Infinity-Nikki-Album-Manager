@@ -762,17 +762,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .empty-import-button {
-    align-items: center;
-    justify-content: center;
-    min-height: var(--mobile-control-size);
-    margin: 12px auto;
-    padding: 8px 14px;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    background: var(--surface-strong);
-    color: var(--heading);
-  }
   .mobile-navigation {
     position: fixed;
     z-index: 54;

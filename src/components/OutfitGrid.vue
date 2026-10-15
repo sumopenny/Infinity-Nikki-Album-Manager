@@ -6,10 +6,13 @@ import type { ThumbnailMode } from '../types/thumbnail'
 import type { OutfitItem } from '../utils/outfit/outfitFileSystem'
 import { createPhotoLoadQueue } from '../utils/photoLoader'
 import LazyPhotoImage from './LazyPhotoImage.vue'
+import MobileEmptyScreenshot from './MobileEmptyScreenshot.vue'
 
 const props = defineProps<{
   language?: 'zh' | 'en'
   outfits: OutfitItem[]
+  /** 未筛选的总数，用于区分空库与搜索、标签筛选无结果。 */
+  totalCount?: number
   selectedIds: Set<string>
   thumbnailMode: ThumbnailMode
   messages: OutfitMessages
@@ -22,7 +25,6 @@ const emit = defineEmits<{
   delete: [outfit: OutfitItem]
   parse: [outfit: OutfitItem]
   openPreview: [outfit: OutfitItem]
-  importBackup: []
   toggleOutfit: [outfitId: string]
 }>()
 
@@ -45,14 +47,12 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
     <div v-if="!outfits.length" class="empty-album inline-empty">
       <Shirt :size="30" aria-hidden="true" />
       <h2>{{ messages.emptyTitle }}</h2>
-      <p>{{ messages.emptyDescription }}</p
-      ><button
-        class="mobile-only empty-import-button"
-        type="button"
-        :disabled="disabled"
-        @click="$emit('importBackup')"
-        >{{ messages.importData }}</button
-      >
+      <p>{{ messages.emptyDescription }}</p>
+      <MobileEmptyScreenshot
+        v-if="(totalCount ?? outfits.length) === 0"
+        page="outfits"
+        :language="language"
+      />
     </div>
 
     <div v-else class="photo-grid outfit-grid">

@@ -8,6 +8,7 @@ import OutfitSidebar from './OutfitSidebar.vue'
 import CollectionFilterBar from './CollectionFilterBar.vue'
 import CollectionActions from './CollectionActions.vue'
 import StoredImage from './StoredImage.vue'
+import MobileEmptyScreenshot from './MobileEmptyScreenshot.vue'
 import { releasePhotoUrl } from '../utils/file-system/photoUrl'
 
 import { describeHomeSchemeError } from '../utils/homeBuild/homeSchemeErrors'
@@ -932,14 +933,8 @@ function handleAddTag(value: string) {
       <div v-if="!visibleSchemes.length" class="empty-album inline-empty home-scheme-empty"
         ><ImagePlus :size="30" aria-hidden="true" /><h2>{{ messages.emptyTitle }}</h2
         ><p>{{ messages.emptyDescription }}</p
-        ><button
-          class="mobile-only empty-import-button"
-          type="button"
-          :disabled="isBusy"
-          @click="backupInput?.click()"
-          >{{ messages.importData }}</button
-        ></div
-      >
+        ><MobileEmptyScreenshot v-if="!schemes.length" page="home" :language="language"
+      /></div>
       <div
         v-else
         class="photo-grid-wrap outfit-grid-wrap home-scheme-grid-wrap"

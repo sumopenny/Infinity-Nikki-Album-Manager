@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MobileEmptyScreenshot from './MobileEmptyScreenshot.vue'
 import { useLatestRequest } from '../composables/useLatestRequest'
 import { useCompactLayout } from '../composables/useCompactLayout'
 import { useModuleOperation } from '../composables/useOperationCoordinator'
@@ -554,6 +555,7 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
     <div v-if="!records.length" class="resonance-empty">
       <h3>{{ t.emptyTitle }}</h3>
       <p>{{ t.emptyDescription }}</p>
+      <MobileEmptyScreenshot page="resonance" :language="language" />
       <button
         class="primary-button desktop-only"
         type="button"

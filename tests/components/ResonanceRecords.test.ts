@@ -4,6 +4,7 @@ import 'fake-indexeddb/auto'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import ResonanceRecords from '../../src/components/ResonanceRecords.vue'
+import MobileEmptyScreenshot from '../../src/components/MobileEmptyScreenshot.vue'
 import {
   loadResonanceRecords,
   saveResonanceRecords
@@ -75,6 +76,22 @@ async function openDialog(language: 'zh' | 'en' = 'zh') {
   await flushPromises()
   return { wrapper, panel: document.body.querySelector('.resonance-import-panel') as HTMLElement }
 }
+
+it('shows a screenshot only for an empty resonance library, not a rarity miss', async () => {
+  const wrapper = mount(ResonanceRecords)
+  wrappers.push(wrapper)
+  await flushPromises()
+  expect(wrapper.findComponent(MobileEmptyScreenshot).exists()).toBe(true)
+  await saveResonanceRecords([savedRecord])
+  await (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
+  expect(wrapper.findComponent(MobileEmptyScreenshot).exists()).toBe(false)
+  await wrapper.setProps({ rarityFilter: 4 })
+  expect(wrapper.find('.resonance-empty').exists()).toBe(true)
+  expect(wrapper.findComponent(MobileEmptyScreenshot).exists()).toBe(false)
+  await saveResonanceRecords([])
+  await (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
+  expect(wrapper.findComponent(MobileEmptyScreenshot).exists()).toBe(true)
+})
 
 function latestNotice(wrapper: ReturnType<typeof mount>) {
   const events = wrapper.emitted('notice') ?? []

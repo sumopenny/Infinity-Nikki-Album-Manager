@@ -2804,9 +2804,9 @@ function importAllDataFromMenu() {
         />
         <OutfitGrid
           :language="language"
-          @import-backup="chooseOutfitBackup"
           v-else-if="activeView === 'outfits'"
           :outfits="visibleOutfits"
+          :total-count="outfits.length"
           :selected-ids="selectedOutfitIds"
           :thumbnail-mode="effectiveOutfitThumbnailMode"
           :messages="outfitLocale"

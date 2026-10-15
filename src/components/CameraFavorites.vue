@@ -20,6 +20,7 @@ import { messages as localeMessages, type Language } from '../i18n'
 import CollectionFilterBar from './CollectionFilterBar.vue'
 import CollectionActions from './CollectionActions.vue'
 import StoredImage from './StoredImage.vue'
+import MobileEmptyScreenshot from './MobileEmptyScreenshot.vue'
 import SelectionBar from './SelectionBar.vue'
 import OutfitSidebar, { type OutfitFilter } from './OutfitSidebar.vue'
 import {
@@ -876,14 +877,8 @@ function handleImportChoices(value: typeof choices.value) {
           '暂无相机参数。添加参数码，或从照片参数窗口收藏。',
           'No camera parameters yet. Add a code or save from photo parameters.'
         )
-      }}<button
-        class="mobile-only empty-import-button"
-        type="button"
-        :disabled="busy"
-        @click="backupInput?.click()"
-        >{{ t('导入备份', 'Import backup') }}</button
-      ></p
-    >
+      }}<MobileEmptyScreenshot v-if="!library.records.length" page="camera" :language="language"
+    /></p>
     <div class="camera-favorite-grid">
       <article
         v-for="item in visibleRecords"

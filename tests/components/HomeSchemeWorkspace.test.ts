@@ -7,6 +7,7 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { messages } from '../../src/i18n'
 import HomeSchemeWorkspace from '../../src/components/HomeSchemeWorkspace.vue'
+import MobileEmptyScreenshot from '../../src/components/MobileEmptyScreenshot.vue'
 import SelectionBar from '../../src/components/SelectionBar.vue'
 import * as homeStorage from '../../src/utils/homeBuild/homeSchemeStorage'
 import { parseHomeScheme } from '../../src/utils/homeBuild/homeSchemeParser'
@@ -27,6 +28,40 @@ const props = {
   dateMessages: messages.zh.date,
   thumbnailMode: 'wide' as const
 }
+it('only shows the screenshot when the whole home library is empty', async () => {
+  const wrapper = mount(HomeSchemeWorkspace, { props, attachTo: document.body })
+  try {
+    await flushPromises()
+    expect(wrapper.findComponent(MobileEmptyScreenshot).exists()).toBe(true)
+    expect(wrapper.find('.empty-import-button').exists()).toBe(false)
+    await saveHomeScheme({
+      code: 'HOME',
+      name: 'Home',
+      schemeType: 'home',
+      tags: [],
+      note: '',
+      metadata: createEmptyHomeSchemeMetadata()
+    })
+    await wrapper.setProps({ libraryRevision: 1 })
+    await vi.waitFor(() => expect(wrapper.findAll('.home-scheme-card')).toHaveLength(1))
+    expect(wrapper.findComponent(MobileEmptyScreenshot).exists()).toBe(false)
+    await wrapper.setProps({ searchQuery: 'does-not-match' })
+    expect(wrapper.find('.home-scheme-empty').exists()).toBe(true)
+    expect(wrapper.findComponent(MobileEmptyScreenshot).exists()).toBe(false)
+    await wrapper.setProps({ searchQuery: '' })
+    wrapper.findComponent({ name: 'CollectionFilterBar' }).vm.$emit('change', 'combo')
+    await flushPromises()
+    expect(wrapper.find('.home-scheme-empty').exists()).toBe(true)
+    expect(wrapper.findComponent(MobileEmptyScreenshot).exists()).toBe(false)
+    const snapshot = await readHomeSchemeSnapshot()
+    await homeStorage.deleteHomeScheme(snapshot.records[0])
+    await wrapper.setProps({ libraryRevision: 2 })
+    await vi.waitFor(() => expect(wrapper.findComponent(MobileEmptyScreenshot).exists()).toBe(true))
+  } finally {
+    wrapper.unmount()
+  }
+})
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   vi.clearAllMocks()

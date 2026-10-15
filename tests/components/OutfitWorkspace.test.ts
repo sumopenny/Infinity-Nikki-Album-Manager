@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getOutfitMessages } from '../helpers/outfitMessages'
 import type { OutfitItem } from '../../src/utils/outfit/outfitFileSystem'
 import OutfitGrid from '../../src/components/OutfitGrid.vue'
+import MobileEmptyScreenshot from '../../src/components/MobileEmptyScreenshot.vue'
 import OutfitEditor from '../../src/components/OutfitEditor.vue'
 import OutfitGuideDialog from '../../src/components/OutfitGuideDialog.vue'
 import OutfitSidebar from '../../src/components/OutfitSidebar.vue'
@@ -33,6 +34,27 @@ function outfit(id: string, code: string, tags: string[] = []): OutfitItem {
 }
 
 describe('outfit workspace components', () => {
+  it('shows the screenshot only for an empty library, including after deleting all records', async () => {
+    const wrapper = mount(OutfitGrid, {
+      props: {
+        outfits: [],
+        totalCount: 0,
+        selectedIds: new Set<string>(),
+        thumbnailMode: 'default',
+        messages: getOutfitMessages('zh'),
+        disabled: false
+      }
+    })
+    expect(wrapper.findComponent(MobileEmptyScreenshot).exists()).toBe(true)
+    expect(wrapper.find('.empty-import-button').exists()).toBe(false)
+    await wrapper.setProps({ totalCount: 1 })
+    expect(wrapper.findComponent(MobileEmptyScreenshot).exists()).toBe(false)
+    await wrapper.setProps({ outfits: [outfit('1', 'ABC')] })
+    expect(wrapper.findComponent(MobileEmptyScreenshot).exists()).toBe(false)
+    await wrapper.setProps({ outfits: [], totalCount: 0 })
+    expect(wrapper.findComponent(MobileEmptyScreenshot).exists()).toBe(true)
+  })
+
   it('renders system filters before user tags and emits the selected filter', async () => {
     const wrapper = mount(OutfitSidebar, {
       props: {

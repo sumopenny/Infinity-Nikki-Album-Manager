@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { ref } from 'vue'
 import CameraFavorites from '../../src/components/CameraFavorites.vue'
+import MobileEmptyScreenshot from '../../src/components/MobileEmptyScreenshot.vue'
 import { zh } from '../../src/i18n'
 import type { CameraFavorite } from '../../src/utils/photo-params/favorites'
 import type { PhotoParamsResult } from '../../src/utils/photo-params/types'
@@ -125,6 +126,27 @@ afterEach(() => {
 })
 
 describe('camera favorite UI', () => {
+  it('shows the screenshot for an empty library but not search or tag misses', async () => {
+    const view = create()
+    await flushPromises()
+    expect(view.findComponent(MobileEmptyScreenshot).exists()).toBe(true)
+    expect(view.find('.empty-import-button').exists()).toBe(false)
+    mocks.read.mockResolvedValue({ records: [item], covers: new Map() })
+    await (view.vm as unknown as { reload: () => Promise<void> }).reload()
+    expect(view.findComponent(MobileEmptyScreenshot).exists()).toBe(false)
+    await view.setProps({ searchQuery: 'does-not-match' })
+    expect(view.find('.camera-empty').exists()).toBe(true)
+    expect(view.findComponent(MobileEmptyScreenshot).exists()).toBe(false)
+    await view.setProps({ searchQuery: '' })
+    view.findComponent({ name: 'CollectionFilterBar' }).vm.$emit('change', 'tag:missing')
+    await flushPromises()
+    expect(view.find('.camera-empty').exists()).toBe(true)
+    expect(view.findComponent(MobileEmptyScreenshot).exists()).toBe(false)
+    mocks.read.mockResolvedValue({ records: [], covers: new Map() })
+    await (view.vm as unknown as { reload: () => Promise<void> }).reload()
+    expect(view.findComponent(MobileEmptyScreenshot).exists()).toBe(true)
+  })
+
   it('provides four footer icons with a working copy action and disabled busy state', async () => {
     mocks.read.mockResolvedValue({ records: [item], covers: new Map() })
     const view = create()
