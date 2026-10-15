@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useLatestRequest } from '../composables/useLatestRequest'
+import { useCompactLayout } from '../composables/useCompactLayout'
 import { useModuleOperation } from '../composables/useOperationCoordinator'
 const trackOperation = useModuleOperation('resonance')
 import CollectionActions from './CollectionActions.vue'
@@ -45,7 +46,11 @@ import {
 } from '../utils/resonance/resonanceScripts'
 import { loadResonanceRecords, saveResonanceRecords } from '../utils/resonance/resonanceStorage'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
-import type { ResonanceLocalizedName, ResonanceRecord } from '../utils/resonance/resonanceTypes'
+import type {
+  ResonanceLocalizedName,
+  ResonanceRecord,
+  ResonanceSet
+} from '../utils/resonance/resonanceTypes'
 
 const props = withDefaults(
   defineProps<{
@@ -72,6 +77,7 @@ const records = ref<ResonanceRecord[]>([])
 const recordsLoaded = ref(false)
 const cloudOpen = ref(false)
 const selectedSet = ref<Record<string, 1 | 2>>({})
+const compactLayout = useCompactLayout()
 const showAddDialog = ref(false)
 const showClearConfirm = ref(false)
 const importing = ref(false)
@@ -187,8 +193,23 @@ function outfitPulls(record: ResonanceRecord): { total: number; average: number 
   const total = obtained.reduce((sum, part) => sum + part.pullNumber, 0)
   return { total, average: obtained.length ? total / obtained.length : 0 }
 }
-function toggleSet(record: ResonanceRecord) {
-  selectedSet.value[record.id] = (selectedSet.value[record.id] ?? 1) === 1 ? 2 : 1
+/** 两端按套共用统计口径；补录计入拥有进度，但不参与真实抽数和均值。 */
+function setSummary(set: ResonanceSet) {
+  const parts = set.parts
+  const known = parts.filter((part) => part.pullNumber > 0 && !part.manual)
+  const total = known.reduce((sum, part) => sum + part.pullNumber, 0)
+  return {
+    owned: parts.filter((part) => part.pullNumber > 0 || part.manual).length,
+    count: parts.length,
+    total: known.length ? String(total) : '—',
+    average: known.length ? (total / known.length).toFixed(1) : '—',
+    manual: parts.some((part) => part.manual)
+  }
+}
+
+/** 桌面上下呈现全部套数，移动端只渲染选中套，跨断点保留手机选择。 */
+function displayedSets(record: ResonanceRecord) {
+  return compactLayout.value ? [currentSet(record)] : record.sets
 }
 
 function openDialog() {
@@ -562,10 +583,35 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
               displayName(record.bannerName)
             }}</span>
           </div>
-          <p
-            >{{ totalPullsLabel(record) }} <span aria-hidden="true">|</span>
-            {{ t.average(outfitPulls(record).average.toFixed(1)) }}</p
-          >
+          <p class="resonance-overall-summary">
+            <span>{{ totalPullsLabel(record) }} <span aria-hidden="true">|</span></span>
+            <span>{{ t.average(outfitPulls(record).average.toFixed(1)) }}</span>
+          </p>
+          <p class="resonance-mobile-progress">{{
+            t.ownedProgress(
+              setSummary(currentSet(record)).owned,
+              setSummary(currentSet(record)).count
+            )
+          }}</p>
+        </div>
+        <div class="resonance-mobile-details">
+          <div class="resonance-set-switch" role="group" :aria-label="t.setSelection">
+            <button
+              v-for="set in record.sets"
+              :key="set.setNumber"
+              type="button"
+              :aria-pressed="(selectedSet[record.id] ?? 1) === set.setNumber"
+              @click="selectedSet[record.id] = set.setNumber"
+              >{{ set.setNumber === 1 ? t.setOne : t.setTwo }}</button
+            >
+          </div>
+          <p class="resonance-set-summary" aria-live="polite">
+            <span>{{ t.setPulls(setSummary(currentSet(record)).total) }}</span>
+            <span>{{ t.knownAverage(setSummary(currentSet(record)).average) }}</span>
+          </p>
+          <p v-if="setSummary(currentSet(record)).manual" class="resonance-manual-note">{{
+            t.manualStatsNote
+          }}</p>
         </div>
         <div class="resonance-record-body">
           <div class="resonance-outfit-image"
@@ -575,33 +621,46 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
               referrerpolicy="no-referrer"
               @error="hideBrokenImage"
           /></div>
-          <div class="resonance-parts">
-            <div
-              v-for="part in sortResonanceParts(currentSet(record).parts)"
-              :key="part.id"
-              class="resonance-part"
-              :class="{
-                'is-even-banner': Number(record.bannerId) % 2 === 0,
-                'is-missing': part.pullNumber === 0 && !part.manual
-              }"
+          <div class="resonance-sets">
+            <section
+              v-for="set in displayedSets(record)"
+              :key="set.setNumber"
+              class="resonance-set-row"
             >
-              <img
-                :src="getResonancePartIconUrl(part.id)"
-                :alt="displayName(part.name)"
-                referrerpolicy="no-referrer"
-                @error="hideBrokenImage"
-              />
-              <span
-                class="resonance-pull-number"
-                :class="{ missing: part.pullNumber === 0 && !part.manual }"
-                >{{ part.manual ? '*' : part.pullNumber }}</span
-              >
-            </div>
+              <div v-if="!compactLayout" class="resonance-desktop-set-heading">
+                <h4>{{ set.setNumber === 1 ? t.setOne : t.setTwo }}</h4>
+                <span>{{ t.setPulls(setSummary(set).total) }}</span>
+                <span>{{ t.knownAverage(setSummary(set).average) }}</span>
+                <p v-if="setSummary(set).manual" class="resonance-manual-note">{{
+                  t.manualStatsNote
+                }}</p>
+              </div>
+              <div class="resonance-parts">
+                <div
+                  v-for="part in sortResonanceParts(set.parts)"
+                  :key="part.id"
+                  class="resonance-part"
+                  :class="{
+                    'is-even-banner': Number(record.bannerId) % 2 === 0,
+                    'is-missing': part.pullNumber === 0 && !part.manual
+                  }"
+                >
+                  <img
+                    :src="getResonancePartIconUrl(part.id)"
+                    :alt="displayName(part.name)"
+                    referrerpolicy="no-referrer"
+                    @error="hideBrokenImage"
+                  />
+                  <span
+                    class="resonance-pull-number"
+                    :class="{ missing: part.pullNumber === 0 && !part.manual }"
+                    >{{ part.manual ? '*' : part.pullNumber }}</span
+                  >
+                </div>
+              </div>
+            </section>
           </div>
         </div>
-        <button class="resonance-second-set" type="button" @click="toggleSet(record)">
-          {{ (selectedSet[record.id] ?? 1) === 1 ? t.secondSet : t.firstSet }}
-        </button>
       </article>
     </div>
 
@@ -888,7 +947,7 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
   border-radius: var(--ui-radius);
   background: var(--surface);
 }
-/* 标题独占一行；两侧允许收缩并省略长名称，窄屏仍保持卡池居右。 */
+/* 桌面标题两侧允许收缩并省略长名称；移动布局在下方覆盖为纵向摘要。 */
 .resonance-record-title-row {
   display: flex;
   align-items: baseline;
@@ -928,6 +987,7 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
   align-items: flex-start;
 }
 .resonance-outfit-image {
+  flex-shrink: 0;
   width: min(180px, 28%);
   aspect-ratio: 448 / 656;
   overflow: hidden;
@@ -944,9 +1004,38 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
 .resonance-part img[hidden] {
   display: none;
 }
-.resonance-parts {
+.resonance-sets {
   display: grid;
   flex: 1;
+  min-width: 0;
+  gap: 18px;
+}
+.resonance-set-row {
+  min-width: 0;
+}
+.resonance-desktop-set-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.resonance-desktop-set-heading h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: inherit;
+}
+.resonance-desktop-set-heading .resonance-manual-note {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+}
+.resonance-parts {
+  display: grid;
   grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
   gap: 10px;
 }
@@ -985,15 +1074,6 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
 }
 .resonance-pull-number.missing {
   background: var(--muted);
-}
-.resonance-second-set {
-  margin-top: 14px;
-  border: 0;
-  background: transparent;
-  color: var(--pink-deep);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
 }
 .resonance-choice-row {
   display: flex;
@@ -1069,20 +1149,137 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
   gap: 8px;
   padding-top: 12px;
 }
-@media (max-width: 600px) {
+/* 移动卡片由同一张立绘组成摘要，当前套部件独占整行；桌面同时展示两套。 */
+.resonance-mobile-details,
+.resonance-record-heading .resonance-mobile-progress {
+  display: none;
+}
+@media (max-width: 899px) {
   .resonance-record {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 14px 12px;
     padding: 14px;
   }
-  .resonance-record-body {
-    gap: 12px;
+  .resonance-record-heading {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    min-width: 0;
+  }
+  .resonance-record-title-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .resonance-record-title-row h3 {
+    flex: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: 16px;
+    line-height: 1.4;
+  }
+  .resonance-banner-name {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: left;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  /* 整体统计沿用两套合计，置于卡池名和当前套进度之间；每个指标完整换行。 */
+  .resonance-record-heading .resonance-overall-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+  .resonance-overall-summary > span {
+    white-space: nowrap;
+    color: var(--text);
+  }
+  .resonance-record-heading .resonance-mobile-progress {
+    display: block;
+    font-size: 12px;
+  }
+  .resonance-record-body,
+  .resonance-sets,
+  .resonance-set-row {
+    display: contents;
   }
   .resonance-outfit-image {
-    width: 35%;
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    align-self: start;
+  }
+  .resonance-mobile-details {
+    display: block;
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  .resonance-set-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 3px;
+    border-radius: 10px;
+    background: var(--frame-bg);
+  }
+  .resonance-set-switch button {
+    min-height: 44px;
+    min-width: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .resonance-set-switch button[aria-pressed='true'] {
+    background: var(--surface);
+    color: var(--pink-deep);
+    font-weight: 700;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 6%);
+  }
+  .resonance-set-switch button:focus-visible {
+    outline: 2px solid var(--pink-deep);
+    outline-offset: -2px;
+  }
+  .resonance-set-summary {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px 12px;
+    margin: 12px 0 0;
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+  .resonance-manual-note {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
   }
   .resonance-parts {
-    grid-template-columns: repeat(3, minmax(52px, 1fr));
+    grid-column: 1 / -1;
+    min-width: 0;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 8px;
+    padding: 0 4px 4px 0;
   }
+}
+@media (max-width: 359px) {
+  .resonance-parts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
   .resonance-form {
     grid-template-columns: 1fr;
   }

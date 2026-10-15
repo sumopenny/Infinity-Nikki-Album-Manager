@@ -108,6 +108,59 @@ async function pasteCredentials(panel: HTMLElement) {
 }
 
 describe('ResonanceRecords', () => {
+  it.each(['zh', 'en'] as const)(
+    'switches mobile set progress and known pulls independently in %s',
+    async (language) => {
+      vi.stubGlobal('matchMedia', () => ({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn()
+      }))
+      const piece = savedRecord.sets[0].parts[0]!
+      const record: ResonanceRecord = {
+        ...savedRecord,
+        sets: [
+          {
+            setNumber: 1,
+            totalPulls: 37,
+            parts: [
+              piece,
+              { ...piece, id: 'second', pullNumber: 18 },
+              { ...piece, id: 'manual', pullNumber: 0, manual: true },
+              { ...piece, id: 'missing', pullNumber: 0 }
+            ]
+          },
+          savedRecord.sets[1]
+        ]
+      }
+      await saveResonanceRecords([record])
+      const wrapper = mount(ResonanceRecords, { props: { language } })
+      wrappers.push(wrapper)
+      await vi.waitFor(() => expect(wrapper.findAll('.resonance-record')).toHaveLength(1))
+      const desktopSummary = wrapper.find('.resonance-overall-summary').text()
+      const buttons = wrapper.findAll('.resonance-set-switch button')
+      expect(buttons[0]!.attributes('aria-pressed')).toBe('true')
+      expect(wrapper.find('.resonance-mobile-progress').text()).toContain('3 / 4')
+      expect(wrapper.find('.resonance-set-summary').text()).toContain('37')
+      expect(wrapper.find('.resonance-set-summary').text()).toContain('18.5')
+      expect(wrapper.find('.resonance-manual-note').exists()).toBe(true)
+
+      await buttons[1]!.trigger('click')
+      expect(buttons[1]!.attributes('aria-pressed')).toBe('true')
+      expect(wrapper.find('.resonance-mobile-progress').text()).toContain('0 / 1')
+      expect(wrapper.find('.resonance-set-summary').text().match(/—/g)).toHaveLength(2)
+      expect(wrapper.find('.resonance-manual-note').exists()).toBe(false)
+      expect(wrapper.findAll('.resonance-part')).toHaveLength(1)
+      expect(wrapper.find('.resonance-part').classes()).toContain('is-missing')
+      expect(wrapper.find('.resonance-overall-summary').text()).toBe(desktopSummary)
+
+      await buttons[0]!.trigger('click')
+      expect(wrapper.findAll('.resonance-part')).toHaveLength(4)
+      expect(wrapper.find('.resonance-set-summary').text()).toContain('18.5')
+      expect(await loadResonanceRecords()).toEqual([record])
+    }
+  )
+
   it('shares loaded records with the sidebar and gives each card a jump target', async () => {
     await saveResonanceRecords([savedRecord])
     const wrapper = mount(ResonanceRecords, { props: { language: 'zh' } })
@@ -187,12 +240,16 @@ describe('ResonanceRecords', () => {
     await saveResonanceRecords([record])
     const wrapper = mount(ResonanceRecords, { props: { language: 'zh' } })
     wrappers.push(wrapper)
-    await vi.waitFor(() => expect(wrapper.findAll('.resonance-part')).toHaveLength(3))
-    const displayedIds = () =>
-      wrapper.findAll('.resonance-part img').map((image) => image.attributes('alt'))
-    expect(displayedIds()).toEqual(['later', 'earlier', 'missing'])
-    await wrapper.find('.resonance-second-set').trigger('click')
-    expect(displayedIds()).toEqual(['second-later', 'second-earlier', 'missing'])
+    await vi.waitFor(() => expect(wrapper.findAll('.resonance-set-row')).toHaveLength(2))
+    const rows = wrapper.findAll('.resonance-set-row')
+    const displayedIds = (index: number) =>
+      rows[index]!.findAll('.resonance-part img').map((image) => image.attributes('alt'))
+    expect(displayedIds(0)).toEqual(['later', 'earlier', 'missing'])
+    expect(displayedIds(1)).toEqual(['second-later', 'second-earlier', 'missing'])
+    expect(rows[0]!.find('.resonance-desktop-set-heading').text()).toContain('本套已记录抽数：12')
+    expect(rows[1]!.find('.resonance-desktop-set-heading').text()).toContain('本套已记录抽数：8')
+    expect(rows[0]!.find('.resonance-desktop-set-heading').text()).toContain('已知部件均抽：6.0')
+    expect(rows[1]!.find('.resonance-desktop-set-heading').text()).toContain('已知部件均抽：4.0')
   })
 
   it('reverses banner order in the cards while keeping the same-banner outfit order', async () => {
@@ -316,7 +373,7 @@ describe('ResonanceRecords', () => {
     })
   })
 
-  it('renders stored bilingual names and keeps the summary while viewing set two', async () => {
+  it('renders bilingual desktop set rows with independent stats and the combined summary', async () => {
     await saveResonanceRecords([savedRecord])
     const wrapper = mount(ResonanceRecords, { props: { language: 'en' } })
     wrappers.push(wrapper)
@@ -327,11 +384,14 @@ describe('ResonanceRecords', () => {
     const summary = wrapper.find('.resonance-record-heading p').text()
     expect(summary).toContain('Total pulls: 19')
     expect(summary).toContain('Average pulls: 19.0')
-    expect(wrapper.find('.resonance-second-set').text()).toBe('View second set pulls')
-
-    await wrapper.find('.resonance-second-set').trigger('click')
-    expect(wrapper.find('.resonance-record-heading p').text()).toBe(summary)
-    expect(wrapper.find('.resonance-second-set').text()).toBe('View first set pulls')
+    const headings = wrapper.findAll('.resonance-desktop-set-heading')
+    expect(headings).toHaveLength(2)
+    expect(headings[0]!.text()).toContain('First set')
+    expect(headings[0]!.text()).toContain('Recorded pulls for this set: 19')
+    expect(headings[1]!.text()).toContain('Second set')
+    expect(headings[1]!.text()).toContain('Recorded pulls for this set: —')
+    expect(headings[1]!.text()).toContain('Known-piece average: —')
+    expect(wrapper.find('.resonance-second-set').exists()).toBe(false)
   })
 
   it('sums both sets and shows their obtained-piece average with one decimal place', async () => {

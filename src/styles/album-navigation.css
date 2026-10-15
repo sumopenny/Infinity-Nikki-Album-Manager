@@ -905,6 +905,16 @@
   }
 }
 
+/* 桌面筛选容器继承可用高度，内部列表独立滚动；移动端由筛选弹窗负责滚动。 */
+@media (min-width: 900px) {
+  .sidebar-column #album-sidebar-column {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    flex-direction: column;
+  }
+}
+
 @media (max-width: 899px) {
   .album-layout {
     display: block;

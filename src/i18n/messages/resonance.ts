@@ -86,8 +86,13 @@ export interface ResonanceMessages {
   noRecords: string
   pulls: (count: number) => string
   average: (count: string) => string
-  secondSet: string
-  firstSet: string
+  setSelection: string
+  setOne: string
+  setTwo: string
+  ownedProgress: (owned: number, total: number) => string
+  setPulls: (count: string) => string
+  knownAverage: (count: string) => string
+  manualStatsNote: string
   rarity: (value: number) => string
 }
 
@@ -183,8 +188,13 @@ export const resonanceZh: ResonanceMessages = {
   noRecords: '奇想手账中没有找到可识别的卡池抽卡记录。',
   pulls: (count) => `总抽数：${count}`,
   average: (count) => `平均抽数：${count}`,
-  secondSet: '查看第二套抽数',
-  firstSet: '查看第一套抽数',
+  setSelection: '选择套数',
+  setOne: '第一套',
+  setTwo: '第二套',
+  ownedProgress: (owned, total) => `已获得 ${owned} / ${total} 件`,
+  setPulls: (count) => `本套已记录抽数：${count}`,
+  knownAverage: (count) => `已知部件均抽：${count}`,
+  manualStatsNote: '补录部件计入获得进度，不计入抽数和均值。',
   rarity: (value) => `${value}星`
 }
 
@@ -286,7 +296,12 @@ export const resonanceEn: ResonanceMessages = {
   noRecords: 'No supported banner pull records were found in Whim-Log.',
   pulls: (count) => `Total pulls: ${count}`,
   average: (count) => `Average pulls: ${count}`,
-  secondSet: 'View second set pulls',
-  firstSet: 'View first set pulls',
+  setSelection: 'Select set',
+  setOne: 'First set',
+  setTwo: 'Second set',
+  ownedProgress: (owned, total) => `Owned ${owned} / ${total} pieces`,
+  setPulls: (count) => `Recorded pulls for this set: ${count}`,
+  knownAverage: (count) => `Known-piece average: ${count}`,
+  manualStatsNote: 'Manual entries count as owned, but are excluded from pull totals and averages.',
   rarity: (value) => `${value}-star`
 }

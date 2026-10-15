@@ -38,7 +38,11 @@ watch(modal, async (open) => {
     >
       <div
         v-show="!compact || open"
-        :class="{ 'mobile-filter-overlay': compact, 'mobile-tag-picker': compact && tagPicker }"
+        :class="{
+          'desktop-filter-panel': !compact,
+          'mobile-filter-overlay': compact,
+          'mobile-tag-picker': compact && tagPicker
+        }"
         @click.self="compact && $emit('close')"
       >
         <section
@@ -66,3 +70,15 @@ watch(modal, async (open) => {
     </Transition>
   </Teleport>
 </template>
+
+<style scoped>
+/* 桌面端逐层传递剩余高度，避免日期与标签列表随内容撑开而失去滚动区域。 */
+.desktop-filter-panel,
+.desktop-filter-panel > section,
+.desktop-filter-panel > section > div {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+</style>

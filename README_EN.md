@@ -86,6 +86,8 @@ Manage outfits and home schemes, parse outfit codes and photo parameters, and or
 
 Import, view and analyze resonance records, with JSON import/export and account-based cloud sync.
 
+On desktop (≥900px), the outfit artwork remains on the left, with the first and second sets shown simultaneously in two stacked sections on the right. Each set's recorded pulls and known-piece average appear above its pieces, which wrap in narrower windows. No set switching is needed; the combined total and average remain below the outfit title.
+
 ### File cleanup
 
 Clean up low-quality photos, game screenshots, crash snapshots, logs and caches.
@@ -106,6 +108,7 @@ Official site: https://nikki3.pages.dev/. Open https://infinity-nikki-album-mana
 - The header provides Search, View settings, and More. Tag or rarity entries filter, + adds, and the ⋯ menu provides actions such as import and export.
 - Large previews support horizontal swipes, pinch-to-zoom, and panning.
 - Resonance records can be manually uploaded to the cloud, then synced by signing in to the same account on another device; sign-in and local edits do not sync automatically.
+- In the mobile layout (≤899px), resonance cards use a small outfit summary above a full-width piece grid: five columns, or four below 360px. The original combined total and average for both sets appear below the banner name and above owned progress; they remain unchanged when switching sets and wrap on narrow screens. First/second set buttons above the grid update the owned progress, recorded pulls, and known-piece average for that set. Manual entries count only toward owned progress; unknown pull statistics show “—”.
 - Outfits, home schemes, and camera favorites can be exported as a full-data ZIP on a computer, manually transferred to a phone, and then imported.
 
 ## Outfit Code Management
@@ -289,3 +292,4 @@ Camera parameter favorites and resonance cloud upload/delete work over LAN HTTP.
 Unexpected cloud API failures produce structured logs containing the operation, stage, error category and a server-generated request ID. The error response's `X-Request-Id` correlates with the log. Logs omit accounts, tokens, request bodies and raw exceptions.
 
 Image read recovery: a persistent status near the image explains reading or failure. Saving waits during reading. Failed replacements retain the previous image; camera favorites can save without an optional cover, while new outfits still require an image. Reselecting the same file retries reading.
+On desktop, date, tag and resonance lists scroll independently when they exceed the available sidebar height, while the module navigation stays fixed. On mobile, scrolling remains inside the filter dialog.
