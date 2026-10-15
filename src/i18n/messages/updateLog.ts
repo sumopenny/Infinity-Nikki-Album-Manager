@@ -2,22 +2,16 @@
 import type { LocaleMessages } from '../types'
 
 export const updateLogZh: LocaleMessages['updateLog'] = {
-  title: '更新记录',
-  helpAbout: '使用帮助',
-  currentTitle: '当前版本',
-  currentVersion: 'v2.0.1',
-  currentDate: '2026.10.14 更新',
+  title: '更新记录', helpAbout: '使用帮助', currentTitle: '当前版本', currentVersion: 'v2.0.2', currentDate: '2026.10.15 更新',
   currentItems: [
-    '新增共鸣记录云同步：支持注册、登录账号，手动上传共鸣记录，并在电脑或手机登录同一账号下载，实现跨设备同步。每个账号保存一份云端存档；上传完整覆盖云端，下载完整覆盖本地，操作前可核对账号与记录数量。登录和本地修改不会自动同步。',
-    '支持管理云端存档：登录后可确认删除云端共鸣存档，保留账号、登录状态和本地记录。',
-    '调整共鸣导入方式：从奇美鸭梨或 JSON 文件导入时，确认后以本次预览结果替换全部本地共鸣记录。',
-    '“清除数据”支持完整重置网站：确认后清除当前浏览器中的方案、图片、标签、共鸣记录、收藏及设置，重新加载回到初始状态。操作不可撤销，请先导出备份；电脑原文件及云端存档保留。',
-    '优化使用逻辑和用户体验，并和大喵去吃了一顿大餐🍟🍔🍕🍝🍩'
+    '共鸣记录展示升级：电脑端同时展示第一套、第二套部件，无需切换；手机端采用小立绘与全宽部件网格，可切换套数查看获得进度、本套已记录抽数和已知部件均抽，同时保留两套合计的总抽数与平均抽数。',
+    '手机空页面新增展示图：搭配码、家园方案、相机参数和共鸣记录在暂无数据时展示对应UI展示图。',
+    '改善手机图片上传兼容性：优化搭配图片和相机参数收藏封面的读取、预览及保存流程，处理选图后报错无法保存的问题。'
   ],
   historyTitle: '历史版本记录',
   history: [
-    {
-      version: 'v2.0',
+    { version: 'v2.0.1', items: ['新增共鸣记录云同步：支持注册、登录账号，手动上传共鸣记录，并在电脑或手机登录同一账号下载，实现跨设备同步。每个账号保存一份云端存档；上传完整覆盖云端，下载完整覆盖本地，操作前可核对账号与记录数量。登录和本地修改不会自动同步。', '支持管理云端存档：登录后可确认删除云端共鸣存档，保留账号、登录状态和本地记录。', '调整共鸣导入方式：从奇美鸭梨或 JSON 文件导入时，确认后以本次预览结果替换全部本地共鸣记录。', '“清除数据”支持完整重置网站：确认后清除当前浏览器中的方案、图片、标签、共鸣记录、收藏及设置，重新加载回到初始状态。操作不可撤销，请先导出备份；电脑原文件及云端存档保留。', '优化使用逻辑和用户体验，并和大喵去吃了一顿大餐🍟🍔🍕🍝🍩'] },
+    { version: 'v2.0',
       items: [
         '手机网页版正式上线，界面全面升级！现在可以直接用手机浏览器管理搭配码、家园方案、相机参数收藏和共鸣记录，随时查看、整理与分享你的游戏灵感。新增底部四模块导航，重新设计顶部工具栏、卡片与操作布局，让常用功能更适合手机浏览和触摸操作。',
         '现有电脑端数据可迁移到手机：在电脑端“更多”中选择“导出全部数据”，将生成的 ZIP 文件传给手机，再用手机浏览器打开网站，在“更多”中选择“导入全部数据”，即可迁移搭配码、家园方案、相机参数收藏和共鸣记录。',
@@ -191,17 +185,25 @@ export const updateLogEn: LocaleMessages['updateLog'] = {
   title: 'Release history',
   helpAbout: 'Help',
   currentTitle: 'Current version',
-  currentVersion: 'v2.0.1',
-  currentDate: 'Updated 2026.10.14',
+  currentVersion: 'v2.0.2',
+  currentDate: 'Updated 2026.10.15',
   currentItems: [
-    'Added resonance cloud sync: register and sign in to an account, manually upload your resonance records, and download them on another computer or phone signed in to the same account for cross-device syncing. Each account keeps one cloud save; uploading fully overwrites the cloud copy and downloading fully overwrites the local copy, so check the account and record count before confirming. Sign-in and local changes do not sync automatically.',
-    'Manage cloud saves: after signing in, you can confirm the deletion of the cloud resonance save while keeping your account, sign-in status, and local records.',
-    'Adjusted resonance import: when importing from Pear-Pal or a JSON file, confirming replaces all local resonance records with the previewed results.',
-    '"Clear data" can now fully reset the site: after confirmation it clears schemes, photos, tags, resonance records, favorites, and settings in the current browser, then reloads to the initial state. This cannot be undone—export a backup first; original files on your computer and cloud saves are kept.',
-    'Polished the logic and experience, and took Momo out for a big meal 🍟🍔🍕🍝🍩'
+    'Upgraded resonance record display: on desktop, the first and second set pieces are shown together without switching; on mobile, a small character art with a full-width piece grid lets you switch sets to view acquisition progress, recorded pulls for the current set, and average pulls per known piece, while keeping the combined total and average pulls for both sets.',
+    'Added illustration images to empty mobile pages: Outfit Codes, Home Schemes, Camera Parameters, and Resonance Records now show their corresponding UI illustration when there is no data yet.',
+    'Improved mobile image-upload compatibility: refined the read, preview, and save flow for outfit images and camera-parameter favorite covers, fixing an error that prevented saving after picking an image.'
   ],
   historyTitle: 'Previous releases',
   history: [
+    {
+      version: 'v2.0.1',
+      items: [
+        'Added resonance cloud sync: register and sign in to an account, manually upload your resonance records, and download them on another computer or phone signed in to the same account for cross-device syncing. Each account keeps one cloud save; uploading fully overwrites the cloud copy and downloading fully overwrites the local copy, so check the account and record count before confirming. Sign-in and local changes do not sync automatically.',
+        'Manage cloud saves: after signing in, you can confirm the deletion of the cloud resonance save while keeping your account, sign-in status, and local records.',
+        'Adjusted resonance import: when importing from Pear-Pal or a JSON file, confirming replaces all local resonance records with the previewed results.',
+        '"Clear data" can now fully reset the site: after confirmation it clears schemes, photos, tags, resonance records, favorites, and settings in the current browser, then reloads to the initial state. This cannot be undone—export a backup first; original files on your computer and cloud saves are kept.',
+        'Polished the logic and experience, and took Momo out for a big meal 🍟🍔🍕🍝🍩'
+      ]
+    },
     {
       version: 'v2.0',
       items: [
