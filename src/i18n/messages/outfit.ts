@@ -80,6 +80,7 @@ export interface OutfitMessages {
   emptyDescription: string
   imageRequired: string
   unsupportedImage: string
+  imageReading: string
   imageLoadFailed: string
   operations: {
     copyCode: string
@@ -202,7 +203,8 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     emptyDescription: '添加搭配方案，或在游戏中生成搭配码后返回页面自动导入。',
     imageRequired: '请先选择一张搭配图片。',
     unsupportedImage: '请选择 JPG、JPEG、PNG 或 WebP 图片。',
-    imageLoadFailed: '搭配图片读取失败',
+    imageReading: '正在读取图片…',
+    imageLoadFailed: '搭配图片读取失败，请重新选择文件',
     operations: {
       copyCode: '复制搭配码',
       albumOpenedWithFailures: (failed) => `相册已打开，${failed} 个搭配方案读取或导入失败。`,
@@ -368,7 +370,8 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       'Add an outfit, or generate a code in the game and return to automatically import it.',
     imageRequired: 'Choose an outfit image first.',
     unsupportedImage: 'Choose a JPG, JPEG, PNG, or WebP image.',
-    imageLoadFailed: 'Unable to read outfit image',
+    imageReading: 'Reading image…',
+    imageLoadFailed: 'Unable to read outfit image. Please select the file again',
     operations: {
       copyCode: 'Copy outfit code',
       albumOpenedWithFailures: (failed) =>

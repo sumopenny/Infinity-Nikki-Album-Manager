@@ -270,3 +270,12 @@ Stack: Vue 3, TypeScript, Vite, File System Access API, IndexedDB.
 ## Acknowledgements and License
 
 Some features were inspired by and use the related services of [Nikki Albums](https://github.com/RanAxro/nikki_albums) and [Gongeo.us Nikki Tracker](https://github.com/dastrokes/gongeo.us-nikki-tracker). Please refer to the root [LICENSE](LICENSE) file for this project's license.
+
+Image diagnostics: outfit preview/save errors include the failed stage, MIME type, byte count and browser version. The console retains original exceptions. Image error events do not expose the underlying decoder reason; these details do not establish a root cause.
+
+After decoding fails, FileReader / Data URL diagnostics report byte count, file header, SHA-256 and loading results. This is diagnostic only, not a save fallback; reading and loading each time out after 15 seconds.
+
+
+Outfit images are copied into memory immediately upon selection; preview and saving use that copy if the original mobile file reference later becomes unreadable. Confirmation waits while “Reading image…” is shown; select the file again if reading fails. Temporary selection/save rereading comparisons have been removed; failure-stage diagnostics remain.
+
+Image memory copies apply only in compact layouts (viewport width ≤899px). Desktop layouts (≥900px) preview and save the original selected file without an eager copy. The layout at selection time determines the path.

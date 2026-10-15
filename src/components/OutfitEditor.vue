@@ -10,7 +10,9 @@ import {
   normalizeOutfitCode,
   type OutfitItem
 } from '../utils/outfit/outfitFileSystem'
+import { snapshotImageFile, imageDiagnosticError } from '../utils/image'
 import { readPhotoBlob } from '../utils/file-system/photoUrl'
+import { useCompactLayout } from '../composables/useCompactLayout'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
 const props = defineProps<{
@@ -31,6 +33,9 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const codeInput = ref<HTMLInputElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
 const imageFile = ref<File | undefined>()
+const compact = useCompactLayout()
+const imageReading = ref(false)
+const imageReadFailed = ref(false)
 const previewUrl = ref<string | null>(null)
 const code = ref('')
 const note = ref('')
@@ -52,6 +57,9 @@ useBodyScrollLock(toRef(props, 'visible'))
 
 function revokePreview() {
   previewRequestId += 1
+  imageReading.value = false
+  imageReadFailed.value = false
+  imageFile.value = undefined
   if (previewUrl.value?.startsWith('blob:')) URL.revokeObjectURL(previewUrl.value)
   previewUrl.value = null
 }
@@ -85,16 +93,46 @@ function isAcceptedImage(file: File): boolean {
   )
 }
 
-function selectFile(file: File | undefined) {
-  if (!file) return
+// 移动布局立即复制字节以避开原文件引用失效；桌面布局保持直接预览和保存。
+async function selectFile(file: File | undefined) {
+  if (!file || props.busy) return
   if (!isAcceptedImage(file)) {
     errorMessage.value = props.messages.unsupportedImage
     return
   }
   revokePreview()
-  imageFile.value = file
-  previewUrl.value = URL.createObjectURL(file)
+  if (!compact.value) {
+    imageFile.value = file
+    previewUrl.value = URL.createObjectURL(file)
+    errorMessage.value = ''
+    return
+  }
+  const requestId = previewRequestId
+  imageReading.value = true
   errorMessage.value = ''
+  try {
+    const snapshot = await snapshotImageFile(file)
+    if (requestId !== previewRequestId || !props.visible) return
+    imageFile.value = snapshot
+    previewUrl.value = URL.createObjectURL(snapshot)
+  } catch (error) {
+    if (requestId !== previewRequestId || !props.visible) return
+    imageReadFailed.value = true
+    imageFile.value = undefined
+    errorMessage.value = `${props.messages.imageLoadFailed}. ${error instanceof Error ? error.message : String(error)}`
+  } finally {
+    if (requestId === previewRequestId) imageReading.value = false
+  }
+}
+
+// 预览失败也输出文件上下文，区分选择后的显示失败与保存转换失败。
+function handlePreviewError() {
+  if (!imageFile.value) return
+  errorMessage.value = imageDiagnosticError(
+    'preview:img-blob-url',
+    imageFile.value,
+    new Error('Image preview failed; img error event does not expose the native decoder reason')
+  ).message
 }
 
 function handleDrop(event: DragEvent) {
@@ -186,6 +224,7 @@ function handleEditorBackdropClick() {
 defineExpose({ selectCreatedTag })
 
 function submit() {
+  if (props.busy || imageReading.value || imageReadFailed.value) return
   if (!hasImage.value) {
     errorMessage.value = props.messages.imageRequired
     return
@@ -271,7 +310,7 @@ onBeforeUnmount(() => {
                 @dragleave.prevent="isDragging = false"
                 @drop.prevent="handleDrop"
               >
-                <img v-if="previewUrl" :src="previewUrl" alt="" />
+                <img v-if="previewUrl" :src="previewUrl" alt="" @error="handlePreviewError" />
                 <span v-else class="outfit-image-prompt"
                   ><ImagePlus :size="30" aria-hidden="true" />{{ messages.imageHint }}</span
                 >
@@ -380,10 +419,10 @@ onBeforeUnmount(() => {
             <button
               class="confirm-dialog-button primary"
               type="button"
-              :disabled="busy"
+              :disabled="busy || imageReading || imageReadFailed"
               @click="submit"
             >
-              {{ busy ? messages.saving : messages.confirm }}
+              {{ imageReading ? messages.imageReading : busy ? messages.saving : messages.confirm }}
             </button>
           </footer>
         </section>

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { convertImageToWebp, validateImageBlob } from '../../src/utils/image'
+import { convertImageToWebp, snapshotImageFile, validateImageBlob } from '../../src/utils/image'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -129,6 +129,46 @@ describe('image decoding fallback', () => {
     await expect(convertImageToWebp(file)).rejects.toThrow('Image could not be decoded')
   })
 
+  it('reports FileReader failures without attempting Data URL decoding', async () => {
+    vi.stubGlobal('createImageBitmap', undefined)
+    mockImage({ fail: true })
+    vi.spyOn(FileReader.prototype, 'readAsDataURL').mockImplementation(() => {
+      throw new DOMException('file access denied', 'NotReadableError')
+    })
+    await expect(validateImageBlob(new Blob(['image']))).rejects.toThrow(
+      'FileReader=FAILED (NotReadableError: file access denied); DataURL=SKIPPED'
+    )
+  })
+
+  it('copies original bytes into an independent file before the source becomes unreadable', async () => {
+    const original = new File(['original-image'], 'photo.jpg', {
+      type: 'image/jpeg',
+      lastModified: 123
+    })
+    const snapshot = await snapshotImageFile(original)
+    expect(snapshot).not.toBe(original)
+    expect(snapshot.name).toBe(original.name)
+    expect(snapshot.type).toBe(original.type)
+    expect(snapshot.lastModified).toBe(123)
+    const read = FileReader.prototype.readAsArrayBuffer
+    vi.spyOn(FileReader.prototype, 'readAsArrayBuffer').mockImplementation(function (
+      this: FileReader,
+      blob
+    ) {
+      if (blob === original) throw new DOMException('expired', 'NotReadableError')
+      return read.call(this, blob)
+    })
+    await expect(snapshotImageFile(original)).rejects.toThrow('NotReadableError: expired')
+    const secondCopy = await snapshotImageFile(snapshot)
+    expect(secondCopy.size).toBe(original.size)
+    const text = await new Promise<string>((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.readAsText(secondCopy)
+    })
+    expect(text).toBe('original-image')
+  })
+
   it('works when ImageBitmap is unavailable', async () => {
     vi.stubGlobal('createImageBitmap', undefined)
     mockImage()
@@ -139,9 +179,15 @@ describe('image decoding fallback', () => {
   it('rejects unreadable images and releases the URL', async () => {
     vi.stubGlobal('createImageBitmap', vi.fn().mockRejectedValue(new Error('decode failed')))
     const fallback = mockImage({ fail: true })
-    await expect(validateImageBlob(new Blob(['invalid']))).rejects.toThrow(
-      'Image could not be decoded'
+    const result = validateImageBlob(new Blob(['invalid'], { type: 'image/jpeg' }))
+    await expect(result).rejects.toThrow('decode:img-blob-url')
+    await expect(result).rejects.toThrow('createImageBitmap=Error: decode failed')
+    await expect(result).rejects.toThrow('type=image/jpeg; bytes=7')
+    await expect(result).rejects.toThrow(
+      'FileReader=OK; readBytes=7; sizeMatch=true; header=696e76616c6964; sha256='
     )
+    await expect(result).rejects.toThrow('DataURL=FAILED')
+    await expect(result).rejects.toThrow('Image could not be decoded')
     expect(fallback.removeAttribute).toHaveBeenCalledWith('src')
     expect(URL.revokeObjectURL).toHaveBeenCalledOnce()
   })
