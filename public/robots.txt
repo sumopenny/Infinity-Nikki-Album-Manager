@@ -1,5 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /api/
-
-Sitemap: https://infinity-nikki-album-manager.pages.dev/sitemap.xml

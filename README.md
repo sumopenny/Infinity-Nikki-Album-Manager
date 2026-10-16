@@ -272,10 +272,6 @@ npm run preview   # 预览构建结果
 
 ---
 
-## 搜索收录
-
-工具集的静态指南位于 [功能总览](https://infinity-nikki-album-manager.pages.dev/guide/)，完整介绍相册、搭配码解析、家园方案、照片与相机参数、共鸣记录、专项清理和备份迁移，并说明视图设置、小工具与帮助入口。源文件在 `public/guide/`，无需 JavaScript 即可阅读，各页有独立 canonical，网站地图收录首页与全部指南。指南中的“打开工具”进入原首页，不改变现有功能，也不涉及独立官网。部署后才可公开访问，收录与排名不作保证。
-
 ## 致谢与许可证
 
 部分功能借鉴并使用了 [暖暖相册](https://github.com/RanAxro/nikki_albums) 和 [共鸣录](https://github.com/dastrokes/gongeo.us-nikki-tracker) 的相关服务。本项目许可证请参阅根目录的 [LICENSE](LICENSE) 文件。
