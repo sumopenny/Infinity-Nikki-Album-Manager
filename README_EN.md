@@ -271,6 +271,10 @@ Stack: Vue 3, TypeScript, Vite, File System Access API, IndexedDB.
 
 ---
 
+## Search Indexing
+
+The [static guide overview](https://infinity-nikki-album-manager.pages.dev/guide/) covers albums, outfit-code parsing, home schemes, photo and camera parameters, resonance records, cleanup, and backup/migration, plus display settings, utilities and help. Sources are in `public/guide/`; every page works without JavaScript and has its own canonical URL. The sitemap lists the tool homepage and all guides. Guide buttons return to the existing tool homepage without changing its features or the separate official website. Deployment is required for public access; indexing and rankings are not guaranteed.
+
 ## Acknowledgements and License
 
 Some features were inspired by and use the related services of [Nikki Albums](https://github.com/RanAxro/nikki_albums) and [Gongeo.us Nikki Tracker](https://github.com/dastrokes/gongeo.us-nikki-tracker). Please refer to the root [LICENSE](LICENSE) file for this project's license.

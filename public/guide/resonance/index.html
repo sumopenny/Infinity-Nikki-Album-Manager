@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN"
+  ><head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>无限暖暖共鸣记录工具：导入、统计与备份｜暖立方</title>
+    <meta
+      name="description"
+      content="使用暖立方查看无限暖暖共鸣记录与抽卡记录，导入记录后按卡池和套装查看统计、获得进度，导出 JSON 备份，并按需手动上传或下载云端记录。"
+    />
+    <link rel="canonical" href="https://infinity-nikki-album-manager.pages.dev/guide/resonance/" />
+    <link rel="stylesheet" href="/guide/guide.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#content">跳到正文</a>
+    <header
+      ><div class="shell topbar"
+        ><a class="brand" href="/guide/">暖立方<span>无限暖暖工具集 · 使用指南</span></a
+        ><a class="button" href="/">打开工具</a></div
+      ></header
+    >
+    <main id="content" class="shell">
+      <nav class="breadcrumb" aria-label="当前位置"
+        ><a href="/guide/">工具集介绍</a> / 共鸣记录</nav
+      >
+      <section class="hero"
+        ><p class="eyebrow">记录与统计</p><h1>无限暖暖共鸣记录：查看抽数与套装进度</h1
+        ><p class="lead"
+          >用暖立方整理无限暖暖抽卡记录。导入共鸣数据后，按卡池和套装查看已记录抽数、部件获得进度与统计，并通过
+          JSON 备份或可选云同步保留记录。</p
+        ><div class="actions"
+          ><a class="button" href="/">打开工具查看共鸣</a><a href="#start">查看导入步骤</a></div
+        ></section
+      >
+      <section class="panel"
+        ><h2>共鸣记录能做什么？</h2
+        ><ul
+          ><li
+            ><strong>导入记录。</strong>使用工具内提供的共鸣导入方式，或导入兼容的 JSON
+            记录文件。</li
+          ><li
+            ><strong>查看统计。</strong
+            >按卡池和星级筛选，查看套装获得进度、已记录抽数及已知部件均抽。</li
+          ><li
+            ><strong>导出备份。</strong>将当前共鸣记录导出为
+            JSON，在再次导入或更换设备前保留副本。</li
+          ><li
+            ><strong>手动云同步。</strong
+            >登录共鸣云账号后主动上传记录，再在另一设备登录同一账号并下载。</li
+          ></ul
+        ></section
+      >
+      <section id="start"
+        ><h2>如何开始使用？</h2
+        ><ol
+          ><li>打开工具首页，切换到“共鸣记录”模块。手机可通过底部导航进入。</li
+          ><li
+            >已有记录时先导出 JSON 备份，然后打开模块中的导入入口，按提示获取记录或选择兼容的 JSON
+            文件。</li
+          ><li>检查导入预览及替换提示，确认后保存，再按卡池和套装查看记录。</li
+          ><li
+            >需要跨设备使用时，手动上传到云端；在另一设备登录后，确认本地备份，再下载云端记录。</li
+          ></ol
+        ><p class="note"
+          >普通共鸣导入会用本次完整记录替换当前共鸣记录，不会自动合并两份历史。导入前请保留需要的数据。</p
+        ></section
+      >
+      <section class="panel"
+        ><h2>使用前常见问题</h2><h3>登录后会自动同步吗？</h3
+        ><p
+          >不会。登录和本地修改都不会自动同步。上传用本地记录替换云端记录，下载用云端记录替换本地记录，操作前请确认方向。</p
+        ><h3>不使用云同步可以吗？</h3
+        ><p
+          >可以使用本地共鸣记录和 JSON 导入导出。云账号用于可选的云同步，不是查看本页指南的前提。</p
+        ><h3>统计包含没有导入的历史记录吗？</h3
+        ><p
+          >统计依据当前保存的记录，不能凭空补全缺失的历史。补录只计入获得进度；没有已知抽数时显示“—”，不把未知抽数当作零。</p
+        ><h3>共鸣同步会一起上传照片和搭配吗？</h3
+        ><p
+          >不会。共鸣云同步只处理共鸣记录，不上传本地照片，也不代替搭配、家园和相机收藏的备份。</p
+        ></section
+      >
+      <section
+        ><h2>开始整理你的共鸣记录</h2
+        ><p>打开工具后切换到共鸣记录模块。需要管理游戏照片时，也可以查看相册使用指南。</p
+        ><div class="actions"
+          ><a class="button" href="/">打开暖立方工具集</a
+          ><a href="/guide/album/">了解相册管理 →</a></div
+        ></section
+      >
+      <section class="panel"
+        ><h2>导入来源与云存档管理</h2
+        ><p
+          >支持从美鸭梨奇想手账按工具指引获取记录，也支持本工具备份及兼容的暖暖共鸣录
+          JSON。美鸭梨导入需核对账号
+          UID，凭据不要分享给他人。确认前查看成功解析的卡池和失败提示，普通导入只保留本次确认的数据。</p
+        ><p
+          >可以调整卡池排序和星级筛选，查看套装、部件获取顺序以及补录进度。电脑与手机布局不同，统计仍依据同一份已保存记录。</p
+        ><p
+          >每个云账号只有一份存档，可注册、登录、退出，手动上传、下载或删除云存档。清空本地记录保留云端，删除云存档保留本地与账号。当前不提供密码修改或找回，请妥善保存账号信息。</p
+        ><p
+          ><a href="/guide/backup/">全部数据 ZIP 的合并恢复与普通共鸣替换导入不同，查看备份规则</a
+          >。</p
+        ></section
+      ></main
+    >
+    <footer
+      ><nav class="shell" aria-label="指南导航"
+        ><a href="/guide/">工具集介绍</a><a href="/guide/album/">相册管理</a
+        ><a href="/guide/outfits/">搭配码解析</a><a href="/guide/home/">家园方案</a
+        ><a href="/guide/camera/">相机参数</a><a href="/guide/resonance/">共鸣记录</a
+        ><a href="/guide/cleanup/">专项清理</a><a href="/guide/backup/">备份与迁移</a
+        ><a href="/">工具首页</a></nav
+      ></footer
+    >
+  </body></html
+>

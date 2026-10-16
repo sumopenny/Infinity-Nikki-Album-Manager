@@ -1,0 +1,186 @@
+/* 仅由静态介绍页引用，不进入工具应用的全局样式。 */
+:root {
+  color-scheme: light;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    'Microsoft YaHei',
+    sans-serif;
+  color: #4c4240;
+  background: #faf7f2;
+  line-height: 1.8;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+a {
+  color: #8b3e4c;
+  text-underline-offset: 0.2em;
+}
+a:hover {
+  color: #632734;
+}
+a:focus-visible {
+  outline: 3px solid #8b3e4c;
+  outline-offset: 5px;
+}
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 16px;
+  padding: 12px;
+  background: white;
+}
+.skip-link:focus {
+  top: 12px;
+}
+.shell {
+  width: min(100% - 40px, 1000px);
+  margin-inline: auto;
+}
+header {
+  border-bottom: 1px solid #e4d8d1;
+  background: #fffdfa;
+}
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding-block: 20px;
+}
+.brand {
+  text-decoration: none;
+  font-weight: 750;
+  font-size: 1.15rem;
+}
+.brand span {
+  display: block;
+  color: #70625d;
+  font-weight: 400;
+  font-size: 0.8rem;
+}
+.button {
+  display: inline-block;
+  border: 1px solid #8b3e4c;
+  border-radius: 999px;
+  padding: 9px 22px;
+  background: #8b3e4c;
+  color: white;
+  text-decoration: none;
+  font-weight: 650;
+}
+.button:hover {
+  background: #632734;
+  color: white;
+}
+.topbar .button {
+  flex-shrink: 0;
+}
+main {
+  padding-block: 40px 64px;
+}
+.breadcrumb {
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+}
+.eyebrow {
+  color: #8b3e4c;
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+}
+h1 {
+  font-size: clamp(1.9rem, 5vw, 3rem);
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  margin: 12px 0 20px;
+  max-width: 850px;
+}
+.lead {
+  font-size: 1.1rem;
+  max-width: 760px;
+  color: #655650;
+}
+.hero {
+  padding-bottom: 30px;
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.card,
+.panel {
+  padding: 28px;
+  background: #fffdfa;
+  border: 1px solid #e4d8d1;
+  border-radius: 20px;
+}
+.card h2 {
+  margin-top: 0;
+}
+section + section {
+  margin-top: 32px;
+}
+h2 {
+  font-size: 1.4rem;
+  line-height: 1.5;
+}
+h3 {
+  font-size: 1.05rem;
+  margin-bottom: 8px;
+}
+p {
+  margin-block: 12px;
+}
+li + li {
+  margin-top: 12px;
+}
+ul,
+ol {
+  padding-left: 1.5em;
+}
+code {
+  font-size: 0.95em;
+  overflow-wrap: anywhere;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 24px;
+}
+.note {
+  border-left: 3px solid #c98486;
+  padding-left: 18px;
+  color: #655650;
+}
+footer {
+  padding-block: 24px;
+  border-top: 1px solid #e4d8d1;
+  color: #70625d;
+  font-size: 0.9rem;
+}
+footer nav {
+  display: flex;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+}
+@media (max-width: 899px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+  .card,
+  .panel {
+    padding: 22px;
+  }
+  main {
+    padding-top: 28px;
+  }
+}
