@@ -12,7 +12,7 @@ export function useSelectionState(options: {
   selectedIds: Ref<Set<string>>
   selectedOutfitIds: Ref<Set<string>>
   trashSelectedIds: Ref<Set<string>>
-  activeView: Ref<'all' | 'favorites' | 'trash' | 'outfits' | 'home' | 'resonance'>
+  activeView: Ref<'all' | 'favorites' | 'trash' | 'outfits' | 'home' | 'resonance' | 'wardrobe'>
 }) {
   const {
     visiblePhotos,

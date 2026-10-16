@@ -272,6 +272,7 @@ export interface LocaleMessages {
     homeSchemes: string
     resonance: string
     resonanceRecords: string
+    wardrobe: string
     comingSoon: string
     favorites: string
     recentlyDeleted: string

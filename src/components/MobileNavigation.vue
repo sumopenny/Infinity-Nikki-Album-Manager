@@ -24,7 +24,11 @@ defineEmits<{ changeView: [view: AlbumView] }>()
       :key="entry.view"
       type="button"
       :disabled="disabled"
-      :aria-current="activeView === entry.view ? 'page' : undefined"
+      :aria-current="
+        activeView === entry.view || (entry.view === 'resonance' && activeView === 'wardrobe')
+          ? 'page'
+          : undefined
+      "
       @click="$emit('changeView', entry.view)"
     >
       <component :is="entry.icon" :size="20" /><span>{{ entry.label }}</span>

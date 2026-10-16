@@ -1,3 +1,4 @@
+import * as unifiedImport from '../../src/utils/unifiedDataImport'
 import * as resonanceImport from '../../src/utils/resonance/resonanceImport'
 import * as resonanceStorage from '../../src/utils/resonance/resonanceStorage'
 import 'fake-indexeddb/auto'
@@ -68,12 +69,19 @@ afterEach(async () => {
   })
 })
 
-async function openDialog(language: 'zh' | 'en' = 'zh') {
+async function openDialog(language: 'zh' | 'en' = 'zh', expectReady = true) {
   const wrapper = mount(ResonanceRecords, { props: { language } })
   wrappers.push(wrapper)
   await flushPromises()
   await wrapper.find('.resonance-actions .primary-button').trigger('click')
   await flushPromises()
+  if (expectReady)
+    await vi.waitFor(() =>
+      expect(
+        document.body.querySelector<HTMLButtonElement>('.resonance-import-footer .primary-button')
+          ?.disabled
+      ).toBe(false)
+    )
   return { wrapper, panel: document.body.querySelector('.resonance-import-panel') as HTMLElement }
 }
 
@@ -324,7 +332,7 @@ describe('ResonanceRecords', () => {
     const { panel } = await openDialog()
     const links = [...panel.querySelectorAll('a')].map((link) => link.getAttribute('href'))
 
-    expect(panel.textContent).toContain('添加共鸣数据')
+    expect(panel.textContent).toContain('添加数据')
     expect(links).toContain('https://myl.nuanpaper.com/home')
     expect(panel.textContent).toContain('获取登录凭据的方法来自暖暖共鸣录')
     expect(panel.querySelector('.resonance-source-attribution strong')?.textContent).toBe(
@@ -364,11 +372,11 @@ describe('ResonanceRecords', () => {
     await flushPromises()
     panel.querySelector<HTMLButtonElement>('.resonance-import-footer .primary-button')!.click()
     await flushPromises()
-    expect(panel.textContent).toContain('导入预览 (1)')
+    await vi.waitFor(() => expect(panel.textContent).toContain('导入预览 (1)'))
     expect(body.scrollTop).toBe(900)
     expect(body.scrollTo).toHaveBeenCalledWith({ top: 900, behavior: 'smooth' })
     expect(panel.querySelectorAll('.resonance-import-footer button')).toHaveLength(1)
-    expect(panel.textContent).toContain('替换全部本地共鸣记录')
+    expect(panel.textContent).toContain('整份覆盖勾选的记录')
     expect(await loadResonanceRecords()).toEqual([oldRecord, savedRecord])
     panel.querySelector<HTMLButtonElement>('.resonance-import-footer .primary-button')!.click()
     await flushPromises()
@@ -503,9 +511,6 @@ describe('ResonanceRecords', () => {
     expect(panel.querySelector('.resonance-preview tbody')?.textContent).toContain('17')
     expect(panel.textContent).not.toContain('第二套')
 
-    // 整批替换以本次预览为准，其他窗口在预览期间新增的阁也不保留。
-    const latestOnly = { ...localOnly, id: 'latest-only:outfit', bannerId: 'latest-only' }
-    await saveResonanceRecords([latestOnly])
     ;(
       panel.querySelector('.resonance-import-footer button:last-child') as HTMLButtonElement
     ).click()
@@ -575,7 +580,10 @@ it.each([
       addEventListener: vi.fn(),
       removeEventListener: vi.fn()
     }))
-    vi.spyOn(resonanceImport, 'importFromPearpal').mockResolvedValueOnce({
+    vi.spyOn(resonanceImport, 'fetchPearpalSnapshot').mockResolvedValueOnce({
+      info_from_self: { gacha_list: [{}] }
+    })
+    vi.spyOn(resonanceImport, 'parsePearpalResonance').mockReturnValueOnce({
       records: [savedRecord],
       skippedPools: 0
     })
@@ -598,7 +606,10 @@ it.each([
 it.each([false, true])('handles partial replacement with save failure=%s', async (failSaving) => {
   const oldRecord = { ...savedRecord, id: '76:10347', bannerId: '76' }
   await saveResonanceRecords([oldRecord])
-  vi.spyOn(resonanceImport, 'importFromPearpal').mockResolvedValueOnce({
+  vi.spyOn(resonanceImport, 'fetchPearpalSnapshot').mockResolvedValueOnce({
+    info_from_self: { gacha_list: [{}] }
+  })
+  vi.spyOn(resonanceImport, 'parsePearpalResonance').mockReturnValueOnce({
     records: [savedRecord],
     skippedPools: 1
   })
@@ -606,11 +617,9 @@ it.each([false, true])('handles partial replacement with save failure=%s', async
   await pasteCredentials(panel)
   panel.querySelector<HTMLButtonElement>('.resonance-import-footer .primary-button')!.click()
   await vi.waitFor(() => expect(panel.querySelector('.resonance-preview')).not.toBeNull())
-  expect(panel.textContent).toContain('旧记录也将被删除')
+  expect(panel.textContent).toContain('整份覆盖勾选的记录')
   if (failSaving)
-    vi.spyOn(resonanceStorage, 'saveResonanceRecords').mockRejectedValueOnce(
-      new Error('save failed')
-    )
+    vi.spyOn(unifiedImport, 'saveDataImport').mockRejectedValueOnce(new Error('save failed'))
   panel.querySelector<HTMLButtonElement>('.resonance-import-footer .primary-button')!.click()
   await flushPromises()
   expect(await loadResonanceRecords()).toEqual(failSaving ? [oldRecord] : [savedRecord])
@@ -628,7 +637,7 @@ it('blocks import after a storage read failure without overwriting existing reco
   await saveResonanceRecords([savedRecord])
   vi.spyOn(resonanceStorage, 'loadResonanceRecords').mockRejectedValueOnce(new Error('read failed'))
   const save = vi.spyOn(resonanceStorage, 'saveResonanceRecords')
-  const { wrapper, panel } = await openDialog()
+  const { wrapper, panel } = await openDialog('zh', false)
   panel.querySelectorAll<HTMLButtonElement>('.resonance-choice-row:first-child button')[1]!.click()
   await flushPromises()
   const input = panel.querySelector<HTMLInputElement>('input[type="file"]')!
@@ -688,8 +697,8 @@ it.each(['zh', 'en'] as const)(
 it.each(['close', 'method', 'credentials', 'unmount'])(
   'discards a late Pearpal preview after %s',
   async (action) => {
-    let finish!: (value: { records: ResonanceRecord[]; skippedPools: number }) => void
-    const pending = vi.spyOn(resonanceImport, 'importFromPearpal').mockImplementationOnce(
+    let finish!: (value: unknown) => void
+    const pending = vi.spyOn(resonanceImport, 'fetchPearpalSnapshot').mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           finish = resolve
@@ -699,7 +708,7 @@ it.each(['close', 'method', 'credentials', 'unmount'])(
     await pasteCredentials(panel)
     panel.querySelector<HTMLButtonElement>('.resonance-import-footer button')!.click()
     await vi.waitFor(() => expect(pending).toHaveBeenCalled())
-    const signal = pending.mock.calls[0]![2]!
+    const signal = pending.mock.calls[0]![1]!
     if (action === 'close')
       panel.querySelector<HTMLButtonElement>('.resonance-import-header button')!.click()
     if (action === 'method')
@@ -715,7 +724,7 @@ it.each(['close', 'method', 'credentials', 'unmount'])(
     await flushPromises()
     expect(signal.aborted).toBe(true)
     const notices = wrapper.emitted('notice')?.length ?? 0
-    finish({ records: [savedRecord], skippedPools: 0 })
+    finish({ info_from_self: { suit_list: ['10347'] } })
     await flushPromises()
     expect(document.body.querySelector('.resonance-preview')).toBeNull()
     expect(wrapper.emitted('notice')?.length ?? 0).toBe(notices)

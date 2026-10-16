@@ -22,7 +22,7 @@ export function useAlbumViewModel(options: {
   outfits: Ref<OutfitItem[]>
   recentlyDeleted: Ref<RecentlyDeletedPhoto[]>
   favoriteIds: Ref<Set<string>>
-  activeView: Ref<'all' | 'favorites' | 'trash' | 'outfits' | 'home' | 'resonance'>
+  activeView: Ref<'all' | 'favorites' | 'trash' | 'outfits' | 'home' | 'resonance' | 'wardrobe'>
   activeOutfitFilter: Ref<OutfitFilter>
   searchQuery: Ref<string>
   currentPreview: Ref<PhotoDisplayItem | null>

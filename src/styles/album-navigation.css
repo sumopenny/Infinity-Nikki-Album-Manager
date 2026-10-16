@@ -582,9 +582,13 @@
   color: transparent;
 }
 
+/* 悬停仅提示边框，勾号只反映实际选中状态；日期选择与导入选项共用。 */
 .date-select-button:hover,
 .date-select-button.active {
   border-color: var(--pink-deep);
+}
+
+.date-select-button.active {
   color: var(--pink-deep);
 }
 
@@ -998,4 +1002,36 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
   }
+}
+
+/* 共鸣子模块与衣橱复用收藏页标签样式。 */
+.favorites-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.favorites-tabs button {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+.favorites-tabs button:hover {
+  border-color: var(--pink-deep);
+}
+.favorites-tabs button[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--pink-deep) 12%, var(--surface-strong));
+  color: var(--pink-deep);
+}
+.favorites-tabs small {
+  font-size: 11px;
 }

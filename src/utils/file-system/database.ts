@@ -1,6 +1,6 @@
 // 所有本地数据共用升级入口，避免先打开不同模块时漏建存储。
 export const DB_NAME = 'infinity-nikki-album-manager'
-export const DB_VERSION = 8
+export const DB_VERSION = 9
 export const OUTFITS_STORE = 'outfits'
 export const OUTFIT_IMAGES_STORE = 'outfit-images'
 export const OUTFIT_TAGS_STORE = 'outfit-tags'
@@ -44,6 +44,7 @@ export function openDb(): Promise<IDBDatabase> {
       for (const name of [
         'album-handles',
         'resonance-records',
+        'wardrobe',
         CAMERA_COVERS_STORE,
         CAMERA_TAGS_STORE
       ]) {

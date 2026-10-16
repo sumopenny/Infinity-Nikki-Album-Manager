@@ -82,6 +82,21 @@ Browse photos by date, with large previews, favorites, searchable notes, and bat
 
 Manage outfits and home schemes, parse outfit codes and photo parameters, and organize collections with tags and ZIP backups.
 
+### Personal wardrobe
+
+Outfit and piece card images use `img/back.png` as their shared background. Desktop outfit cards automatically fill the available width with a 160px minimum and 16px gaps, fitting six columns in a 1040px content area. Piece and mobile layouts are unchanged.
+
+Wardrobe and Resonance share the Add data / Clear local records / Export data controls and import dialog, including bookmark and console credential guides. Both entry points open the same Add data window. After previewing, Import resonance records and Import wardrobe records appear in one row, with paste success shown only in the top notification, both selected by default, using the same rounded selection style as the date selection button. In both places, a checkmark appears only when selected; hovering only highlights the border. Confirmation replaces only selected modules; importing both commits them together. Data types absent from a file are disabled, and confirmation is disabled when neither is selected. Clearing the wardrobe requires confirmation and does not affect Resonance records. Device-storage labels and their accompanying timestamp are hidden in the wardrobe UI; storage behavior is unchanged.
+
+On desktop, wardrobe categories and filters sit below the global navigation in the existing scrollable sidebar with the shared custom dropdown styling; open menus render outside the sidebar to avoid clipping. Both layouts use the top-bar search for names or IDs; mobile uses the header search button, without an additional wardrobe search field. Switching between outfits and pieces resets all filters, sorting and the search query.
+
+The Resonance menu now includes **Personal wardrobe**. Open it from the desktop sidebar submenu or switch to it within Resonance on mobile. The first version tracks clothes only, with Outfit / Piece views and a separate card for every original, glow-up and evolution variant. Search names or IDs, filter rarity, variant, category, and ownership. Outfit and piece details are read-only, showing parts and collection status without manual editing or batch management. Outfit covers use the artwork's 448:656 aspect ratio without cropping, removing side gaps caused by the previous ratio and the inline image baseline gap. Piece images are unchanged.
+
+Wardrobe data stays in the current browser and supports dedicated JSON backup / restore. Importing the CN notebook or a wardrobe backup shows a preview before replacing the entire wardrobe. Pieces absent from the notebook are **unrecorded**, not necessarily missing in game. Raw notebook JSON is supported; resonance-only exports are not. This version excludes makeup and cloud sync. Use the wardrobe’s own JSON backup: it is not yet included in the all-data ZIP. Clearing site data also clears the wardrobe.
+
+
+Desktop resonance filters, pose sorting and wardrobe menus share floating positioning outside the sidebar to prevent clipping. The sidebar remains scrollable; outer scrolling or resizing closes the menu.
+
 ### Resonance records
 
 Import, view and analyze resonance records, with JSON import/export and account-based cloud sync.

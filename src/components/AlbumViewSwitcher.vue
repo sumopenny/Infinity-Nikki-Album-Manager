@@ -4,7 +4,8 @@ import { onBeforeUnmount, ref } from 'vue'
 import { useCompactLayout } from '../composables/useCompactLayout'
 import type { LocaleMessages } from '../i18n'
 
-export type AlbumView = 'all' | 'outfits' | 'home' | 'resonance' | 'favorites' | 'trash'
+export type AlbumView =
+  'all' | 'outfits' | 'home' | 'resonance' | 'wardrobe' | 'favorites' | 'trash'
 
 defineProps<{
   activeView: AlbumView
@@ -90,13 +91,19 @@ function selectView(view: AlbumView) {
     >
       <button
         class="album-view-button"
-        :class="{ active: activeView === item.view }"
+        :class="{
+          active:
+            activeView === item.view || (item.view === 'resonance' && activeView === 'wardrobe')
+        }"
         type="button"
         :disabled="disabled"
-        :aria-pressed="activeView === item.view"
+        :aria-pressed="
+          activeView === item.view || (item.view === 'resonance' && activeView === 'wardrobe')
+        "
         :aria-haspopup="item.view === 'resonance' ? 'menu' : undefined"
         :aria-expanded="item.view === 'resonance' ? resonanceMenuOpen : undefined"
         @click="selectView(item.view)"
+        @keydown.down.prevent="item.view === 'resonance' && openResonanceMenu()"
       >
         <span>{{ item.label }}</span>
         <small v-if="item.view !== 'resonance'">{{
@@ -114,6 +121,7 @@ function selectView(view: AlbumView) {
         v-if="item.view === 'resonance' && resonanceMenuOpen && !disabled"
         class="resonance-nav-menu"
         role="menu"
+        @keydown.esc.stop="resonanceMenuOpen = false"
         @pointerenter="handlePointerEnter"
         @pointerleave="$event.pointerType === 'mouse' && closeResonanceMenu()"
       >
@@ -121,12 +129,16 @@ function selectView(view: AlbumView) {
           type="button"
           role="menuitem"
           :class="{ active: activeView === 'resonance' }"
-          @click.stop="$emit('changeView', 'resonance')"
+          @click.stop="selectView('resonance')"
           >{{ messages.resonanceRecords }}</button
         >
-        <button type="button" role="menuitem" disabled @click.stop>{{
-          messages.comingSoon
-        }}</button>
+        <button
+          type="button"
+          role="menuitem"
+          :class="{ active: activeView === 'wardrobe' }"
+          @click.stop="selectView('wardrobe')"
+          >{{ messages.wardrobe }}</button
+        >
       </div>
     </div>
   </nav>

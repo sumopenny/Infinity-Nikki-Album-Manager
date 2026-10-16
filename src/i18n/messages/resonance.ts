@@ -57,6 +57,7 @@ export interface ResonanceMessages {
   consoleStep5: string
   consoleStep6: string
   copyCode: string
+  copyCodeSuccess: string
   pasteHere: string
   securityNote: string
   pasteSuccess: string
@@ -157,6 +158,7 @@ export const resonanceZh: ResonanceMessages = {
   consoleStep5: '如浏览器提示，请按提示输入 allow pasting 或“允许粘贴”。',
   consoleStep6: '复制控制台输出的凭据数据，返回本页粘贴。',
   copyCode: '复制代码',
+  copyCodeSuccess: '代码已复制',
   pasteHere: '粘贴书签或控制台输出',
   securityNote: '凭据只用于本次验证和同步，不会保存到本地。请勿与他人分享。',
   pasteSuccess: '数据粘贴成功！',
@@ -263,6 +265,7 @@ export const resonanceEn: ResonanceMessages = {
   consoleStep5: 'If prompted, follow the browser message and type allow pasting.',
   consoleStep6: 'Copy the credentials printed in the console and paste them here.',
   copyCode: 'Copy code',
+  copyCodeSuccess: 'Code copied',
   pasteHere: 'Paste bookmark or console output',
   securityNote:
     'Credentials are used only for this verification and sync. They are not saved locally. Never share them.',

@@ -121,12 +121,11 @@ function toPullRow(row: PearpalRow) {
   }
 }
 
-/** 先核对用户 UID，再解压手账快照并逐卡池转换；仅成功解析的记录进入整批替换预览。 */
-export async function importFromPearpal(
+/** 先核对国服角色 UID，再解压完整手账快照，供共鸣与衣橱各自解析。 */
+export async function fetchPearpalSnapshot(
   credentials: ResonanceCredentials,
-  onProgress?: (value: ResonanceImportProgress) => void,
   signal?: AbortSignal
-): Promise<ResonanceImportResult> {
+): Promise<unknown> {
   signal?.throwIfAborted()
   await verifyPearpalUid(credentials, signal)
   signal?.throwIfAborted()
@@ -136,9 +135,29 @@ export async function importFromPearpal(
     const payload = (await response.clone().json()) as { code?: number }
     if (payload.code === 1801) throw new Error(PEARPAL_AUTH_FAILED)
   }
-  const decoded = decodePearpal(await response.arrayBuffer()) as {
+  const decoded = decodePearpal(await response.arrayBuffer())
+  signal?.throwIfAborted()
+  return decoded
+}
+
+/** 共鸣与衣橱共用验证及解压入口；衣橱不要求手账含有共鸣记录。 */
+export async function importFromPearpal(
+  credentials: ResonanceCredentials,
+  onProgress?: (value: ResonanceImportProgress) => void,
+  signal?: AbortSignal
+): Promise<ResonanceImportResult> {
+  const decoded = (await fetchPearpalSnapshot(credentials, signal)) as {
     info_from_self?: { gacha_list?: unknown }
   }
+  return parsePearpalResonance(decoded, onProgress, signal)
+}
+
+/** 从已获取的完整手账解析共鸣，与衣橱共享一次网络请求。 */
+export function parsePearpalResonance(
+  decoded: { info_from_self?: { gacha_list?: unknown } },
+  onProgress?: (value: ResonanceImportProgress) => void,
+  signal?: AbortSignal
+): ResonanceImportResult {
   signal?.throwIfAborted()
   const gachaList = asGachaRows(decoded?.info_from_self?.gacha_list)
   if (!gachaList.length) throw new Error(PEARPAL_NO_RECORDS)

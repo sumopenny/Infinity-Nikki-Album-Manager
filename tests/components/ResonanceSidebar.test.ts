@@ -1,8 +1,21 @@
-import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { mount as vueMount, DOMWrapper, type VueWrapper } from '@vue/test-utils'
+import { afterEach, describe, expect, it } from 'vitest'
 import ResonanceSidebar from '../../src/components/ResonanceSidebar.vue'
 import type { ResonanceRecord } from '../../src/utils/resonance/resonanceTypes'
 
+const mounted: VueWrapper[] = []
+const mount: typeof vueMount = ((...args: Parameters<typeof vueMount>) => {
+  const wrapper = vueMount(...args)
+  mounted.push(wrapper)
+  return wrapper
+}) as typeof vueMount
+afterEach(() => {
+  mounted.splice(0).forEach((wrapper) => wrapper.unmount())
+})
+const menuOptions = () =>
+  [...document.querySelectorAll('.resonance-options-menu [role="menuitemradio"]')].map(
+    (node) => new DOMWrapper(node)
+  )
 function record(id: string, bannerId: string, rarity: 4 | 5): ResonanceRecord {
   return {
     id,
@@ -63,12 +76,14 @@ describe('ResonanceSidebar', () => {
         .element.nextElementSibling?.classList.contains('resonance-sort-control')
     ).toBe(true)
     await wrapper.find('.resonance-sort-control > button').trigger('click')
-    expect(
-      wrapper
-        .findAll('.resonance-sort-control [role="menuitemradio"]')
-        .map((option) => option.text())
-    ).toEqual(['最新优先', '最早优先', '全部展示', '只展示五星', '只展示四星'])
-    await wrapper.findAll('.resonance-sort-control [role="menuitemradio"]')[1].trigger('click')
+    expect(menuOptions().map((option) => option.text())).toEqual([
+      '最新优先',
+      '最早优先',
+      '全部展示',
+      '只展示五星',
+      '只展示四星'
+    ])
+    await menuOptions()[1].trigger('click')
     expect(wrapper.emitted('changeBannerOrder')).toEqual([['oldest']])
 
     await wrapper.setProps({ bannerOrder: 'oldest' })
@@ -84,7 +99,7 @@ describe('ResonanceSidebar', () => {
       props: { records: [record('four', '1', 4), record('five', '2', 5)], language: 'zh' }
     })
     await wrapper.find('.resonance-sort-control > button').trigger('click')
-    await wrapper.findAll('.resonance-sort-control [role="menuitemradio"]')[3].trigger('click')
+    await menuOptions()[3].trigger('click')
     expect(wrapper.emitted('changeRarityFilter')).toEqual([[5]])
     await wrapper.setProps({ rarityFilter: 5 })
     expect(wrapper.findAll('.resonance-sidebar-link').map((link) => link.text())).toEqual([
@@ -97,7 +112,7 @@ describe('ResonanceSidebar', () => {
     expect(wrapper.findAll('.resonance-sidebar-link')).toHaveLength(0)
     expect(wrapper.text()).toContain('当前星级没有套装记录')
     await wrapper.find('.resonance-sort-control > button').trigger('click')
-    await wrapper.findAll('.resonance-sort-control [role="menuitemradio"]')[2].trigger('click')
+    await menuOptions()[2].trigger('click')
     expect(wrapper.emitted('changeRarityFilter')).toEqual([[5], ['all']])
   })
 })

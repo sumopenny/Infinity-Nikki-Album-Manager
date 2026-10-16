@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useSidebarMenu } from '../composables/useSidebarMenu'
 import { ChevronDown, ChevronRight } from 'lucide-vue-next'
+import { useCompactLayout } from '../composables/useCompactLayout'
 import type { Language, LocaleMessages } from '../i18n'
 import type { ActionGroup, ActionSort, YearGroup } from '../utils/photoGrouping'
 
@@ -23,9 +25,20 @@ const emit = defineEmits<{
 
 const expandedYears = ref(new Set<string>())
 const expandedMonths = ref(new Set<string>())
+const compact = useCompactLayout()
 const sortMenuOpen = ref(false)
 const sortMenuWrapRef = ref<HTMLDivElement | null>(null)
 const sortButtonRef = ref<HTMLButtonElement | null>(null)
+const sortMenuRef = ref<HTMLDivElement | null>(null)
+const { menuStyle, positionMenu } = useSidebarMenu(
+  () => {
+    sortMenuOpen.value = false
+  },
+  () => sortMenuRef.value
+)
+watch(compact, () => {
+  sortMenuOpen.value = false
+})
 let initialized = false
 
 /** 在首次出现日期数据时只展开最新年份和最新月份，并保留当前会话的后续操作。参数：groups 为日期树。 */
@@ -66,6 +79,7 @@ const sortLabels = {
 } satisfies Record<ActionSort, () => string>
 
 function toggleSortMenu() {
+  if (!sortMenuOpen.value && sortButtonRef.value) positionMenu(sortButtonRef.value)
   sortMenuOpen.value = !sortMenuOpen.value
 }
 
@@ -83,7 +97,11 @@ function handleSortKeydown(event: KeyboardEvent) {
 }
 
 function handleDocumentClick(event: MouseEvent) {
-  if (sortMenuOpen.value && !sortMenuWrapRef.value?.contains(event.target as Node))
+  if (
+    sortMenuOpen.value &&
+    !sortMenuWrapRef.value?.contains(event.target as Node) &&
+    !sortMenuRef.value?.contains(event.target as Node)
+  )
     sortMenuOpen.value = false
 }
 
@@ -174,24 +192,29 @@ onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick)
             <span>{{ sortLabels[actionSort]() }}</span>
             <ChevronDown :size="14" aria-hidden="true" />
           </button>
-          <div
-            v-if="sortMenuOpen"
-            class="cleanup-account-menu action-sort-menu"
-            role="listbox"
-            :aria-label="messages.sort"
-          >
-            <button
-              v-for="sort in ['id', 'name', 'count', 'latest'] as ActionSort[]"
-              :key="sort"
-              type="button"
-              role="option"
-              :aria-selected="actionSort === sort"
-              :class="{ active: actionSort === sort }"
-              @click="selectSort(sort)"
+          <Teleport to="body" :disabled="compact">
+            <div
+              v-if="sortMenuOpen"
+              ref="sortMenuRef"
+              :style="compact ? undefined : menuStyle"
+              @keydown="handleSortKeydown"
+              class="cleanup-account-menu action-sort-menu"
+              role="listbox"
+              :aria-label="messages.sort"
             >
-              <span>{{ sortLabels[sort]() }}</span>
-            </button>
-          </div>
+              <button
+                v-for="sort in ['id', 'name', 'count', 'latest'] as ActionSort[]"
+                :key="sort"
+                type="button"
+                role="option"
+                :aria-selected="actionSort === sort"
+                :class="{ active: actionSort === sort }"
+                @click="selectSort(sort)"
+              >
+                <span>{{ sortLabels[sort]() }}</span>
+              </button>
+            </div>
+          </Teleport>
         </div>
       </div>
       <div v-if="!actionGroups.length" class="empty-sidebar">{{ messages.empty }}</div>

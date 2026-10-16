@@ -31,6 +31,7 @@ import FortuneTimeDialog from './components/FortuneTimeDialog.vue'
 import OutfitSidebar, { type OutfitFilter } from './components/OutfitSidebar.vue'
 import HomeSchemeWorkspace from './components/HomeSchemeWorkspace.vue'
 import ResonanceRecords from './components/ResonanceRecords.vue'
+import PersonalWardrobe from './components/PersonalWardrobe.vue'
 import ResonanceSidebar from './components/ResonanceSidebar.vue'
 import PhotoGrid from './components/PhotoGrid.vue'
 import RecentlyDeletedGrid from './components/RecentlyDeletedGrid.vue'
@@ -391,9 +392,12 @@ const cameraFavoriteModal = ref(false)
 const isCameraFavoritesView = computed(
   () => activeView.value === 'favorites' && (compactLayout.value || favoriteTab.value === 'camera')
 )
-// 共鸣及相机参数使用固定卡片布局，两端均禁用比例设置。
+// 共鸣、衣橱及相机参数使用固定卡片布局，两端均禁用比例设置。
 const isThumbnailModeDisabled = computed(
-  () => isCameraFavoritesView.value || activeView.value === 'resonance'
+  () =>
+    isCameraFavoritesView.value ||
+    activeView.value === 'resonance' ||
+    activeView.value === 'wardrobe'
 )
 const photoParamsSaved = computed(() =>
   cameraFavoriteCodes.value.includes(
@@ -2353,7 +2357,14 @@ function importAllDataFromMenu() {
       :thumbnail-mode-options="thumbnailModeOptions"
       :theme-mode="themeMode"
       :language="language"
-      :messages="locale.topBar"
+      :messages="
+        activeView === 'wardrobe'
+          ? {
+              ...locale.topBar,
+              searchPlaceholder: mobileText('搜索服装名称或 ID', 'Search clothes by name or ID')
+            }
+          : locale.topBar
+      "
       :search-query="searchQuery"
       @choose-directory="chooseDirectory"
       @clear-directory="clearDirectory"
@@ -2405,6 +2416,7 @@ function importAllDataFromMenu() {
           activeView !== 'outfits' &&
           activeView !== 'home' &&
           activeView !== 'resonance' &&
+          activeView !== 'wardrobe' &&
           !isCameraFavoritesView
       }"
     >
@@ -2425,7 +2437,15 @@ function importAllDataFromMenu() {
           @change-view="changeAlbumView"
         />
 
+        <aside
+          v-if="activeView === 'wardrobe'"
+          v-show="!compactLayout"
+          id="wardrobe-sidebar"
+          class="date-sidebar"
+          :aria-label="mobileText('衣橱分类与筛选', 'Wardrobe categories and filters')"
+        ></aside>
         <AdaptiveFilterPanel
+          v-if="activeView !== 'wardrobe'"
           :compact="compactLayout"
           :open="mobileFiltersOpen"
           :tag-picker="mobileCollectionPicker"
@@ -2489,11 +2509,32 @@ function importAllDataFromMenu() {
       </div>
 
       <section class="album-content" :aria-label="locale.app.albumContentAria">
+        <nav
+          v-if="compactLayout && (activeView === 'resonance' || activeView === 'wardrobe')"
+          class="favorites-tabs"
+          :aria-label="locale.viewNav.resonance"
+        >
+          <button
+            type="button"
+            :disabled="operations.isBusy.value"
+            :aria-pressed="activeView === 'resonance'"
+            @click="changeAlbumView('resonance')"
+            >{{ locale.viewNav.resonanceRecords }}</button
+          >
+          <button
+            type="button"
+            :disabled="operations.isBusy.value"
+            :aria-pressed="activeView === 'wardrobe'"
+            @click="changeAlbumView('wardrobe')"
+            >{{ locale.viewNav.wardrobe }}</button
+          >
+        </nav>
         <CollectionFilterBar
           v-if="
             activeView !== 'outfits' &&
             activeView !== 'home' &&
             activeView !== 'resonance' &&
+            activeView !== 'wardrobe' &&
             activeView !== 'trash' &&
             !isCameraFavoritesView
           "
@@ -2596,6 +2637,7 @@ function importAllDataFromMenu() {
             activeView !== 'outfits' &&
             activeView !== 'home' &&
             activeView !== 'resonance' &&
+            activeView !== 'wardrobe' &&
             !isCameraFavoritesView
           "
           class="empty-album-start"
@@ -2617,7 +2659,10 @@ function importAllDataFromMenu() {
 
         <header
           v-else-if="
-            activeView !== 'home' && activeView !== 'resonance' && activeView !== 'favorites'
+            activeView !== 'home' &&
+            activeView !== 'resonance' &&
+            activeView !== 'wardrobe' &&
+            activeView !== 'favorites'
           "
           class="gallery-header"
           :class="{ 'is-outfit-header': activeView === 'outfits' }"
@@ -2780,6 +2825,15 @@ function importAllDataFromMenu() {
           @status="handleHomeSchemeStatus"
           @count-change="handleHomeSchemeCount"
         />
+        <PersonalWardrobe
+          v-else-if="activeView === 'wardrobe'"
+          sidebar-target="#wardrobe-sidebar"
+          :search-query="searchQuery"
+          @update-search="searchQuery = $event"
+          @notice="showStatus"
+          :language="language"
+          :disabled="activeOperation !== null"
+        />
         <ResonanceRecords
           ref="resonanceRecordsRef"
           mobile-actions-target="#resonance-filter-actions"
@@ -2848,7 +2902,12 @@ function importAllDataFromMenu() {
     />
 
     <SelectionBar
-      v-if="activeView !== 'home' && activeView !== 'resonance' && !isCameraFavoritesView"
+      v-if="
+        activeView !== 'home' &&
+        activeView !== 'resonance' &&
+        activeView !== 'wardrobe' &&
+        !isCameraFavoritesView
+      "
       :mode="
         activeView === 'trash'
           ? 'trash'
@@ -3146,12 +3205,6 @@ function importAllDataFromMenu() {
   margin-bottom: 22px;
   padding-bottom: 10px;
 }
-.favorites-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-width: 0;
-}
 .favorites-toolbar-actions {
   margin-left: auto;
   min-width: 0;
@@ -3165,29 +3218,5 @@ function importAllDataFromMenu() {
 }
 .favorites-toolbar :deep(.outfit-header-actions > button) {
   white-space: nowrap;
-}
-.favorites-tabs button {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 10px 16px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-  transition: border-color 0.2s ease;
-}
-.favorites-tabs button:hover {
-  border-color: var(--pink-deep);
-}
-.favorites-tabs button[aria-pressed='true'] {
-  background: color-mix(in srgb, var(--pink-deep) 12%, var(--surface-strong));
-  color: var(--pink-deep);
-}
-.favorites-tabs small {
-  font-size: 11px;
 }
 </style>

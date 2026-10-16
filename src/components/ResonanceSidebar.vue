@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useSidebarMenu } from '../composables/useSidebarMenu'
 import { ChevronDown } from 'lucide-vue-next'
 import type { Language } from '../i18n/types'
 import { messages } from '../i18n'
@@ -32,6 +33,16 @@ const sortMenuOpen = ref(false)
 const compact = useCompactLayout()
 const sortMenuWrapRef = ref<HTMLDivElement | null>(null)
 const sortButtonRef = ref<HTMLButtonElement | null>(null)
+const sortMenuRef = ref<HTMLDivElement | null>(null)
+const { menuStyle, positionMenu } = useSidebarMenu(
+  () => {
+    sortMenuOpen.value = false
+  },
+  () => sortMenuRef.value
+)
+watch(compact, () => {
+  sortMenuOpen.value = false
+})
 const sortedRecords = computed(() =>
   sortResonanceRecords(props.records, props.bannerOrder, props.rarityFilter)
 )
@@ -42,6 +53,10 @@ const selectedOptionLabel = computed(() => {
 })
 
 /** 手机选择直接作用于记录并返回列表；桌面保留原排序菜单行为。 */
+function toggleSortMenu() {
+  if (!sortMenuOpen.value && sortButtonRef.value) positionMenu(sortButtonRef.value)
+  sortMenuOpen.value = !sortMenuOpen.value
+}
 function selectBannerOrder(order: ResonanceBannerOrder) {
   sortMenuOpen.value = false
   sortButtonRef.value?.focus()
@@ -64,7 +79,11 @@ function handleSortKeydown(event: KeyboardEvent) {
 }
 
 function handleDocumentClick(event: MouseEvent) {
-  if (sortMenuOpen.value && !sortMenuWrapRef.value?.contains(event.target as Node))
+  if (
+    sortMenuOpen.value &&
+    !sortMenuWrapRef.value?.contains(event.target as Node) &&
+    !sortMenuRef.value?.contains(event.target as Node)
+  )
     sortMenuOpen.value = false
 }
 
@@ -131,47 +150,52 @@ function hideBrokenImage(event: Event) {
         aria-haspopup="menu"
         :aria-label="`${t.displayOptions}: ${selectedOptionLabel}`"
         :aria-expanded="sortMenuOpen"
-        @click="sortMenuOpen = !sortMenuOpen"
+        @click="toggleSortMenu"
       >
         <span>{{ selectedOptionLabel }}</span>
         <ChevronDown :size="14" aria-hidden="true" />
       </button>
-      <div
-        v-if="sortMenuOpen"
-        class="cleanup-account-menu action-sort-menu resonance-options-menu"
-        role="menu"
-        :aria-label="t.displayOptions"
-      >
-        <div role="group" :aria-label="t.bannerOrder">
-          <div class="resonance-options-label">{{ t.bannerOrder }}</div>
-          <button
-            v-for="order in ['newest', 'oldest'] as ResonanceBannerOrder[]"
-            :key="order"
-            type="button"
-            role="menuitemradio"
-            :aria-checked="bannerOrder === order"
-            :class="{ active: bannerOrder === order }"
-            @click="selectBannerOrder(order)"
-            >{{ order === 'newest' ? t.newestFirst : t.oldestFirst }}</button
-          >
+      <Teleport to="body" :disabled="compact">
+        <div
+          v-if="sortMenuOpen"
+          ref="sortMenuRef"
+          :style="compact ? undefined : menuStyle"
+          @keydown="handleSortKeydown"
+          class="cleanup-account-menu action-sort-menu resonance-options-menu"
+          role="menu"
+          :aria-label="t.displayOptions"
+        >
+          <div role="group" :aria-label="t.bannerOrder">
+            <div class="resonance-options-label">{{ t.bannerOrder }}</div>
+            <button
+              v-for="order in ['newest', 'oldest'] as ResonanceBannerOrder[]"
+              :key="order"
+              type="button"
+              role="menuitemradio"
+              :aria-checked="bannerOrder === order"
+              :class="{ active: bannerOrder === order }"
+              @click="selectBannerOrder(order)"
+              >{{ order === 'newest' ? t.newestFirst : t.oldestFirst }}</button
+            >
+          </div>
+          <div class="resonance-options-divider" role="separator"></div>
+          <div role="group" :aria-label="t.rarityFilter">
+            <div class="resonance-options-label">{{ t.rarityFilter }}</div>
+            <button
+              v-for="rarity in ['all', 5, 4] as ResonanceRarityFilter[]"
+              :key="rarity"
+              type="button"
+              role="menuitemradio"
+              :aria-checked="rarityFilter === rarity"
+              :class="{ active: rarityFilter === rarity }"
+              @click="selectRarityFilter(rarity)"
+              >{{
+                rarity === 'all' ? t.allRarities : rarity === 5 ? t.onlyFiveStar : t.onlyFourStar
+              }}</button
+            >
+          </div>
         </div>
-        <div class="resonance-options-divider" role="separator"></div>
-        <div role="group" :aria-label="t.rarityFilter">
-          <div class="resonance-options-label">{{ t.rarityFilter }}</div>
-          <button
-            v-for="rarity in ['all', 5, 4] as ResonanceRarityFilter[]"
-            :key="rarity"
-            type="button"
-            role="menuitemradio"
-            :aria-checked="rarityFilter === rarity"
-            :class="{ active: rarityFilter === rarity }"
-            @click="selectRarityFilter(rarity)"
-            >{{
-              rarity === 'all' ? t.allRarities : rarity === 5 ? t.onlyFiveStar : t.onlyFourStar
-            }}</button
-          >
-        </div>
-      </div>
+      </Teleport>
     </div>
     <p v-if="!sortedRecords.length" class="resonance-filter-empty">{{
       records.length ? t.noMatchingRarity : t.emptyTitle
