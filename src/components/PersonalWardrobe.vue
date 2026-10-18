@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { useWardrobeFilters, type FilterKey } from '../composables/useWardrobeFilters'
+import { wardrobeVariantLabels } from '../utils/wardrobe/wardrobePresentation'
+import { hasWardrobeSnapshot, getOwnershipSummary } from '../utils/wardrobe/wardrobeOwnership'
 import { backupBaseName } from '../utils/backup/backupName'
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, toRef, watch } from 'vue'
 import { ArrowLeftRight, ChevronDown, RotateCcw, Shirt } from 'lucide-vue-next'
 import ResonanceDataActions from './ResonanceDataActions.vue'
 import CollectionFilterBar from './CollectionFilterBar.vue'
 import AdaptiveFilterPanel from './AdaptiveFilterPanel.vue'
 import DataImportWindow from './DataImportWindow.vue'
+import MobileEmptyScreenshot from './MobileEmptyScreenshot.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import WardrobeItemDialog from './WardrobeItemDialog.vue'
 import WardrobeOutfitDialog from './WardrobeOutfitDialog.vue'
@@ -16,19 +20,14 @@ import { useModuleOperation } from '../composables/useOperationCoordinator'
 import type { Language } from '../i18n/types'
 import {
   loadWardrobeCatalog,
-  wardrobeStyleLabels,
   type WardrobeCatalog,
   type WardrobeEntry,
   type WardrobeKind
 } from '../utils/wardrobe/wardrobeCatalog'
 import {
   hasIncompleteWardrobeOwnership,
-  isWardrobeItemUnknown,
   matchesWardrobeGameVersion,
-  matchesWardrobeSource,
-  wardrobeGameVersionOptions,
-  wardrobeSourceOptions,
-  wardrobeTagOptions
+  matchesWardrobeSource
 } from '../utils/wardrobe/wardrobeFilters'
 import {
   createWardrobeBackup,
@@ -64,39 +63,23 @@ const loaded = ref(false),
   busy = ref(false)
 const blocked = computed(() => props.disabled || busy.value || !loaded.value)
 const tab = ref<WardrobeKind>('outfit')
-const createFilters = () => ({
-  ownership: 'owned',
-  rarity: 'all',
-  variant: 'all',
-  version: 'all',
-  style: 'all',
-  source: 'all',
-  tag: 'all',
-  category: 'all',
-  sort: 'catalog'
-})
-// 套装和部件各自保存筛选条件，切换分类只切换当前使用的状态。
-const filtersByTab = ref({
-  outfit: createFilters(),
-  item: { ...createFilters(), ownership: 'all' }
-})
-function currentFilter(key: keyof ReturnType<typeof createFilters>) {
-  return computed({
-    get: () => filtersByTab.value[tab.value][key],
-    set: (value: string) => {
-      filtersByTab.value[tab.value][key] = value
-    }
-  })
-}
-const ownership = currentFilter('ownership'),
-  rarity = currentFilter('rarity'),
-  variant = currentFilter('variant'),
-  version = currentFilter('version'),
-  style = currentFilter('style'),
-  source = currentFilter('source'),
-  tag = currentFilter('tag'),
-  category = currentFilter('category'),
-  sort = currentFilter('sort')
+const {
+  ownership,
+  rarity,
+  variant,
+  version,
+  style,
+  source,
+  tag,
+  category,
+  sort,
+  filterValues,
+  filterOptions,
+  mobileFilterEntries,
+  mobileFilterActive,
+  select,
+  reset
+} = useWardrobeFilters(tab, toRef(props, 'language'))
 const limit = ref(48)
 const loadMoreTarget = ref<HTMLElement | null>(null)
 let loadMoreObserver: IntersectionObserver | null = null
@@ -126,62 +109,7 @@ watch(
 onBeforeUnmount(() => loadMoreObserver?.disconnect())
 
 const failedImages = ref(new Set<string>())
-const variants = computed(() =>
-  props.language === 'zh'
-    ? ['原套', '焕新', '一进', '二进', '满进']
-    : ['Original', 'Glow-up', 'Evo. 1', 'Evo. 2', 'Evo. 3']
-)
-const categories = computed(() =>
-  props.language === 'zh'
-    ? [
-        '发型',
-        '外套',
-        '鞋子',
-        '发饰',
-        '帽子',
-        '耳饰',
-        '颈饰',
-        '项圈',
-        '连衣裙',
-        '胸饰',
-        '手持物',
-        '袜子',
-        '手套',
-        '面饰',
-        '背饰',
-        '上衣',
-        '腕饰',
-        '臂饰',
-        '挂饰',
-        '下装',
-        '肤绘',
-        '戒指'
-      ]
-    : [
-        'Hair',
-        'Outerwear',
-        'Shoes',
-        'Hair accessories',
-        'Headwear',
-        'Earrings',
-        'Neckwear',
-        'Chokers',
-        'Dresses',
-        'Chest accessories',
-        'Handhelds',
-        'Socks',
-        'Gloves',
-        'Face decorations',
-        'Backpieces',
-        'Tops',
-        'Bracelets',
-        'Arm decorations',
-        'Pendants',
-        'Bottoms',
-        'Body paint',
-        'Rings'
-      ]
-)
+const variants = computed(() => wardrobeVariantLabels[props.language])
 // 沿用共鸣侧栏的自定义下拉菜单与选中样式，避免浏览器原生弹层风格不一致。
 const openFilter = ref('')
 const { menuStyle: filterMenuStyle, positionMenu } = useSidebarMenu(
@@ -233,106 +161,7 @@ function leaveFilter(event: FocusEvent) {
   const menu = document.getElementById('wardrobe-menu-' + openFilter.value)
   if (!next || (!trigger?.contains(next) && !menu?.contains(next))) openFilter.value = ''
 }
-const filterValues = { ownership, rarity, variant, version, style, source, tag, category, sort }
-type FilterKey = keyof typeof filterValues
-const filterOptions = computed(() => {
-  const all = { value: 'all', label: text('全部', 'All') }
-  return [
-    {
-      key: 'ownership',
-      label: text('状态', 'Status'),
-      options: [
-        all,
-        { value: 'owned', label: text('已拥有', 'Owned') },
-        ...(tab.value === 'outfit' ? [{ value: 'partial', label: text('收集中', 'Partial') }] : []),
-        { value: 'none', label: text('未拥有', 'Not owned') },
-        ...(tab.value === 'item' ? [{ value: 'unknown', label: text('未知', 'Unknown') }] : [])
-      ]
-    },
-    {
-      key: 'rarity',
-      label: text('星级', 'Rarity'),
-      options: [all, ...[5, 4, 3, 2, 1].map((n) => ({ value: String(n), label: n + ' ★' }))]
-    },
-    {
-      key: 'variant',
-      label: text('进化阶段', 'Evolution stage'),
-      options: [all, ...variants.value.map((label, index) => ({ value: String(index), label }))]
-    },
-    {
-      key: 'version',
-      label: text('游戏版本', 'Game version'),
-      options: [all, ...wardrobeGameVersionOptions(props.language)]
-    },
-    {
-      key: 'style',
-      label: text('风格', 'Style'),
-      options: [
-        all,
-        ...(['elegant', 'fresh', 'sweet', 'sexy', 'cool'] as const).map((value) => ({
-          value,
-          label: wardrobeStyleLabels[value][props.language]
-        }))
-      ]
-    },
-    ...(tab.value === 'item'
-      ? [
-          {
-            key: 'category',
-            label: text('部位', 'Category'),
-            options: [
-              all,
-              ...categories.value.map((label, index) => ({ value: String(index), label }))
-            ]
-          }
-        ]
-      : []),
-    {
-      key: 'source',
-      label: text('获取来源', 'Source'),
-      options: [all, ...wardrobeSourceOptions(tab.value, props.language)]
-    },
-    {
-      key: 'tag',
-      label: text('标签', 'Tag'),
-      options: [all, ...wardrobeTagOptions(props.language)]
-    },
-    {
-      key: 'sort',
-      label: text('排序', 'Sort'),
-      options: [
-        { value: 'catalog', label: text('图鉴顺序', 'Catalog order') },
-        { value: 'name', label: text('名称', 'Name') },
-        { value: 'progress', label: text('收集进度', 'Progress') }
-      ]
-    }
-  ] as {
-    key: FilterKey
-    label: string
-    options: { value: string; label: string; depth?: number; separatorBefore?: boolean }[]
-  }[]
-})
 const mobileFiltersOpen = ref(false)
-const selectedMobileFilters = computed(() =>
-  filterOptions.value.filter(({ key }) => {
-    const value = filterValues[key].value
-    return value !== (key === 'sort' ? 'catalog' : 'all')
-  })
-)
-const mobileFilterEntries = computed(() => {
-  const selected = selectedMobileFilters.value
-  const selectedLabel =
-    selected.length === 1
-      ? (selected[0]?.options.find(
-          (option) => option.value === filterValues[selected[0]!.key].value
-        )?.label ?? text('已筛选', 'Filtered'))
-      : text('已筛选', 'Filtered')
-  return [
-    { key: 'all', label: text('全部筛选', 'All filters') },
-    { key: 'active', label: selectedLabel }
-  ]
-})
-const mobileFilterActive = computed(() => (selectedMobileFilters.value.length ? 'active' : 'all'))
 function closeFilter(event: Event) {
   if (
     !(event.target instanceof Element) ||
@@ -340,13 +169,13 @@ function closeFilter(event: Event) {
   )
     openFilter.value = ''
 }
-function selectFilter(key: FilterKey, value: string) {
-  filterValues[key].value = value
-  if (key === 'source' && tab.value === 'item' && hasIncompleteWardrobeOwnership(value)) {
-    ownership.value = 'unknown'
-  }
+function dismissFilter(key: FilterKey) {
   openFilter.value = ''
   document.getElementById('wardrobe-filter-' + key)?.focus()
+}
+function selectFilter(key: FilterKey, value: string) {
+  select(key, value)
+  dismissFilter(key)
 }
 watch([tab, compact], () => {
   openFilter.value = ''
@@ -359,11 +188,9 @@ onBeforeUnmount(() => {
   document.removeEventListener('click', closeFilter)
 })
 const name = (entry: WardrobeEntry) => entry.name[props.language]
-const ownedCount = (entry: WardrobeEntry, data = snapshot.value) =>
-  entry.parts.filter((id) => data.entries[id]?.owned).length
-const complete = (entry: WardrobeEntry) =>
-  entry.parts.length > 0 && ownedCount(entry) === entry.parts.length
-const unknown = (entry: WardrobeEntry) => isWardrobeItemUnknown(entry, ownedCount(entry) > 0)
+const ownedCount = (entry: WardrobeEntry) => getOwnershipSummary(entry, snapshot.value).owned
+const complete = (entry: WardrobeEntry) => getOwnershipSummary(entry, snapshot.value).complete
+const unknown = (entry: WardrobeEntry) => getOwnershipSummary(entry, snapshot.value).unknown
 const showOwnershipNote = computed(
   () => tab.value === 'item' && hasIncompleteWardrobeOwnership(source.value)
 )
@@ -416,9 +243,7 @@ watch([tab, query, ownership, rarity, variant, version, style, source, tag, cate
 })
 function resetFilters() {
   emit('update-search', '')
-  ownership.value = rarity.value = variant.value = version.value = style.value = 'all'
-  source.value = tag.value = category.value = 'all'
-  sort.value = 'catalog'
+  reset()
   openFilter.value = ''
 }
 function reportError(cause: unknown) {
@@ -520,9 +345,7 @@ const importText = computed(() => ({
 }))
 const showClearConfirm = ref(false),
   clearBase = ref('')
-const hasRecords = computed(
-  () => Object.keys(snapshot.value.entries).length > 0 || snapshot.value.unknownSuitIds.length > 0
-)
+const hasRecords = computed(() => hasWardrobeSnapshot(snapshot.value))
 watch([loaded, hasRecords], ([ready, hasData]) => {
   if (!ready || !hasData) mobileFiltersOpen.value = false
 })
@@ -649,6 +472,7 @@ async function clearRecords() {
           'Use Import data in the upper right to import your notebook and view your outfit and item collection.'
         )
       }}</p>
+      <MobileEmptyScreenshot page="wardrobe" :language="language" />
     </div>
     <template v-if="loaded && hasRecords">
       <Teleport
@@ -725,9 +549,7 @@ async function clearRecords() {
                     :id="'wardrobe-menu-' + filter.key"
                     :style="filterMenuStyle"
                     @focusout="leaveFilter"
-                    @keydown.esc.stop.prevent="
-                      selectFilter(filter.key, filterValues[filter.key].value)
-                    "
+                    @keydown.esc.stop.prevent="dismissFilter(filter.key)"
                     role="menu"
                     :aria-label="filter.label"
                   >
@@ -740,7 +562,6 @@ async function clearRecords() {
                         :aria-checked="filterValues[filter.key].value === option.value"
                         :class="{
                           active: filterValues[filter.key].value === option.value,
-                          'is-child': option.depth,
                           'has-group-separator': option.separatorBefore
                         }"
                         @click="selectFilter(filter.key, option.value)"
@@ -1011,9 +832,6 @@ async function clearRecords() {
   white-space: normal;
   overflow-wrap: anywhere;
   line-height: 1.5;
-}
-.wardrobe-filter-menu button.is-child {
-  padding-left: 24px;
 }
 .wardrobe-filter-menu button.has-group-separator {
   margin-top: 11px;

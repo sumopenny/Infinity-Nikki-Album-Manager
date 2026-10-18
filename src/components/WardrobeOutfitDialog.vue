@@ -19,7 +19,8 @@ import {
   type WardrobeEntry,
   type WardrobeCatalog
 } from '../utils/wardrobe/wardrobeCatalog'
-import { isWardrobeItemUnknown } from '../utils/wardrobe/wardrobeFilters'
+import { getOwnershipSummary, hasWardrobeSnapshot } from '../utils/wardrobe/wardrobeOwnership'
+import { wardrobeVariantLabels } from '../utils/wardrobe/wardrobePresentation'
 import type { WardrobeSnapshot } from '../utils/wardrobe/wardrobeStorage'
 import { useLatestRequest } from '../composables/useLatestRequest'
 import { requestCatalogEntity } from '../utils/gongeo/catalogApi'
@@ -56,22 +57,12 @@ const dialogOpen = computed(() => !!detail.value)
 const panel = ref<HTMLElement | null>(null)
 const text = (zh: string, en: string) => (props.language === 'zh' ? zh : en)
 const name = (entry: WardrobeEntry) => entry.name[props.language]
-const ownedCount = (entry: WardrobeEntry) =>
-  entry.parts.filter((id) => snapshot.value.entries[id]?.owned).length
-const complete = (entry: WardrobeEntry) =>
-  entry.parts.length > 0 && ownedCount(entry) === entry.parts.length
-const variants = computed(() =>
-  props.language === 'zh'
-    ? ['原套', '焕新', '一进', '二进', '满进']
-    : ['Original', 'Glow-up', 'Evo. 1', 'Evo. 2', 'Evo. 3']
-)
+const variants = computed(() => wardrobeVariantLabels[props.language])
 const detailImageErrors = ref(new Set<string>())
 const detailDescription = ref('')
 const detailDescriptionLoading = ref(false)
 const detailRequest = useLatestRequest()
-const ownershipKnown = computed(
-  () => Object.keys(snapshot.value.entries).length > 0 || snapshot.value.unknownSuitIds.length > 0
-)
+const ownershipKnown = computed(() => hasWardrobeSnapshot(snapshot.value))
 const unknownLabel = computed(() => text('未知', 'Unknown'))
 const detailParts = computed(() =>
   (detail.value?.parts ?? []).map((id) => ({
@@ -80,18 +71,18 @@ const detailParts = computed(() =>
     owned: !!snapshot.value.entries[id]?.owned,
     unknown:
       !!catalog.value?.byId.get(id) &&
-      isWardrobeItemUnknown(catalog.value!.byId.get(id)!, !!snapshot.value.entries[id]?.owned)
+      getOwnershipSummary(catalog.value!.byId.get(id)!, snapshot.value).unknown
   }))
 )
 const detailStyle = computed(() =>
   detail.value?.style ? wardrobeStyleLabels[detail.value.style][props.language] : ''
 )
 const detailSourceVersion = computed(() => detail.value?.version ?? '')
-const detailProgress = computed(() => ({
-  owned: detail.value ? ownedCount(detail.value) : 0,
-  total: detail.value?.parts.length ?? 0,
-  complete: !!detail.value && complete(detail.value)
-}))
+const detailProgress = computed(() =>
+  detail.value
+    ? getOwnershipSummary(detail.value, snapshot.value)
+    : { owned: 0, total: 0, complete: false }
+)
 const detailSummary = computed(() => {
   if (!ownershipKnown.value)
     return text(

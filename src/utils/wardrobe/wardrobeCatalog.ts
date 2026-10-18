@@ -32,6 +32,54 @@ export interface WardrobeCatalog {
   entries: WardrobeEntry[]
   byId: Map<string, WardrobeEntry>
 }
+type CatalogIds = number | number[]
+type ItemRow = [
+  ids: CatalogIds,
+  quality: number,
+  category: number,
+  style?: number | null,
+  labels?: number[] | null,
+  obtainType?: number | null,
+  root?: number | null
+]
+type OutfitRow = [
+  ids: CatalogIds,
+  quality: number,
+  style?: number | null,
+  labels?: number[] | null,
+  obtainType?: number | null,
+  root?: number | null
+]
+interface CatalogRow {
+  ids: CatalogIds
+  quality: number
+  category: number
+  style: number | null | undefined
+  labels: number[] | null | undefined
+  obtainType: number | null | undefined
+  root: number | null | undefined
+}
+function catalogRows(data: unknown, kind: WardrobeKind): CatalogRow[] {
+  if (kind === 'item')
+    return (data as ItemRow[]).map(([ids, quality, category, style, labels, obtainType, root]) => ({
+      ids,
+      quality,
+      category,
+      style,
+      labels,
+      obtainType,
+      root
+    }))
+  return (data as OutfitRow[]).map(([ids, quality, style, labels, obtainType, root]) => ({
+    ids,
+    quality,
+    category: -1,
+    style,
+    labels,
+    obtainType,
+    root
+  }))
+}
 const ids = (value: unknown): string[] => (Array.isArray(value) ? value : [value]).map(String)
 
 /** ID 编码区分版本；不能按紧凑行下标猜测，因为部分家族缺少中间版本。 */
@@ -87,10 +135,10 @@ export function loadWardrobeCatalog(): Promise<WardrobeCatalog> {
         [items.default, 'item'],
         [outfits.default, 'outfit']
       ] as const) {
-        for (const row of data as unknown as unknown[][]) {
-          const family = ids(row[0])
+        for (const row of catalogRows(data, kind)) {
+          const family = ids(row.ids)
           for (const id of family) {
-            const root = String(row[kind === 'item' ? 6 : 5] ?? family[0])
+            const root = String(row.root ?? family[0])
             const parts = kind === 'outfit' ? (outfitMap.get(id) ?? []) : [id]
             const variant =
               kind === 'outfit'
@@ -98,8 +146,8 @@ export function loadWardrobeCatalog(): Promise<WardrobeCatalog> {
                   ? Number(id.slice(-2))
                   : 0
                 : itemVariant(id, root)
-            const rawLabels = row[kind === 'item' ? 4 : 3]
-            const rawObtainType = row[kind === 'item' ? 5 : 4]
+            const rawLabels = row.labels
+            const rawObtainType = row.obtainType
             const obtainType =
               typeof rawObtainType === 'number' &&
               Number.isSafeInteger(rawObtainType) &&
@@ -110,14 +158,12 @@ export function loadWardrobeCatalog(): Promise<WardrobeCatalog> {
               id,
               kind,
               name: { zh: nameFor(id, root, kind, 'zh'), en: nameFor(id, root, kind, 'en') },
-              quality: Number(row[1]),
+              quality: row.quality,
               variant,
-              category: Number(row[2]),
+              category: row.category,
               familyRootId: /^[1-9]\d*$/.test(root) ? root : null,
               style:
-                typeof row[kind === 'item' ? 3 : 2] === 'number'
-                  ? (WARDROBE_STYLES[Number(row[kind === 'item' ? 3 : 2])] ?? null)
-                  : null,
+                typeof row.style === 'number' ? (WARDROBE_STYLES[Number(row.style)] ?? null) : null,
               labels: Array.isArray(rawLabels)
                 ? rawLabels.filter(
                     (label): label is number =>

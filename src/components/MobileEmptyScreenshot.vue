@@ -4,7 +4,7 @@ import { useCompactLayout } from '../composables/useCompactLayout'
 
 const props = withDefaults(
   defineProps<{
-    page: 'outfits' | 'home' | 'camera' | 'resonance'
+    page: 'outfits' | 'home' | 'camera' | 'resonance' | 'wardrobe'
     language?: 'zh' | 'en'
   }>(),
   { language: 'zh' }
@@ -23,12 +23,19 @@ const source = computed(
     `${import.meta.env.BASE_URL}img/page/${props.page}.webp`
 )
 const labels = {
-  zh: { outfits: '搭配码', home: '家园方案', camera: '相机参数', resonance: '共鸣记录' },
+  zh: {
+    outfits: '搭配码',
+    home: '家园方案',
+    camera: '相机参数',
+    resonance: '共鸣记录',
+    wardrobe: '个人衣橱'
+  },
   en: {
     outfits: 'Outfit codes',
     home: 'Home schemes',
     camera: 'Camera parameters',
-    resonance: 'Resonance records'
+    resonance: 'Resonance records',
+    wardrobe: 'Personal wardrobe'
   }
 }
 const alt = computed(() =>
@@ -60,11 +67,11 @@ watch(source, () => {
   .mobile-empty-screenshot {
     display: block;
     width: 100%;
-    max-width: 320px;
+    max-width: 360px;
     min-width: 0;
     height: auto;
     margin: 16px auto 0;
-    border-radius: 18px;
+    border-radius: 14px;
     border: 1px solid var(--line);
   }
 }

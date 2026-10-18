@@ -61,13 +61,10 @@ describe('wardrobe filter metadata', () => {
     expect(matchesWardrobeSource(independent, 'limited-reward')).toBe(true)
   })
 
-  it('matches exact game versions and whole major versions without confusing 2.1 with 2.10', () => {
+  it('matches exact game versions without confusing 2.1 with 2.10', () => {
     const current = entry()
     expect(matchesWardrobeGameVersion(current, '2.10')).toBe(true)
-    expect(matchesWardrobeGameVersion(current, '2.x')).toBe(true)
     expect(matchesWardrobeGameVersion(current, '2.1')).toBe(false)
-    expect(matchesWardrobeGameVersion(current, '1.x')).toBe(false)
-    expect(matchesWardrobeGameVersion(entry({ version: null }), '2.x')).toBe(false)
     expect(matchesWardrobeGameVersion(entry({ version: null }), 'all')).toBe(true)
 
     const versions = wardrobeGameVersionOptions('zh').map((option) => option.value)

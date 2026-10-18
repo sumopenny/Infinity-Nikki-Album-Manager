@@ -30,7 +30,8 @@ const moduleName = (module: BackupModule) =>
     outfits: t('搭配码', 'Outfits'),
     home: t('家园方案', 'Home schemes'),
     camera: t('相机参数', 'Camera parameters'),
-    resonance: t('共鸣记录', 'Resonance records')
+    resonance: t('共鸣记录', 'Resonance records'),
+    wardrobe: t('个人衣橱', 'Personal wardrobe')
   })[module]
 async function refreshAvailability() {
   const generation = ++availabilityGeneration

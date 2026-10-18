@@ -5,7 +5,6 @@ import type { WardrobeEntry, WardrobeKind } from './wardrobeCatalog'
 export interface WardrobeFilterOption {
   value: string
   label: string
-  depth?: number
   separatorBefore?: boolean
 }
 
@@ -74,9 +73,7 @@ export function matchesWardrobeGameVersion(
 ): boolean {
   if (!value || value === 'all') return true
   if (!entry.version) return false
-  return /^\d+\.x$/.test(value)
-    ? entry.version.split('.')[0] === value.split('.')[0]
-    : entry.version === value
+  return entry.version === value
 }
 
 export function matchesWardrobeSource(

@@ -4,7 +4,6 @@ import { emptyWardrobe, type WardrobeSnapshot } from './wardrobeStorage'
 
 export interface WardrobeImportPreview {
   snapshot: WardrobeSnapshot
-  unknownItems: number
 }
 const safeId = (value: unknown): string | null => {
   if (typeof value !== 'string' && typeof value !== 'number') return null
@@ -32,13 +31,12 @@ export function parseWardrobePearpal(
   )
     throw new Error('INVALID_PEARPAL_WARDROBE')
   const snapshot = emptyWardrobe()
-  const unknown = new Set<string>()
+  snapshot.imported = true
   const add = (id: string) => {
     const entry = catalog.byId.get(id)
     // 本模块仅处理服装；未收录服装 ID 保留，妆容和其他物品不进入衣橱。
     if (!entry && !/^102\d[0-7]\d{5}$/.test(id)) return
     if (entry && entry.kind !== 'item') return
-    if (!entry) unknown.add(id)
     snapshot.entries[id] = { owned: true, source: 'pearpal' }
   }
   for (const rawId of Array.isArray(self.suit_list) ? self.suit_list : []) {
@@ -61,5 +59,5 @@ export function parseWardrobePearpal(
   }
   inferWardrobeFromPulls(rows, catalog).forEach(add)
   snapshot.unknownSuitIds = [...new Set(snapshot.unknownSuitIds)]
-  return { snapshot, unknownItems: unknown.size }
+  return { snapshot }
 }

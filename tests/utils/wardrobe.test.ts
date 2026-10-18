@@ -8,7 +8,8 @@ import {
   emptyWardrobe,
   loadWardrobe,
   parseWardrobeBackup,
-  updateWardrobe
+  updateWardrobe,
+  resolveUnknownWardrobeSuits
 } from '../../src/utils/wardrobe/wardrobeStorage'
 
 beforeEach(() => clearAllBrowserData())
@@ -46,7 +47,7 @@ describe('wardrobe catalog and notebook import', () => {
     expect(Object.keys(preview.snapshot.entries)).toHaveLength(outfit.parts.length + 1)
     expect(preview.snapshot.entries['1020810001']).toBeUndefined()
     expect(preview.snapshot.unknownSuitIds).toEqual(['99999'])
-    expect(preview.unknownItems).toBe(1)
+    expect(preview.snapshot.entries['1020199999']?.owned).toBe(true)
     expect(() => parseWardrobePearpal({ records: [] }, catalog)).toThrow()
   })
 })
@@ -121,4 +122,36 @@ it('maps outfit family/style separately from item categories without persisting 
     catalog
   ).snapshot
   expect(Object.keys(imported.entries[variant.parts[0]])).toEqual(['owned', 'source'])
+})
+
+it('preserves valid empty imports through backup and distinguishes a clear', async () => {
+  const catalog = await loadWardrobeCatalog()
+  const parsed = parseWardrobePearpal({ info_from_self: { suit_list: [] } }, catalog).snapshot
+  await updateWardrobe(() => parsed)
+  expect((await loadWardrobe()).imported).toBe(true)
+  expect(parseWardrobeBackup(createWardrobeBackup(await loadWardrobe())).imported).toBe(true)
+  await updateWardrobe(() => emptyWardrobe())
+  expect((await loadWardrobe()).imported).toBe(false)
+})
+
+it('resolves newly catalogued suits on load, persists them, and retains unresolved IDs', async () => {
+  const catalog = await loadWardrobeCatalog()
+  await updateWardrobe(() => ({
+    ...emptyWardrobe(),
+    imported: true,
+    unknownSuitIds: ['10347', '99999']
+  }))
+  const loaded = await loadWardrobe()
+  expect(loaded.unknownSuitIds).toEqual(['99999'])
+  for (const part of catalog.byId.get('10347')!.parts)
+    expect(loaded.entries[part]?.owned).toBe(true)
+  expect(await loadWardrobe()).toEqual(loaded)
+  const incomplete = { ...catalog.byId.get('10347')!, parts: ['9999999999'] }
+  const snapshot = { ...emptyWardrobe(), unknownSuitIds: ['10347'] }
+  expect(
+    resolveUnknownWardrobeSuits(snapshot, {
+      entries: [incomplete],
+      byId: new Map([['10347', incomplete]])
+    })
+  ).toBe(snapshot)
 })

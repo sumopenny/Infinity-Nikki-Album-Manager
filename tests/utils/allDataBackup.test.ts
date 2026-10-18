@@ -36,6 +36,11 @@ import {
 import { runStoreRequest } from '../../src/utils/file-system/database'
 import { CAMERA_BACKUP_LIMITS, OUTFIT_BACKUP_LIMITS } from '../../src/utils/backup/zipBackup'
 import * as homeBackup from '../../src/utils/homeBuild/homeSchemeBackup'
+import {
+  emptyWardrobe,
+  updateWardrobe,
+  loadWardrobe
+} from '../../src/utils/wardrobe/wardrobeStorage'
 setupOutfitDatabaseTests()
 
 it('preserves a concurrent resonance import while restoring a full backup', async () => {
@@ -77,6 +82,11 @@ const camera = (id = 'camera-one', code = 'CAMERA'): CameraFavorite => ({
 })
 const outfit = (code: string, note = '备份备注') => ({ code, note, tag: null, imageFile: webp() })
 async function seed() {
+  await updateWardrobe(() => ({
+    ...emptyWardrobe(),
+    imported: true,
+    entries: { '1020100347': { owned: true, source: 'pearpal' } }
+  }))
   await saveOutfit(outfit('OUTFIT'))
   await deleteOutfit(await saveOutfit(outfit('IGNORED')))
   await saveHomeSchemeTags(['庭院'])
@@ -121,7 +131,7 @@ async function repack(
   return new File([zipSync(files)], 'changed.zip')
 }
 it.each([false, true])(
-  'round-trips all four modules, covers, tags and ignores without portable directory authorization (network HTTP: %s)',
+  'round-trips all five modules, covers, tags and ignores without portable directory authorization (network HTTP: %s)',
   async (networkHttp) => {
     expect(await hasAllBackupData()).toBe(false)
     await seed()
@@ -136,7 +146,8 @@ it.each([false, true])(
       'camera/1.zip',
       'home/1.zip',
       'outfits/1.zip',
-      'resonance/1.json'
+      'resonance/1.json',
+      'wardrobe/1.json'
     ])
     await resetOutfitDatabase()
     if (networkHttp)
@@ -294,4 +305,60 @@ it('collects module parts into one ZIP and merges empty modules without clearing
   expect((await readCameraFavorites()).records).toHaveLength(2)
   expect((await readHomeSchemeSnapshot()).records[0].code).toBe('KEEP')
   expect(await loadResonanceRecords()).toEqual(resonance)
+})
+
+it('detects wardrobe-only data and merges ownership without revoking local pieces', async () => {
+  expect(await hasAllBackupData()).toBe(false)
+  await updateWardrobe(() => ({
+    ...emptyWardrobe(),
+    imported: true,
+    entries: {
+      '1020100347': { owned: true, source: 'pearpal' },
+      '1020100399': { owned: false, source: 'manual' }
+    }
+  }))
+  expect(await hasAllBackupData()).toBe(true)
+  const plan = await prepareAllDataBackup(await exported())
+  await resetOutfitDatabase()
+  await updateWardrobe(() => ({
+    ...emptyWardrobe(),
+    entries: {
+      '1020100399': { owned: true, source: 'pearpal' },
+      '1020100001': { owned: true, source: 'pearpal' }
+    }
+  }))
+  const results = await applyAllDataBackup(plan, async () => ({}))
+  const restored = await loadWardrobe()
+  expect(Object.values(restored.entries).every((entry) => entry.owned)).toBe(true)
+  expect(Object.keys(restored.entries)).toHaveLength(3)
+  expect(results?.find((r) => r.module === 'wardrobe')).toMatchObject({
+    saved: 1,
+    skipped: 1,
+    failed: 0
+  })
+})
+
+it('accepts legacy full backups without wardrobe and rejects invalid wardrobe before restoring', async () => {
+  await seed()
+  const file = await exported()
+  const legacy = await repack(file, (files) => {
+    delete files['wardrobe/1.json']
+    const manifest = JSON.parse(strFromU8(files['backup.json']))
+    manifest.version = 1
+    manifest.entries = manifest.entries.filter(
+      (entry: { module: string }) => entry.module !== 'wardrobe'
+    )
+    files['backup.json'] = strToU8(JSON.stringify(manifest))
+  })
+  expect((await prepareAllDataBackup(legacy)).wardrobe).toBeNull()
+  const invalid = await repack(
+    file,
+    (files) => {
+      files['wardrobe/1.json'] = strToU8('{}')
+    },
+    true
+  )
+  const before = await loadWardrobe()
+  await expect(prepareAllDataBackup(invalid)).rejects.toThrow('INVALID_WARDROBE')
+  expect(await loadWardrobe()).toEqual(before)
 })

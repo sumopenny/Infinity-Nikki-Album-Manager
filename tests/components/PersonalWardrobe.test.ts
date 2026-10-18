@@ -58,6 +58,11 @@ beforeEach(async () => {
     'fetch',
     vi.fn(async () => new Response(JSON.stringify({ description: '' })))
   )
+  if (!document.getElementById('wardrobe-mobile-category-target')) {
+    const target = document.createElement('div')
+    target.id = 'wardrobe-mobile-category-target'
+    document.body.append(target)
+  }
   wrapper = mount(PersonalWardrobe, { attachTo: document.body })
   await vi.waitFor(() => expect(wrapper.find('.wardrobe-grid').exists()).toBe(true))
 })
@@ -77,11 +82,20 @@ describe('personal wardrobe interactions', () => {
       addEventListener() {},
       removeEventListener() {}
     }))
+    if (!document.getElementById('wardrobe-mobile-category-target')) {
+      const target = document.createElement('div')
+      target.id = 'wardrobe-mobile-category-target'
+      document.body.append(target)
+    }
     wrapper = mount(PersonalWardrobe, { attachTo: document.body })
     await vi.waitFor(() => expect(wrapper.find('.wardrobe-mobile-filter-bar').exists()).toBe(true))
     await flushPromises()
-    expect(wrapper.find('.wardrobe-mobile-category .sidebar-mode-switch').exists()).toBe(true)
-    expect(document.querySelector('#wardrobe-filter-actions .collection-icon-actions')).not.toBeNull()
+    expect(
+      document.querySelector('#wardrobe-mobile-category-target .wardrobe-mobile-category-switch')
+    ).not.toBeNull()
+    expect(
+      document.querySelector('#wardrobe-filter-actions .collection-icon-actions')
+    ).not.toBeNull()
     const trigger = wrapper.get('.wardrobe-mobile-filter-bar .collection-tag-select')
     expect(trigger.text()).toContain('已拥有')
     await trigger.trigger('click')
@@ -91,14 +105,26 @@ describe('personal wardrobe interactions', () => {
     expect(modal?.style.display).not.toBe('none')
     await choose('source', '限定卡池')
     expect(buttonFilter('source').textContent).toContain('限定卡池')
-    expect(wrapper.get('.wardrobe-mobile-filter-bar .collection-tag-select').text()).toContain('已筛选')
-    await wrapper.get('.wardrobe-mobile-category .sidebar-mode-switch button:last-child').trigger('click')
-    expect(wrapper.get('.wardrobe-mobile-filter-bar .collection-tag-select').text()).toContain('全部筛选')
+    expect(wrapper.get('.wardrobe-mobile-filter-bar .collection-tag-select').text()).toContain(
+      '已筛选'
+    )
+    await wrapper.setProps({ searchQuery: '1020100347' })
+    document
+      .querySelector<HTMLButtonElement>(
+        '#wardrobe-mobile-category-target .wardrobe-mobile-category-switch'
+      )!
+      .click()
+    await flushPromises()
+    expect(wrapper.get('.wardrobe-mobile-filter-bar .collection-tag-select').text()).toContain(
+      '全部筛选'
+    )
 
     await storage.updateWardrobe(() => storage.emptyWardrobe())
     await reload()
     expect(wrapper.find('.wardrobe-initial').exists()).toBe(true)
-    expect(wrapper.get('.wardrobe-mobile-filter-bar .collection-tag-select').attributes('disabled')).toBeDefined()
+    expect(
+      wrapper.get('.wardrobe-mobile-filter-bar .collection-tag-select').attributes('disabled')
+    ).toBeDefined()
     const importButton = document.querySelector<HTMLButtonElement>(
       '#wardrobe-filter-actions .collection-icon-actions > .primary-button'
     )
@@ -137,7 +163,7 @@ describe('personal wardrobe interactions', () => {
     expect(buttonFilter('tag').textContent).toContain('浪漫')
     expect(buttonFilter('sort').textContent).toContain('名称')
     expect(wrapper.emitted('update-search')).toBeUndefined()
-    button('重置').click()
+    button('重置筛选').click()
     await flushPromises()
     for (const key of ['ownership', 'rarity', 'variant', 'version', 'style', 'source', 'tag']) {
       expect(buttonFilter(key).textContent).toContain('全部')
@@ -311,6 +337,11 @@ describe('personal wardrobe interactions', () => {
       addEventListener() {},
       removeEventListener() {}
     }))
+    if (!document.getElementById('wardrobe-mobile-category-target')) {
+      const target = document.createElement('div')
+      target.id = 'wardrobe-mobile-category-target'
+      document.body.append(target)
+    }
     wrapper = mount(PersonalWardrobe, { attachTo: document.body })
     await vi.waitFor(() =>
       expect(
@@ -634,4 +665,35 @@ it('separates unknown pieces from unowned and preserves positive ownership', asy
   expect(names()).toHaveLength(2)
   await choose('source', '全部')
   expect(wrapper.find('.wardrobe-ownership-note').exists()).toBe(false)
+})
+
+it('restores automatically changed ownership but preserves a manual choice', async () => {
+  await wrapper.setProps({ searchQuery: '1020100347' })
+  button('部件').click()
+  await flushPromises()
+  await choose('ownership', '已拥有')
+  await choose('source', '星光小铺')
+  expect(buttonFilter('ownership').textContent).toContain('未知')
+  await choose('source', '服装商店')
+  button('套装').click()
+  await flushPromises()
+  await choose('ownership', '全部')
+  button('部件').click()
+  await flushPromises()
+  await choose('source', '限定卡池')
+  expect(buttonFilter('ownership').textContent).toContain('已拥有')
+  await choose('source', '星光小铺')
+  await choose('ownership', '全部')
+  await choose('source', '限定卡池')
+  expect(buttonFilter('ownership').textContent).toContain('全部')
+})
+
+it('shows an imported empty wardrobe and returns to the initial view after clearing', async () => {
+  await storage.updateWardrobe(() => ({ ...storage.emptyWardrobe(), imported: true }))
+  await reload()
+  expect(wrapper.find('.wardrobe-initial').exists()).toBe(false)
+  expect(wrapper.find('.wardrobe-empty').exists()).toBe(true)
+  await storage.updateWardrobe(() => storage.emptyWardrobe())
+  await reload()
+  expect(wrapper.find('.wardrobe-initial').exists()).toBe(true)
 })

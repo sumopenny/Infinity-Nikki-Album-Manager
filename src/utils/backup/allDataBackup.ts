@@ -1,4 +1,12 @@
+import { hasWardrobeSnapshot } from '../wardrobe/wardrobeOwnership'
 import { backupBaseName } from './backupName'
+import {
+  createWardrobeBackup,
+  loadWardrobe,
+  mergeWardrobe,
+  parseWardrobeBackup,
+  type WardrobeSnapshot
+} from '../wardrobe/wardrobeStorage'
 import { strToU8, unzip } from 'fflate'
 import { backupPartBlob, downloadBackupBlob, type BackupDownload } from './zipBackup'
 import { exportOutfitBackup, importOutfitBackup, inspectOutfitBackup } from '../outfit/outfitBackup'
@@ -35,7 +43,7 @@ import {
 const FORMAT = 'infinity-nikki-all-data-backup'
 const MAX_BYTES = 2 * 1024 ** 3
 const MAX_MANIFEST = 4 * 1024 ** 2
-const MODULES = ['outfits', 'home', 'camera', 'resonance'] as const
+const MODULES = ['outfits', 'home', 'camera', 'resonance', 'wardrobe'] as const
 export type BackupModule = (typeof MODULES)[number]
 interface BundleEntry {
   module: BackupModule
@@ -45,7 +53,7 @@ interface BundleEntry {
 }
 interface BundleManifest {
   format: typeof FORMAT
-  version: 1
+  version: 1 | 2
   exportedAt: string
   entries: BundleEntry[]
 }
@@ -53,6 +61,7 @@ export interface AllDataPlan {
   files: Map<BackupModule, File[]>
   camera: FavoriteLibrary
   resonance: ResonanceRecord[]
+  wardrobe: WardrobeSnapshot | null
 }
 export interface ModuleImportResult {
   module: BackupModule
@@ -79,8 +88,14 @@ export async function hasAllBackupData(): Promise<boolean> {
   ])
   return (
     tags.some((value) => Array.isArray(value) && value.length > 0) ||
-    (await loadResonanceRecords()).length > 0
+    (await loadResonanceRecords()).length > 0 ||
+    (await hasWardrobeBackupData())
   )
+}
+
+async function hasWardrobeBackupData(): Promise<boolean> {
+  const value = await loadWardrobe()
+  return hasWardrobeSnapshot(value)
 }
 
 /** Keep the original module archives intact so they can also be restored separately. */
@@ -100,7 +115,7 @@ export async function exportAllDataBackup(
       module +
       '/' +
       (entries.filter((entry) => entry.module === module).length + 1) +
-      (module === 'resonance' ? '.json' : '.zip')
+      (module === 'resonance' || module === 'wardrobe' ? '.json' : '.zip')
     files.push({ name: path, blob })
     entries.push({ module, path, size: blob.size, sha256: await hashOutfitBlob(blob) })
   }
@@ -111,9 +126,13 @@ export async function exportAllDataBackup(
   const resonance = createResonanceExport(await loadResonanceRecords())
   parseResonanceFile(resonance, true)
   await collect('resonance', new Blob([JSON.stringify(resonance)], { type: 'application/json' }))
+  await collect(
+    'wardrobe',
+    new Blob([createWardrobeBackup(await loadWardrobe())], { type: 'application/json' })
+  )
   const manifest: BundleManifest = {
     format: FORMAT,
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     entries
   }
@@ -144,7 +163,7 @@ async function readBundle(file: File): Promise<Map<string, Blob>> {
           if (
             names.has(entry.name) ||
             names.size >= 10000 ||
-            !/^(backup\.json|(outfits|home|camera)\/[1-9]\d*\.zip|resonance\/1\.json)$/.test(
+            !/^(backup\.json|(outfits|home|camera)\/[1-9]\d*\.zip|(resonance|wardrobe)\/1\.json)$/.test(
               entry.name
             )
           ) {
@@ -195,7 +214,7 @@ export async function prepareAllDataBackup(file: File): Promise<AllDataPlan> {
   if (
     !manifest ||
     manifest.format !== FORMAT ||
-    manifest.version !== 1 ||
+    ![1, 2].includes(manifest.version) ||
     !Array.isArray(manifest.entries) ||
     manifest.entries.length !== blobs.size - 1
   )
@@ -219,7 +238,13 @@ export async function prepareAllDataBackup(file: File): Promise<AllDataPlan> {
     used.add(entry.path)
     files.get(entry.module)!.push(new File([blob], entry.path, { type: blob.type }))
   }
-  if (MODULES.some((module) => !files.get(module)!.length) || files.get('resonance')!.length !== 1)
+  if (
+    MODULES.some(
+      (module) => !(module === 'wardrobe' && manifest.version === 1) && !files.get(module)!.length
+    ) ||
+    files.get('resonance')!.length !== 1 ||
+    files.get('wardrobe')!.length > 1
+  )
     throw new Error('总备份缺少模块 / Missing backup module')
   for (const file of files.get('outfits')!) await inspectOutfitBackup(file)
   for (const file of files.get('home')!) await prepareHomeSchemeBackup(file)
@@ -239,7 +264,9 @@ export async function prepareAllDataBackup(file: File): Promise<AllDataPlan> {
     JSON.parse(await files.get('resonance')![0].text()),
     true
   ).records
-  return { files, camera, resonance }
+  const wardrobeFile = files.get('wardrobe')![0]
+  const wardrobe = wardrobeFile ? parseWardrobeBackup(await wardrobeFile.text()) : null
+  return { files, camera, resonance, wardrobe }
 }
 
 export async function applyAllDataBackup(
@@ -253,6 +280,7 @@ export async function applyAllDataBackup(
   if (choices === null) return null
   const results: ModuleImportResult[] = []
   for (const module of MODULES) {
+    if (module === 'wardrobe' && !plan.wardrobe) continue
     onModule?.(module)
     const result: ModuleImportResult = { module, saved: 0, skipped: 0, failed: 0 }
     try {
@@ -276,6 +304,8 @@ export async function applyAllDataBackup(
       } else if (module === 'camera') {
         result.saved = await applyCameraImport(cameraPlan, choices)
         result.skipped = cameraPlan.incoming.records.length + cameraPlan.skipped - result.saved
+      } else if (module === 'wardrobe') {
+        Object.assign(result, await mergeWardrobe(plan.wardrobe!))
       } else {
         // 与普通导入共用事务合并，保留恢复期间其他窗口新增的共鸣记录。
         if (plan.resonance.length) await mergeResonanceRecords(plan.resonance)

@@ -357,6 +357,7 @@ const locale = computed(() => messages[language.value])
 const favoriteTab = ref<'photos' | 'camera'>('camera')
 const cameraFavoritesRef = ref<InstanceType<typeof CameraFavorites> | null>(null)
 const allDataBackupRef = ref<InstanceType<typeof AllDataBackup> | null>(null)
+const wardrobeRef = ref<InstanceType<typeof PersonalWardrobe> | null>(null)
 const resonanceRecordsRef = ref<InstanceType<typeof ResonanceRecords> | null>(null)
 const hasBackupData = ref(false)
 const allBackupDisabled = operations.isBusy
@@ -372,6 +373,7 @@ async function refreshAfterAllImport() {
     reloadOutfitCollection(),
     updateHomeSchemeCount(),
     cameraFavoritesRef.value?.reload(),
+    wardrobeRef.value?.reload(),
     resonanceRecordsRef.value
       ? resonanceRecordsRef.value.reload()
       : loadResonanceRecords().then((records) => {
@@ -2833,6 +2835,7 @@ function importAllDataFromMenu() {
           @count-change="handleHomeSchemeCount"
         />
         <PersonalWardrobe
+          ref="wardrobeRef"
           v-else-if="activeView === 'wardrobe'"
           sidebar-target="#wardrobe-sidebar"
           :search-query="searchQuery"
