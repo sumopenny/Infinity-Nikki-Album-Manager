@@ -132,7 +132,6 @@ const PEARPAL_URL = 'https://myl.nuanpaper.com/home'
                 <Info :size="16" aria-hidden="true" />
                 <span>{{ t.mobileCredentialTip }}</span>
               </p>
-              <p class="resonance-hint">{{ t.getCookieDesc }}</p>
               <p class="resonance-source-attribution"
                 ><strong>{{ t.sourceAttributionLabel }}</strong
                 ><span>{{ t.sourceAttribution }}</span></p

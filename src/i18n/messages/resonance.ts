@@ -38,7 +38,6 @@ export interface ResonanceMessages {
   loginPearpalDesc: string
   pearpalSite: string
   getCookie: string
-  getCookieDesc: string
   mobileAndroidBrowsers: string
   mobileIosBrowsers: string
   mobileCredentialTip: string
@@ -145,7 +144,6 @@ export const resonanceZh: ResonanceMessages = {
   loginPearpalDesc: '在新标签页打开美鸭梨并登录叠纸账号。登录后返回此窗口获取凭据。',
   pearpalSite: '打开美鸭梨',
   getCookie: '获取登录凭据',
-  getCookieDesc: '选择一种方式，从已登录的美鸭梨页面复制凭据数据：',
   mobileCredentialTip: '建议使用电脑端获取登录凭据，操作更加方便。获取后可复制到手机端继续导入。',
   mobileAndroidBrowsers: '安卓建议浏览器：Chrome（谷歌）、Firefox（火狐）。',
   mobileIosBrowsers: 'iOS 建议浏览器：Chrome（谷歌）、Firefox（火狐）、Safari。',
@@ -158,7 +156,7 @@ export const resonanceZh: ResonanceMessages = {
   bookmarkMethod: '书签方法',
   consoleMethod: '控制台方法',
   sourceAttributionLabel: '方法来源',
-  sourceAttribution: '以下书签和控制台获取登录凭据的方法来自暖暖共鸣录。',
+  sourceAttribution: '以下获取登录凭据的方法来自暖暖共鸣录。',
   cookieStepsTitle: '获取凭据后粘贴到下方：',
   bookmarkStep1: '将「美鸭梨 Cookie」书签拖到书签栏（仅需设置一次）：',
   bookmarkStep2: '切换到已登录的美鸭梨页面。',
@@ -258,7 +256,6 @@ export const resonanceEn: ResonanceMessages = {
     'Open Pear-Pal in a new tab and sign in with your Infold account. Return here to get your credentials.',
   pearpalSite: 'Open Pear-Pal',
   getCookie: 'Get sign-in credentials',
-  getCookieDesc: 'Choose a method to copy credentials from your signed-in Pear-Pal page:',
   mobileCredentialTip:
     'We recommend obtaining sign-in credentials on a computer for easier access. You can then copy them to your phone to continue importing.',
   mobileAndroidBrowsers: 'Recommended browsers for Android: Chrome and Firefox.',

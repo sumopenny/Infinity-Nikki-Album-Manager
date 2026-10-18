@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { useWardrobeFilters, type FilterKey } from '../composables/useWardrobeFilters'
-import { wardrobeVariantLabels } from '../utils/wardrobe/wardrobePresentation'
+import {
+  wardrobeVariantLabels,
+  wardrobeOwnershipNotice
+} from '../utils/wardrobe/wardrobePresentation'
 import { hasWardrobeSnapshot, getOwnershipSummary } from '../utils/wardrobe/wardrobeOwnership'
 import { backupBaseName } from '../utils/backup/backupName'
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, toRef, watch } from 'vue'
-import { ArrowLeftRight, ChevronDown, RotateCcw, Shirt } from 'lucide-vue-next'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRef, watch } from 'vue'
+import { ArrowLeftRight, ChevronDown, RotateCcw, Shirt, Info, X } from 'lucide-vue-next'
 import ResonanceDataActions from './ResonanceDataActions.vue'
 import CollectionFilterBar from './CollectionFilterBar.vue'
 import AdaptiveFilterPanel from './AdaptiveFilterPanel.vue'
@@ -56,6 +59,39 @@ const compact = useCompactLayout()
 // 顶栏搜索是唯一输入来源；桌面将同一组筛选节点移入现有侧栏。
 const query = computed(() => props.searchQuery)
 const text = (zh: string, en: string) => (props.language === 'zh' ? zh : en)
+
+// Bump the version when the meaning of the ownership explanation changes.
+const ownershipNoticeKey = 'nikki-wardrobe-ownership-notice-v1'
+const ownershipNoticeVisible = ref(
+  (() => {
+    try {
+      return localStorage.getItem(ownershipNoticeKey) !== 'dismissed'
+    } catch {
+      return true
+    }
+  })()
+)
+const ownershipNotice = ref<HTMLElement | null>(null)
+const ownershipNoticeText = computed(() => wardrobeOwnershipNotice[props.language])
+function dismissOwnershipNotice() {
+  ownershipNoticeVisible.value = false
+  try {
+    localStorage.setItem(ownershipNoticeKey, 'dismissed')
+  } catch {
+    /* Keep this session usable. */
+  }
+}
+async function showOwnershipNotice() {
+  ownershipNoticeVisible.value = true
+  try {
+    localStorage.removeItem(ownershipNoticeKey)
+  } catch {
+    /* Keep this session usable. */
+  }
+  await nextTick()
+  ownershipNotice.value?.focus({ preventScroll: true })
+}
+
 const track = useModuleOperation('wardrobe')
 const catalog = shallowRef<WardrobeCatalog | null>(null)
 const snapshot = ref<WardrobeSnapshot>(emptyWardrobe())
@@ -412,7 +448,11 @@ async function clearRecords() {
         @add="openImport"
         @clear="requestClear"
         @export="exportBackup"
-      />
+      >
+        <button v-if="loaded && hasRecords" type="button" @click="showOwnershipNotice"
+          ><Info :size="16" aria-hidden="true" />{{ ownershipNoticeText.title }}</button
+        >
+      </ResonanceDataActions>
     </header>
     <CollectionFilterBar
       v-if="compact && loaded"
@@ -579,6 +619,27 @@ async function clearRecords() {
           </div>
         </div>
       </Teleport>
+      <aside
+        v-if="ownershipNoticeVisible"
+        ref="ownershipNotice"
+        class="wardrobe-collection-notice"
+        role="note"
+        tabindex="-1"
+        :aria-label="ownershipNoticeText.title"
+      >
+        <Info :size="18" aria-hidden="true" />
+        <p
+          ><strong>{{ ownershipNoticeText.title }}：</strong>{{ ownershipNoticeText.body }}</p
+        >
+        <button
+          type="button"
+          class="wardrobe-collection-notice-close"
+          :aria-label="ownershipNoticeText.close"
+          :title="ownershipNoticeText.close"
+          @click="dismissOwnershipNotice"
+          ><X :size="16" aria-hidden="true"
+        /></button>
+      </aside>
       <p v-if="showOwnershipNote" class="wardrobe-ownership-note" role="note">{{
         text(
           '此来源的拥有信息可能未包含在导入数据中，未识别到的部件显示为未知。',
@@ -1147,6 +1208,67 @@ progress::-webkit-progress-value {
   .wardrobe-grid,
   .wardrobe-grid.is-pieces {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.wardrobe-collection-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius);
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.wardrobe-collection-notice > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--pink-deep);
+}
+.wardrobe-collection-notice p {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.wardrobe-collection-notice strong {
+  color: var(--heading);
+  font-weight: 600;
+}
+.wardrobe-collection-notice:focus-visible {
+  outline: 2px solid var(--pink-deep);
+  outline-offset: 2px;
+}
+.wardrobe-collection-notice-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.wardrobe-collection-notice-close:hover {
+  background: var(--frame-bg);
+  color: var(--heading);
+}
+@media (max-width: 899px) {
+  .wardrobe-collection-notice {
+    gap: 8px;
+    padding: 10px;
+    font-size: 12px;
+  }
+  .wardrobe-collection-notice-close {
+    width: 32px;
+    height: 32px;
   }
 }
 </style>

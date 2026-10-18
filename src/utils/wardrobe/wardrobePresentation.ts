@@ -53,3 +53,19 @@ export const wardrobeCategoryLabels: Record<Language, readonly string[]> = {
     'Rings'
   ]
 }
+
+export const wardrobeOwnershipNotice: Record<
+  Language,
+  { title: string; body: string; close: string }
+> = {
+  zh: {
+    title: '收集状态说明',
+    body: '衣橱根据导入的共鸣记录及已集齐套装信息识别收集情况，可能遗漏散件及进化／焕新形态。“未拥有”仅表示当前导入数据中未识别到拥有记录，不代表游戏内实际未拥有，请以游戏内衣橱为准。',
+    close: '关闭收集状态说明'
+  },
+  en: {
+    title: 'Collection status information',
+    body: 'Collection status is identified from imported resonance records and completed outfits. Individual pieces and evolution or glow-up variants may be missing. “Not owned” only means no ownership record was identified in the current import; it does not confirm that you lack the item in game. Refer to your in-game wardrobe.',
+    close: 'Dismiss collection status information'
+  }
+}

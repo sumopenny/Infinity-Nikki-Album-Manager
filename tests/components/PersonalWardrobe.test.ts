@@ -38,6 +38,7 @@ const button = (label: string) =>
     (node) => node.textContent?.trim() === label
   )!
 beforeEach(async () => {
+  localStorage.removeItem('nikki-wardrobe-ownership-notice-v1')
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
     addEventListener() {},
@@ -67,6 +68,7 @@ beforeEach(async () => {
   await vi.waitFor(() => expect(wrapper.find('.wardrobe-grid').exists()).toBe(true))
 })
 afterEach(() => {
+  localStorage.removeItem('nikki-wardrobe-ownership-notice-v1')
   wrapper.unmount()
   clearCatalogApiCache()
   vi.restoreAllMocks()
@@ -75,6 +77,22 @@ afterEach(() => {
 })
 
 describe('personal wardrobe interactions', () => {
+  it('remembers dismissal and allows the ownership explanation to be reopened', async () => {
+    expect(wrapper.get('.wardrobe-collection-notice').text()).toContain('不代表游戏内实际未拥有')
+    await wrapper.get('.wardrobe-collection-notice-close').trigger('click')
+    expect(wrapper.find('.wardrobe-collection-notice').exists()).toBe(false)
+    wrapper.unmount()
+    wrapper = mount(PersonalWardrobe, { attachTo: document.body })
+    await vi.waitFor(() => expect(wrapper.find('.wardrobe-grid').exists()).toBe(true))
+    expect(wrapper.find('.wardrobe-collection-notice').exists()).toBe(false)
+    await new DOMWrapper(button('收集状态说明')).trigger('click')
+    expect(wrapper.find('.wardrobe-collection-notice').exists()).toBe(true)
+    expect(document.activeElement).toBe(wrapper.get('.wardrobe-collection-notice').element)
+    await storage.updateWardrobe(() => storage.emptyWardrobe())
+    await reload()
+    expect(wrapper.find('.wardrobe-collection-notice').exists()).toBe(false)
+  })
+
   it('reuses the approved mobile filter bar and opens the existing filters in a sheet', async () => {
     wrapper.unmount()
     vi.stubGlobal('matchMedia', () => ({
