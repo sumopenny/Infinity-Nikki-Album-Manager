@@ -1,3 +1,4 @@
+import { backupBaseName } from './backupName'
 import { strToU8, unzip } from 'fflate'
 import { backupPartBlob, downloadBackupBlob, type BackupDownload } from './zipBackup'
 import { exportOutfitBackup, importOutfitBackup, inspectOutfitBackup } from '../outfit/outfitBackup'
@@ -121,7 +122,7 @@ export async function exportAllDataBackup(
     'backup.json',
     { bytes: MAX_BYTES, entries: 10000, records: 10000, manifest: MAX_MANIFEST, image: 1024 ** 3 }
   )
-  const name = 'InfinityNikki_AllData_' + new Date().toISOString().replace(/[:.]/g, '-') + '.zip'
+  const name = backupBaseName('全部数据') + '.zip'
   await download(name, blob)
   return name
 }

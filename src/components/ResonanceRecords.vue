@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { backupBaseName } from '../utils/backup/backupName'
 import MobileEmptyScreenshot from './MobileEmptyScreenshot.vue'
 import { useCompactLayout } from '../composables/useCompactLayout'
 import { useModuleOperation } from '../composables/useOperationCoordinator'
@@ -6,9 +7,17 @@ const trackOperation = useModuleOperation('resonance')
 import ResonanceDataActions from './ResonanceDataActions.vue'
 import DataImportWindow from './DataImportWindow.vue'
 import ResonanceCloudActions from './ResonanceCloudActions.vue'
-import { computed, onMounted, ref, watch } from 'vue'
-import { Plus } from 'lucide-vue-next'
+import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import ConfirmDialog from './ConfirmDialog.vue'
+import WardrobeOutfitDialog from './WardrobeOutfitDialog.vue'
+import WardrobeItemDialog from './WardrobeItemDialog.vue'
+import { useLatestRequest } from '../composables/useLatestRequest'
+import {
+  loadWardrobeCatalog,
+  type WardrobeCatalog,
+  type WardrobeEntry
+} from '../utils/wardrobe/wardrobeCatalog'
+import { emptyWardrobe, loadWardrobe } from '../utils/wardrobe/wardrobeStorage'
 import type { Language } from '../i18n/types'
 import { messages } from '../i18n'
 import { createResonanceExport } from '../utils/resonance/resonanceFile'
@@ -43,6 +52,39 @@ const emit = defineEmits<{
   recordsChange: [records: ResonanceRecord[]]
 }>()
 
+const previewCatalog = shallowRef<WardrobeCatalog | null>(null)
+const previewSnapshot = ref(emptyWardrobe())
+const outfitPreview = shallowRef<WardrobeEntry | null>(null)
+const itemPreview = shallowRef<WardrobeEntry | null>(null)
+const previewRequest = useLatestRequest()
+const itemOutfits = computed(() =>
+  (previewCatalog.value?.entries ?? []).filter(
+    (entry) =>
+      entry.kind === 'outfit' && !!itemPreview.value && entry.parts.includes(itemPreview.value.id)
+  )
+)
+async function openPreview(id: string, kind: 'outfit' | 'item') {
+  const request = previewRequest.begin()
+  try {
+    const [catalog, snapshot] = await Promise.all([loadWardrobeCatalog(), loadWardrobe()])
+    if (!request.isCurrent()) return
+    const entry = catalog.byId.get(id)
+    if (!entry || entry.kind !== kind) throw new Error('DETAIL_UNAVAILABLE')
+    previewCatalog.value = catalog
+    previewSnapshot.value = snapshot
+    if (kind === 'outfit') outfitPreview.value = entry
+    else itemPreview.value = entry
+  } catch {
+    if (request.isCurrent())
+      notify(
+        'detail-error',
+        props.language === 'zh'
+          ? '详情加载失败，请稍后重试。'
+          : 'Details could not be loaded. Please retry.',
+        'error'
+      )
+  }
+}
 const records = ref<ResonanceRecord[]>([])
 const recordsLoaded = ref(false)
 const cloudOpen = ref(false)
@@ -75,9 +117,6 @@ function clearNotice(id?: string) {
 
 function currentSet(record: ResonanceRecord) {
   return record.sets[(selectedSet.value[record.id] ?? 1) - 1]
-}
-function totalPullsLabel(record: ResonanceRecord): string {
-  return t.value.pulls(outfitPulls(record).total)
 }
 function outfitPulls(record: ResonanceRecord): { total: number; average: number } {
   const obtained = record.sets.flatMap((set) => set.parts).filter((part) => part.pullNumber > 0)
@@ -118,7 +157,7 @@ function exportRecords() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `nikki-cube-resonance-${new Date().toISOString().slice(0, 10)}.json`
+    link.download = backupBaseName('共鸣记录') + '.json'
     link.click()
     setTimeout(() => URL.revokeObjectURL(url), 0)
     notify('export-success', t.value.exportSuccess, 'success')
@@ -219,13 +258,6 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
       <h3>{{ t.emptyTitle }}</h3>
       <p>{{ t.emptyDescription }}</p>
       <MobileEmptyScreenshot page="resonance" :language="language" />
-      <button
-        class="primary-button desktop-only"
-        type="button"
-        :disabled="disabled || cloudOpen"
-        @click="openDialog"
-        ><Plus :size="16" aria-hidden="true" />{{ t.addData }}</button
-      >
     </div>
 
     <div v-else-if="!sortedRecords.length" class="resonance-empty">
@@ -241,16 +273,27 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
       >
         <div class="resonance-record-heading">
           <div class="resonance-record-title-row">
-            <h3 :title="`${displayName(record.outfitName)} ${t.rarity(record.rarity)}`"
-              >{{ displayName(record.outfitName) }} {{ t.rarity(record.rarity) }}</h3
-            >
+            <h3 :title="`${displayName(record.outfitName)} ${t.rarity(record.rarity)}`">
+              <span class="resonance-outfit-title">{{ displayName(record.outfitName) }}</span>
+              <span class="resonance-rarity-tag">{{ record.rarity }} ★</span>
+            </h3>
             <span class="resonance-banner-name" :title="displayName(record.bannerName)">{{
               displayName(record.bannerName)
             }}</span>
           </div>
           <p class="resonance-overall-summary">
-            <span>{{ totalPullsLabel(record) }} <span aria-hidden="true">|</span></span>
-            <span>{{ t.average(outfitPulls(record).average.toFixed(1)) }}</span>
+            <span class="resonance-summary-group">
+              <span class="resonance-summary-label">{{
+                language === 'zh' ? '总抽数' : 'Total pulls'
+              }}</span>
+              <strong>{{ outfitPulls(record).total }}</strong>
+            </span>
+            <span class="resonance-summary-group">
+              <span class="resonance-summary-label">{{
+                language === 'zh' ? '平均抽数' : 'Average pulls'
+              }}</span>
+              <strong>{{ outfitPulls(record).average.toFixed(1) }}</strong>
+            </span>
           </p>
           <p class="resonance-mobile-progress">{{
             t.ownedProgress(
@@ -279,13 +322,17 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
           }}</p>
         </div>
         <div class="resonance-record-body">
-          <div class="resonance-outfit-image"
+          <button
+            type="button"
+            class="resonance-outfit-image"
+            :aria-label="displayName(record.outfitName)"
+            @click="openPreview(record.outfitId, 'outfit')"
             ><img
               :src="record.outfitImageUrl"
               :alt="displayName(record.outfitName)"
               referrerpolicy="no-referrer"
               @error="hideBrokenImage"
-          /></div>
+          /></button>
           <div class="resonance-sets">
             <section
               v-for="set in displayedSets(record)"
@@ -301,7 +348,10 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
                 }}</p>
               </div>
               <div class="resonance-parts">
-                <div
+                <button
+                  type="button"
+                  :aria-label="displayName(part.name)"
+                  @click="openPreview(part.id, 'item')"
                   v-for="part in sortResonanceParts(set.parts)"
                   :key="part.id"
                   class="resonance-part"
@@ -321,7 +371,7 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
                     :class="{ missing: part.pullNumber === 0 && !part.manual }"
                     >{{ part.manual ? '*' : part.pullNumber }}</span
                   >
-                </div>
+                </button>
               </div>
             </section>
           </div>
@@ -350,9 +400,49 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
       @cancel="closeClearConfirm"
     />
   </section>
+  <WardrobeItemDialog
+    :item="itemPreview"
+    :outfits="itemOutfits"
+    :language="language"
+    @close="itemPreview = null"
+    @open-outfit="openPreview($event.id, 'outfit')"
+  />
+  <WardrobeOutfitDialog
+    :detail="outfitPreview"
+    :catalog="previewCatalog"
+    :snapshot="previewSnapshot"
+    :language="language"
+    @close="outfitPreview = null"
+    @open-outfit="openPreview($event.id, 'outfit')"
+  />
 </template>
 
 <style scoped>
+button.resonance-outfit-image,
+button.resonance-part {
+  padding: 0;
+  border: 1px solid transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  box-shadow: var(--photo-shadow);
+  transition:
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+button.resonance-outfit-image:hover,
+button.resonance-outfit-image:focus-visible {
+  border-color: var(--wardrobe-card-hover-border);
+  box-shadow: var(--photo-hover-shadow);
+  outline: none;
+}
+button.resonance-part:hover,
+button.resonance-part:focus-visible {
+  border-color: color-mix(in srgb, var(--pink-deep) 55%, var(--line));
+  box-shadow: var(--photo-hover-shadow);
+  outline: none;
+}
+
 .resonance-page {
   min-width: 0;
 }
@@ -375,12 +465,6 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
 .resonance-empty p {
   margin: 0;
 }
-/* 空列表按钮沿用公共高度，图标与文字在按钮内部横向、垂直居中。 */
-.resonance-empty > button {
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
 .resonance-record {
   scroll-margin-top: calc(var(--sidebar-sticky-top) + 12px);
   margin-bottom: 16px;
@@ -397,11 +481,33 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
   gap: 12px;
 }
 .resonance-record-title-row h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex: 1;
+  min-width: 0;
+}
+.resonance-outfit-title {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* 星级沿用衣橱胶囊配色，尺寸适配共鸣记录标题。 */
+.resonance-rarity-tag {
+  flex: none;
+  padding: 2px 9px;
+  border-radius: 999px;
+  color: #966719;
+  background: #fff0c5;
+  font-size: 0.78em;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+:root[data-theme='dark'] .resonance-rarity-tag {
+  color: #f8d78c;
+  background: #59451f;
 }
 .resonance-record-heading h3,
 .resonance-record-heading p {
@@ -411,6 +517,23 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
   margin-top: 7px;
   color: var(--muted);
   font-size: 13px;
+}
+.resonance-overall-summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  font-variant-numeric: tabular-nums;
+}
+.resonance-summary-group {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+.resonance-summary-group strong {
+  color: var(--heading);
+  font-weight: 600;
 }
 .resonance-banner-name {
   max-width: 45%;
@@ -524,6 +647,7 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
 }
 @media (max-width: 899px) {
   .resonance-record {
+    position: relative;
     display: grid;
     grid-template-columns: 76px minmax(0, 1fr);
     gap: 14px 12px;
@@ -534,6 +658,7 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
     grid-row: 1;
     align-self: center;
     min-width: 0;
+    padding-right: 76px;
   }
   .resonance-record-title-row {
     display: flex;
@@ -543,10 +668,13 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
   }
   .resonance-record-title-row h3 {
     flex: none;
-    white-space: normal;
-    overflow-wrap: anywhere;
+    max-width: 100%;
     font-size: 16px;
     line-height: 1.4;
+  }
+  .resonance-outfit-title {
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .resonance-banner-name {
     max-width: 100%;
@@ -560,7 +688,7 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
   .resonance-record-heading .resonance-overall-summary {
     display: flex;
     flex-wrap: wrap;
-    gap: 2px 6px;
+    gap: 4px 16px;
     font-size: 12px;
     line-height: 1.5;
     font-variant-numeric: tabular-nums;
@@ -589,15 +717,22 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
     grid-column: 1 / -1;
     min-width: 0;
   }
+  /* 套数切换固定在卡片右上角，竖向排列，不再独占下方整行。 */
   .resonance-set-switch {
+    position: absolute;
+    top: 14px;
+    right: 14px;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+    width: 70px;
     padding: 3px;
-    border-radius: 10px;
+    border: 1px solid var(--line-soft);
+    border-radius: 12px;
     background: var(--frame-bg);
   }
   .resonance-set-switch button {
-    min-height: 44px;
+    min-height: 36px;
     min-width: 0;
     border: 0;
     border-radius: 8px;
@@ -622,7 +757,7 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
     flex-wrap: wrap;
     justify-content: space-between;
     gap: 6px 12px;
-    margin: 12px 0 0;
+    margin: 0;
     color: var(--text);
     font-size: 13px;
     line-height: 1.5;

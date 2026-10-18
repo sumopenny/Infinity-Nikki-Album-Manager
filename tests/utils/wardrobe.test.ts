@@ -102,3 +102,23 @@ describe('wardrobe persistence and backup', () => {
     )
   })
 })
+
+it('maps outfit family/style separately from item categories without persisting catalog metadata', async () => {
+  const catalog = await loadWardrobeCatalog()
+  const variant = catalog.byId.get('1029402')!
+  expect(variant.familyRootId).toBe('10294')
+  expect(catalog.byId.get(variant.familyRootId!)!.name.zh).toBe('花影心期')
+  expect(variant.style).toBe('sweet')
+  expect(variant.name.zh).toBe('花影心期·炽心')
+  expect(variant.variant).toBe(2)
+  expect(variant.parts).toHaveLength(10)
+  const hair = catalog.byId.get(variant.parts[0])!
+  expect(hair.kind).toBe('item')
+  expect(hair.category).toBe(0)
+  expect(hair.style).toBe('sweet')
+  const imported = parseWardrobePearpal(
+    { info_from_self: { suit_list: ['1029402'] } },
+    catalog
+  ).snapshot
+  expect(Object.keys(imported.entries[variant.parts[0]])).toEqual(['owned', 'source'])
+})

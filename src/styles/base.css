@@ -6,34 +6,22 @@
 
 html {
   scroll-behavior: smooth;
-  overflow-y: overlay;
+  overflow-y: auto;
   scrollbar-color: var(--scrollbar-thumb) transparent;
   scrollbar-width: thin;
 }
 
-/* Edge 可能由 html 承担根滚动；两层使用同一套覆盖式细滚动条，避免原生样式占宽。 */
-html::-webkit-scrollbar,
-body::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* PageScrollbar 悬浮显示；保留页面原生滚动，仅隐藏会占宽的原生滚动条。 */
+html.has-page-scrollbar,
+html.has-page-scrollbar body {
+  scrollbar-width: none;
 }
 
-html::-webkit-scrollbar-track,
-body::-webkit-scrollbar-track {
-  margin: 12px 0;
-  background: transparent;
-}
-
-html::-webkit-scrollbar-thumb,
-body::-webkit-scrollbar-thumb {
-  border: 0;
-  border-radius: 999px;
-  background: var(--scrollbar-thumb);
-}
-
-html::-webkit-scrollbar-thumb:hover,
-body::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
+html.has-page-scrollbar::-webkit-scrollbar,
+html.has-page-scrollbar body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 button:focus-visible,
@@ -46,6 +34,8 @@ body {
   margin: 0;
   min-width: 0;
   background: var(--page-bg);
+  /* 两层渐变均以视口为基准，避免长列表将背景拉伸到整页高度。 */
+  background-attachment: fixed;
   color: var(--text);
   scrollbar-color: var(--scrollbar-thumb) transparent;
   scrollbar-width: thin;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 搭配码解析窗口：调用解析 API 清洗出部件 ID 与染色数据，再叠加本地图鉴展示部件图标与名称。
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, toRef, watch } from 'vue'
-import { RefreshCw, X } from 'lucide-vue-next'
+import { ExternalLink, RefreshCw, X } from 'lucide-vue-next'
 import type { Language, OutfitMessages } from '../i18n'
 import {
   getCatalogEntryName,
@@ -18,6 +18,23 @@ import { getClothTypeLabel, inferClothTypeFromItemId } from '../utils/outfit/clo
 import { loadOutfitDetail, type OutfitDetail } from '../utils/outfit/outfitDetails'
 import { useLatestRequest } from '../composables/useLatestRequest'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
+
+import WardrobeOutfitDialog from './WardrobeOutfitDialog.vue'
+import {
+  loadWardrobeCatalog,
+  type WardrobeCatalog,
+  type WardrobeEntry
+} from '../utils/wardrobe/wardrobeCatalog'
+import { emptyWardrobe, loadWardrobe } from '../utils/wardrobe/wardrobeStorage'
+
+const wardrobeCatalog = shallowRef<WardrobeCatalog | null>(null)
+const wardrobeSnapshot = ref(emptyWardrobe())
+const outfitPreview = shallowRef<WardrobeEntry | null>(null)
+const associatedOutfit = computed(() => {
+  const id = selectedDetail.value?.outfitId
+  const entry = id ? wardrobeCatalog.value?.byId.get(String(id)) : null
+  return entry?.kind === 'outfit' ? entry : null
+})
 
 const props = defineProps<{
   visible: boolean
@@ -111,6 +128,13 @@ async function openItemDetail(item: ParseItemView, event: Event) {
     )
     if (!request.isCurrent()) return
     selectedDetail.value = result
+    void loadWardrobeCatalog()
+      .then((value) => {
+        if (request.isCurrent()) wardrobeCatalog.value = value
+      })
+      .catch(() => {
+        if (request.isCurrent() && selectedDetail.value) selectedDetail.value.loadError = true
+      })
     void nextTick(() => {
       if (request.isCurrent()) detailPanelRef.value?.querySelector('button')?.focus()
     })
@@ -118,6 +142,20 @@ async function openItemDetail(item: ParseItemView, event: Event) {
     if (request.isCurrent()) detailError.value = true
   } finally {
     if (request.isCurrent()) detailLoading.value = false
+  }
+}
+
+async function openAssociatedOutfit() {
+  const entry = associatedOutfit.value
+  if (!entry) return
+  const currentDetail = selectedDetail.value
+  try {
+    const snapshot = await loadWardrobe()
+    if (!detailVisible.value || selectedDetail.value !== currentDetail) return
+    wardrobeSnapshot.value = snapshot
+    outfitPreview.value = entry
+  } catch {
+    if (selectedDetail.value === currentDetail && currentDetail) currentDetail.loadError = true
   }
 }
 
@@ -139,6 +177,7 @@ function markDetailImageFailed() {
 }
 
 function closeItemDetail() {
+  outfitPreview.value = null
   detailRequest.invalidate()
   detailError.value = false
   const trigger = detailTrigger
@@ -178,7 +217,7 @@ async function startParse() {
 }
 
 function handleKeydown(event: KeyboardEvent) {
-  if (!props.visible) return
+  if (!props.visible || event.defaultPrevented || outfitPreview.value) return
   if (event.key === 'Escape') {
     event.preventDefault()
     if (detailVisible.value) {
@@ -397,33 +436,53 @@ onBeforeUnmount(() => {
             :class="{ 'is-single-column': !selectedDetail.dyes.length }"
           >
             <section class="outfit-detail-summary">
-              <div class="outfit-detail-image-frame">
+              <div
+                class="outfit-detail-image-frame"
+                :class="{
+                  'is-image-loading': selectedDetail.detailImageUrl && detailImageState === 'idle'
+                }"
+                :aria-busy="!!selectedDetail.detailImageUrl && detailImageState === 'idle'"
+              >
                 <img
                   v-if="selectedDetail.detailImageUrl && detailImageState !== 'failed'"
                   class="outfit-detail-image"
                   :class="{ 'is-loading': detailImageState === 'idle' }"
                   :src="selectedDetail.detailImageUrl"
-                  :alt="selectedDetail.outfitName || selectedDetail.itemName"
+                  :alt="selectedDetail.itemName"
                   referrerpolicy="no-referrer"
                   @load="markDetailImageLoaded"
                   @error="markDetailImageFailed"
                 />
-                <span
+                <div
                   v-if="selectedDetail.detailImageUrl && detailImageState === 'idle'"
-                  class="outfit-image-spinner outfit-detail-image-spinner"
-                  aria-hidden="true"
-                ></span>
+                  class="outfit-detail-image-placeholder"
+                  role="status"
+                >
+                  <span class="outfit-image-spinner" aria-hidden="true"></span>
+                  <span>{{ language === 'zh' ? '正在加载图片…' : 'Loading image…' }}</span>
+                </div>
                 <div
                   v-else-if="!selectedDetail.detailImageUrl || detailImageState === 'failed'"
                   class="outfit-detail-image is-missing"
-                  >?</div
+                  >{{ language === 'zh' ? '暂无图片' : 'No image' }}</div
                 >
               </div>
               <dl class="outfit-detail-info">
                 <div
                   ><dt>{{ messages.detailOutfit }}</dt
-                  ><dd>{{ selectedDetail.outfitName || messages.detailOutfitUnavailable }}</dd></div
-                >
+                  ><dd
+                    >{{ selectedDetail.outfitName || messages.detailOutfitUnavailable }}
+                    <button
+                      v-if="associatedOutfit"
+                      type="button"
+                      class="wardrobe-outfit-link"
+                      :aria-label="messages.detailOutfit + ': ' + selectedDetail.outfitName"
+                      :title="messages.detailOutfit"
+                      @click="openAssociatedOutfit"
+                    >
+                      <ExternalLink :size="15" aria-hidden="true" />
+                    </button> </dd
+                ></div>
                 <div
                   ><dt>{{ messages.detailCurrentItem }}</dt
                   ><dd>{{ selectedDetail.itemName }}</dd></div
@@ -476,4 +535,50 @@ onBeforeUnmount(() => {
       </div>
     </Transition>
   </Teleport>
+  <WardrobeOutfitDialog
+    :detail="outfitPreview"
+    @open-outfit="outfitPreview = $event"
+    :catalog="wardrobeCatalog"
+    :snapshot="wardrobeSnapshot"
+    :language="language"
+    @close="outfitPreview = null"
+  />
 </template>
+
+<style scoped>
+.wardrobe-outfit-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  margin-left: 4px;
+  padding: 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--pink-deep);
+  cursor: pointer;
+}
+.wardrobe-outfit-link:hover,
+.wardrobe-outfit-link:focus-visible {
+  background: var(--soft);
+  outline: 1px solid var(--pink-deep);
+}
+.outfit-detail-image-frame {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  height: auto;
+}
+.outfit-detail-image-frame img.outfit-detail-image {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: min(400px, 55dvh);
+}
+.outfit-detail-image-frame:has(.is-missing) {
+  width: min(273px, 100%);
+  min-height: 180px;
+}
+</style>

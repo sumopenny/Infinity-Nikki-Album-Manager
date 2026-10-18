@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { Bookmark, Copy, ExternalLink, FileUp, Terminal, X } from 'lucide-vue-next'
+import { Bookmark, Copy, ExternalLink, FileUp, Info, Terminal, X } from 'lucide-vue-next'
 import type { ResonanceMessages } from '../i18n/messages/resonance'
 // 共享共鸣现有窗口的呈现；解析、预览数据与持久化仍由所属模块负责。
 defineProps<{
@@ -9,6 +9,7 @@ defineProps<{
   titleId: string
   importMethod: 'pearpal' | 'file'
   cookieMethod: 'bookmark' | 'console'
+  showMobileCredentialTip?: boolean
   fileName?: string
   bookmarkScript: string
   importing: boolean
@@ -123,6 +124,10 @@ const PEARPAL_URL = 'https://myl.nuanpaper.com/home'
 
             <section v-if="importMethod === 'pearpal'">
               <h3>{{ t.getCookie }}</h3>
+              <p v-if="showMobileCredentialTip" class="resonance-mobile-credential-tip">
+                <Info :size="16" aria-hidden="true" />
+                <span>{{ t.mobileCredentialTip }}</span>
+              </p>
               <p class="resonance-hint">{{ t.getCookieDesc }}</p>
               <p class="resonance-source-attribution"
                 ><strong>{{ t.sourceAttributionLabel }}</strong
@@ -249,6 +254,29 @@ const PEARPAL_URL = 'https://myl.nuanpaper.com/home'
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+/* 仅在手机布局显示提示，其他复用此窗口的入口默认关闭。 */
+.resonance-mobile-credential-tip {
+  display: none;
+}
+@media (max-width: 899px) {
+  .resonance-mobile-credential-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 8px 0;
+    padding: 10px 12px;
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    background: var(--surface-soft);
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .resonance-mobile-credential-tip svg {
+    flex: 0 0 16px;
+    margin-top: 2px;
+  }
 }
 .resonance-cookie-guide {
   display: grid;

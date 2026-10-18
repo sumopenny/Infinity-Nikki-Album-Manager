@@ -1,3 +1,4 @@
+import { backupBaseName } from '../backup/backupName'
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from 'fflate'
 import {
   OUTFIT_BACKUP_LIMITS,
@@ -48,10 +49,6 @@ interface BackupManifest {
   outfits: Array<OutfitRecord>
   ignoredCodes?: string[]
 }
-function backupTimestamp(date = new Date()): string {
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
-}
 export async function exportOutfitBackup(
   download?: BackupDownload
 ): Promise<{ fileNames: string[]; count: number }> {
@@ -81,7 +78,7 @@ export async function exportOutfitBackup(
     OUTFIT_BACKUP_LIMITS
   )
   const fileNames = await downloadBackupParts(
-    '无限暖暖搭配码备份_' + backupTimestamp(),
+    backupBaseName('搭配码'),
     parts,
     'manifest.json',
     OUTFIT_BACKUP_LIMITS,

@@ -6,6 +6,13 @@ import type { OperationNoticeTone } from '../components/OperationNotice.vue'
 import { DirectoryAccessError } from '../utils/file-system/directoryErrors'
 
 export type StatusTone = OperationNoticeTone
+export interface OperationNoticeItem {
+  id: number
+  message: string
+  tone: StatusTone
+  loading: boolean
+  source?: string
+}
 
 export type ActiveOperation =
   | 'loading'
@@ -47,13 +54,13 @@ export function useOperationNotice(
 ) {
   const statusState = ref<StatusState>({ type: 'initial' })
   const activeOperation = operations.activeOperation
-  const isVisible = ref(false)
-  let timer: number | undefined
-  let deadline = 0
-  let remaining = 0
-  let paused = false
-  let loading = false
-
+  const notices = ref<OperationNoticeItem[]>([])
+  const isVisible = computed(() => notices.value.length > 0)
+  let nextId = 0
+  const timers = new Map<
+    number,
+    { timer?: number; deadline: number; remaining: number; paused: boolean }
+  >()
   const isLoading = computed(() => activeOperation.value === 'loading')
   const isDeleting = computed(() => activeOperation.value === 'deleting')
   const isTrashBusy = computed(() => activeOperation.value === 'trash')
@@ -111,76 +118,83 @@ export function useOperationNotice(
     )
   })
 
-  const clearTimer = () => {
-    if (timer === undefined) return
-    window.clearTimeout(timer)
-    timer = undefined
+  const closeNotice = (id = notices.value.at(-1)?.id) => {
+    if (id === undefined) return
+    const clock = timers.get(id)
+    if (clock?.timer !== undefined) window.clearTimeout(clock.timer)
+    timers.delete(id)
+    notices.value = notices.value.filter((notice) => notice.id !== id)
   }
-
-  const hideAfter = (duration: number) => {
-    remaining = duration
-    deadline = Date.now() + duration
-    timer = window.setTimeout(() => {
-      isVisible.value = false
-      timer = undefined
-      remaining = 0
-    }, duration)
+  const dispose = () => {
+    for (const notice of [...notices.value]) closeNotice(notice.id)
   }
-
+  const hideAfter = (id: number, duration: number) => {
+    const clock = timers.get(id)
+    if (!clock) return
+    clock.remaining = duration
+    clock.deadline = Date.now() + duration
+    clock.timer = window.setTimeout(() => closeNotice(id), duration)
+  }
   const showNotice = (options: { loading?: boolean; duration?: number } = {}) => {
-    clearTimer()
-    paused = false
-    remaining = 0
-    loading = Boolean(options.loading)
-    isVisible.value = true
-    if (!loading && options.duration !== undefined) hideAfter(options.duration)
+    const state = statusState.value
+    const source = state.type === 'custom' ? state.source : undefined
+    // A completed operation retires its own loading notice while leaving other results intact.
+    for (const notice of [...notices.value]) {
+      if (notice.loading && notice.source === source) closeNotice(notice.id)
+    }
+    const id = ++nextId
+    notices.value.push({
+      id,
+      message: statusMessage.value,
+      tone: statusTone.value,
+      loading: !!options.loading,
+      source
+    })
+    timers.set(id, { deadline: 0, remaining: 0, paused: false })
+    if (!options.loading && options.duration !== undefined) hideAfter(id, options.duration)
   }
-
-  const closeNotice = () => {
-    clearTimer()
-    paused = false
-    remaining = 0
-    loading = false
-    isVisible.value = false
+  const pauseNotice = (id = notices.value.at(-1)?.id) => {
+    const notice = notices.value.find((notice) => notice.id === id)
+    const clock = id === undefined ? undefined : timers.get(id)
+    if (!notice || notice.loading || !clock || clock.paused || clock.timer === undefined) return
+    clock.remaining = Math.max(0, clock.deadline - Date.now())
+    window.clearTimeout(clock.timer)
+    clock.timer = undefined
+    clock.paused = true
   }
-
-  const pauseNotice = () => {
-    if (!isVisible.value || loading || paused) return
-    remaining = Math.max(0, deadline - Date.now())
-    clearTimer()
-    paused = true
+  const resumeNotice = (id = notices.value.at(-1)?.id) => {
+    if (id === undefined) return
+    const clock = timers.get(id)
+    if (!clock?.paused) return
+    clock.paused = false
+    hideAfter(id, clock.remaining)
   }
-
-  const resumeNotice = () => {
-    if (!paused || !isVisible.value || loading) return
-    paused = false
-    hideAfter(remaining)
-  }
-
   const showStatus = ({
     message,
     tone = 'success',
-    loading: isLoadingStatus = false,
+    loading = false,
     source
   }: ConfirmableStatus) => {
-    const current = statusState.value
     if (
-      isVisible.value &&
-      current.type === 'custom' &&
-      current.message === message &&
-      current.tone === tone &&
-      Boolean(current.loading) === isLoadingStatus &&
-      current.source === source
+      notices.value.some(
+        (notice) =>
+          notice.message === message &&
+          notice.tone === tone &&
+          notice.loading === loading &&
+          notice.source === source
+      )
     )
       return
-    statusState.value = { type: 'custom', message, tone, loading: isLoadingStatus, source }
+    statusState.value = { type: 'custom', message, tone, loading, source }
   }
-
-  /** 按来源清理提示，避免关闭共鸣弹窗时清掉其他页面正在显示的状态。 */
   const clearStatus = (source?: string) => {
-    if (source && (statusState.value.type !== 'custom' || statusState.value.source !== source))
+    if (!source) {
+      statusState.value = { type: 'initial' }
       return
-    statusState.value = { type: 'initial' }
+    }
+    for (const notice of [...notices.value]) {
+      if (notice.source === source) closeNotice(notice.id)
+    }
   }
 
   const isUserCancelledFilePicker = (error: unknown): boolean => {
@@ -198,16 +212,21 @@ export function useOperationNotice(
     return { type: 'custom', message: error.message, tone: 'error' }
   }
 
-  watch(statusState, (nextStatus) => {
-    if (nextStatus.type === 'initial') {
-      closeNotice()
-      return
-    }
-    const duration = statusTone.value === 'error' || statusTone.value === 'warning' ? 7200 : 5200
-    showNotice({ loading: isStatusLoading.value, duration })
-  })
+  watch(
+    statusState,
+    (nextStatus) => {
+      if (nextStatus.type === 'initial') {
+        dispose()
+        return
+      }
+      const duration = statusTone.value === 'error' || statusTone.value === 'warning' ? 7200 : 5200
+      showNotice({ loading: isStatusLoading.value, duration })
+    },
+    { flush: 'sync' }
+  )
 
   return {
+    notices,
     statusState,
     statusMessage,
     statusTone,
@@ -231,6 +250,6 @@ export function useOperationNotice(
     resumeNotice,
     createErrorStatus,
     isUserCancelledFilePicker,
-    dispose: clearTimer
+    dispose
   }
 }

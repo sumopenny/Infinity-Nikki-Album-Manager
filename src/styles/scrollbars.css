@@ -1,0 +1,41 @@
+/* Keep native scrollbars inside controls and panels; PageScrollbar handles the page. */
+@media (min-width: 900px) {
+  html * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+  /* Standard properties otherwise override WebKit thumb hover styling. */
+  @supports selector(::-webkit-scrollbar) {
+    html * {
+      scrollbar-width: auto !important;
+      scrollbar-color: auto !important;
+    }
+  }
+  html *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  html *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  html *::-webkit-scrollbar-thumb {
+    border: 0;
+    border-radius: 999px;
+    background: var(--scrollbar-thumb);
+  }
+  html *::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+}
+@media (max-width: 899px) {
+  html,
+  html * {
+    scrollbar-width: none !important;
+  }
+  html::-webkit-scrollbar,
+  html *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+}

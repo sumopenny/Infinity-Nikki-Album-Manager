@@ -5,8 +5,8 @@ export function useSidebarMenu(close: () => void, getMenu: () => HTMLElement | n
   const menuStyle = ref<CSSProperties>({})
   function positionMenu(trigger: HTMLElement) {
     const box = trigger.getBoundingClientRect()
-    const below = window.innerHeight - box.bottom - 14
-    const above = box.top - 14
+    const below = window.innerHeight - box.bottom - 10
+    const above = box.top - 10
     const upward = below < 180 && above > below
     menuStyle.value = {
       position: 'fixed',
@@ -17,7 +17,7 @@ export function useSidebarMenu(close: () => void, getMenu: () => HTMLElement | n
       zIndex: '100',
       top: upward ? 'auto' : box.bottom + 6 + 'px',
       bottom: upward ? window.innerHeight - box.top + 6 + 'px' : 'auto',
-      maxHeight: Math.max(40, Math.min(216, upward ? above : below)) + 'px'
+      maxHeight: Math.max(40, Math.min(320, upward ? above : below)) + 'px'
     }
   }
   function onViewportChange(event: Event) {

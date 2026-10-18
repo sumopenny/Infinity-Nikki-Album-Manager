@@ -11,4 +11,7 @@ import './styles/outfit.css'
 import './styles/controls.css'
 import './styles/mobile.css'
 
-createApp(App).mount('#app')
+import './styles/scrollbars.css'
+
+const app = createApp(App)
+app.mount('#app')

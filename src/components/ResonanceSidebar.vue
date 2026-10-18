@@ -215,9 +215,10 @@ function hideBrokenImage(event: Event) {
           @error="hideBrokenImage"
         />
       </span>
-      <span class="resonance-sidebar-name"
-        >{{ displayName(record.outfitName) }} · {{ t.rarity(record.rarity) }}</span
-      >
+      <span class="resonance-sidebar-name">
+        <span class="resonance-sidebar-outfit-name" :title="displayName(record.outfitName)">{{ displayName(record.outfitName) }}</span>
+        <span class="resonance-sidebar-rarity">{{ t.rarity(record.rarity) }}</span>
+      </span>
     </button>
   </aside>
 </template>

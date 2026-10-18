@@ -1,22 +1,35 @@
 <script setup lang="ts">
+import { backupBaseName } from '../utils/backup/backupName'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
-import { ChevronDown, Shirt, X } from 'lucide-vue-next'
+import { ArrowLeftRight, ChevronDown, RotateCcw, Shirt } from 'lucide-vue-next'
 import ResonanceDataActions from './ResonanceDataActions.vue'
+import CollectionFilterBar from './CollectionFilterBar.vue'
+import AdaptiveFilterPanel from './AdaptiveFilterPanel.vue'
 import DataImportWindow from './DataImportWindow.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
+import WardrobeItemDialog from './WardrobeItemDialog.vue'
+import WardrobeOutfitDialog from './WardrobeOutfitDialog.vue'
 import { messages } from '../i18n'
 import { useSidebarMenu } from '../composables/useSidebarMenu'
 import { useCompactLayout } from '../composables/useCompactLayout'
 import { useModuleOperation } from '../composables/useOperationCoordinator'
-import { useModalFocus } from '../composables/useModalFocus'
-import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { Language } from '../i18n/types'
 import {
   loadWardrobeCatalog,
+  wardrobeStyleLabels,
   type WardrobeCatalog,
   type WardrobeEntry,
   type WardrobeKind
 } from '../utils/wardrobe/wardrobeCatalog'
+import {
+  hasIncompleteWardrobeOwnership,
+  isWardrobeItemUnknown,
+  matchesWardrobeGameVersion,
+  matchesWardrobeSource,
+  wardrobeGameVersionOptions,
+  wardrobeSourceOptions,
+  wardrobeTagOptions
+} from '../utils/wardrobe/wardrobeFilters'
 import {
   createWardrobeBackup,
   emptyWardrobe,
@@ -48,17 +61,70 @@ const track = useModuleOperation('wardrobe')
 const catalog = shallowRef<WardrobeCatalog | null>(null)
 const snapshot = ref<WardrobeSnapshot>(emptyWardrobe())
 const loaded = ref(false),
-  busy = ref(false),
-  error = ref(''),
-  notice = ref('')
+  busy = ref(false)
 const blocked = computed(() => props.disabled || busy.value || !loaded.value)
-const tab = ref<WardrobeKind>('outfit'),
-  ownership = ref('all'),
-  rarity = ref('all'),
-  variant = ref('all'),
-  category = ref('all'),
-  sort = ref('catalog')
+const tab = ref<WardrobeKind>('outfit')
+const createFilters = () => ({
+  ownership: 'owned',
+  rarity: 'all',
+  variant: 'all',
+  version: 'all',
+  style: 'all',
+  source: 'all',
+  tag: 'all',
+  category: 'all',
+  sort: 'catalog'
+})
+// 套装和部件各自保存筛选条件，切换分类只切换当前使用的状态。
+const filtersByTab = ref({
+  outfit: createFilters(),
+  item: { ...createFilters(), ownership: 'all' }
+})
+function currentFilter(key: keyof ReturnType<typeof createFilters>) {
+  return computed({
+    get: () => filtersByTab.value[tab.value][key],
+    set: (value: string) => {
+      filtersByTab.value[tab.value][key] = value
+    }
+  })
+}
+const ownership = currentFilter('ownership'),
+  rarity = currentFilter('rarity'),
+  variant = currentFilter('variant'),
+  version = currentFilter('version'),
+  style = currentFilter('style'),
+  source = currentFilter('source'),
+  tag = currentFilter('tag'),
+  category = currentFilter('category'),
+  sort = currentFilter('sort')
 const limit = ref(48)
+const loadMoreTarget = ref<HTMLElement | null>(null)
+let loadMoreObserver: IntersectionObserver | null = null
+watch(
+  [loadMoreTarget, limit],
+  ([target]) => {
+    loadMoreObserver?.disconnect()
+    loadMoreObserver = null
+    if (!target) return
+    if (!('IntersectionObserver' in window)) {
+      limit.value = filtered.value.length
+      return
+    }
+    // 每次追加后重新观察，首屏不足一屏时也能继续补足。
+    loadMoreObserver = new IntersectionObserver(
+      (entries, observer) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return
+        observer.disconnect()
+        limit.value = Math.min(limit.value + 48, filtered.value.length)
+      },
+      { rootMargin: '600px 0px' }
+    )
+    loadMoreObserver.observe(target)
+  },
+  { flush: 'post' }
+)
+onBeforeUnmount(() => loadMoreObserver?.disconnect())
+
 const failedImages = ref(new Set<string>())
 const variants = computed(() =>
   props.language === 'zh'
@@ -72,10 +138,10 @@ const categories = computed(() =>
         '外套',
         '鞋子',
         '发饰',
-        '头饰',
+        '帽子',
         '耳饰',
-        '项链',
         '颈饰',
+        '项圈',
         '连衣裙',
         '胸饰',
         '手持物',
@@ -84,11 +150,11 @@ const categories = computed(() =>
         '面饰',
         '背饰',
         '上衣',
-        '手链',
+        '腕饰',
         '臂饰',
         '挂饰',
         '下装',
-        '身体彩绘',
+        '肤绘',
         '戒指'
       ]
     : [
@@ -98,7 +164,7 @@ const categories = computed(() =>
         'Hair accessories',
         'Headwear',
         'Earrings',
-        'Necklaces',
+        'Neckwear',
         'Chokers',
         'Dresses',
         'Chest accessories',
@@ -130,7 +196,35 @@ function toggleFilter(key: string, event: MouseEvent) {
     openFilter.value = ''
     return
   }
-  positionMenu(event.currentTarget as HTMLElement)
+  const trigger = event.currentTarget as HTMLElement
+  positionMenu(trigger)
+  if (compact.value) {
+    const triggerBox = trigger.getBoundingClientRect()
+    const viewport = window.visualViewport
+    const viewportTop = viewport?.offsetTop ?? 0
+    const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight)
+    const gap = 6
+    const inset = 8
+    const below = Math.max(0, viewportBottom - inset - triggerBox.bottom - gap)
+    const above = Math.max(0, triggerBox.top - viewportTop - inset - gap)
+    const upward = below < 180 && above > below
+    filterMenuStyle.value = {
+      ...filterMenuStyle.value,
+      top: upward ? 'auto' : `${triggerBox.bottom + gap}px`,
+      bottom: upward ? `${window.innerHeight - triggerBox.top + gap}px` : 'auto',
+      maxHeight: `${Math.min(320, upward ? above : below)}px`,
+      zIndex: 110
+    }
+  }
+  if (!compact.value && (key === 'version' || key === 'source')) {
+    const box = trigger.getBoundingClientRect()
+    const width = Math.min(Math.max(box.width, 240), window.innerWidth - 24)
+    filterMenuStyle.value = {
+      ...filterMenuStyle.value,
+      width: width + 'px',
+      left: Math.max(12, Math.min(box.left, window.innerWidth - width - 12)) + 'px'
+    }
+  }
   openFilter.value = key
 }
 function leaveFilter(event: FocusEvent) {
@@ -139,7 +233,7 @@ function leaveFilter(event: FocusEvent) {
   const menu = document.getElementById('wardrobe-menu-' + openFilter.value)
   if (!next || (!trigger?.contains(next) && !menu?.contains(next))) openFilter.value = ''
 }
-const filterValues = { ownership, rarity, variant, category, sort }
+const filterValues = { ownership, rarity, variant, version, style, source, tag, category, sort }
 type FilterKey = keyof typeof filterValues
 const filterOptions = computed(() => {
   const all = { value: 'all', label: text('全部', 'All') }
@@ -151,7 +245,8 @@ const filterOptions = computed(() => {
         all,
         { value: 'owned', label: text('已拥有', 'Owned') },
         ...(tab.value === 'outfit' ? [{ value: 'partial', label: text('收集中', 'Partial') }] : []),
-        { value: 'none', label: text('未记录', 'Unrecorded') }
+        { value: 'none', label: text('未拥有', 'Not owned') },
+        ...(tab.value === 'item' ? [{ value: 'unknown', label: text('未知', 'Unknown') }] : [])
       ]
     },
     {
@@ -161,8 +256,24 @@ const filterOptions = computed(() => {
     },
     {
       key: 'variant',
-      label: text('版本', 'Variant'),
+      label: text('进化阶段', 'Evolution stage'),
       options: [all, ...variants.value.map((label, index) => ({ value: String(index), label }))]
+    },
+    {
+      key: 'version',
+      label: text('游戏版本', 'Game version'),
+      options: [all, ...wardrobeGameVersionOptions(props.language)]
+    },
+    {
+      key: 'style',
+      label: text('风格', 'Style'),
+      options: [
+        all,
+        ...(['elegant', 'fresh', 'sweet', 'sexy', 'cool'] as const).map((value) => ({
+          value,
+          label: wardrobeStyleLabels[value][props.language]
+        }))
+      ]
     },
     ...(tab.value === 'item'
       ? [
@@ -177,6 +288,16 @@ const filterOptions = computed(() => {
         ]
       : []),
     {
+      key: 'source',
+      label: text('获取来源', 'Source'),
+      options: [all, ...wardrobeSourceOptions(tab.value, props.language)]
+    },
+    {
+      key: 'tag',
+      label: text('标签', 'Tag'),
+      options: [all, ...wardrobeTagOptions(props.language)]
+    },
+    {
       key: 'sort',
       label: text('排序', 'Sort'),
       options: [
@@ -185,8 +306,33 @@ const filterOptions = computed(() => {
         { value: 'progress', label: text('收集进度', 'Progress') }
       ]
     }
-  ] as { key: FilterKey; label: string; options: { value: string; label: string }[] }[]
+  ] as {
+    key: FilterKey
+    label: string
+    options: { value: string; label: string; depth?: number; separatorBefore?: boolean }[]
+  }[]
 })
+const mobileFiltersOpen = ref(false)
+const selectedMobileFilters = computed(() =>
+  filterOptions.value.filter(({ key }) => {
+    const value = filterValues[key].value
+    return value !== (key === 'sort' ? 'catalog' : 'all')
+  })
+)
+const mobileFilterEntries = computed(() => {
+  const selected = selectedMobileFilters.value
+  const selectedLabel =
+    selected.length === 1
+      ? (selected[0]?.options.find(
+          (option) => option.value === filterValues[selected[0]!.key].value
+        )?.label ?? text('已筛选', 'Filtered'))
+      : text('已筛选', 'Filtered')
+  return [
+    { key: 'all', label: text('全部筛选', 'All filters') },
+    { key: 'active', label: selectedLabel }
+  ]
+})
+const mobileFilterActive = computed(() => (selectedMobileFilters.value.length ? 'active' : 'all'))
 function closeFilter(event: Event) {
   if (
     !(event.target instanceof Element) ||
@@ -196,11 +342,15 @@ function closeFilter(event: Event) {
 }
 function selectFilter(key: FilterKey, value: string) {
   filterValues[key].value = value
+  if (key === 'source' && tab.value === 'item' && hasIncompleteWardrobeOwnership(value)) {
+    ownership.value = 'unknown'
+  }
   openFilter.value = ''
   document.getElementById('wardrobe-filter-' + key)?.focus()
 }
 watch([tab, compact], () => {
   openFilter.value = ''
+  mobileFiltersOpen.value = false
 })
 onMounted(() => {
   document.addEventListener('click', closeFilter)
@@ -213,12 +363,18 @@ const ownedCount = (entry: WardrobeEntry, data = snapshot.value) =>
   entry.parts.filter((id) => data.entries[id]?.owned).length
 const complete = (entry: WardrobeEntry) =>
   entry.parts.length > 0 && ownedCount(entry) === entry.parts.length
+const unknown = (entry: WardrobeEntry) => isWardrobeItemUnknown(entry, ownedCount(entry) > 0)
+const showOwnershipNote = computed(
+  () => tab.value === 'item' && hasIncompleteWardrobeOwnership(source.value)
+)
 const status = (entry: WardrobeEntry) =>
   complete(entry)
     ? text(entry.kind === 'outfit' ? '已集齐' : '已拥有', 'Owned')
     : ownedCount(entry)
       ? text('收集中', 'Partial')
-      : text('未记录', 'Unrecorded')
+      : unknown(entry)
+        ? text('未知', 'Unknown')
+        : text('未拥有', 'Not owned')
 const filtered = computed(() => {
   const search = query.value.trim().toLocaleLowerCase()
   const entries = (catalog.value?.entries ?? []).filter(
@@ -228,15 +384,21 @@ const filtered = computed(() => {
         `${entry.name.zh} ${entry.name.en} ${entry.id}`.toLocaleLowerCase().includes(search)) &&
       (rarity.value === 'all' || entry.quality === Number(rarity.value)) &&
       (variant.value === 'all' || entry.variant === Number(variant.value)) &&
+      matchesWardrobeGameVersion(entry, version.value) &&
+      (style.value === 'all' || entry.style === style.value) &&
+      matchesWardrobeSource(entry, source.value) &&
+      (tag.value === 'all' || entry.labels.includes(Number(tag.value))) &&
       (tab.value !== 'item' ||
         category.value === 'all' ||
         entry.category === Number(category.value)) &&
       (ownership.value === 'all' ||
         (ownership.value === 'owned'
-          ? complete(entry)
+          ? ownedCount(entry) > 0
           : ownership.value === 'partial'
             ? ownedCount(entry) > 0 && !complete(entry)
-            : ownedCount(entry) === 0))
+            : ownership.value === 'unknown'
+              ? unknown(entry)
+              : ownedCount(entry) === 0 && !unknown(entry)))
   )
   if (sort.value === 'name') entries.sort((a, b) => name(a).localeCompare(name(b), props.language))
   if (sort.value === 'progress')
@@ -249,18 +411,18 @@ const stats = computed(() => ({
   items: (catalog.value?.entries ?? []).filter((e) => e.kind === 'item' && complete(e)).length,
   outfits: (catalog.value?.entries ?? []).filter((e) => e.kind === 'outfit' && complete(e)).length
 }))
-watch([tab, query, ownership, rarity, variant, category, sort], () => {
+watch([tab, query, ownership, rarity, variant, version, style, source, tag, category, sort], () => {
   limit.value = 48
 })
-// 分类切换与重置按钮使用同一入口，避免版本、星级和排序残留。
-watch(tab, resetFilters)
 function resetFilters() {
   emit('update-search', '')
-  ownership.value = rarity.value = variant.value = category.value = 'all'
+  ownership.value = rarity.value = variant.value = version.value = style.value = 'all'
+  source.value = tag.value = category.value = 'all'
   sort.value = 'catalog'
+  openFilter.value = ''
 }
 function reportError(cause: unknown) {
-  error.value =
+  const message =
     cause instanceof Error && cause.message === 'WARDROBE_CHANGED'
       ? text(
           '衣橱已在其他页面变更，请关闭预览后重新导入。',
@@ -270,10 +432,13 @@ function reportError(cause: unknown) {
           '操作失败，原有数据未被替换。请检查文件、登录信息或网络后重试。',
           'Operation failed. Existing data was not replaced. Check the file, credentials or network and retry.'
         )
+  emit('notice', { message, tone: 'error' })
 }
 async function reload() {
-  error.value = ''
   loaded.value = false
+  const loadingNotice = setTimeout(() => {
+    emit('notice', { message: text('正在加载衣橱…', 'Loading wardrobe…'), tone: 'warning' })
+  }, 300)
   try {
     const [data, saved] = await Promise.all([loadWardrobeCatalog(), loadWardrobe()])
     catalog.value = data
@@ -281,6 +446,8 @@ async function reload() {
     loaded.value = true
   } catch (cause) {
     reportError(cause)
+  } finally {
+    clearTimeout(loadingNotice)
   }
 }
 onMounted(reload)
@@ -290,32 +457,34 @@ const dialog = ref<'import' | 'detail' | null>(null)
 const dialogOpen = computed(() => dialog.value === 'detail')
 const importOpen = computed(() => dialog.value === 'import')
 const anyDialogOpen = computed(() => dialog.value !== null)
-// 异步加载完成且工具栏节点实际挂载后，才启用手机操作区传送。
-const mobileActionsHost = ref<HTMLElement | null>(null)
-const panel = ref<HTMLElement | null>(null)
 const detail = shallowRef<WardrobeEntry | null>(null)
 function closeDialog() {
   if (!busy.value) {
     dialog.value = null
-    error.value = ''
   }
 }
-useBodyScrollLock(dialogOpen)
-useModalFocus(dialogOpen, panel, closeDialog)
 function openImport() {
-  error.value = ''
-  notice.value = ''
   dialog.value = 'import'
 }
+const itemPreview = shallowRef<WardrobeEntry | null>(null)
+const itemOutfits = computed(() => {
+  const item = itemPreview.value
+  if (!item) return []
+  return (catalog.value?.entries ?? []).filter(
+    (entry) => entry.kind === 'outfit' && entry.parts.includes(item.id)
+  )
+})
 function openDetail(entry: WardrobeEntry) {
+  if (entry.kind === 'item') {
+    itemPreview.value = entry
+    return
+  }
   detail.value = entry
   dialog.value = 'detail'
-  error.value = ''
 }
 async function exportBackup() {
   if (blocked.value) return
   busy.value = true
-  error.value = ''
   try {
     await track(async () => {
       const latest = await loadWardrobe()
@@ -324,10 +493,14 @@ async function exportBackup() {
       )
       const a = document.createElement('a')
       a.href = url
-      a.download = `nikki-wardrobe-${new Date().toISOString().slice(0, 10)}.json`
+      a.download = backupBaseName('个人衣橱') + '.json'
       a.click()
       setTimeout(() => URL.revokeObjectURL(url), 1000)
       snapshot.value = latest
+    })
+    emit('notice', {
+      message: text('衣橱数据已导出。', 'Wardrobe data exported.'),
+      tone: 'success'
     })
   } catch (cause) {
     reportError(cause)
@@ -337,9 +510,9 @@ async function exportBackup() {
 }
 const importText = computed(() => ({
   ...messages[props.language].resonance,
-  clearRecords: text('清空记录', 'Clear records'),
-  clearConfirm: text('清空记录', 'Clear records'),
-  clearTitle: text('清空衣橱记录', 'Clear wardrobe records'),
+  clearRecords: text('清空本地记录', 'Clear local records'),
+  clearConfirm: text('清空本地记录', 'Clear local records'),
+  clearTitle: text('清空本地衣橱记录', 'Clear local wardrobe records'),
   clearMessage: text(
     '将清空全部衣橱拥有记录，服装图鉴和共鸣记录不受影响。此操作无法撤销，请先导出数据备份。',
     'Clear all wardrobe ownership. The catalog and resonance records are unaffected. This cannot be undone; export a backup first.'
@@ -350,11 +523,12 @@ const showClearConfirm = ref(false),
 const hasRecords = computed(
   () => Object.keys(snapshot.value.entries).length > 0 || snapshot.value.unknownSuitIds.length > 0
 )
+watch([loaded, hasRecords], ([ready, hasData]) => {
+  if (!ready || !hasData) mobileFiltersOpen.value = false
+})
 async function requestClear() {
   if (blocked.value || !hasRecords.value) return
   busy.value = true
-  error.value = ''
-  notice.value = ''
   try {
     clearBase.value = JSON.stringify(await track(loadWardrobe))
     showClearConfirm.value = true
@@ -367,11 +541,13 @@ async function requestClear() {
 async function clearRecords() {
   if (blocked.value) return
   busy.value = true
-  error.value = ''
   try {
     snapshot.value = await track(() => updateWardrobe(() => emptyWardrobe(), clearBase.value))
     showClearConfirm.value = false
-    notice.value = text('已清空衣橱记录。', 'Wardrobe records cleared.')
+    emit('notice', {
+      message: text('已清空衣橱记录。', 'Wardrobe records cleared.'),
+      tone: 'success'
+    })
   } catch (cause) {
     showClearConfirm.value = false
     reportError(cause)
@@ -383,15 +559,30 @@ async function clearRecords() {
 
 <template>
   <section class="wardrobe-page" aria-labelledby="wardrobe-title">
-    <header class="gallery-header wardrobe-header">
-      <div
-        ><p class="eyebrow">WARDROBE</p
-        ><h2 id="wardrobe-title">{{ text('个人衣橱', 'Personal wardrobe') }}</h2></div
-      >
+    <header class="gallery-header wardrobe-header" :class="{ 'is-empty': !hasRecords }">
+      <div class="wardrobe-heading">
+        <p class="eyebrow">WARDROBE</p>
+        <div class="wardrobe-title-row">
+          <h2 id="wardrobe-title">{{ text('个人衣橱', 'Personal wardrobe') }}</h2>
+          <div v-if="loaded && hasRecords" class="wardrobe-summary">
+            <span>
+              {{ text('已拥有', 'Owned') }}
+              <strong>{{ stats.items.toLocaleString(language) }}</strong>
+              {{ text('件', 'pieces') }}
+            </span>
+            <span>
+              {{ text('已集齐', 'Complete') }}
+              <strong>{{ stats.outfits.toLocaleString(language) }}</strong>
+              {{ text('套', 'outfits') }}
+            </span>
+          </div>
+        </div>
+      </div>
       <ResonanceDataActions
+        :key="compact && loaded ? 'toolbar' : 'header'"
         :t="importText"
         :label="text('衣橱操作', 'Wardrobe actions')"
-        :mobile-target="mobileActionsHost ? '#wardrobe-filter-actions' : undefined"
+        :mobile-target="compact && loaded ? '#wardrobe-filter-actions' : undefined"
         :add-disabled="blocked || showClearConfirm"
         :clear-disabled="blocked || !hasRecords || anyDialogOpen"
         :export-disabled="blocked || !hasRecords"
@@ -400,37 +591,74 @@ async function clearRecords() {
         @export="exportBackup"
       />
     </header>
-    <p v-if="error && !anyDialogOpen" class="wardrobe-error" role="alert"
-      >{{ error }}
-      <button v-if="!loaded" class="confirm-dialog-button ghost" @click="reload">{{
-        text('重试', 'Retry')
-      }}</button></p
+    <CollectionFilterBar
+      v-if="compact && loaded"
+      class="wardrobe-mobile-filter-bar"
+      tag-picker
+      actions-id="wardrobe-filter-actions"
+      :entries="mobileFilterEntries"
+      :active="mobileFilterActive"
+      :count="hasRecords ? filtered.length : 0"
+      :language="language"
+      :disabled="blocked || !hasRecords"
+      :all-label="text('全部筛选', 'All filters')"
+      :select-label="text('筛选衣橱：', 'Filter wardrobe: ')"
+      @open="mobileFiltersOpen = true"
+      @clear="resetFilters"
+    />
+    <Teleport v-if="compact && loaded" to="#wardrobe-mobile-category-target" defer>
+      <button
+        type="button"
+        class="wardrobe-mobile-category-switch"
+        :disabled="blocked"
+        :aria-label="
+          tab === 'outfit'
+            ? text('切换到部件', 'Switch to pieces')
+            : text('切换到套装', 'Switch to outfits')
+        "
+        @click="tab = tab === 'outfit' ? 'item' : 'outfit'"
+        ><ArrowLeftRight :size="14" aria-hidden="true" />{{
+          tab === 'outfit' ? text('部件', 'Pieces') : text('套装', 'Outfits')
+        }}</button
+      >
+      <p class="wardrobe-mobile-summary">
+        {{ tab === 'outfit' ? text('已集齐', 'Complete') : text('已拥有', 'Owned') }}
+        <strong>{{
+          (tab === 'outfit' ? stats.outfits : stats.items).toLocaleString(language)
+        }}</strong>
+        {{ tab === 'outfit' ? text('套', 'outfits') : text('件', 'pieces') }}
+      </p>
+    </Teleport>
+    <AdaptiveFilterPanel
+      v-if="compact && loaded && hasRecords"
+      :compact="compact"
+      top-aligned
+      :open="mobileFiltersOpen"
+      :title="text('衣橱筛选', 'Wardrobe filters')"
+      :close-label="text('关闭筛选', 'Close filters')"
+      :apply-label="text('完成', 'Done')"
+      @close="mobileFiltersOpen = false"
     >
-    <p v-if="notice && !anyDialogOpen" role="status" class="wardrobe-notice">{{ notice }}</p>
-    <p v-if="!loaded && !error" role="status">{{ text('正在加载衣橱…', 'Loading wardrobe…') }}</p>
-    <template v-if="loaded">
-      <div class="wardrobe-summary">
-        <span
-          >{{ text('已拥有单品', 'Owned pieces') }} <strong>{{ stats.items }}</strong></span
-        >
-        <span
-          >{{ text('集齐套装', 'Complete outfits') }} <strong>{{ stats.outfits }}</strong></span
-        >
-      </div>
-      <p v-if="!snapshot.updatedAt" class="wardrobe-hint">{{
+      <div id="wardrobe-mobile-filter-target"></div>
+    </AdaptiveFilterPanel>
+    <div v-if="loaded && !hasRecords" class="wardrobe-initial">
+      <h3>{{ text('还没有衣橱数据', 'No wardrobe data yet') }}</h3>
+      <p>{{
         text(
-          '导入奇想手账，查看你的衣橱。未记录不代表游戏中未拥有。',
-          'Import your notebook to view your wardrobe. Unrecorded does not mean missing in game.'
+          '点击右上角“导入数据”，查看你的套装与部件的收集情况。',
+          'Use Import data in the upper right to import your notebook and view your outfit and item collection.'
         )
       }}</p>
-      <Teleport :to="sidebarTarget || 'body'" :disabled="compact || !sidebarTarget">
+    </div>
+    <template v-if="loaded && hasRecords">
+      <Teleport
+        :to="compact ? '#wardrobe-mobile-filter-target' : sidebarTarget || 'body'"
+        :disabled="!compact && !sidebarTarget"
+        defer
+      >
         <div :class="{ 'wardrobe-sidebar-controls': !compact && sidebarTarget }">
-          <div class="wardrobe-toolbar">
-            <div id="wardrobe-filter-actions" ref="mobileActionsHost" class="mobile-only"></div>
-            <nav
-              :class="!compact && sidebarTarget ? 'sidebar-mode-switch' : 'favorites-tabs'"
-              :aria-label="text('衣橱分类', 'Wardrobe category')"
-            >
+          <div v-if="!compact" class="wardrobe-toolbar">
+            <nav class="sidebar-mode-switch" :aria-label="text('衣橱分类', 'Wardrobe category')">
               <button
                 type="button"
                 :aria-pressed="tab === 'outfit'"
@@ -443,10 +671,17 @@ async function clearRecords() {
                 :aria-pressed="tab === 'item'"
                 :class="{ active: tab === 'item' }"
                 @click="tab = 'item'"
-                >{{ text('单品', 'Pieces') }}</button
+                >{{ text('部件', 'Pieces') }}</button
               >
             </nav>
           </div>
+          <p v-if="!compact" class="wardrobe-filter-results" role="status">
+            <span>{{ text('筛选结果', 'Results') }}</span>
+            <span>
+              <strong>{{ filtered.length.toLocaleString(language) }}</strong>
+              {{ tab === 'outfit' ? text('套', 'outfits') : text('件', 'pieces') }}
+            </span>
+          </p>
           <div class="wardrobe-filters">
             <div v-for="filter in filterOptions" :key="filter.key" class="wardrobe-filter-field">
               <span>{{ filter.label }}</span>
@@ -469,6 +704,10 @@ async function clearRecords() {
                     filter.options.find((option) => option.value === filterValues[filter.key].value)
                       ?.label
                   "
+                  :title="
+                    filter.options.find((option) => option.value === filterValues[filter.key].value)
+                      ?.label
+                  "
                   aria-haspopup="menu"
                   :aria-expanded="openFilter === filter.key"
                   @click="toggleFilter(filter.key, $event)"
@@ -479,12 +718,12 @@ async function clearRecords() {
                   }}</span
                   ><ChevronDown :size="14" aria-hidden="true" />
                 </button>
-                <Teleport to="body" :disabled="compact">
+                <Teleport to="body">
                   <div
                     v-if="openFilter === filter.key"
                     class="cleanup-account-menu wardrobe-filter-menu"
                     :id="'wardrobe-menu-' + filter.key"
-                    :style="compact ? undefined : filterMenuStyle"
+                    :style="filterMenuStyle"
                     @focusout="leaveFilter"
                     @keydown.esc.stop.prevent="
                       selectFilter(filter.key, filterValues[filter.key].value)
@@ -492,30 +731,37 @@ async function clearRecords() {
                     role="menu"
                     :aria-label="filter.label"
                   >
-                    <button
-                      v-for="option in filter.options"
-                      :key="option.value"
-                      type="button"
-                      role="menuitemradio"
-                      :aria-checked="filterValues[filter.key].value === option.value"
-                      :class="{ active: filterValues[filter.key].value === option.value }"
-                      @click="selectFilter(filter.key, option.value)"
-                      >{{ option.label }}</button
-                    >
+                    <div class="wardrobe-filter-menu-scroll">
+                      <button
+                        v-for="option in filter.options"
+                        :key="option.value"
+                        type="button"
+                        role="menuitemradio"
+                        :aria-checked="filterValues[filter.key].value === option.value"
+                        :class="{
+                          active: filterValues[filter.key].value === option.value,
+                          'is-child': option.depth,
+                          'has-group-separator': option.separatorBefore
+                        }"
+                        @click="selectFilter(filter.key, option.value)"
+                        >{{ option.label }}</button
+                      >
+                    </div>
                   </div>
                 </Teleport>
               </div>
             </div>
-            <button class="confirm-dialog-button ghost" type="button" @click="resetFilters">{{
-              text('重置', 'Reset')
-            }}</button>
+            <button class="wardrobe-reset-button" type="button" @click="resetFilters">
+              <RotateCcw :size="14" aria-hidden="true" />
+              {{ text('重置筛选', 'Reset filters') }}
+            </button>
           </div>
         </div>
       </Teleport>
-      <p class="wardrobe-hint">{{
+      <p v-if="showOwnershipNote" class="wardrobe-ownership-note" role="note">{{
         text(
-          `共 ${filtered.length} 项 · 每个版本独立展示`,
-          `${filtered.length} results · Each variant has its own card`
+          '此来源的拥有信息可能未包含在导入数据中，未识别到的部件显示为未知。',
+          'Ownership information for this source may be missing from the imported data. Unidentified pieces are shown as Unknown.'
         )
       }}</p>
       <div v-if="filtered.length" class="wardrobe-grid" :class="{ 'is-pieces': tab === 'item' }">
@@ -542,13 +788,17 @@ async function clearRecords() {
               <span class="wardrobe-variant">{{ variants[entry.variant] }}</span>
             </div>
             <div class="wardrobe-card-body"
-              ><small>{{ entry.quality }} ★</small><h3>{{ name(entry) }}</h3
-              ><span :class="complete(entry) ? 'wardrobe-owned' : ''"
-                >{{ status(entry) }}
-                <small v-if="entry.kind === 'outfit'"
-                  >{{ ownedCount(entry) }}/{{ entry.parts.length }}</small
-                ></span
-              ><progress
+              ><h3>{{ name(entry) }}</h3>
+              <div class="wardrobe-card-status">
+                <span :class="complete(entry) ? 'wardrobe-owned' : ''">
+                  {{ status(entry) }}
+                  <small v-if="entry.kind === 'outfit'"
+                    >{{ ownedCount(entry) }}/{{ entry.parts.length }}</small
+                  >
+                </span>
+                <small class="wardrobe-card-rarity">{{ entry.quality }} ★</small>
+              </div>
+              <progress
                 v-if="entry.kind === 'outfit'"
                 :value="ownedCount(entry)"
                 :max="entry.parts.length || 1"
@@ -558,19 +808,28 @@ async function clearRecords() {
           </button>
         </article>
       </div>
-      <div v-else class="wardrobe-empty"
-        ><Shirt :size="32" /><p>{{ text('没有符合条件的服装', 'No matching clothes') }}</p
-        ><button class="primary-button" @click="resetFilters">{{
-          text('重置筛选', 'Reset filters')
-        }}</button></div
-      >
-      <div v-if="filtered.length > limit" class="wardrobe-more"
-        ><button class="confirm-dialog-button ghost" type="button" @click="limit += 48">{{
-          text('加载更多', 'Load more')
-        }}</button></div
-      >
+      <div v-if="filtered.length === 0" class="wardrobe-empty">
+        <Shirt :size="32" />
+        <p>{{ text('没有符合条件的服装', 'No matching clothes') }}</p>
+        <button class="primary-button" type="button" @click="resetFilters">
+          {{ text('重置筛选', 'Reset filters') }}
+        </button>
+      </div>
+      <div
+        v-if="filtered.length > limit"
+        ref="loadMoreTarget"
+        class="wardrobe-load-more-target"
+        aria-hidden="true"
+      ></div>
     </template>
 
+    <WardrobeItemDialog
+      :item="itemPreview"
+      :outfits="itemOutfits"
+      @open-outfit="openDetail"
+      :language="language"
+      @close="itemPreview = null"
+    />
     <DataImportWindow
       :visible="importOpen"
       :language="language"
@@ -590,72 +849,48 @@ async function clearRecords() {
       @confirm="clearRecords"
       @cancel="!busy && (showClearConfirm = false)"
     />
-    <Teleport to="body">
-      <Transition name="confirm-dialog">
-        <div v-if="dialogOpen" class="dialog-overlay" @click.self="closeDialog">
-          <section
-            ref="panel"
-            class="dialog-panel wardrobe-dialog"
-            tabindex="-1"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="wardrobe-dialog-title"
-          >
-            <header
-              ><h2 id="wardrobe-dialog-title">{{ detail ? name(detail) : '' }}</h2
-              ><button
-                type="button"
-                :disabled="busy"
-                :aria-label="text('关闭', 'Close')"
-                @click="closeDialog"
-                ><X :size="20" /></button
-            ></header>
-            <div class="wardrobe-dialog-body">
-              <p v-if="error" class="wardrobe-error" role="alert">{{ error }}</p
-              ><p v-if="notice" role="status">{{ notice }}</p>
-              <template v-if="dialog === 'detail' && detail">
-                <p
-                  >{{ variants[detail.variant] }} · {{ detail.quality }} ★ ·
-                  {{ ownedCount(detail) }}/{{ detail.parts.length }}</p
-                >
-                <div class="wardrobe-detail-parts"
-                  ><div
-                    v-for="id in detail.parts"
-                    :key="id"
-                    class="wardrobe-part"
-                    :class="{ 'is-owned': snapshot.entries[id]?.owned }"
-                    ><img
-                      v-if="catalog?.byId.get(id) && !failedImages.has(id)"
-                      :src="catalog.byId.get(id)!.image"
-                      alt=""
-                      loading="lazy"
-                      referrerpolicy="no-referrer"
-                      @error="failedImages.add(id)"
-                    /><Shirt v-else :size="28" /><span>{{
-                      catalog?.byId.get(id) ? name(catalog.byId.get(id)!) : id
-                    }}</span
-                    ><small>{{
-                      snapshot.entries[id]?.owned
-                        ? text('已拥有', 'Owned')
-                        : text('未记录', 'Unrecorded')
-                    }}</small></div
-                  ></div
-                >
-              </template>
-            </div>
-          </section>
-        </div>
-      </Transition>
-    </Teleport>
+    <WardrobeOutfitDialog
+      :detail="dialogOpen ? detail : null"
+      @open-outfit="openDetail"
+      :catalog="catalog"
+      :snapshot="snapshot"
+      :language="language"
+      @close="closeDialog"
+    />
   </section>
 </template>
 
 <style scoped>
+.wardrobe-ownership-note {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 /* 衣橱只补充内容布局，按钮、操作菜单、弹窗和颜色沿用公共样式。 */
 .wardrobe-page {
   min-width: 0;
 }
-.wardrobe-summary,
+.wardrobe-header {
+  margin-bottom: 16px;
+}
+.wardrobe-heading {
+  flex: 1;
+  min-width: 0;
+}
+.wardrobe-title-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+}
+.wardrobe-title-row h2 {
+  flex-shrink: 0;
+}
+.wardrobe-header :deep(.resonance-actions) {
+  flex-shrink: 0;
+}
 .wardrobe-toolbar,
 .wardrobe-filters {
   display: flex;
@@ -664,13 +899,41 @@ async function clearRecords() {
   gap: 12px;
 }
 .wardrobe-summary {
-  padding: 16px 0;
-  border-bottom: 1px solid var(--line-soft);
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.7;
 }
-.wardrobe-summary strong {
-  margin-left: 8px;
-  font-size: 22px;
+.wardrobe-summary > span {
+  white-space: nowrap;
+}
+.wardrobe-summary > span + span::before {
+  content: '·';
+  margin-right: 12px;
+  color: var(--muted);
+}
+.wardrobe-summary strong,
+.wardrobe-filter-results strong {
   color: var(--heading);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.wardrobe-filter-results {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.wardrobe-filter-results > span:last-child {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .wardrobe-toolbar {
   justify-content: space-between;
@@ -682,14 +945,112 @@ async function clearRecords() {
   gap: 6px;
   font-size: 12px;
 }
-.wardrobe-hint {
+/* 衣橱专用重置按钮：与筛选框统一的白底浅灰描边，不影响公共按钮。 */
+.wardrobe-reset-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 34px;
+  min-height: 0;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.wardrobe-reset-button svg {
+  flex-shrink: 0;
+}
+.wardrobe-reset-button:hover {
+  border-color: var(--pink-deep);
+  background: var(--surface-strong);
+}
+.wardrobe-reset-button:focus-visible {
+  outline: 2px solid var(--pink-deep);
+  outline-offset: 2px;
+}
+.wardrobe-filter-select .action-sort-select {
+  box-sizing: border-box;
+  height: 32px;
+  min-height: 32px;
+  padding: 4px 8px;
+  gap: 4px;
+}
+.wardrobe-filter-select .action-sort-select > span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.wardrobe-filter-field > span {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.wardrobe-filter-menu {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 6px;
+}
+.wardrobe-filter-menu-scroll {
+  min-height: 0;
+  margin-right: -3px;
+  padding-right: 3px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.wardrobe-filter-menu button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.wardrobe-filter-menu button.is-child {
+  padding-left: 24px;
+}
+.wardrobe-filter-menu button.has-group-separator {
+  margin-top: 11px;
+  position: relative;
+}
+.wardrobe-filter-menu button.has-group-separator::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 3px;
+  right: 3px;
+  height: 1px;
+  background: var(--line);
+  pointer-events: none;
+}
+.wardrobe-header.is-empty {
+  margin-bottom: 18px;
+}
+.wardrobe-initial {
+  display: grid;
+  min-height: 280px;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  padding: 32px;
+  border: 1px dashed var(--line);
+  border-radius: var(--ui-radius);
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.7;
+  text-align: center;
+}
+.wardrobe-initial h3,
+.wardrobe-initial p {
+  margin: 0;
 }
 .wardrobe-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 16px;
 }
 .wardrobe-grid.is-pieces {
@@ -702,9 +1063,21 @@ async function clearRecords() {
   border: 1px solid var(--line-soft);
   border-radius: var(--ui-radius);
   box-shadow: var(--photo-shadow);
+  transition:
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
 }
-.wardrobe-card:hover {
+:root.is-theme-switching .wardrobe-card {
+  transition: none;
+}
+.wardrobe-card:hover,
+.wardrobe-card:has(> button:focus-visible) {
+  border-color: var(--wardrobe-card-hover-border);
   box-shadow: var(--photo-hover-shadow);
+}
+.wardrobe-grid.is-pieces .wardrobe-card:hover,
+.wardrobe-grid.is-pieces .wardrobe-card:has(> button:focus-visible) {
+  border-color: color-mix(in srgb, var(--pink-deep) 85%, var(--line));
 }
 .wardrobe-card-open {
   display: block;
@@ -723,6 +1096,7 @@ async function clearRecords() {
 }
 .is-pieces .wardrobe-cover {
   aspect-ratio: 1;
+  background-image: url('../../img/pinkCardBg.png');
 }
 .wardrobe-cover img {
   width: 100%;
@@ -736,11 +1110,14 @@ async function clearRecords() {
 .wardrobe-variant {
   position: absolute;
   top: 10px;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  font-size: 12px;
   left: 10px;
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--white) 78%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 66%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(2px);
+  font-size: 12px;
 }
 .wardrobe-card-body {
   display: grid;
@@ -759,11 +1136,19 @@ async function clearRecords() {
   font-size: 11px;
   color: var(--muted);
 }
-.wardrobe-card-body > span {
+.wardrobe-card-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   font-size: 12px;
 }
-.wardrobe-owned,
-.wardrobe-notice {
+.wardrobe-card-body .wardrobe-card-rarity {
+  flex-shrink: 0;
+  white-space: nowrap;
+  color: #b78343;
+}
+.wardrobe-owned {
   color: var(--notice-success);
 }
 progress {
@@ -792,72 +1177,27 @@ progress::-webkit-progress-value {
 .wardrobe-empty {
   padding: 60px 20px;
 }
+.wardrobe-empty p {
+  margin: 0;
+}
 .wardrobe-image-fallback {
   height: 100%;
   font-size: 12px;
 }
-.wardrobe-more {
-  display: flex;
-  justify-content: center;
-  padding: 24px;
+.wardrobe-load-more-target {
+  height: 1px;
 }
-.wardrobe-dialog {
-  --dialog-width: min(760px, 100%);
-  --dialog-max-height: calc(100dvh - 40px);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.wardrobe-dialog > header {
-  flex-shrink: 0;
-}
-.wardrobe-dialog-body {
-  min-height: 0;
-  overflow: auto;
-  padding: 20px 24px;
-  display: grid;
-  gap: 16px;
-  line-height: 1.7;
-}
-.wardrobe-error {
-  color: var(--notice-error);
-}
-.wardrobe-detail-parts {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 12px;
-}
-.wardrobe-part {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  background: var(--surface);
-}
-.wardrobe-part.is-owned {
-  border-color: var(--notice-success);
-  background: color-mix(in srgb, var(--notice-success) 10%, var(--surface));
-}
-.wardrobe-part img {
-  width: 80px;
-  height: 80px;
-  object-fit: contain;
-}
-.wardrobe-part span {
-  font-size: 12px;
-}
+/* 方案 A：只作用于衣橱部件弹窗，不改变其他模块的弹窗和主列表卡片。 */
 .wardrobe-sidebar-controls .wardrobe-toolbar {
-  margin: 0 0 16px;
+  margin: 0 0 10px;
 }
 .wardrobe-sidebar-controls .sidebar-mode-switch {
   width: 100%;
 }
 .wardrobe-sidebar-controls .wardrobe-filters {
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
   align-items: stretch;
 }
 .wardrobe-sidebar-controls .wardrobe-filter-field {
@@ -868,31 +1208,73 @@ progress::-webkit-progress-value {
   width: 70%;
 }
 @media (max-width: 899px) {
-  .wardrobe-header {
+  /* 复用其他模块的手机筛选栏及操作按钮；桌面标题和侧栏保持原样。 */
+  .wardrobe-header,
+  .wardrobe-header.is-empty {
     display: none;
   }
-  .wardrobe-toolbar .favorites-tabs {
-    width: auto;
-    flex: 1;
-    order: 0;
+  /* 白底切换按钮与主标签内的选中项等高、同圆角。 */
+  .wardrobe-mobile-category-switch {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    box-sizing: border-box;
+    height: calc(var(--mobile-control-size, 44px) - 10px);
+    min-height: 0;
+    padding: 0 9px;
+    border: 1px solid #dec9c7;
+    border-radius: 9px;
+    background: var(--surface-strong);
+    color: #b98287;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
   }
-  #wardrobe-filter-actions {
-    order: 1;
+  :root[data-theme='dark'] .wardrobe-mobile-category-switch {
+    border-color: var(--line);
+    color: var(--pink-deep);
+  }
+  .wardrobe-mobile-category-switch:focus-visible {
+    outline: 2px solid var(--pink-deep);
+    outline-offset: 2px;
+  }
+  .wardrobe-mobile-summary {
+    flex-shrink: 0;
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .wardrobe-mobile-summary strong {
+    color: var(--pink-deep);
+    font-variant-numeric: tabular-nums;
   }
 
+  /* 操作筛选栏与下方衣橱卡片保留呼吸间距。 */
+  .wardrobe-mobile-filter-bar {
+    margin-bottom: 12px;
+  }
   .wardrobe-grid,
   .wardrobe-grid.is-pieces {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 10px;
-  }
-  .wardrobe-summary {
-    gap: 8px 16px;
   }
   .wardrobe-toolbar {
     align-items: stretch;
   }
+  /* 筛选行与重置按钮等间距；弹窗内容区已提供底部留白。 */
   .wardrobe-filters {
-    gap: 10px;
+    gap: 12px;
+    margin-bottom: 0;
+  }
+  .wardrobe-reset-button {
+    height: 36px;
+  }
+  .wardrobe-reset-button svg {
+    width: 16px;
+    height: 16px;
   }
   .wardrobe-filter-field {
     flex: 1 1 calc(50% - 10px);
@@ -903,11 +1285,50 @@ progress::-webkit-progress-value {
     min-width: 0;
     width: 0;
   }
+  /* 手机三列卡片紧凑排版：名称依然只显示一行。 */
   .wardrobe-card-body {
-    padding: 10px;
+    gap: 4px;
+    padding: 6px;
   }
-  .wardrobe-dialog-body {
-    padding: 16px;
+  .wardrobe-card-body h3 {
+    font-size: 12px;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .wardrobe-card-status {
+    gap: 3px;
+    font-size: 10px;
+  }
+  .wardrobe-card-body small {
+    font-size: 10px;
+  }
+  .wardrobe-variant {
+    top: 6px;
+    left: 6px;
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+}
+@media (min-width: 641px) and (max-width: 799px) {
+  .wardrobe-grid,
+  .wardrobe-grid.is-pieces {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+@media (max-width: 640px) {
+  .wardrobe-grid,
+  .wardrobe-grid.is-pieces {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+}
+@media (max-width: 350px) {
+  .wardrobe-grid,
+  .wardrobe-grid.is-pieces {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

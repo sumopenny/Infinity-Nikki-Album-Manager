@@ -28,6 +28,7 @@ describe('loadOutfitDetail', () => {
     expect(String(fetchMock.mock.calls[1][0])).toContain('/api/gongeo/outfits/10001?lang=zh')
     expect(detail.outfitId).toBe(10001)
     expect(detail.outfitName).toBe('绽响黎明前')
+    expect(detail.detailImageUrl).toContain('/images/items/1020100001.png')
     expect(detail.outfitImageUrl).toContain('/images/outfits/10001.png')
     expect(detail.outfitItemIds).toContain(1020100001)
     expect(detail.evolution).toBe('原套')

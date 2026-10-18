@@ -1,3 +1,4 @@
+import { backupBaseName } from '../backup/backupName'
 import { unzip, strFromU8 } from 'fflate'
 import {
   CAMERA_BACKUP_LIMITS,
@@ -43,7 +44,7 @@ export async function* exportCameraBackup(
     'favorites.json',
     CAMERA_BACKUP_LIMITS
   )
-  const base = 'camera-favorites-' + new Date().toISOString().slice(0, 10)
+  const base = backupBaseName('相机参数收藏')
   for (let i = 0; i < parts.length; i++) {
     yield {
       fileName: backupPartName(base, i, parts.length),

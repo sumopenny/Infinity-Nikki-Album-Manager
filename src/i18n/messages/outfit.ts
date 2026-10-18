@@ -190,7 +190,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     detailLoadFailed: '图鉴详情加载失败，已保留搭配码中的部件信息。',
     detailOutfit: '套装',
     detailCurrentItem: '当前部件',
-    detailOutfitUnavailable: '无',
+    detailOutfitUnavailable: '无所属套装',
     detailEvolution: '进化/焕新',
     detailDyeCondition: '染色条件',
     detailDyes: '染色信息',

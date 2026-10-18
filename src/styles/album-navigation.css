@@ -239,10 +239,24 @@
   display: none;
 }
 .resonance-sidebar-name {
+  display: flex;
+  flex: 1;
   min-width: 0;
+  flex-direction: column;
+  gap: 3px;
   font-size: 12px;
   line-height: 1.35;
-  overflow-wrap: anywhere;
+}
+.resonance-sidebar-outfit-name {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.resonance-sidebar-rarity {
+  display: block;
+  color: var(--muted);
 }
 
 .sidebar-section-title {

@@ -1,12 +1,14 @@
 import type { Language } from '../../i18n'
+import {
+  requestCatalogEntity as requestEntity,
+  clearCatalogApiCache,
+  type CatalogEntity as ApiEntity
+} from '../gongeo/catalogApi'
 import { outfitMessages } from '../../i18n/messages/outfit'
 import type { LookbookDyeSwatch } from './outfitCodeParser'
 
-// 由 Vite 开发服务器（及生产环境同域代理）转发到 data.gongeo.us，避免浏览器跨域。
-const DATA_API_BASE_URL = '/api/gongeo'
 const CDN_BASE_URL = 'https://cdn.gongeo.us'
-const REQUEST_TIMEOUT_MS = 8000
-const getMakeupItemImageUrl = (itemId: number): string =>
+const getItemDisplayImageUrl = (itemId: number): string =>
   `${CDN_BASE_URL}/images/items/${itemId}.png`
 
 const isMakeupClothType = (clothType: number | null): boolean =>
@@ -66,15 +68,6 @@ export interface OutfitDetail {
   dyeCondition: string
   dyes: OutfitDyeDetail[]
   loadError: boolean
-}
-
-type ApiEntity = {
-  id?: unknown
-  name?: unknown
-  quality?: unknown
-  items?: unknown
-  description?: unknown
-  props?: unknown
 }
 
 type CompactRow = unknown[]
@@ -338,16 +331,6 @@ const getDyeCondition = (
   return DYE_UNLOCK_LABELS[language][highestCondition] || (language === 'en' ? 'Unknown' : '未知')
 }
 
-const requestEntity = async (path: string, language: Language): Promise<ApiEntity> => {
-  const response = await fetch(`${DATA_API_BASE_URL}${path}?lang=${language}`, {
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    headers: { Accept: 'application/json' }
-  })
-  if (!response.ok) throw new Error(`Catalog request failed with ${response.status}`)
-  const payload: unknown = await response.json()
-  return payload && typeof payload === 'object' ? (payload as ApiEntity) : {}
-}
-
 const createDetail = async (
   itemId: number,
   outfitId: number | null,
@@ -427,11 +410,7 @@ const createDetail = async (
     outfitId: resolvedOutfitId,
     itemName: fallbackItemName,
     outfitName,
-    detailImageUrl: resolvedOutfitId
-      ? `${CDN_BASE_URL}/images/outfits/${resolvedOutfitId}.png`
-      : isMakeup
-        ? getMakeupItemImageUrl(itemId)
-        : null,
+    detailImageUrl: getItemDisplayImageUrl(itemId),
     quality: outfitRow && Number.isSafeInteger(Number(outfitRow[1])) ? Number(outfitRow[1]) : null,
     outfitItemIds: idsIn(relation?.[1]),
     outfitImageUrl: resolvedOutfitId
@@ -476,7 +455,7 @@ export function loadOutfitDetail(
     outfitId: null,
     itemName: fallbackItemName,
     outfitName: '',
-    detailImageUrl: isMakeupClothType(clothType) ? getMakeupItemImageUrl(itemId) : null,
+    detailImageUrl: getItemDisplayImageUrl(itemId),
     quality: null,
     outfitItemIds: [],
     outfitImageUrl: null,
@@ -499,6 +478,7 @@ export function loadOutfitDetail(
 }
 
 export function clearOutfitDetailCache(): void {
+  clearCatalogApiCache()
   detailCache.clear()
   catalogSnapshotPromise = null
 }

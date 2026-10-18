@@ -76,6 +76,10 @@
   display: flex;
   align-items: flex-end;
 }
+/* 衣橱筛选弹窗垂直居中；其他筛选弹窗保持原有位置。 */
+.mobile-filter-overlay.mobile-filter-top-aligned {
+  align-items: center;
+}
 .mobile-filter-panel {
   display: flex;
   flex-direction: column;
@@ -167,6 +171,7 @@
     top: 0;
     z-index: 50;
     display: flex;
+    min-height: 58px;
     align-items: center;
     flex-wrap: wrap;
     gap: 6px;
@@ -961,6 +966,56 @@
   .favorites-tabs button {
     flex: 1;
     min-height: var(--mobile-control-size);
+  }
+  /* 共鸣/衣橱主标签与衣橱分类按钮、收集数共处一行。 */
+  .archive-main-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    margin-bottom: 8px;
+  }
+  .archive-main-toolbar .archive-main-tabs.resonance-choice-row {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-bottom: 0;
+  }
+  .archive-main-toolbar .archive-wardrobe-extra {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .archive-main-toolbar.is-wardrobe .archive-main-tabs .resonance-choice {
+    font-size: 12px;
+    padding-inline: 2px;
+  }
+  /* 档案页签直接复用导入窗口的分段按钮；只为手机内容区补足自适应宽高。 */
+  .archive-main-tabs.resonance-choice-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    max-width: 100%;
+    height: var(--mobile-control-size);
+    box-sizing: border-box;
+    margin: 0 0 8px;
+    flex-wrap: nowrap;
+    border-radius: 12px;
+  }
+  .archive-main-tabs .resonance-choice {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    justify-content: center;
+    padding: 0 6px;
+    border-radius: 9px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    white-space: nowrap;
   }
   .favorites-toolbar-actions {
     margin-left: auto;

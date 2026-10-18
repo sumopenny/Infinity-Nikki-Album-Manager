@@ -64,15 +64,25 @@
 }
 
 /* 操作提示：页面顶部居中悬浮卡片，毛玻璃 + 强调色微光 */
-.operation-notice {
-  --notice-accent: var(--notice-info);
+.operation-notice-stack {
   position: fixed;
   top: clamp(14px, 3vh, 28px);
-  /* 用 vw 而非 %，避免滚动条出现时可视宽度变化导致提示窗左移 */
   left: 50vw;
-  /* 顶部公共通知高于参数收藏弹窗及标签浮层（1600 / 1601）。 */
   z-index: 2000;
   width: min(400px, calc(100vw - 32px));
+  max-height: calc(100dvh - 56px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.operation-notice {
+  --notice-accent: var(--notice-info);
+  position: relative;
+  /* 用 vw 而非 %，避免滚动条出现时可视宽度变化导致提示窗左移 */
+  /* 顶部公共通知高于参数收藏弹窗及标签浮层（1600 / 1601）。 */
+  width: 100%;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -81,12 +91,13 @@
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--notice-accent) 26%, var(--line-soft));
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
   box-shadow:
     0 1px 2px color-mix(in srgb, var(--heading) 8%, transparent),
     0 12px 32px -8px color-mix(in srgb, var(--notice-accent) 30%, rgba(0, 0, 0, 0.14));
-  backdrop-filter: blur(10px) saturate(1.4);
-  transform: translateX(-50%);
+  backdrop-filter: blur(6px) saturate(1.4);
+  pointer-events: auto;
+  flex-shrink: 0;
 }
 
 /* 照片参数窗口只展示解析结果和资源缩略图，不把照片作为背景或预览内容。 */
@@ -712,7 +723,7 @@
 }
 .update-log-entry.is-current li {
   color: var(--heading);
-  font-weight: 600;
+  font-weight: 400;
 }
 :root[data-theme='dark'] .update-log-entry.is-current .update-log-version {
   color: #6b4a4d;
@@ -737,7 +748,7 @@
 }
 .update-log-current li {
   color: var(--heading);
-  font-weight: 600;
+  font-weight: 400;
 }
 .update-log-current li:last-child {
   margin-bottom: 0;
@@ -1042,7 +1053,7 @@
 .operation-notice-enter-from,
 .operation-notice-leave-to {
   opacity: 0;
-  transform: translate(-50%, -12px) scale(0.96);
+  transform: translateY(12px) scale(0.96);
 }
 
 .confirm-dialog {
@@ -1826,9 +1837,14 @@
 }
 
 /* 云端账号表单复用共鸣输入框，聚焦使用主题边框光晕，避免原生深色外框。 */
+.resonance-form input,
 .resonance-cloud-body input {
   box-sizing: border-box;
   outline: none;
+  transition:
+    border-color var(--motion-base) ease,
+    box-shadow var(--motion-base) ease,
+    background var(--motion-base) ease;
 }
 
 .resonance-form input:focus,
@@ -2339,5 +2355,50 @@
 
   .feedback-dialog-body {
     padding: 0 14px 14px;
+  }
+}
+
+.operation-notice-move {
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.operation-notice-leave-active {
+  position: absolute;
+}
+.operation-notice-leave-to {
+  transform: translateY(-12px) scale(0.96);
+}
+@media (prefers-reduced-motion: reduce) {
+  .operation-notice-enter-active,
+  .operation-notice-leave-active,
+  .operation-notice-move {
+    transition: none;
+  }
+}
+
+.update-log-item-title {
+  font-weight: 600;
+  color: inherit;
+}
+
+/* 仅电脑端增大更新记录字号，手机端沿用原字号。 */
+@media (min-width: 900px) {
+  .update-log-body h3 {
+    font-size: 17px;
+  }
+  .update-log-version {
+    font-size: 13px;
+  }
+  .update-log-entry.is-current .update-log-version {
+    font-size: 15px;
+  }
+  .update-log-current li,
+  .update-log-history-entry li {
+    font-size: 15px;
+  }
+  .update-log-footer label {
+    font-size: 14px;
+  }
+  .update-log-footer .primary-button {
+    font-size: 13px;
   }
 }

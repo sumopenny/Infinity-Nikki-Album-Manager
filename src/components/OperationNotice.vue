@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { OperationNoticeItem } from '../composables/useOperationNotice'
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 
 const noticeTarget = ref<HTMLElement | string>('body')
@@ -23,40 +24,38 @@ onBeforeUnmount(() => modalObserver?.disconnect())
 export type OperationNoticeTone = 'info' | 'success' | 'warning' | 'error'
 
 defineProps<{
-  visible: boolean
+  notices: OperationNoticeItem[]
   title: string
-  message: string
-  tone: OperationNoticeTone
-  isLoading: boolean
   closeLabel: string
 }>()
 
 const emit = defineEmits<{
-  close: []
-  pause: []
-  resume: []
+  close: [id: number]
+  pause: [id: number]
+  resume: [id: number]
 }>()
 </script>
 
 <template>
   <Teleport :to="noticeTarget">
-    <Transition name="operation-notice">
+    <TransitionGroup name="operation-notice" tag="div" class="operation-notice-stack">
       <aside
-        v-if="visible"
+        v-for="notice in notices"
+        :key="notice.id"
         class="operation-notice"
-        :class="[`is-${tone}`, { 'is-loading': isLoading }]"
-        :role="tone === 'error' ? 'alert' : 'status'"
-        :aria-live="tone === 'error' ? 'assertive' : 'polite'"
+        :class="[`is-${notice.tone}`, { 'is-loading': notice.loading }]"
+        :role="notice.tone === 'error' ? 'alert' : 'status'"
+        :aria-live="notice.tone === 'error' ? 'assertive' : 'polite'"
         aria-atomic="true"
-        @mouseenter="emit('pause')"
-        @mouseleave="emit('resume')"
+        @mouseenter="emit('pause', notice.id)"
+        @mouseleave="emit('resume', notice.id)"
       >
         <div class="operation-notice-icon" aria-hidden="true">
-          <span v-if="isLoading" class="operation-notice-spinner"></span>
-          <svg v-else-if="tone === 'success'" viewBox="0 0 24 24">
+          <span v-if="notice.loading" class="operation-notice-spinner"></span>
+          <svg v-else-if="notice.tone === 'success'" viewBox="0 0 24 24">
             <path d="m5 12.5 4.25 4.25L19 7" />
           </svg>
-          <svg v-else-if="tone === 'warning' || tone === 'error'" viewBox="0 0 24 24">
+          <svg v-else-if="notice.tone === 'warning' || notice.tone === 'error'" viewBox="0 0 24 24">
             <path d="M12 8v5" />
             <path d="M12 17.25h.01" />
             <path
@@ -72,21 +71,21 @@ const emit = defineEmits<{
 
         <div class="operation-notice-content">
           <p class="operation-notice-title">{{ title }}</p>
-          <p class="operation-notice-message">{{ message }}</p>
+          <p class="operation-notice-message">{{ notice.message }}</p>
         </div>
 
         <button
-          v-if="!isLoading"
+          v-if="!notice.loading"
           class="operation-notice-close"
           type="button"
           :aria-label="closeLabel"
-          @click="emit('close')"
+          @click="emit('close', notice.id)"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="m7 7 10 10M17 7 7 17" />
           </svg>
         </button>
       </aside>
-    </Transition>
+    </TransitionGroup>
   </Teleport>
 </template>

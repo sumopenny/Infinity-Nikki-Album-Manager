@@ -8,7 +8,7 @@ beforeEach(() => vi.stubEnv('NO_PROXY', '*'))
 afterEach(() => vi.unstubAllEnvs())
 // @ts-expect-error Native ESM build scripts are outside the frontend TypeScript compilation.
 // prettier-ignore
-import { compareGameVersions, formatGongeoResult, updateGongeoCatalog } from '../../scripts/update-gongeo-catalog.mjs'
+import { compareGameVersions, formatGongeoResult, parseGongeoBanners, updateGongeoCatalog } from '../../scripts/update-gongeo-catalog.mjs'
 
 const baseUrl = 'https://raw.example.test/gongeo/master'
 const indexUrl = baseUrl + '/public/catalog/index.json'
@@ -56,14 +56,14 @@ function fixtures(published = false): Fixture {
       0,
       4,
       [1],
-      1,
+      21001,
       1000 + i
     ])
   )
   setAsset(
     fixture,
     'outfits',
-    Array.from({ length: 100 }, (_, i) => [i % 2 ? [2000 + i] : 2000 + i, 5, 4, [1], 1])
+    Array.from({ length: 100 }, (_, i) => [i % 2 ? [2000 + i] : 2000 + i, 5, 4, [1], 21001])
   )
   setAsset(
     fixture,
@@ -86,11 +86,12 @@ function fixtures(published = false): Fixture {
   })
   const banners = Array.from({ length: 70 }, (_, i) => ({
     bannerId: i + 1,
-    bannerType: 2,
+    bannerType: i === 0 ? 3 : i === 1 ? 1 : 2,
     name: '卡池' + (i + 1),
     outfit4StarId: ['2000'],
     outfit5StarId: ['2001'],
-    runs: [{ version: '2.11.0', start: '2026-01-01', end: '2026-01-20' }]
+    runs: [{ version: '2.11.0', start: '2026-01-01', end: '2026-01-20' }],
+    rewardIds: i === 0 ? ['1000', '9999'] : i === 1 ? ['1001'] : ['1002']
   }))
   if (published) setAsset(fixture, 'banners', banners)
   else {
@@ -105,16 +106,34 @@ function fixtures(published = false): Fixture {
             '    bannerId: ' +
             banner.bannerId +
             ',\n' +
-            '    bannerType: 2,\n' +
+            '    bannerType: ' +
+            banner.bannerType +
+            ',\n' +
             "    outfit4StarId: ['2000'],\n" +
             "    outfit5StarId: ['2001'],\n" +
             "    runs: [ { version: '2.11.0', start: '2026-01-01', end: '2026-01-20' } ],\n" +
+            '    rewardIds: ' +
+            JSON.stringify(banner.rewardIds) +
+            ',\n' +
             '  },'
         )
         .join('\n') +
       '\n}'
     fixture.responses.set(baseUrl + '/data/banners.ts', source)
   }
+  fixture.responses.set(
+    baseUrl + '/data/source.json',
+    JSON.stringify([
+      { key: 'limited', labelKey: 'import.banner_groups.limited_banners', ids: [21001] },
+      {
+        key: 'merchant',
+        labelKey: 'compendium.source.merchant',
+        ids: [21002],
+        outfit: false
+      },
+      { key: 'quest', labelKey: 'compendium.source.quest', ids: [10018] }
+    ])
+  )
   for (const language of ['zh', 'en']) {
     for (const name of ['item', 'outfit', 'banner']) {
       const count = name === 'banner' ? 70 : 100
@@ -130,6 +149,37 @@ function fixtures(published = false): Fixture {
         JSON.stringify(locale)
       )
     }
+    const zh = language === 'zh'
+    fixture.responses.set(
+      baseUrl + '/app/locales/' + language + '/misc.json',
+      JSON.stringify({
+        'label.1.name': zh ? '保暖' : 'Warm',
+        'label.116.name': zh ? '绮想' : 'Whimsical',
+        'version.2.9': zh ? '夏末歌声' : 'Late Summer',
+        'version.2.10': zh ? '金羽的裁决' : 'Verdict of Gold',
+        'version.2.x': zh ? '伊赞之土' : 'Itzaland'
+      })
+    )
+    fixture.responses.set(
+      baseUrl + '/app/locales/' + language + '/common.json',
+      JSON.stringify({
+        import: { banner_groups: { limited_banners: zh ? '限定卡池' : 'Limited banners' } },
+        compendium: {
+          source: {
+            merchant: zh ? '服装商店' : 'Clothing stores',
+            quest: zh ? '任务' : 'Quests'
+          }
+        },
+        global: {
+          charts: {
+            five_star_banners: zh ? '5★卡池' : '5★ banners',
+            four_star_banners: zh ? '4★卡池' : '4★ banners'
+          }
+        },
+        tracker: { banner: { settings: { show_4star: zh ? '陪跑套装' : 'Accompanying outfits' } } },
+        banner: { deep_echoes: zh ? '深海回响' : 'Deep Echoes' }
+      })
+    )
   }
   return fixture
 }
@@ -163,15 +213,38 @@ describe('Gongeo catalog updater', () => {
       const fetchMock = mockRemote(fixture)
       const result = await updateGongeoCatalog({ baseUrl, outputDir })
       expect(result).toEqual({
-        updated: 13,
-        total: 13,
+        updated: 14,
+        total: 14,
         version: '2.10.1',
         generatedAt,
         source: baseUrl
       })
       expect(JSON.parse(await readFile(join(outputDir, 'banners.json'), 'utf8'))[0]).toMatchObject({
         name: '卡池1',
-        runs: [{ version: '2.11.0', start: '2026-01-01', end: '2026-01-20' }]
+        runs: [{ version: '2.11.0', start: '2026-01-01', end: '2026-01-20' }],
+        rewardIds: ['1000', '9999']
+      })
+      expect(
+        JSON.parse(await readFile(join(outputDir, 'filterMetadata.json'), 'utf8'))
+      ).toMatchObject({
+        sources: expect.arrayContaining([
+          {
+            key: 'limited',
+            label: { zh: '限定卡池', en: 'Limited banners' },
+            ids: [21001],
+            outfit: true
+          },
+          expect.objectContaining({ key: 'merchant', outfit: false })
+        ]),
+        tags: expect.arrayContaining([
+          { id: 1, label: { zh: '保暖', en: 'Warm' } },
+          { id: 116, label: { zh: '绮想', en: 'Whimsical' } }
+        ]),
+        versions: expect.arrayContaining([
+          { value: '2.10', label: { zh: '金羽的裁决', en: 'Verdict of Gold' } },
+          { value: '2.x', label: { zh: '伊赞之土', en: 'Itzaland' } }
+        ]),
+        deepEchoRewardIds: ['1000']
       })
       expect(JSON.parse(await readFile(join(outputDir, 'catalogSource.json'), 'utf8'))).toEqual({
         source: baseUrl,
@@ -185,6 +258,9 @@ describe('Gongeo catalog updater', () => {
       expect(urls).toContain(baseUrl + '/public' + fixture.index.files.items.path)
       expect(urls).not.toContain(baseUrl + fixture.index.files.items.path)
       expect(urls.includes(baseUrl + '/data/banners.ts')).toBe(!published)
+      expect(urls).toContain(baseUrl + '/data/source.json')
+      expect(urls).toContain(baseUrl + '/app/locales/en/common.json')
+      expect(urls).toContain(baseUrl + '/app/locales/zh/misc.json')
       expect(formatGongeoResult(result)).toContain('远程同步成功')
       expect(formatGongeoResult({ ...result, updated: 0 })).toContain('无需更新')
       expect(formatGongeoResult(result)).toContain(baseUrl)
@@ -241,11 +317,34 @@ describe('Gongeo catalog updater', () => {
     expect(await snapshot(outputDir)).toEqual(before)
   })
 
-  it('a failed last translation download preserves every file and metadata', async () => {
+  it('a failed catalog translation download preserves every file and metadata', async () => {
     const { fixture, outputDir } = await initialize()
     const before = await snapshot(outputDir)
     fixture.responses.delete(baseUrl + '/app/locales/en/banner.json')
     await expect(updateGongeoCatalog({ baseUrl, outputDir })).rejects.toThrow('HTTP 404')
+    expect(await snapshot(outputDir)).toEqual(before)
+  })
+
+  it('a failed filter metadata download preserves the existing catalog and metadata', async () => {
+    const { fixture, outputDir } = await initialize()
+    const before = await snapshot(outputDir)
+    fixture.responses.delete(baseUrl + '/app/locales/en/common.json')
+    await expect(updateGongeoCatalog({ baseUrl, outputDir })).rejects.toThrow('HTTP 404')
+    expect(await snapshot(outputDir)).toEqual(before)
+  })
+
+  it('rejects malformed source IDs before writing any catalog files', async () => {
+    const { fixture, outputDir } = await initialize()
+    const before = await snapshot(outputDir)
+    fixture.responses.set(
+      baseUrl + '/data/source.json',
+      JSON.stringify([
+        { key: 'limited', labelKey: 'import.banner_groups.limited_banners', ids: [-1] }
+      ])
+    )
+    await expect(updateGongeoCatalog({ baseUrl, outputDir })).rejects.toMatchObject({
+      code: 'GONGEO_INVALID'
+    })
     expect(await snapshot(outputDir)).toEqual(before)
   })
 
@@ -406,4 +505,12 @@ describe('Gongeo catalog updater', () => {
     })
     expect(await snapshot(outputDir)).toEqual(before)
   })
+})
+
+it('parses dynamic permanent end dates without truncating the runs array', () => {
+  const source =
+    "export const BANNER_DATA = {\n  1: { bannerId: 1, bannerType: 1, outfit4StarId: ['10084'], outfit5StarId: ['10093'], runs: [{ version: '1.0.0', start: '2024-12-05', end: new Date().toISOString().split('T')[0] ?? '', }],\n  },\n}"
+  expect(parseGongeoBanners(source, {}, '2026-10-18')[0].runs).toEqual([
+    { version: '1.0.0', start: '2024-12-05', end: '2026-10-18' }
+  ])
 })

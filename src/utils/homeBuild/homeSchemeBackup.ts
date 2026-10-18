@@ -1,3 +1,4 @@
+import { backupBaseName } from '../backup/backupName'
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from 'fflate'
 import {
   HOME_BACKUP_LIMITS,
@@ -90,23 +91,6 @@ function normalizeBackupDate(value: unknown, fallback: string): string {
   return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : fallback
 }
 
-function backupBaseName(): string {
-  const date = new Date()
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return (
-    'InfinityNikkiHomeSchemes_' +
-    date.getFullYear() +
-    '-' +
-    pad(date.getMonth() + 1) +
-    '-' +
-    pad(date.getDate()) +
-    '_' +
-    pad(date.getHours()) +
-    pad(date.getMinutes()) +
-    pad(date.getSeconds())
-  )
-}
-
 export async function exportHomeSchemeBackup(
   download?: BackupDownload
 ): Promise<{ fileNames: string[]; count: number }> {
@@ -149,7 +133,7 @@ export async function exportHomeSchemeBackup(
     HOME_BACKUP_LIMITS
   )
   const fileNames = await downloadBackupParts(
-    backupBaseName(),
+    backupBaseName('家园方案'),
     parts,
     'manifest.json',
     HOME_BACKUP_LIMITS,

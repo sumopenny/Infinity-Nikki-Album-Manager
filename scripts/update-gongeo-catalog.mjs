@@ -10,6 +10,7 @@ export const DEFAULT_BASE_URL =
 const FILES = ['items', 'outfits', 'outfitItems', 'makeupItems', 'makeupOutfits', 'palettes']
 const LOCALES = ['zh', 'en']
 const SOURCE_FILE = 'catalogSource.json'
+const FILTER_METADATA_FILE = 'filterMetadata.json'
 const MAX_REMOVED_RATIO = 0.02
 
 const problem = (message, code = 'GONGEO_INVALID') => Object.assign(new Error(message), { code })
@@ -127,7 +128,10 @@ const validate = (name, value) => {
           row.name.trim() &&
           Array.isArray(row.outfit4StarId) &&
           Array.isArray(row.outfit5StarId) &&
-          Array.isArray(row.runs)
+          Array.isArray(row.runs) &&
+          (row.rewardIds === undefined ||
+            (Array.isArray(row.rewardIds) &&
+              row.rewardIds.every((id) => /^[1-9]\d*$/u.test(String(id)) && validId(Number(id)))))
       )
     ) {
       throw problem('Gongeo banners 记录不完整')
@@ -143,6 +147,126 @@ const validate = (name, value) => {
     )
   ) {
     throw problem('Gongeo ' + name + ' 关联记录结构无效')
+  }
+}
+
+/** Parse upstream banner runs, including the permanent banner's dynamic end date. */
+export function parseGongeoBanners(
+  source,
+  bannerNames = {},
+  today = new Date().toISOString().slice(0, 10)
+) {
+  const matches = [
+    ...source.matchAll(
+      /\b(\d+):\s*\{\s*bannerId:\s*(\d+),\s*bannerType:\s*(\d+),\s*outfit4StarId:\s*(\[[^\]]*\]),\s*outfit5StarId:\s*(\[[^\]]*\]),\s*runs:\s*\[([\s\S]*?)\]\s*,[\s\S]*?\n\s*\},/gu
+    )
+  ]
+  return matches.map((match) => {
+    const runs = [
+      ...match[6].matchAll(
+        /\{\s*version:\s*'([^']+)',\s*start:\s*'([^']+)',\s*end:\s*([^,}]+),?\s*\}/gu
+      )
+    ].map((run) => ({
+      version: run[1],
+      start: run[2],
+      end: run[3].trim().startsWith('new Date()') ? today : run[3].trim().replace(/^'|'$/gu, '')
+    }))
+    const rewardIds = match[0].match(/\brewardIds:\s*(\[[^\]]*\])/u)?.[1]
+    return {
+      bannerId: Number(match[2]),
+      bannerType: Number(match[3]),
+      name: bannerNames['banner.' + match[2] + '.name'] ?? String(match[2]),
+      outfit4StarId: JSON.parse(match[4].replace(/'/gu, '"')),
+      outfit5StarId: JSON.parse(match[5].replace(/'/gu, '"')),
+      ...(rewardIds ? { rewardIds: JSON.parse(rewardIds.replace(/'/gu, '"')) } : {}),
+      runs
+    }
+  })
+}
+
+export function buildWardrobeFilterMetadata({ sources, locales, banners, items }) {
+  if (
+    !Array.isArray(sources) ||
+    !sources.length ||
+    !sources.every(
+      (source) =>
+        isObject(source) &&
+        typeof source.key === 'string' &&
+        /^[a-z0-9-]+$/u.test(source.key) &&
+        typeof source.labelKey === 'string' &&
+        source.labelKey.trim() &&
+        Array.isArray(source.ids) &&
+        source.ids.length > 0 &&
+        source.ids.every(validId) &&
+        new Set(source.ids).size === source.ids.length &&
+        (source.outfit === undefined || typeof source.outfit === 'boolean')
+    ) ||
+    new Set(sources.map((source) => source.key)).size !== sources.length
+  ) {
+    throw problem('Gongeo 衣橱来源分组结构无效')
+  }
+  if (!Array.isArray(items) || !items.every((row) => Array.isArray(row) && validIds(row[0]))) {
+    throw problem('Gongeo 衣橱部件索引结构无效')
+  }
+  if (
+    !Array.isArray(banners) ||
+    !banners.every(
+      (banner) =>
+        isObject(banner) &&
+        validId(banner.bannerType) &&
+        (banner.rewardIds === undefined ||
+          (Array.isArray(banner.rewardIds) &&
+            banner.rewardIds.every((id) => /^[1-9]\d*$/u.test(String(id)) && validId(Number(id)))))
+    )
+  ) {
+    throw problem('Gongeo 衣橱卡池奖励结构无效')
+  }
+  for (const language of LOCALES) {
+    if (!isObject(locales?.[language]?.misc) || !isObject(locales?.[language]?.common)) {
+      throw problem('Gongeo 衣橱筛选翻译结构无效: ' + language)
+    }
+  }
+  const translate = (language, key) => {
+    const locale = locales[language]
+    const value =
+      locale.misc[key] ?? key.split('.').reduce((entry, part) => entry?.[part], locale.common)
+    if (typeof value !== 'string' || !value.trim()) {
+      throw problem('Gongeo 衣橱筛选缺少翻译: ' + language + '/' + key)
+    }
+    return value
+  }
+  const label = (key) =>
+    Object.fromEntries(LOCALES.map((language) => [language, translate(language, key)]))
+  const tags = Object.keys(locales.zh.misc)
+    .filter((key) => /^label\.\d+\.name$/u.test(key))
+    .map((key) => ({ id: Number(key.split('.')[1]), label: label(key) }))
+    .sort((a, b) => a.id - b.id)
+  const versions = Object.keys(locales.zh.misc)
+    .filter((key) => /^version\.\d+\.(?:\d+|x)$/u.test(key))
+    .map((key) => ({ value: key.slice(8), label: label(key) }))
+  if (!tags.length || !versions.some(({ value }) => /^\d+\.\d+$/u.test(value))) {
+    throw problem('Gongeo 衣橱标签或游戏版本为空')
+  }
+  const itemIds = new Set(items.flatMap((row) => row[0]).map(String))
+  const deepEchoRewardIds = [
+    ...new Set(
+      banners
+        .filter((banner) => banner.bannerType !== 1 && banner.bannerType !== 2)
+        .flatMap((banner) => banner.rewardIds ?? [])
+        .map(String)
+        .filter((id) => itemIds.has(id))
+    )
+  ].sort((a, b) => Number(a) - Number(b))
+  return {
+    sources: sources.map((source) => ({
+      key: source.key,
+      label: label(source.labelKey),
+      ids: source.ids,
+      outfit: source.outfit !== false
+    })),
+    tags,
+    versions,
+    deepEchoRewardIds
   }
 }
 
@@ -203,6 +327,15 @@ const guardVersion = (index, current) => {
 
 const entryKeys = (relative, value) => {
   if (relative.startsWith('locales/')) return Object.keys(value)
+  if (relative === FILTER_METADATA_FILE) {
+    return [
+      ...value.sources.map((source) => 'source.' + source.key),
+      ...new Set(value.sources.flatMap((source) => source.ids.map((id) => 'obtain.' + id))),
+      ...value.tags.map((tag) => 'tag.' + tag.id),
+      ...value.versions.map((version) => 'version.' + version.value),
+      ...value.deepEchoRewardIds.map((id) => 'deep-echo.' + id)
+    ]
+  }
   if (relative === 'banners.json') return value.map((row) => row.bannerId)
   if (relative === 'palettes.json') return value.items.flatMap((row) => row[0])
   if (relative === 'items.json' || relative === 'outfits.json')
@@ -273,33 +406,29 @@ export async function updateGongeoCatalog(options = {}) {
   if (!entries.has('banners.json')) {
     const source = await fetchText(root + '/data/banners.ts', timeoutMs)
     const bannerNames = entries.get('locales/zh/banner.json')
-    const matches = [
-      ...source.matchAll(
-        /\b(\d+):\s*\{\s*bannerId:\s*(\d+),\s*bannerType:\s*(\d+),\s*outfit4StarId:\s*(\[[^\]]*\]),\s*outfit5StarId:\s*(\[[^\]]*\]),\s*runs:\s*\[([\s\S]*?)\][\s\S]*?\n\s*\},/gu
-      )
-    ]
-    const value = matches.map((match) => {
-      const runs = [
-        ...match[6].matchAll(
-          /\{\s*version:\s*'([^']+)',\s*start:\s*'([^']+)',\s*end:\s*([^,}]+),?\s*\}/gu
-        )
-      ].map((run) => ({
-        version: run[1],
-        start: run[2],
-        end: run[3].trim().replace(/^'|'$/gu, '')
-      }))
-      return {
-        bannerId: Number(match[2]),
-        bannerType: Number(match[3]),
-        name: bannerNames['banner.' + match[2] + '.name'] ?? String(match[2]),
-        outfit4StarId: JSON.parse(match[4].replace(/'/gu, '"')),
-        outfit5StarId: JSON.parse(match[5].replace(/'/gu, '"')),
-        runs
-      }
-    })
+    const value = parseGongeoBanners(source, bannerNames)
     validate('banners', value)
     entries.set('banners.json', value)
   }
+  const sourcePath = 'data/source.json'
+  const filterSources = parseJson(await fetchText(root + '/' + sourcePath, timeoutMs), sourcePath)
+  const filterLocales = {}
+  for (const language of LOCALES) {
+    filterLocales[language] = {}
+    for (const name of ['misc', 'common']) {
+      const path = 'app/locales/' + language + '/' + name + '.json'
+      filterLocales[language][name] = parseJson(await fetchText(root + '/' + path, timeoutMs), path)
+    }
+  }
+  entries.set(
+    FILTER_METADATA_FILE,
+    buildWardrobeFilterMetadata({
+      sources: filterSources,
+      locales: filterLocales,
+      banners: entries.get('banners.json'),
+      items: entries.get('items.json')
+    })
+  )
   // Every download and check completes before the first project file is written.
   for (const [relative, value] of entries) {
     const text = await readOptional(resolve(outputDir, relative))

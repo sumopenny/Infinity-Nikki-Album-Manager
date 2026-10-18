@@ -1,4 +1,5 @@
 import type { WardrobeCatalog } from './wardrobeCatalog'
+import { inferWardrobeFromPulls } from './wardrobeInference'
 import { emptyWardrobe, type WardrobeSnapshot } from './wardrobeStorage'
 
 export interface WardrobeImportPreview {
@@ -58,6 +59,7 @@ export function parseWardrobePearpal(
     const id = safeId(object(row).result)
     if (id) add(id)
   }
+  inferWardrobeFromPulls(rows, catalog).forEach(add)
   snapshot.unknownSuitIds = [...new Set(snapshot.unknownSuitIds)]
   return { snapshot, unknownItems: unknown.size }
 }

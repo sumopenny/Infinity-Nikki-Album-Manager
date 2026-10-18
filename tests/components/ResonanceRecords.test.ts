@@ -5,6 +5,7 @@ import 'fake-indexeddb/auto'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import ResonanceRecords from '../../src/components/ResonanceRecords.vue'
+import ResonanceImportDialog from '../../src/components/ResonanceImportDialog.vue'
 import MobileEmptyScreenshot from '../../src/components/MobileEmptyScreenshot.vue'
 import {
   loadResonanceRecords,
@@ -332,7 +333,7 @@ describe('ResonanceRecords', () => {
     const { panel } = await openDialog()
     const links = [...panel.querySelectorAll('a')].map((link) => link.getAttribute('href'))
 
-    expect(panel.textContent).toContain('添加数据')
+    expect(panel.textContent).toContain('导入数据')
     expect(links).toContain('https://myl.nuanpaper.com/home')
     expect(panel.textContent).toContain('获取登录凭据的方法来自暖暖共鸣录')
     expect(panel.querySelector('.resonance-source-attribution strong')?.textContent).toBe(
@@ -764,3 +765,54 @@ it('does not let an old file preview overwrite a newer selection', async () => {
   expect(panel.querySelector('.resonance-preview')).toBeNull()
   expect(panel.textContent).toContain('new.json')
 })
+
+it('opens outfit and item details from record images without changing records', async () => {
+  const api = await import('../../src/utils/gongeo/catalogApi')
+  vi.spyOn(api, 'requestCatalogEntity').mockResolvedValue({})
+  await saveResonanceRecords([savedRecord])
+  const wrapper = mount(ResonanceRecords, { attachTo: document.body })
+  wrappers.push(wrapper)
+  await flushPromises()
+  await vi.waitFor(() => expect(wrapper.find('button.resonance-outfit-image').exists()).toBe(true))
+  await wrapper.get('button.resonance-outfit-image').trigger('click')
+  await vi.waitFor(() => expect(document.querySelector('.wardrobe-dialog')).not.toBeNull())
+  expect(document.querySelector('.wardrobe-state-tag')?.textContent).toContain('未知')
+  document.querySelector<HTMLButtonElement>('.wardrobe-detail-header button')!.click()
+  await flushPromises()
+  expect(document.querySelector('.wardrobe-dialog')).toBeNull()
+  await wrapper.get('button.resonance-part').trigger('click')
+  await vi.waitFor(() => expect(document.querySelector('.outfit-detail-panel')).not.toBeNull())
+  expect(document.querySelector<HTMLImageElement>('.outfit-detail-image')?.src).toContain(
+    '/images/items/' + HAIR + '.png'
+  )
+  expect(document.querySelector('.outfit-detail-image-placeholder')).not.toBeNull()
+  document.querySelector<HTMLButtonElement>('.wardrobe-outfit-link')!.click()
+  await vi.waitFor(() => expect(document.querySelector('.wardrobe-dialog')).not.toBeNull())
+  expect(document.querySelector('.outfit-detail-panel')).not.toBeNull()
+  expect(await loadResonanceRecords()).toEqual([savedRecord])
+})
+
+it.each(['bookmark', 'console'] as const)(
+  'reports %s code copying only through top notices',
+  async (kind) => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    const original = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    try {
+      const { wrapper, panel } = await openDialog()
+      wrapper.findComponent(ResonanceImportDialog).vm.$emit('copyScript', kind)
+      await flushPromises()
+      expect(writeText).toHaveBeenCalledOnce()
+      expect(latestNotice(wrapper)?.tone).toBe('success')
+      expect(panel.querySelector('[role="status"]')).toBeNull()
+      writeText.mockRejectedValueOnce(new Error('clipboard denied'))
+      wrapper.findComponent(ResonanceImportDialog).vm.$emit('copyScript', kind)
+      await flushPromises()
+      expect(latestNotice(wrapper)?.tone).toBe('error')
+      expect(panel.querySelector('.data-import-error')).toBeNull()
+    } finally {
+      if (original) Object.defineProperty(navigator, 'clipboard', original)
+      else delete (navigator as unknown as { clipboard?: unknown }).clipboard
+    }
+  }
+)

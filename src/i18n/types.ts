@@ -200,9 +200,13 @@ export interface LocaleMessages {
     currentTitle: string
     currentVersion: string
     currentDate: string
-    currentItems: string[]
+    currentItems: Array<string | { title: string; text: string }>
     historyTitle: string
-    history: Array<{ version: string; date?: string; items: string[] }>
+    history: Array<{
+      version: string
+      date?: string
+      items: Array<string | { title: string; text: string }>
+    }>
     dontShowAgain: string
     confirm: string
     closeAria: string

@@ -1671,3 +1671,29 @@
     grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   }
 }
+
+/* Reserve the image area until the item display image is ready. */
+.outfit-detail-summary .outfit-detail-image-frame.is-image-loading {
+  width: min(273px, 100%);
+  height: min(400px, 55dvh);
+}
+.outfit-detail-image-frame.is-image-loading img.outfit-detail-image {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+}
+.outfit-detail-image-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: var(--frame-bg);
+  color: var(--muted);
+  font-size: 14px;
+}
+.outfit-detail-image-placeholder .outfit-image-spinner {
+  position: static;
+}

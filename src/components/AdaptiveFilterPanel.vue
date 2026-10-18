@@ -12,6 +12,7 @@ const props = defineProps<{
   closeLabel: string
   applyLabel: string
   tagPicker?: boolean
+  topAligned?: boolean
 }>()
 const emit = defineEmits<{ close: [] }>()
 const panel = ref<HTMLElement | null>(null)
@@ -41,7 +42,8 @@ watch(modal, async (open) => {
         :class="{
           'desktop-filter-panel': !compact,
           'mobile-filter-overlay': compact,
-          'mobile-tag-picker': compact && tagPicker
+          'mobile-tag-picker': compact && tagPicker,
+          'mobile-filter-top-aligned': compact && topAligned
         }"
         @click.self="compact && $emit('close')"
       >

@@ -103,7 +103,13 @@ watch(
               <article class="update-log-entry is-current update-log-current">
                 <span class="update-log-version">{{ messages.currentVersion }}</span>
                 <ul
-                  ><li v-for="item in messages.currentItems" :key="item">{{ item }}</li></ul
+                  ><li v-for="(item, index) in messages.currentItems" :key="index"
+                    ><template v-if="typeof item === 'string'">{{ item }}</template
+                    ><template v-else
+                      ><strong class="update-log-item-title">{{ item.title }}</strong
+                      >{{ item.text }}</template
+                    ></li
+                  ></ul
                 >
               </article>
             </section>
@@ -116,7 +122,13 @@ watch(
               >
                 <span class="update-log-version">{{ entry.version }}</span>
                 <ul
-                  ><li v-for="item in entry.items" :key="item">{{ item }}</li></ul
+                  ><li v-for="(item, index) in entry.items" :key="index"
+                    ><template v-if="typeof item === 'string'">{{ item }}</template
+                    ><template v-else
+                      ><strong class="update-log-item-title">{{ item.title }}</strong
+                      >{{ item.text }}</template
+                    ></li
+                  ></ul
                 >
               </article>
             </section>

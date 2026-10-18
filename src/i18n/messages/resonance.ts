@@ -39,6 +39,7 @@ export interface ResonanceMessages {
   pearpalSite: string
   getCookie: string
   getCookieDesc: string
+  mobileCredentialTip: string
   cookieMethods: string
   bookmarkMethod: string
   consoleMethod: string
@@ -109,8 +110,7 @@ export const resonanceZh: ResonanceMessages = {
   onlyFourStar: '只展示四星',
   noMatchingRarity: '当前星级没有套装记录',
   emptyTitle: '还没有共鸣记录',
-  emptyDescription:
-    '从奇想手账或 JSON 文件导入，也可登录后从云端同步已有存档，查看套装部件的获取顺序。',
+  emptyDescription: '点击右上角“导入数据”，也可登录后从云端同步已有存档，查看套装部件的获取记录。',
   clearRecords: '清空本地记录',
   clearTitle: '清空本地共鸣记录',
   clearMessage:
@@ -120,7 +120,7 @@ export const resonanceZh: ResonanceMessages = {
   clearing: '正在清空…',
   clearSuccess: '本地共鸣记录已清空，云端存档保留。',
   clearError: '清空失败，记录未更改，请重试。',
-  addData: '添加数据',
+  addData: '导入数据',
   exportData: '导出数据',
   exportSuccess: '共鸣记录已导出。',
   exportError: '导出失败，请重试。',
@@ -140,6 +140,7 @@ export const resonanceZh: ResonanceMessages = {
   pearpalSite: '打开美鸭梨',
   getCookie: '获取登录凭据',
   getCookieDesc: '选择一种方式，从已登录的美鸭梨页面复制凭据数据：',
+  mobileCredentialTip: '建议使用电脑端获取登录凭据，操作更加方便。获取后可复制到手机端继续导入。',
   cookieMethods: '凭据获取方式',
   bookmarkMethod: '书签方法',
   consoleMethod: '控制台方法',
@@ -223,7 +224,7 @@ export const resonanceEn: ResonanceMessages = {
   clearing: 'Clearing…',
   clearSuccess: 'Local resonance records cleared. The cloud save remains.',
   clearError: 'Could not clear records. They were not changed; try again.',
-  addData: 'Add data',
+  addData: 'Import data',
   exportData: 'Export data',
   exportSuccess: 'Resonance records exported.',
   exportError: 'Export failed. Please try again.',
@@ -245,6 +246,7 @@ export const resonanceEn: ResonanceMessages = {
   pearpalSite: 'Open Pear-Pal',
   getCookie: 'Get sign-in credentials',
   getCookieDesc: 'Choose a method to copy credentials from your signed-in Pear-Pal page:',
+  mobileCredentialTip: 'We recommend obtaining sign-in credentials on a computer for easier access. You can then copy them to your phone to continue importing.',
   cookieMethods: 'Credential method',
   bookmarkMethod: 'Bookmark',
   consoleMethod: 'Console',

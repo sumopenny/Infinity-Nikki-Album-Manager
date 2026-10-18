@@ -1,6 +1,17 @@
 import type { Language } from '../../i18n/types'
+import { assignWardrobeRewardSources, wardrobeGameVersionFromSource } from './wardrobeFilters'
 
 export type WardrobeKind = 'outfit' | 'item'
+// 与上游紧凑图鉴的 styleIndex 顺序一致，不能把缺失值当作 0（甜美）。
+const WARDROBE_STYLES = ['sweet', 'sexy', 'fresh', 'cool', 'elegant'] as const
+export type WardrobeStyle = (typeof WARDROBE_STYLES)[number]
+export const wardrobeStyleLabels: Record<WardrobeStyle, Record<Language, string>> = {
+  sweet: { zh: '甜美', en: 'Sweet' },
+  sexy: { zh: '性感', en: 'Sexy' },
+  fresh: { zh: '清新', en: 'Fresh' },
+  cool: { zh: '帅气', en: 'Cool' },
+  elegant: { zh: '典雅', en: 'Elegant' }
+}
 export interface WardrobeEntry {
   id: string
   kind: WardrobeKind
@@ -8,6 +19,12 @@ export interface WardrobeEntry {
   quality: number
   variant: number
   category: number
+  familyRootId: string | null
+  style: WardrobeStyle | null
+  labels: number[]
+  obtainType: number | null
+  version: string | null
+  sourceDetails: string[]
   image: string
   parts: string[]
 }
@@ -81,6 +98,14 @@ export function loadWardrobeCatalog(): Promise<WardrobeCatalog> {
                   ? Number(id.slice(-2))
                   : 0
                 : itemVariant(id, root)
+            const rawLabels = row[kind === 'item' ? 4 : 3]
+            const rawObtainType = row[kind === 'item' ? 5 : 4]
+            const obtainType =
+              typeof rawObtainType === 'number' &&
+              Number.isSafeInteger(rawObtainType) &&
+              rawObtainType > 0
+                ? rawObtainType
+                : null
             entries.push({
               id,
               kind,
@@ -88,12 +113,27 @@ export function loadWardrobeCatalog(): Promise<WardrobeCatalog> {
               quality: Number(row[1]),
               variant,
               category: Number(row[2]),
+              familyRootId: /^[1-9]\d*$/.test(root) ? root : null,
+              style:
+                typeof row[kind === 'item' ? 3 : 2] === 'number'
+                  ? (WARDROBE_STYLES[Number(row[kind === 'item' ? 3 : 2])] ?? null)
+                  : null,
+              labels: Array.isArray(rawLabels)
+                ? rawLabels.filter(
+                    (label): label is number =>
+                      typeof label === 'number' && Number.isSafeInteger(label) && label > 0
+                  )
+                : [],
+              obtainType,
+              version: wardrobeGameVersionFromSource(obtainType),
+              sourceDetails: [],
               parts,
               image: `https://cdn.gongeo.us/images/${kind === 'outfit' ? 'outfits' : 'items/icons'}/${id}.png`
             })
           }
         }
       }
+      assignWardrobeRewardSources(entries)
       return { entries, byId: new Map(entries.map((entry) => [entry.id, entry])) }
     })
     .catch((error) => {

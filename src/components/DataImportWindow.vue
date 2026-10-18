@@ -35,7 +35,7 @@ const emit = defineEmits<{
 const text = (zh: string, en: string) => (props.language === 'zh' ? zh : en)
 const t = computed(() => ({
   ...messages[props.language].resonance,
-  addTitle: text('添加数据', 'Add data'),
+  addTitle: text('导入数据', 'Import data'),
   importing: text('正在获取数据，请稍候…', 'Loading data, please wait…'),
   fileDescription: text(
     '支持原始手账 JSON、共鸣记录 JSON 和衣橱备份（最大 10 MB）。预览后选择要导入的记录；文件未包含的数据类型不可选。',
@@ -51,8 +51,7 @@ const cookieInput = ref(''),
   fileName = ref('')
 const importing = ref(false),
   confirming = ref(false),
-  error = ref(''),
-  notice = ref('')
+  error = ref('')
 const panel = ref<HTMLElement | null>(null)
 const preview = ref<DataPreview | null>(null)
 const selectedResonance = ref(true),
@@ -88,7 +87,7 @@ function reset() {
   invalidate()
   cookieInput.value = roleid.value = token.value = openid.value = fileName.value = ''
   fileBytes = null
-  notice.value = ''
+
   method.value = 'pearpal'
   cookieMethod.value = 'bookmark'
   selectedResonance.value = selectedWardrobe.value = true
@@ -103,7 +102,7 @@ watch(cookieInput, (value) => {
     roleid.value = parsed.roleid
     token.value = parsed.token
     openid.value = parsed.id
-    notice.value = ''
+
     emit('notice', t.value.pasteSuccess, 'success')
   } catch {
     error.value = t.value.pasteFailed
@@ -138,22 +137,24 @@ function selectFile(event: Event) {
 }
 function report(cause: unknown) {
   const message = cause instanceof Error ? cause.message : ''
-  error.value =
+  if (message === 'MISSING_CREDENTIALS') {
+    emit('notice', t.value.credentialsRequired, 'error')
+    return
+  }
+  const errorMessage =
     message === PEARPAL_UID_MISMATCH
       ? t.value.uidMismatch
       : message === PEARPAL_AUTH_FAILED
         ? t.value.authFailed
-        : message === 'MISSING_CREDENTIALS'
-          ? t.value.credentialsRequired
-          : message === 'LOCAL_CHANGED'
-            ? text(
-                '记录已在其他页面变更，请重新获取预览。',
-                'Records changed in another tab. Preview again.'
-              )
-            : confirming.value
-              ? t.value.saveError
-              : t.value.fileInvalid
-  emit('notice', error.value, 'error')
+        : message === 'LOCAL_CHANGED'
+          ? text(
+              '记录已在其他页面变更，请重新获取预览。',
+              'Records changed in another tab. Preview again.'
+            )
+          : confirming.value
+            ? t.value.saveError
+            : t.value.fileInvalid
+  emit('notice', errorMessage, 'error')
 }
 async function createPreview() {
   if (props.disabled || importing.value || confirming.value) return
@@ -164,7 +165,7 @@ async function createPreview() {
   const current = request.begin()
   importing.value = true
   error.value = ''
-  notice.value = ''
+
   preview.value = null
   const bytes = fileBytes
   try {
@@ -242,9 +243,9 @@ async function copyScript(kind: 'bookmark' | 'console') {
     await navigator.clipboard.writeText(
       kind === 'bookmark' ? bookmark.value : resonanceConsoleScript
     )
-    notice.value = t.value.copyCodeSuccess
+    emit('notice', t.value.copyCodeSuccess, 'success')
   } catch {
-    error.value = t.value.importError
+    emit('notice', text('复制代码失败，请重试。', 'Failed to copy code. Please retry.'), 'error')
   }
 }
 </script>
@@ -256,6 +257,7 @@ async function copyScript(kind: 'bookmark' | 'console') {
     title-id="data-import-title"
     :import-method="method"
     :cookie-method="cookieMethod"
+    show-mobile-credential-tip
     :file-name="fileName"
     :bookmark-script="bookmark"
     :importing="importing"
@@ -277,7 +279,6 @@ async function copyScript(kind: 'bookmark' | 'console') {
     @confirm="confirm"
   >
     <p v-if="error" class="data-import-error" role="alert">{{ error }}</p>
-    <p v-if="notice" role="status">{{ notice }}</p>
     <section v-if="preview" class="resonance-preview">
       <h3
         >{{ t.previewTitle
@@ -311,7 +312,7 @@ async function copyScript(kind: 'bookmark' | 'console') {
         </table>
       </div>
       <p v-if="preview.wardrobe !== null">{{
-        text(`衣橱：${wardrobeCount} 件已拥有单品`, `Wardrobe: ${wardrobeCount} owned pieces`)
+        text(`衣橱：${wardrobeCount} 件已拥有部件`, `Wardrobe: ${wardrobeCount} owned pieces`)
       }}</p>
       <div
         class="data-import-targets"

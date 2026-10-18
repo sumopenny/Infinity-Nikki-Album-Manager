@@ -21,6 +21,7 @@ import ConfirmDialog from './components/ConfirmDialog.vue'
 import DateSidebar from './components/DateSidebar.vue'
 import Lightbox from './components/Lightbox.vue'
 import OperationNotice from './components/OperationNotice.vue'
+import PageScrollbar from './components/PageScrollbar.vue'
 import NoteDialog from './components/NoteDialog.vue'
 import OutfitEditor from './components/OutfitEditor.vue'
 import OutfitGrid from './components/OutfitGrid.vue'
@@ -429,9 +430,7 @@ const {
 } = photoParams
 const {
   statusState,
-  statusMessage,
-  statusTone: statusNoticeTone,
-  isStatusLoading: isStatusNoticeLoading,
+  notices: statusNotices,
   activeOperation,
   isLoading,
   isDeleting,
@@ -442,7 +441,6 @@ const {
   isImportingPhotos,
   isExportingPhotos,
   isAnyFileOperationBusy,
-  isVisible: isStatusNoticeVisible,
   showStatus,
   clearStatus: clearOperationStatus,
   closeNotice: closeStatusNotice,
@@ -2339,6 +2337,7 @@ function importAllDataFromMenu() {
 
 <template>
   <div ref="appShellRef" class="app-shell">
+    <PageScrollbar :label="language === 'zh' ? '页面滚动' : 'Page scroll'" />
     <TopBar
       ref="topBarRef"
       :active-view="activeView"
@@ -2509,14 +2508,19 @@ function importAllDataFromMenu() {
       </div>
 
       <section class="album-content" :aria-label="locale.app.albumContentAria">
-        <nav
+        <div
           v-if="compactLayout && (activeView === 'resonance' || activeView === 'wardrobe')"
-          class="favorites-tabs"
+          class="archive-main-toolbar"
+          :class="{ 'is-wardrobe': activeView === 'wardrobe' }"
+        >
+        <nav
+          class="resonance-choice-row archive-main-tabs"
           :aria-label="locale.viewNav.resonance"
         >
           <button
             type="button"
             :disabled="operations.isBusy.value"
+            class="resonance-choice"
             :aria-pressed="activeView === 'resonance'"
             @click="changeAlbumView('resonance')"
             >{{ locale.viewNav.resonanceRecords }}</button
@@ -2524,11 +2528,14 @@ function importAllDataFromMenu() {
           <button
             type="button"
             :disabled="operations.isBusy.value"
+            class="resonance-choice"
             :aria-pressed="activeView === 'wardrobe'"
             @click="changeAlbumView('wardrobe')"
             >{{ locale.viewNav.wardrobe }}</button
           >
         </nav>
+        <div v-if="activeView === 'wardrobe'" id="wardrobe-mobile-category-target" class="archive-wardrobe-extra"></div>
+        </div>
         <CollectionFilterBar
           v-if="
             activeView !== 'outfits' &&
@@ -3181,11 +3188,8 @@ function importAllDataFromMenu() {
     />
 
     <OperationNotice
-      :visible="isStatusNoticeVisible"
+      :notices="statusNotices"
       :title="locale.app.operationNoticeTitle"
-      :message="statusMessage"
-      :tone="statusNoticeTone"
-      :is-loading="isStatusNoticeLoading"
       :close-label="locale.app.operationNoticeCloseAria"
       @close="closeStatusNotice"
       @pause="pauseStatusNoticeTimer"
