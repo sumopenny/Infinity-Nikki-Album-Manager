@@ -107,7 +107,15 @@ watch(
                     ><template v-if="typeof item === 'string'">{{ item }}</template
                     ><template v-else
                       ><strong class="update-log-item-title">{{ item.title }}</strong
-                      >{{ item.text }}</template
+                      >{{ item.text
+                      }}<a
+                        v-if="item.link"
+                        class="update-log-item-link"
+                        :href="item.link.href"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        >{{ item.link.label }}</a
+                      ></template
                     ></li
                   ></ul
                 >
@@ -126,7 +134,15 @@ watch(
                     ><template v-if="typeof item === 'string'">{{ item }}</template
                     ><template v-else
                       ><strong class="update-log-item-title">{{ item.title }}</strong
-                      >{{ item.text }}</template
+                      >{{ item.text
+                      }}<a
+                        v-if="item.link"
+                        class="update-log-item-link"
+                        :href="item.link.href"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        >{{ item.link.label }}</a
+                      ></template
                     ></li
                   ></ul
                 >
@@ -148,3 +164,12 @@ watch(
     </Transition>
   </Teleport>
 </template>
+
+<style scoped>
+.update-log-item-link {
+  margin-left: 0.35em;
+  color: var(--pink-deep);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+</style>

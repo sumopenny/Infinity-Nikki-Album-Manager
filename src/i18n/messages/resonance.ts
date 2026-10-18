@@ -39,8 +39,14 @@ export interface ResonanceMessages {
   pearpalSite: string
   getCookie: string
   getCookieDesc: string
+  mobileAndroidBrowsers: string
+  mobileIosBrowsers: string
   mobileCredentialTip: string
   cookieMethods: string
+  mobileBookmarkStep1: string
+  mobileBookmarkStep2: string
+  mobileBookmarkStep3: string
+  mobileBookmarkStep5: string
   bookmarkMethod: string
   consoleMethod: string
   sourceAttributionLabel: string
@@ -141,7 +147,14 @@ export const resonanceZh: ResonanceMessages = {
   getCookie: '获取登录凭据',
   getCookieDesc: '选择一种方式，从已登录的美鸭梨页面复制凭据数据：',
   mobileCredentialTip: '建议使用电脑端获取登录凭据，操作更加方便。获取后可复制到手机端继续导入。',
+  mobileAndroidBrowsers: '安卓建议浏览器：Chrome（谷歌）、Firefox（火狐）。',
+  mobileIosBrowsers: 'iOS 建议浏览器：Chrome（谷歌）、Firefox（火狐）、Safari。',
   cookieMethods: '凭据获取方式',
+  mobileBookmarkStep1: '点击“复制代码”，复制完整的书签脚本。',
+  mobileBookmarkStep2: '在浏览器中将任意网页添加为书签。',
+  mobileBookmarkStep3:
+    '编辑该书签，将网址（URL）替换为刚复制的完整代码，确认开头保留 javascript:，然后保存。',
+  mobileBookmarkStep5: '在美鸭梨页面运行书签。书签可从书签列表打开。',
   bookmarkMethod: '书签方法',
   consoleMethod: '控制台方法',
   sourceAttributionLabel: '方法来源',
@@ -246,8 +259,17 @@ export const resonanceEn: ResonanceMessages = {
   pearpalSite: 'Open Pear-Pal',
   getCookie: 'Get sign-in credentials',
   getCookieDesc: 'Choose a method to copy credentials from your signed-in Pear-Pal page:',
-  mobileCredentialTip: 'We recommend obtaining sign-in credentials on a computer for easier access. You can then copy them to your phone to continue importing.',
+  mobileCredentialTip:
+    'We recommend obtaining sign-in credentials on a computer for easier access. You can then copy them to your phone to continue importing.',
+  mobileAndroidBrowsers: 'Recommended browsers for Android: Chrome and Firefox.',
+  mobileIosBrowsers: 'Recommended browsers for iOS: Chrome, Firefox and Safari.',
   cookieMethods: 'Credential method',
+  mobileBookmarkStep1: 'Tap “Copy code” to copy the complete bookmark script.',
+  mobileBookmarkStep2: 'Bookmark any page in your browser.',
+  mobileBookmarkStep3:
+    'Edit the bookmark and replace its URL with the copied code. Keep the javascript: prefix, then save.',
+  mobileBookmarkStep5:
+    'Run the bookmark on the Pear-Pal page. You can open it from your bookmarks list.',
   bookmarkMethod: 'Bookmark',
   consoleMethod: 'Console',
   sourceAttributionLabel: 'Method source',

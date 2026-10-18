@@ -343,6 +343,65 @@ describe('Pearpal import', () => {
 })
 
 describe('credential helpers', () => {
+  async function runBookmark(text: string, fetchMock: ReturnType<typeof vi.fn>) {
+    const prompt = vi.fn()
+    await new Function(
+      'document',
+      'location',
+      'fetch',
+      'prompt',
+      'alert',
+      'return ' + resonanceBookmarkScript('Wrong site').slice('javascript:'.length)
+    )(
+      { body: { innerText: text }, cookie: 'momoToken=t; momoNid=i' },
+      { hostname: 'myl.nuanpaper.com' },
+      fetchMock,
+      prompt,
+      vi.fn()
+    )
+    return JSON.parse(prompt.mock.calls[0]![1])
+  }
+
+  it.each(['UID: 123456', ' UID：\n123456 ', 'Name\nUID:\n123456\nProfile'])(
+    'reads UID from desktop and mobile text: %s',
+    async (text) => {
+      const fetchMock = vi.fn()
+      expect(await runBookmark(text, fetchMock)).toEqual({ roleid: '123456', token: 't', id: 'i' })
+      expect(fetchMock).not.toHaveBeenCalled()
+    }
+  )
+  it('retrieves a missing page UID from the official role response', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ code: 0, data: { role: { uid: 123456, zone_id: 1 } } })
+    })
+    expect((await runBookmark('Profile', fetchMock)).roleid).toBe('123456')
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://myl-api.nuanpaper.com/v1/strategy/user/info/get',
+      expect.objectContaining({
+        body: JSON.stringify({ client_id: 1106, token: 't', openid: 'i' })
+      })
+    )
+  })
+  it('keeps credentials available for manual UID entry if role lookup fails', async () => {
+    expect(await runBookmark('Profile', vi.fn().mockRejectedValue(new Error('network')))).toEqual({
+      roleid: '',
+      token: 't',
+      id: 'i'
+    })
+    expect(
+      (
+        await runBookmark(
+          'Profile',
+          vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ code: 0, data: { role: { uid: 123456, zone_id: 6 } } })
+          })
+        )
+      ).roleid
+    ).toBe('')
+  })
+
   it('builds the two copy flows and parses pasted JSON with either quote style', () => {
     const script = resonanceBookmarkScript('请在美鸭梨网站上使用此书签')
     expect(script.startsWith('javascript:')).toBe(true)

@@ -53,6 +53,27 @@ const raw = {
   }
 }
 
+it('shows recommended mobile browsers directly without a compatibility dialog', () => {
+  const guide = document.querySelector('.resonance-mobile-browsers')!
+  expect(guide.textContent).toContain('安卓建议浏览器：Chrome（谷歌）、Firefox（火狐）')
+  expect(guide.textContent).toContain('iOS 建议浏览器：Chrome（谷歌）、Firefox（火狐）、Safari')
+  expect(document.querySelector('.resonance-mobile-compatibility')).toBeNull()
+  expect(document.querySelector('.confirm-dialog')).toBeNull()
+})
+
+it('offers a mobile bookmark guide and copies the complete executable script', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined)
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+  const guide = document.querySelector('.resonance-mobile-bookmark-steps')!
+  expect(guide.textContent).toContain('在浏览器中将任意网页添加为书签。')
+  expect(guide.textContent).toContain('在美鸭梨页面运行书签。书签可从书签列表打开。')
+  expect(guide.textContent).toContain('javascript:')
+  guide.querySelector<HTMLButtonElement>('button')!.click()
+  await flushPromises()
+  expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/^javascript:/))
+  expect(wrapper.emitted('notice')).toContainEqual(['代码已复制', 'success'])
+})
+
 it('defaults both options on, blocks empty selection and imports only the chosen module', async () => {
   const choices = await preview(raw)
   expect(choices.map((input) => [input.checked, input.disabled])).toEqual([

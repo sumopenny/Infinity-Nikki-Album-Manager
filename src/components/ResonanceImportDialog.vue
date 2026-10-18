@@ -124,6 +124,10 @@ const PEARPAL_URL = 'https://myl.nuanpaper.com/home'
 
             <section v-if="importMethod === 'pearpal'">
               <h3>{{ t.getCookie }}</h3>
+              <div v-if="showMobileCredentialTip" class="resonance-mobile-browsers resonance-hint">
+                <p>{{ t.mobileAndroidBrowsers }}</p>
+                <p>{{ t.mobileIosBrowsers }}</p>
+              </div>
               <p v-if="showMobileCredentialTip" class="resonance-mobile-credential-tip">
                 <Info :size="16" aria-hidden="true" />
                 <span>{{ t.mobileCredentialTip }}</span>
@@ -144,6 +148,7 @@ const PEARPAL_URL = 'https://myl.nuanpaper.com/home'
                 <button
                   type="button"
                   class="resonance-choice"
+                  :class="{ 'resonance-desktop-console-method': showMobileCredentialTip }"
                   :aria-pressed="cookieMethod === 'console'"
                   @click="emit('selectCookieMethod', 'console')"
                   ><Terminal :size="14" aria-hidden="true" />{{ t.consoleMethod }}</button
@@ -152,7 +157,31 @@ const PEARPAL_URL = 'https://myl.nuanpaper.com/home'
 
               <div class="parse-tools-section resonance-cookie-guide">
                 <h4>{{ t.cookieStepsTitle }}</h4>
-                <ol v-if="cookieMethod === 'bookmark'" class="resonance-steps">
+                <ol
+                  v-if="showMobileCredentialTip"
+                  class="resonance-steps resonance-mobile-bookmark-steps"
+                >
+                  <li
+                    >{{ t.mobileBookmarkStep1 }}
+                    <button
+                      class="resonance-inline-action"
+                      type="button"
+                      @click="emit('copyScript', 'bookmark')"
+                      ><Copy :size="14" aria-hidden="true" />{{ t.copyCode }}</button
+                    >
+                  </li>
+                  <li>{{ t.mobileBookmarkStep2 }}</li>
+                  <li>{{ t.mobileBookmarkStep3 }}</li>
+                  <li>{{ t.bookmarkStep2 }}</li>
+                  <li>{{ t.mobileBookmarkStep5 }}</li>
+                  <li>{{ t.bookmarkStep4 }}</li>
+                  <li>{{ t.bookmarkStep5 }}</li>
+                </ol>
+                <ol
+                  v-if="cookieMethod === 'bookmark'"
+                  class="resonance-steps"
+                  :class="{ 'resonance-desktop-bookmark-steps': showMobileCredentialTip }"
+                >
                   <li>
                     {{ t.bookmarkStep1 }}
                     <a
@@ -167,8 +196,11 @@ const PEARPAL_URL = 'https://myl.nuanpaper.com/home'
                   <li>{{ t.bookmarkStep4 }}</li>
                   <li>{{ t.bookmarkStep5 }}</li>
                 </ol>
-                <template v-else>
-                  <ol class="resonance-steps">
+                <template v-if="cookieMethod === 'console'">
+                  <ol
+                    class="resonance-steps"
+                    :class="{ 'resonance-desktop-console-method': showMobileCredentialTip }"
+                  >
                     <li>{{ t.consoleStep2 }}</li>
                     <li>{{ t.consoleStep3 }}</li>
                     <li>
@@ -256,10 +288,28 @@ const PEARPAL_URL = 'https://myl.nuanpaper.com/home'
   gap: 6px;
 }
 /* 仅在手机布局显示提示，其他复用此窗口的入口默认关闭。 */
-.resonance-mobile-credential-tip {
+.resonance-mobile-browsers,
+.resonance-mobile-credential-tip,
+.resonance-mobile-bookmark-steps {
   display: none;
 }
 @media (max-width: 899px) {
+  .resonance-mobile-browsers {
+    display: block;
+    margin: 8px 0;
+  }
+  .resonance-mobile-browsers p {
+    margin: 4px 0;
+  }
+  .resonance-desktop-console-method {
+    display: none;
+  }
+  .resonance-mobile-bookmark-steps {
+    display: block;
+  }
+  .resonance-desktop-bookmark-steps {
+    display: none;
+  }
   .resonance-mobile-credential-tip {
     display: flex;
     align-items: flex-start;

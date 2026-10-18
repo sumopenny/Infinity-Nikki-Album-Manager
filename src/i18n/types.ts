@@ -200,12 +200,14 @@ export interface LocaleMessages {
     currentTitle: string
     currentVersion: string
     currentDate: string
-    currentItems: Array<string | { title: string; text: string }>
+    currentItems: Array<
+      string | { title: string; text: string; link?: { label: string; href: string } }
+    >
     historyTitle: string
     history: Array<{
       version: string
       date?: string
-      items: Array<string | { title: string; text: string }>
+      items: Array<string | { title: string; text: string; link?: { label: string; href: string } }>
     }>
     dontShowAgain: string
     confirm: string

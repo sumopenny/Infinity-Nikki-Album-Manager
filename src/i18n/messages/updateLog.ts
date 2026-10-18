@@ -39,6 +39,14 @@ export const updateLogZh: LocaleMessages['updateLog'] = {
     {
       title: '调整入口名称：',
       text: '“共鸣”更名为“暖暖档案”，下设“共鸣记录”和“个人衣橱”。'
+    },
+    {
+      title: '衣橱界面展示图：',
+      text: '可前往小红书查看。',
+      link: {
+        label: '前往小红书',
+        href: 'https://www.xiaohongshu.com/discovery/item/6ad4765c0000000028002402?source=webshare&xhsshare=pc_web&xsec_token=ABjeDe5Todarh39N7ZgKZAUc-FyPIeTAKg25qOtcSrOI0=&xsec_source=pc_share'
+      }
     }
   ],
   historyTitle: '历史版本记录',
@@ -540,6 +548,14 @@ export const updateLogEn: LocaleMessages['updateLog'] = {
     {
       title: 'Renamed navigation: ',
       text: 'Resonance is now Nikki Archive, containing Resonance Records and Personal Wardrobe.'
+    },
+    {
+      title: 'Wardrobe interface previews: ',
+      text: 'View the screenshots on Xiaohongshu. ',
+      link: {
+        label: 'Open Xiaohongshu',
+        href: 'https://www.xiaohongshu.com/discovery/item/6ad4765c0000000028002402?source=webshare&xhsshare=pc_web&xsec_token=ABjeDe5Todarh39N7ZgKZAUc-FyPIeTAKg25qOtcSrOI0=&xsec_source=pc_share'
+      }
     }
   ],
   historyTitle: 'Previous releases',
