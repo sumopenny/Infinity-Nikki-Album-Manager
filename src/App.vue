@@ -3,7 +3,6 @@ import { useAppPreferences } from './composables/useAppPreferences'
 import { readLocalStorage, writeLocalStorage, removeLocalStorage } from './utils/localStorage'
 import { useGameCleanup } from './composables/useGameCleanup'
 import { usePhotoTrashActions } from './composables/usePhotoTrashActions'
-import { lazyComponent } from './utils/lazyComponent'
 import { useOutfitWorkspace } from './composables/useOutfitWorkspace'
 import { useDirectorySession, type DirectoryState } from './composables/useDirectorySession'
 import {
@@ -17,8 +16,8 @@ import { clearAllBrowserData } from './utils/file-system/database'
 
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { CircleHelp, Download, Plus, Trash2, Upload } from 'lucide-vue-next'
-const UpdateLogDialog = lazyComponent(() => import('./components/UpdateLogDialog.vue'), true)
-const HelpAboutDialog = lazyComponent(() => import('./components/HelpAboutDialog.vue'), true)
+import UpdateLogDialog from './components/UpdateLogDialog.vue'
+import HelpAboutDialog from './components/HelpAboutDialog.vue'
 import AlbumViewSwitcher, { type AlbumView } from './components/AlbumViewSwitcher.vue'
 import CleanupAccountPicker from './components/CleanupAccountPicker.vue'
 import CleanupDialog from './components/CleanupDialog.vue'
@@ -28,17 +27,17 @@ import Lightbox from './components/Lightbox.vue'
 import OperationNotice from './components/OperationNotice.vue'
 import PageScrollbar from './components/PageScrollbar.vue'
 import NoteDialog from './components/NoteDialog.vue'
-const OutfitEditor = lazyComponent(() => import('./components/OutfitEditor.vue'), true)
+import OutfitEditor from './components/OutfitEditor.vue'
 import OutfitGrid from './components/OutfitGrid.vue'
-const OutfitGuideDialog = lazyComponent(() => import('./components/OutfitGuideDialog.vue'), true)
-const OutfitParseDialog = lazyComponent(() => import('./components/OutfitParseDialog.vue'), true)
+import OutfitGuideDialog from './components/OutfitGuideDialog.vue'
+import OutfitParseDialog from './components/OutfitParseDialog.vue'
 import ParseToolsDialog from './components/ParseToolsDialog.vue'
-const FortuneTimeDialog = lazyComponent(() => import('./components/FortuneTimeDialog.vue'), true)
+import FortuneTimeDialog from './components/FortuneTimeDialog.vue'
 import OutfitSidebar, { type OutfitFilter } from './components/OutfitSidebar.vue'
-const HomeSchemeWorkspace = lazyComponent(() => import('./components/HomeSchemeWorkspace.vue'))
-const ResonanceRecords = lazyComponent(() => import('./components/ResonanceRecords.vue'))
-const PersonalWardrobe = lazyComponent(() => import('./components/PersonalWardrobe.vue'))
-const ResonanceSidebar = lazyComponent(() => import('./components/ResonanceSidebar.vue'))
+import HomeSchemeWorkspace from './components/HomeSchemeWorkspace.vue'
+import ResonanceRecords from './components/ResonanceRecords.vue'
+import PersonalWardrobe from './components/PersonalWardrobe.vue'
+import ResonanceSidebar from './components/ResonanceSidebar.vue'
 import PhotoGrid from './components/PhotoGrid.vue'
 import RecentlyDeletedGrid from './components/RecentlyDeletedGrid.vue'
 import SelectionBar from './components/SelectionBar.vue'
@@ -49,7 +48,7 @@ import MobileNavigation from './components/MobileNavigation.vue'
 import { useCompactLayout, useVisualViewport } from './composables/useCompactLayout'
 import TopBar from './components/TopBar.vue'
 import PhotoTransferProgressDialog from './components/PhotoTransferProgressDialog.vue'
-const PhotoParamsDialog = lazyComponent(() => import('./components/PhotoParamsDialog.vue'), true)
+import PhotoParamsDialog from './components/PhotoParamsDialog.vue'
 import CameraFavorites from './components/CameraFavorites.vue'
 import AllDataBackup from './components/AllDataBackup.vue'
 import { loadResonanceRecords } from './utils/resonance/resonanceStorage'

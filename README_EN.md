@@ -127,7 +127,7 @@ Official site: https://nikki3.pages.dev/. Open https://infinity-nikki-album-mana
 
 ## Loading and network requests
 
-- Home schemes, Wardrobe, Resonance and large dialogs load on demand, with a retry action if a module download fails. Downloads exceeding 15 seconds and cached module-download errors offer a Reload page action. A download completing later respects the current dialog state and does not reopen a closed dialog. The full-backup picker still opens synchronously; ZIP processing loads when importing or exporting.
+- Home schemes, Wardrobe, Resonance and large dialogs load with the page. Opening them no longer shows a module-download loading dialog or its timeout/retry actions. The full-backup picker still opens synchronously; ZIP processing loads when importing or exporting.
 - You can switch modules while a saved album directory is being read. Outfit and home-scheme migration waits for pending writes and keeps the existing write lock. Background restoration preserves your selected view; the initial game-directory outfit scan waits until you enter Outfit codes.
 - Public catalog lists load the first six images eagerly, prioritizing the first one, and lazy-load later images. Main detail images load eagerly. Failed images show a retry icon that supports pointer and keyboard activation. Existing image sources, sizes and formats are retained; no image transformation service is enabled.
 - Outfit piece details display the name and image immediately, then add relationships and dye information from the local catalog. Only related outfit names need a remote request; unused piece-detail requests are removed. Remote failures offer a retry action that keeps an already loaded image visible when its URL is unchanged.
@@ -268,7 +268,7 @@ The local site uses online D1 data; double-click `start\Start-Remote-D1-Website.
 
 Internally, `useOperationCoordinator` tracks module work and `useLatestRequest` invalidates stale reads. `useDirectorySession` and `useOutfitWorkspace` handle directory authorization and outfit operations. Home and Outfit storage share commit/rollback handling in `file-system/transaction.ts`. Pose resource request timeouts cover response body reading.
 
-`App.vue` retains page composition, startup, and coordination across modules. `useAppPreferences`, `useGameCleanup`, and `usePhotoTrashActions` manage display preferences, game-directory cleanup, and trash operations respectively. They reuse the existing operation lock and shared state without adding a global store; large modules remain loaded on demand.
+`App.vue` retains page composition, startup, and coordination across modules. `useAppPreferences`, `useGameCleanup`, and `usePhotoTrashActions` manage display preferences, game-directory cleanup, and trash operations respectively. They reuse the existing operation lock and shared state without adding a global store; module and dialog components load with the page.
 
 Development and local Pages/D1 commands use the exact Wrangler 4.149.0 dev dependency and require Node.js 22 or newer. Use `npm ci` to install from the lockfile. `dev:pages`, `d1:migrate:local`, and `d1:migrate:remote` no longer download latest on each run.
 

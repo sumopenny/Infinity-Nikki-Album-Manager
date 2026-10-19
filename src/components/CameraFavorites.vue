@@ -58,8 +58,7 @@ import {
   type ImportPlan
 } from '../utils/photo-params/favorites'
 
-import { lazyComponent } from '../utils/lazyComponent'
-const PhotoParamsDialog = lazyComponent(() => import('./PhotoParamsDialog.vue'), true)
+import PhotoParamsDialog from './PhotoParamsDialog.vue'
 import CameraImportConflictDialog from './CameraImportConflictDialog.vue'
 
 const props = defineProps<{
