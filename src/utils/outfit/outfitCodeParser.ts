@@ -7,6 +7,7 @@ import {
 } from '../file-system/directoryStorage'
 import { decodeLookbookPayload, decodeLookbookShareCodePathId } from './lookbookWasmClient'
 import { inferClothTypeFromItemId } from './clothType'
+import { lookbookTiming, measureLookbook } from './lookbookDiagnostics'
 
 const LOOKBOOK_DATA_PROXY_BASE_URL = '/api/outfit-code'
 const LOOKBOOK_CODE_PATTERN = /^[A-Za-z0-9]{11}#$/
@@ -14,6 +15,8 @@ const LOOKBOOK_REQUEST_TIMEOUT_MS = 10000
 
 const parsedResultCache = new Map<string, LookbookDecodeResult>()
 const pendingParseRequests = new Map<string, Promise<LookbookDecodeResult>>()
+const pendingCacheWrites = new Set<Promise<void>>()
+let parseCacheGeneration = 0
 
 export type LookbookParseError = 'invalid' | 'unavailable'
 
@@ -132,7 +135,7 @@ const isCachedParseResult = (value: unknown, code: string): value is LookbookDec
 async function requestLookbookParse(code: string): Promise<LookbookDecodeResult> {
   let pathId: string | null
   try {
-    pathId = await decodeLookbookShareCodePathId(code)
+    pathId = await measureLookbook('share_code_decode', () => decodeLookbookShareCodePathId(code))
   } catch (error) {
     throw new OutfitCodeParseError(
       'unavailable',
@@ -146,9 +149,17 @@ async function requestLookbookParse(code: string): Promise<LookbookDecodeResult>
 
   let response: Response
   try {
-    response = await fetch(LOOKBOOK_DATA_PROXY_BASE_URL + '/' + pathId, {
-      signal: AbortSignal.timeout(LOOKBOOK_REQUEST_TIMEOUT_MS),
-      headers: { Accept: 'application/json, application/octet-stream' }
+    const started = performance.now()
+    response = await measureLookbook('request_headers', () =>
+      fetch(LOOKBOOK_DATA_PROXY_BASE_URL + '/' + pathId, {
+        signal: AbortSignal.timeout(LOOKBOOK_REQUEST_TIMEOUT_MS),
+        headers: { Accept: 'application/json, application/octet-stream' }
+      })
+    )
+    lookbookTiming('proxy_response', started, {
+      status: response.status,
+      cache: response.headers.get('x-outfit-cache'),
+      serverTiming: response.headers.get('server-timing')
     })
   } catch (error) {
     throw new OutfitCodeParseError(
@@ -167,14 +178,16 @@ async function requestLookbookParse(code: string): Promise<LookbookDecodeResult>
 
   let payload: string
   try {
-    payload = await response.text()
+    payload = await measureLookbook('response_body', () => response.text())
   } catch {
     throw new OutfitCodeParseError('unavailable', 'Lookbook upstream response could not be read')
   }
 
   let decoded
   try {
-    decoded = await decodeLookbookPayload<LookbookDecodeResult>(code, payload)
+    decoded = await measureLookbook('payload_decode', () =>
+      decodeLookbookPayload<LookbookDecodeResult>(code, payload)
+    )
   } catch (error) {
     throw new OutfitCodeParseError(
       'unavailable',
@@ -199,18 +212,25 @@ export async function parseOutfitCode(rawCode: string): Promise<LookbookDecodeRe
   if (!code) throw new OutfitCodeParseError('invalid', `Invalid lookbook code: ${rawCode}`)
 
   const memoryCached = parsedResultCache.get(code)
-  if (memoryCached) return memoryCached
+  if (memoryCached) {
+    lookbookTiming('memory_cache_hit', performance.now())
+    return memoryCached
+  }
 
   const pending = pendingParseRequests.get(code)
-  if (pending) return pending
+  if (pending) return measureLookbook('pending_request', () => pending)
 
   const generation = cacheGeneration()
+  const localGeneration = parseCacheGeneration
+  const isCurrent = () =>
+    localGeneration === parseCacheGeneration && isCurrentCacheGeneration(generation)
   const request = (async () => {
     try {
-      const stored = await getSavedOutfitParseResult(code)
+      const stored = await measureLookbook('indexeddb_read', () => getSavedOutfitParseResult(code))
       if (isCachedParseResult(stored, code)) {
         const result = inferMissingClothTypes(stored)
-        if (isCurrentCacheGeneration(generation)) parsedResultCache.set(code, result)
+        if (isCurrent()) parsedResultCache.set(code, result)
+        lookbookTiming('indexeddb_cache_hit', performance.now())
         return result
       }
     } catch {
@@ -218,11 +238,14 @@ export async function parseOutfitCode(rawCode: string): Promise<LookbookDecodeRe
     }
 
     const result = inferMissingClothTypes(await requestLookbookParse(code))
-    if (isCurrentCacheGeneration(generation)) parsedResultCache.set(code, result)
-    try {
-      await persistCacheIfCurrent(generation, () => saveOutfitParseResult(code, result))
-    } catch {
-      // 持久化失败不影响本次已成功的解析结果。
+    if (isCurrent()) {
+      parsedResultCache.set(code, result)
+      // 后台保存不阻塞界面；清理时等待已开始的写入，并阻止旧请求再次写回。
+      const write = measureLookbook('indexeddb_write', () =>
+        persistCacheIfCurrent(generation, () => saveOutfitParseResult(code, result))
+      ).catch(() => undefined)
+      pendingCacheWrites.add(write)
+      void write.finally(() => pendingCacheWrites.delete(write))
     }
     return result
   })()
@@ -235,7 +258,9 @@ export async function parseOutfitCode(rawCode: string): Promise<LookbookDecodeRe
 }
 
 export async function clearOutfitCodeParseCache(): Promise<void> {
+  parseCacheGeneration++
   parsedResultCache.clear()
   pendingParseRequests.clear()
+  await Promise.allSettled([...pendingCacheWrites])
   if (typeof indexedDB !== 'undefined') await clearSavedOutfitParseResults()
 }

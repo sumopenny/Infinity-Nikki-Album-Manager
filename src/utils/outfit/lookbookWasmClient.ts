@@ -1,5 +1,6 @@
 import * as loader from '@assemblyscript/loader'
 import wasmUrl from '../../assets/lookbook-parser.wasm?url'
+import { measureLookbook } from './lookbookDiagnostics'
 
 interface LookbookWasmExports extends WebAssembly.Exports {
   __newString(value: string): number
@@ -14,12 +15,12 @@ let exportsPromise: Promise<LookbookWasmExports> | null = null
 
 async function getExports(): Promise<LookbookWasmExports> {
   if (!exportsPromise) {
-    exportsPromise = fetch(wasmUrl)
-      .then((response) => {
-        if (!response.ok) throw new Error(`WASM HTTP ${response.status}`)
-        return response.arrayBuffer()
-      })
-      .then((bytes) => loader.instantiate(bytes, {}))
+    exportsPromise = measureLookbook('wasm_download', async () => {
+      const response = await fetch(wasmUrl)
+      if (!response.ok) throw new Error(`WASM HTTP ${response.status}`)
+      return response.arrayBuffer()
+    })
+      .then((bytes) => measureLookbook('wasm_initialize', () => loader.instantiate(bytes, {})))
       .then((module) => module.exports as unknown as LookbookWasmExports)
       .catch((error: unknown) => {
         exportsPromise = null

@@ -9,6 +9,7 @@ import {
   parseOutfitCode
 } from '../../src/utils/outfit/outfitCodeParser'
 import type { LookbookDecodeResult } from '../../src/utils/outfit/outfitCodeParser'
+import * as directoryStorage from '../../src/utils/file-system/directoryStorage'
 import {
   decodeLookbookPayload,
   decodeLookbookShareCodePathId
@@ -31,7 +32,10 @@ beforeAll(async () => {
   vi.unstubAllGlobals()
 })
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
 
 describe('normalizeLookbookCode', () => {
   it('为 11 位编码补 # 结尾', () => {
@@ -61,6 +65,68 @@ describe('normalizeLookbookCode', () => {
 
 describe('parseOutfitCode', () => {
   afterEach(clearOutfitCodeParseCache)
+
+  it('显示解析结果无需等待持久化；清除缓存等待已开始的后台写入', async () => {
+    let finish!: () => void
+    const save = vi.spyOn(directoryStorage, 'saveOutfitParseResult').mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        })
+    )
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ clothes: [] }))
+    )
+    const result = await parseOutfitCode(validCode)
+    expect(result.code).toBe(normalizedCode)
+    expect(save).toHaveBeenCalledOnce()
+    let cleared = false
+    const clear = clearOutfitCodeParseCache().then(() => {
+      cleared = true
+    })
+    await Promise.resolve()
+    expect(cleared).toBe(false)
+    finish()
+    await clear
+    expect(cleared).toBe(true)
+  })
+
+  it('后台持久化失败不影响成功结果且不产生未处理拒绝', async () => {
+    vi.spyOn(directoryStorage, 'saveOutfitParseResult').mockRejectedValue(
+      new Error('quota exceeded')
+    )
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ clothes: [] }))
+    )
+    await expect(parseOutfitCode(validCode)).resolves.toMatchObject({ code: normalizedCode })
+    await clearOutfitCodeParseCache()
+  })
+
+  it('清理开始前的慢请求不能在清理后写回内存或数据库', async () => {
+    let finish!: (value: Response) => void
+    const save = vi.spyOn(directoryStorage, 'saveOutfitParseResult').mockResolvedValue()
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            finish = resolve
+          })
+      )
+      .mockImplementation(() => Promise.resolve(jsonResponse({ clothes: [] })))
+    vi.stubGlobal('fetch', fetchMock)
+    const pending = parseOutfitCode(validCode)
+    await vi.waitFor(() => expect(finish).toBeDefined())
+    await clearOutfitCodeParseCache()
+    finish(jsonResponse({ clothes: [] }))
+    await pending
+    expect(save).not.toHaveBeenCalled()
+    await parseOutfitCode(validCode)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(save).toHaveBeenCalledOnce()
+  })
 
   it('清洗部件列表并解析染色数据', async () => {
     const payload = {
