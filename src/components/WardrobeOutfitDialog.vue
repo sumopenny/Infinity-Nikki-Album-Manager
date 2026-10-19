@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CatalogImage from './CatalogImage.vue'
 import { computed, ref, toRef, watch } from 'vue'
 import {
   CalendarDays,
@@ -58,7 +59,6 @@ const panel = ref<HTMLElement | null>(null)
 const text = (zh: string, en: string) => (props.language === 'zh' ? zh : en)
 const name = (entry: WardrobeEntry) => entry.name[props.language]
 const variants = computed(() => wardrobeVariantLabels[props.language])
-const detailImageErrors = ref(new Set<string>())
 const detailDescription = ref('')
 const detailDescriptionLoading = ref(false)
 const detailRequest = useLatestRequest()
@@ -125,12 +125,6 @@ watch(
 function closeDialog() {
   emit('close')
 }
-watch(
-  () => props.detail?.id,
-  () => {
-    detailImageErrors.value = new Set()
-  }
-)
 useBodyScrollLock(dialogOpen)
 useModalFocus(dialogOpen, panel, closeDialog)
 </script>
@@ -168,17 +162,15 @@ useModalFocus(dialogOpen, panel, closeDialog)
                 :aria-label="text('套装总览', 'Outfit overview')"
               >
                 <div class="wardrobe-suit-preview">
-                  <img
-                    v-if="!detailImageErrors.has(detail.id)"
+                  <CatalogImage
+                    :language="language"
                     :key="detail.id"
                     referrerpolicy="no-referrer"
                     :src="detail.image"
+                    loading="eager"
+                    fetchpriority="high"
                     :alt="name(detail)"
-                    @error="detailImageErrors.add(detail.id)"
                   />
-                  <div v-else class="wardrobe-image-fallback">
-                    <Shirt :size="32" /><span>{{ text('暂无图片', 'No image') }}</span>
-                  </div>
                 </div>
                 <div class="wardrobe-suit-copy">
                   <h3>{{ name(detail) }}</h3>
@@ -272,13 +264,13 @@ useModalFocus(dialogOpen, panel, closeDialog)
                   @click="itemPreview = part.entry ?? null"
                 >
                   <div class="wardrobe-part-image">
-                    <img
-                      v-if="part.entry && !detailImageErrors.has(part.id)"
+                    <CatalogImage
+                      :language="language"
+                      v-if="part.entry"
                       referrerpolicy="no-referrer"
                       :src="part.entry.image"
                       alt=""
                       loading="lazy"
-                      @error="detailImageErrors.add(part.id)"
                     />
                     <div v-else class="wardrobe-image-fallback">
                       <Shirt :size="28" /><span>{{ text('暂无图片', 'No image') }}</span>

@@ -55,7 +55,8 @@ watch(
       previousActiveElement?.focus()
       previousActiveElement = null
     }
-  }
+  },
+  { immediate: true }
 )
 </script>
 

@@ -7,9 +7,8 @@ import {
 import { outfitMessages } from '../../i18n/messages/outfit'
 import type { LookbookDyeSwatch } from './outfitCodeParser'
 
-const CDN_BASE_URL = 'https://cdn.gongeo.us'
-const getItemDisplayImageUrl = (itemId: number): string =>
-  `${CDN_BASE_URL}/images/items/${itemId}.png`
+import { getCatalogImageSource } from '../gongeo/catalogImage'
+const getItemDisplayImageUrl = (itemId: number): string => getCatalogImageSource('item', itemId)
 
 const isMakeupClothType = (clothType: number | null): boolean =>
   clothType !== null && clothType >= 80 && clothType <= 85
@@ -338,18 +337,12 @@ const createDetail = async (
   fallbackItemName: string,
   dyes: LookbookDyeSwatch[],
   clothType: number | null,
-  hasSpecialEffect: boolean
+  hasSpecialEffect: boolean,
+  remote = true
 ): Promise<OutfitDetail> => {
   const catalog = await loadCatalogSnapshot(language)
   const isMakeup = isMakeupClothType(clothType) || isMakeupCatalogItem(catalog, itemId)
   // 搭配码的 outfit 字段不一定是图鉴套装 ID；无效时按部件家族回查套装关系。
-  const entityRequest = requestEntity(
-    `${isMakeup ? '/makeups' : '/items'}/${itemId}`,
-    language
-  ).then(
-    (entity) => ({ ok: true as const, entity }),
-    () => ({ ok: false as const, entity: null })
-  )
   const familyIds = getItemFamilyIds(catalog, itemId)
   const catalogOutfitId =
     outfitId &&
@@ -362,12 +355,16 @@ const createDetail = async (
   const resolvedCatalogOutfitId = catalogOutfitId
     ? resolveOutfitVariantId(catalog, catalogOutfitId, itemId)
     : null
-  const outfitRequest = resolvedCatalogOutfitId
-    ? requestEntity(`/outfits/${resolvedCatalogOutfitId}`, language)
-    : Promise.resolve(null)
-  const [entityResult, outfitResult] = await Promise.allSettled([entityRequest, outfitRequest])
-  const entityLoaded = entityResult.status === 'fulfilled' && entityResult.value.ok
-  const outfitEntity = outfitResult.status === 'fulfilled' ? outfitResult.value : null
+  // 部件字段均来自本地快照与解析结果，远程只补充实际使用的套装名称。
+  let outfitEntity: ApiEntity | null = null
+  let loadError = false
+  if (remote && resolvedCatalogOutfitId) {
+    try {
+      outfitEntity = await requestEntity(`/outfits/${resolvedCatalogOutfitId}`, language)
+    } catch {
+      loadError = true
+    }
+  }
   const outfitRow = resolvedCatalogOutfitId
     ? findOutfitRow(catalog, resolvedCatalogOutfitId)
     : undefined
@@ -413,9 +410,7 @@ const createDetail = async (
     detailImageUrl: getItemDisplayImageUrl(itemId),
     quality: outfitRow && Number.isSafeInteger(Number(outfitRow[1])) ? Number(outfitRow[1]) : null,
     outfitItemIds: idsIn(relation?.[1]),
-    outfitImageUrl: resolvedOutfitId
-      ? `${CDN_BASE_URL}/images/outfits/${resolvedOutfitId}.png`
-      : null,
+    outfitImageUrl: resolvedOutfitId ? getCatalogImageSource('outfit', resolvedOutfitId) : null,
     evolution: EVOLUTION_LABELS[language][getVariantIndex(itemId)],
     dyeCondition: isMakeup
       ? language === 'en'
@@ -426,7 +421,52 @@ const createDetail = async (
       const areaOrder = Number(left.area.replace(/\D/g, '')) - Number(right.area.replace(/\D/g, ''))
       return areaOrder
     }),
-    loadError: !entityLoaded || outfitResult.status === 'rejected'
+    loadError
+  }
+}
+
+/** 仅使用本地快照生成基础详情，让图片与染色信息不等待远程接口。 */
+export function loadLocalOutfitDetail(
+  itemId: number,
+  outfitId: number | null,
+  language: Language,
+  fallbackItemName: string,
+  dyes: LookbookDyeSwatch[],
+  clothType: number | null = null,
+  hasSpecialEffect = false
+): Promise<OutfitDetail> {
+  return createDetail(
+    itemId,
+    outfitId,
+    language,
+    fallbackItemName,
+    dyes,
+    clothType,
+    hasSpecialEffect,
+    false
+  )
+}
+
+/** 弹窗打开时立即可用的预览；尚未读取的图鉴字段明确显示为加载中。 */
+export function createOutfitDetailPreview(
+  itemId: number,
+  language: Language,
+  name: string
+): OutfitDetail {
+  const pending = outfitMessages[language].detailPending
+  return {
+    itemId,
+    itemName: name,
+    detailImageUrl: getItemDisplayImageUrl(itemId),
+    outfitId: null,
+    outfitName: pending,
+    quality: null,
+    outfitItemIds: [],
+    outfitImageUrl: null,
+    evolution: EVOLUTION_LABELS[language][getVariantIndex(itemId)],
+    dyeCondition: pending,
+    dyes: [],
+    loadError: false
   }
 }
 

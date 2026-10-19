@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CatalogImage from './CatalogImage.vue'
 import { useWardrobeFilters, type FilterKey } from '../composables/useWardrobeFilters'
 import {
   wardrobeVariantLabels,
@@ -151,7 +152,6 @@ watch(
 )
 onBeforeUnmount(() => loadMoreObserver?.disconnect())
 
-const failedImages = ref(new Set<string>())
 const variants = computed(() => wardrobeVariantLabels[props.language])
 // 沿用共鸣侧栏的自定义下拉菜单与选中样式，避免浏览器原生弹层风格不一致。
 const openFilter = ref('')
@@ -682,7 +682,11 @@ async function clearRecords() {
         )
       }}</p>
       <div v-if="filtered.length" class="wardrobe-grid" :class="{ 'is-pieces': tab === 'item' }">
-        <article v-for="entry in filtered.slice(0, limit)" :key="entry.id" class="wardrobe-card">
+        <article
+          v-for="(entry, imageIndex) in filtered.slice(0, limit)"
+          :key="entry.id"
+          class="wardrobe-card"
+        >
           <button
             class="wardrobe-card-open"
             type="button"
@@ -691,17 +695,13 @@ async function clearRecords() {
             @click="openDetail(entry)"
           >
             <div class="wardrobe-cover">
-              <img
-                v-if="!failedImages.has(entry.id)"
+              <CatalogImage
+                :language="language"
                 referrerpolicy="no-referrer"
                 :src="entry.image"
                 alt=""
-                loading="lazy"
-                @error="failedImages.add(entry.id)"
+                :index="imageIndex"
               />
-              <span v-else class="wardrobe-image-fallback"
-                ><Shirt :size="32" />{{ text('暂无图片', 'No image') }}</span
-              >
               <span class="wardrobe-variant">{{ variants[entry.variant] }}</span>
             </div>
             <div class="wardrobe-card-body"

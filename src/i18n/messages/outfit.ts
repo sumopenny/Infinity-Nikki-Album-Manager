@@ -63,7 +63,7 @@ export interface OutfitMessages {
   parseOpenDetail: (name: string) => string
   detailTitle: string
   detailClose: string
-  detailLoading: string
+  detailPending: string
   detailLoadFailed: string
   detailOutfit: string
   detailCurrentItem: string
@@ -79,7 +79,6 @@ export interface OutfitMessages {
   emptyTitle: string
   emptyDescription: string
   imageRequired: string
-  unsupportedImage: string
   imageReading: string
   imageLoadFailed: string
   operations: {
@@ -186,7 +185,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     parseOpenDetail: (name) => `查看${name}的部件详情`,
     detailTitle: '部件详情',
     detailClose: '关闭部件详情',
-    detailLoading: '正在加载部件图鉴详情…',
+    detailPending: '加载中…',
     detailLoadFailed: '图鉴详情加载失败，已保留搭配码中的部件信息。',
     detailOutfit: '套装',
     detailCurrentItem: '当前部件',
@@ -202,7 +201,6 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     emptyTitle: '还没有搭配方案',
     emptyDescription: '添加搭配方案，或在游戏中生成搭配码后返回页面自动导入。',
     imageRequired: '请先选择一张搭配图片。',
-    unsupportedImage: '请选择 JPG、JPEG、PNG 或 WebP 图片。',
     imageReading: '正在读取图片…',
     imageLoadFailed: '图片读取或预览失败，可能是格式不支持或文件损坏，请重新选择',
     operations: {
@@ -351,7 +349,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     parseOpenDetail: (name) => `View details for ${name}`,
     detailTitle: 'Item details',
     detailClose: 'Close item details',
-    detailLoading: 'Loading catalog details…',
+    detailPending: 'Loading…',
     detailLoadFailed:
       'Catalog details could not be loaded. The decoded item information is still available.',
     detailOutfit: 'Outfit',
@@ -369,7 +367,6 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     emptyDescription:
       'Add an outfit, or generate a code in the game and return to automatically import it.',
     imageRequired: 'Choose an outfit image first.',
-    unsupportedImage: 'Choose a JPG, JPEG, PNG, or WebP image.',
     imageReading: 'Reading image…',
     imageLoadFailed:
       'Unable to read or preview image. The format may be unsupported or the file damaged. Please select again',

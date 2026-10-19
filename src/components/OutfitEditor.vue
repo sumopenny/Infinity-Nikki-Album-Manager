@@ -251,7 +251,8 @@ watch(
       previousActiveElement?.focus()
       previousActiveElement = null
     }
-  }
+  },
+  { immediate: true }
 )
 
 // 同一弹窗切换记录时重置表单，使旧读取任务失效。

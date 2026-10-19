@@ -584,7 +584,7 @@ describe('scheme A outfit detail', () => {
       const image = dialog.get('.wardrobe-part img')
       await image.trigger('error')
       expect(dialog.findAll('.wardrobe-part')).toHaveLength(10)
-      expect(dialog.get('.wardrobe-part').text()).toContain('暂无图片')
+      expect(dialog.get('.wardrobe-part img').attributes('data-image-failed')).toBe('true')
       expect(await loadWardrobe()).toEqual(saved)
     }
   )

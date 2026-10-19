@@ -91,7 +91,7 @@ On desktop, wardrobe categories and filters sit below the global navigation in t
 
 The Resonance menu now includes **Personal wardrobe**. Open it from the desktop sidebar submenu or switch to it within Resonance on mobile. The first version tracks clothes only, with Outfit / Piece views and a separate card for every original, glow-up and evolution variant. Search names or IDs, filter rarity, variant, category, and ownership. Outfit and piece details are read-only, showing parts and collection status without manual editing or batch management. Outfit covers use the artwork's 448:656 aspect ratio without cropping, removing side gaps caused by the previous ratio and the inline image baseline gap. Piece images are unchanged.
 
-Wardrobe data stays in the current browser and supports dedicated JSON backup / restore. Importing the CN notebook or a wardrobe backup shows a preview before replacing the entire wardrobe. Pieces absent from the notebook are **unrecorded**, not necessarily missing in game. Raw notebook JSON is supported; resonance-only exports are not. This version excludes makeup and cloud sync. Use the wardrobe’s own JSON backup: it is not yet included in the all-data ZIP. Clearing site data also clears the wardrobe.
+Wardrobe data stays in the current browser and supports dedicated JSON backup / restore. Importing the CN notebook or a wardrobe backup shows a preview before replacing the entire wardrobe. Pieces absent from the notebook are **unrecorded**, not necessarily missing in game. Raw notebook JSON is supported; resonance-only exports are not. This version excludes makeup and cloud sync. Wardrobe data is included in the all-data ZIP and also supports its own JSON backup. Clearing site data also clears the wardrobe.
 
 Desktop resonance filters, pose sorting and wardrobe menus share floating positioning outside the sidebar to prevent clipping. The sidebar remains scrollable; outer scrolling or resizing closes the menu.
 
@@ -124,6 +124,16 @@ Official site: https://nikki3.pages.dev/. Open https://infinity-nikki-album-mana
 - In the mobile layout (≤899px), resonance cards use a small outfit summary above a full-width piece grid: five columns, or four below 360px. The original combined total and average for both sets appear below the banner name and above owned progress; they remain unchanged when switching sets and wrap on narrow screens. First/second set buttons above the grid update the owned progress, recorded pulls, and known-piece average for that set. Manual entries count only toward owned progress; unknown pull statistics show “—”.
 - Outfits, home schemes, and camera favorites can be exported as a full-data ZIP on a computer, manually transferred to a phone, and then imported.
 - On phones, each empty module shows a usage screenshot below its description. The empty-state import button is removed; import remains available in the “⋯” menu. Search/filter results with no matches do not show screenshots, and desktop behavior is unchanged. Place the images at `img/page/outfits.webp` (outfit codes), `img/page/home.webp` (home schemes), `img/page/camera.webp` (camera parameters), and `img/page/resonance.webp` (resonance records). Images keep their full aspect ratio and are hidden if missing or unable to load. Rebuild and redeploy after adding or replacing these assets.
+
+## Loading and network requests
+
+- Home schemes, Wardrobe, Resonance and large dialogs load on demand, with a retry action if a module download fails. Downloads exceeding 15 seconds and cached module-download errors offer a Reload page action. A download completing later respects the current dialog state and does not reopen a closed dialog. The full-backup picker still opens synchronously; ZIP processing loads when importing or exporting.
+- You can switch modules while a saved album directory is being read. Outfit and home-scheme migration waits for pending writes and keeps the existing write lock. Background restoration preserves your selected view; the initial game-directory outfit scan waits until you enter Outfit codes.
+- Public catalog lists load the first six images eagerly, prioritizing the first one, and lazy-load later images. Main detail images load eagerly. Failed images show a retry icon that supports pointer and keyboard activation. Existing image sources, sizes and formats are retained; no image transformation service is enabled.
+- Outfit piece details display the name and image immediately, then add relationships and dye information from the local catalog. Only related outfit names need a remote request; unused piece-detail requests are removed. Remote failures offer a retry action that keeps an already loaded image visible when its URL is unchanged.
+- Outfit-code and Wardrobe item details use the source image's 520×724 aspect ratio and scale proportionally to fit the viewport. Images remain complete, without cropping or stretching, with rounded borders fitted to the image. The catalog-loading message above the detail content is removed; pending fields show “Loading…”. The dye column follows the available detail data, without reserving extra columns or space for the outfit link.
+- Public catalog detail requests share in-flight work by entity and language. Cancelling one caller leaves other callers running. Successful responses are cached for five minutes; errors and invalid bodies are not cached. The deployed proxy bounds upstream reading and exposes Server-Timing; the local Vite proxy still forwards directly.
+- Enable catalog diagnostics with `sessionStorage.setItem('nikki-catalog-diagnostics', '1')` and inspect `[catalog-timing]`. Disable with `sessionStorage.removeItem('nikki-catalog-diagnostics')`. Logs contain only stages, status and elapsed time.
 
 ## Outfit Code Management
 On desktop, entering Outfit codes opens a standalone guide according to your saved preference; the guide button beside the title can also open it. Phones show neither the guide entry nor an automatic guide dialog.
@@ -258,6 +268,8 @@ The local site uses online D1 data; double-click `start\Start-Remote-D1-Website.
 
 Internally, `useOperationCoordinator` tracks module work and `useLatestRequest` invalidates stale reads. `useDirectorySession` and `useOutfitWorkspace` handle directory authorization and outfit operations. Home and Outfit storage share commit/rollback handling in `file-system/transaction.ts`. Pose resource request timeouts cover response body reading.
 
+`App.vue` retains page composition, startup, and coordination across modules. `useAppPreferences`, `useGameCleanup`, and `usePhotoTrashActions` manage display preferences, game-directory cleanup, and trash operations respectively. They reuse the existing operation lock and shared state without adding a global store; large modules remain loaded on demand.
+
 Development and local Pages/D1 commands use the exact Wrangler 4.149.0 dev dependency and require Node.js 22 or newer. Use `npm ci` to install from the lockfile. `dev:pages`, `d1:migrate:local`, and `d1:migrate:remote` no longer download latest on each run.
 
 Handwritten Vue, TypeScript, CSS, resource scripts, tests and startup dependency scripts share pinned Prettier. Run `npm run format` to format or `npm run format:check` to check; the old `format:review` commands remain compatibility aliases. Generated catalog JSON, the dependency lockfile and build output are excluded. Shared button, menu and reduced-motion rules live in `src/styles/controls.css`.
@@ -323,3 +335,7 @@ Top notifications dismiss after 3 seconds for success, 5.2 seconds for info, and
 The personal wardrobe shows an inline loading state and offers Retry if loading fails or takes longer than 15 seconds. Refresh the page if retries keep failing.
 
 Catalog images in resonance records and the sidebar, wardrobe, outfit/item details and outfit parsing set `no-referrer` before assigning the image URL to prevent the initial request from sending a page referrer that triggers CDN hotlink protection. Temporary image diagnostics and image proxy fallbacks have been removed; Safari device verification is still required.
+
+On mobile (≤899px), item details in the wardrobe and outfit parser fit their content without reserving empty rows. Long content scrolls within the body while the title and close button remain visible. Desktop layouts are unchanged.
+
+On mobile (≤899px), the outfit-code parser also fits its content. Long item lists scroll within the body while the title, close button and item-count footer remain visible. Desktop layouts are unchanged.

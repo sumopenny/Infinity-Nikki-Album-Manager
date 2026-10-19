@@ -22,14 +22,21 @@ it('keeps pending work locked after its scope stops and releases each task indep
         fail = reject
       })
   )
+  let drained = false
+  const drain = coordinator.waitForPending().then(() => {
+    drained = true
+  })
   scope.stop()
   expect(coordinator.isBusy.value).toBe(true)
   finish()
   await first
   expect(coordinator.isBusy.value).toBe(true)
+  expect(drained).toBe(false)
   const rejected = expect(second).rejects.toThrow('failed')
   fail(new Error('failed'))
   await rejected
+  await drain
+  expect(drained).toBe(true)
   expect(coordinator.isBusy.value).toBe(false)
   coordinator.activeOperation.value = 'all-data-backup'
   await coordinator.run('camera', async () => {})

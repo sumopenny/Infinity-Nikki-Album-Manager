@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CatalogImage from './CatalogImage.vue'
 import { backupBaseName } from '../utils/backup/backupName'
 import MobileEmptyScreenshot from './MobileEmptyScreenshot.vue'
 import { useCompactLayout } from '../composables/useCompactLayout'
@@ -165,12 +166,6 @@ function exportRecords() {
     notify('export-error', t.value.exportError, 'error')
   }
 }
-
-/** 隐藏加载失败的图片，保留原有列表布局。 */
-function handleRecordImageError(event: Event) {
-  const image = event.currentTarget as HTMLImageElement
-  image.hidden = true
-}
 function requestClearRecords() {
   if (!records.value.length || clearing.value) return
   clearNotice()
@@ -268,7 +263,7 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
 
     <div v-else class="resonance-list">
       <article
-        v-for="record in sortedRecords"
+        v-for="(record, recordIndex) in sortedRecords"
         :id="`resonance-record-${record.id}`"
         :key="record.id"
         class="resonance-record"
@@ -329,11 +324,12 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
             class="resonance-outfit-image"
             :aria-label="displayName(record.outfitName)"
             @click="openPreview(record.outfitId, 'outfit')"
-            ><img
+            ><CatalogImage
+              :language="language"
               referrerpolicy="no-referrer"
               :src="record.outfitImageUrl"
+              :index="recordIndex * 100"
               :alt="displayName(record.outfitName)"
-              @error="handleRecordImageError($event)"
           /></button>
           <div class="resonance-sets">
             <section
@@ -354,7 +350,7 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
                   type="button"
                   :aria-label="displayName(part.name)"
                   @click="openPreview(part.id, 'item')"
-                  v-for="part in sortResonanceParts(set.parts)"
+                  v-for="(part, partIndex) in sortResonanceParts(set.parts)"
                   :key="part.id"
                   class="resonance-part"
                   :class="{
@@ -362,11 +358,12 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
                     'is-missing': part.pullNumber === 0 && !part.manual
                   }"
                 >
-                  <img
+                  <CatalogImage
+                    :language="language"
                     referrerpolicy="no-referrer"
                     :src="getResonancePartIconUrl(part.id)"
+                    :index="recordIndex * 100 + (set.setNumber - 1) * 30 + partIndex + 1"
                     :alt="displayName(part.name)"
-                    @error="handleRecordImageError($event)"
                   />
                   <span
                     class="resonance-pull-number"

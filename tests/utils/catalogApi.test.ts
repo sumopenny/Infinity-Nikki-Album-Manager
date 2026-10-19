@@ -10,6 +10,27 @@ afterEach(() => {
 })
 
 describe('shared catalog requests', () => {
+  it('shares concurrent reads while one caller cancels independently', async () => {
+    let finish!: (response: Response) => void
+    let networkSignal!: AbortSignal
+    const fetcher = vi.fn((_url, init) => {
+      networkSignal = init.signal
+      return new Promise<Response>((resolve) => {
+        finish = resolve
+      })
+    })
+    vi.stubGlobal('fetch', fetcher)
+    const first = new AbortController()
+    const pending = requestCatalogEntity('/outfits/10294', 'zh', first.signal)
+    const rejected = expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    const second = requestCatalogEntity('/outfits/10294', 'zh')
+    first.abort()
+    await rejected
+    expect(networkSignal.aborted).toBe(false)
+    finish(response({ description: 'Shared' }))
+    expect(await second).toMatchObject({ description: 'Shared' })
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
   it('separates entity, variant and language, expires successful responses, and shares cache clearing', async () => {
     vi.useFakeTimers()
     const fetcher = vi.fn(async () => response({ description: 'Real description' }))

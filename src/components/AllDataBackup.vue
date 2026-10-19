@@ -1,15 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import CameraImportConflictDialog from './CameraImportConflictDialog.vue'
-import {
-  applyAllDataBackup,
-  exportAllDataBackup,
-  hasAllBackupData,
-  prepareAllDataBackup,
-  type BackupModule,
-  type CameraChoices,
-  type ModuleImportResult
-} from '../utils/backup/allDataBackup'
+import { hasAllBackupData } from '../utils/backup/backupAvailability'
+import type { BackupModule, CameraChoices, ModuleImportResult } from '../utils/backup/allDataBackup'
 import type { ImportPlan } from '../utils/photo-params/favorites'
 const props = defineProps<{ language: 'zh' | 'en'; disabled: boolean }>()
 const emit = defineEmits<{
@@ -63,6 +56,8 @@ async function exportData() {
       emit('status', t('暂无可导出的数据', 'No data to export'), 'info')
       return
     }
+    const { exportAllDataBackup } = await import('../utils/backup/allDataBackup')
+    if (disposed) return
     const name = await exportAllDataBackup()
     emit('status', t('已生成全部数据备份：', 'All-data backup created: ') + name, 'success')
   } catch (error) {
@@ -111,7 +106,11 @@ async function importData(event: Event) {
   )
   let started = false
   try {
+    const { prepareAllDataBackup, applyAllDataBackup } =
+      await import('../utils/backup/allDataBackup')
+    if (disposed) return
     const plan = await prepareAllDataBackup(file)
+    if (disposed) return
     const results = await applyAllDataBackup(
       plan,
       (cameraPlan) => {

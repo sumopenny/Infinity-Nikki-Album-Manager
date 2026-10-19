@@ -1,4 +1,4 @@
-import { hasWardrobeSnapshot } from '../wardrobe/wardrobeOwnership'
+export { hasAllBackupData } from './backupAvailability'
 import { backupBaseName } from './backupName'
 import {
   createWardrobeBackup,
@@ -29,16 +29,6 @@ import { createResonanceExport, parseResonanceFile } from '../resonance/resonanc
 import { loadResonanceRecords, mergeResonanceRecords } from '../resonance/resonanceStorage'
 import type { ResonanceRecord } from '../resonance/resonanceTypes'
 import { releasePhotoUrls } from '../file-system/photoUrl'
-import {
-  runStoreRequest,
-  OUTFITS_STORE,
-  OUTFIT_TAGS_STORE,
-  OUTFIT_IGNORED_CODES_STORE,
-  HOME_SCHEMES_STORE,
-  HOME_TAGS_STORE,
-  CAMERA_FAVORITES_STORE,
-  CAMERA_TAGS_STORE
-} from '../file-system/database'
 
 const FORMAT = 'infinity-nikki-all-data-backup'
 const MAX_BYTES = 2 * 1024 ** 3
@@ -73,30 +63,6 @@ export interface ModuleImportResult {
 }
 export type CameraChoices = Record<string, 'local' | 'incoming'>
 export type ResolveCameraConflict = (plan: ImportPlan) => Promise<CameraChoices | null>
-
-export async function hasAllBackupData(): Promise<boolean> {
-  const counts = await Promise.all(
-    [OUTFITS_STORE, HOME_SCHEMES_STORE, CAMERA_FAVORITES_STORE, OUTFIT_IGNORED_CODES_STORE].map(
-      (name) => runStoreRequest(name, 'readonly', (store) => store.count())
-    )
-  )
-  if (counts.some(Boolean)) return true
-  const tags = await Promise.all([
-    runStoreRequest(OUTFIT_TAGS_STORE, 'readonly', (store) => store.get('default')),
-    runStoreRequest(HOME_TAGS_STORE, 'readonly', (store) => store.get('default')),
-    runStoreRequest(CAMERA_TAGS_STORE, 'readonly', (store) => store.get('order'))
-  ])
-  return (
-    tags.some((value) => Array.isArray(value) && value.length > 0) ||
-    (await loadResonanceRecords()).length > 0 ||
-    (await hasWardrobeBackupData())
-  )
-}
-
-async function hasWardrobeBackupData(): Promise<boolean> {
-  const value = await loadWardrobe()
-  return hasWardrobeSnapshot(value)
-}
 
 /** Keep the original module archives intact so they can also be restored separately. */
 export async function exportAllDataBackup(

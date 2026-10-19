@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CatalogImage from './CatalogImage.vue'
 // 搭配码解析窗口：调用解析 API 清洗出部件 ID 与染色数据，再叠加本地图鉴展示部件图标与名称。
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, toRef, watch } from 'vue'
 import { ExternalLink, RefreshCw, X } from 'lucide-vue-next'
@@ -15,7 +16,12 @@ import {
   type LookbookDecodeResult
 } from '../utils/outfit/outfitCodeParser'
 import { getClothTypeLabel, inferClothTypeFromItemId } from '../utils/outfit/clothType'
-import { loadOutfitDetail, type OutfitDetail } from '../utils/outfit/outfitDetails'
+import {
+  createOutfitDetailPreview,
+  loadLocalOutfitDetail,
+  loadOutfitDetail,
+  type OutfitDetail
+} from '../utils/outfit/outfitDetails'
 import { useLatestRequest } from '../composables/useLatestRequest'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
@@ -65,12 +71,12 @@ const panelRef = ref<HTMLElement | null>(null)
 const detailPanelRef = ref<HTMLElement | null>(null)
 const detailVisible = ref(false)
 const detailLoading = ref(false)
-const detailError = ref(false)
 const detailRequest = useLatestRequest()
 const selectedDetail = ref<OutfitDetail | null>(null)
 const loadedItemImages = ref(new Set<number>())
 const failedItemImages = ref(new Set<number>())
 const detailImageState = ref<'idle' | 'loaded' | 'failed'>('idle')
+let detailItem: ParseItemView | null = null
 let detailTrigger: HTMLButtonElement | null = null
 let requestId = 0
 let previousActiveElement: HTMLElement | null = null
@@ -106,17 +112,36 @@ const items = computed<ParseItemView[]>(() => {
   })
 })
 
-async function openItemDetail(item: ParseItemView, event: Event) {
+async function openItemDetail(item: ParseItemView, event?: Event) {
   if (!item.resolved || !item.imageUrl) return
   const request = detailRequest.begin()
-  detailError.value = false
-  detailTrigger = event.currentTarget instanceof HTMLButtonElement ? event.currentTarget : null
+  detailItem = item
+  if (event)
+    detailTrigger = event.currentTarget instanceof HTMLButtonElement ? event.currentTarget : null
   detailVisible.value = true
   detailLoading.value = true
-  detailImageState.value = 'idle'
-  selectedDetail.value = null
+  const preview = createOutfitDetailPreview(item.id, props.language, item.name)
+  // 图鉴重试不重新下载相同图片；仅在图片地址变化时重置加载状态。
+  if (selectedDetail.value?.detailImageUrl !== preview.detailImageUrl)
+    detailImageState.value = 'idle'
+  selectedDetail.value = preview
   void nextTick(() => detailPanelRef.value?.querySelector('button')?.focus())
   try {
+    try {
+      const local = await loadLocalOutfitDetail(
+        item.id,
+        item.outfitId,
+        props.language,
+        item.name,
+        item.dyes,
+        item.clothType,
+        item.hasSpecialEffect
+      )
+      if (!request.isCurrent()) return
+      selectedDetail.value = local
+    } catch {
+      // 本地图鉴失败仍保留即时预览，后续读取可重试。
+    }
     const result = await loadOutfitDetail(
       item.id,
       item.outfitId,
@@ -139,7 +164,7 @@ async function openItemDetail(item: ParseItemView, event: Event) {
       if (request.isCurrent()) detailPanelRef.value?.querySelector('button')?.focus()
     })
   } catch {
-    if (request.isCurrent()) detailError.value = true
+    if (request.isCurrent() && selectedDetail.value) selectedDetail.value.loadError = true
   } finally {
     if (request.isCurrent()) detailLoading.value = false
   }
@@ -179,7 +204,6 @@ function markDetailImageFailed() {
 function closeItemDetail() {
   outfitPreview.value = null
   detailRequest.invalidate()
-  detailError.value = false
   const trigger = detailTrigger
   detailVisible.value = false
   detailLoading.value = false
@@ -260,7 +284,8 @@ watch(
       previousActiveElement?.focus()
       previousActiveElement = null
     }
-  }
+  },
+  { immediate: true }
 )
 
 window.addEventListener('keydown', handleKeydown)
@@ -338,7 +363,7 @@ onBeforeUnmount(() => {
 
             <div v-else-if="items.length" class="outfit-parse-grid">
               <article
-                v-for="item in items"
+                v-for="(item, imageIndex) in items"
                 :key="item.id"
                 class="outfit-parse-item"
                 :title="item.name"
@@ -350,30 +375,27 @@ onBeforeUnmount(() => {
                   :aria-label="messages.parseOpenDetail(item.name)"
                   @click="openItemDetail(item, $event)"
                 >
-                  <img
+                  <CatalogImage
+                    :language="language"
                     class="outfit-parse-item-icon"
                     :class="{
-                      'is-loading': !loadedItemImages.has(item.id),
+                      'is-loading':
+                        !loadedItemImages.has(item.id) && !failedItemImages.has(item.id),
                       'is-failed': failedItemImages.has(item.id)
                     }"
                     referrerpolicy="no-referrer"
                     :src="item.imageUrl"
                     :alt="item.name"
-                    loading="lazy"
+                    :index="imageIndex"
                     @load="markItemImageLoaded(item.id)"
                     @error="markItemImageFailed(item.id)"
+                    @retry="failedItemImages.delete(item.id)"
                   />
                   <span
                     v-if="!loadedItemImages.has(item.id) && !failedItemImages.has(item.id)"
                     class="outfit-image-spinner"
                     aria-hidden="true"
                   ></span>
-                  <span
-                    v-else-if="failedItemImages.has(item.id)"
-                    class="outfit-image-failure"
-                    aria-hidden="true"
-                    >?</span
-                  >
                 </button>
                 <span v-else class="outfit-parse-item-icon is-missing" aria-hidden="true">?</span>
                 <p class="outfit-parse-item-name">{{ item.name }}</p>
@@ -423,15 +445,8 @@ onBeforeUnmount(() => {
               <X :size="19" aria-hidden="true" />
             </button>
           </header>
-          <div v-if="detailLoading" class="outfit-detail-loading" role="status" aria-live="polite">
-            <span class="outfit-parse-spinner" aria-hidden="true"></span>
-            <p>{{ messages.detailLoading }}</p>
-          </div>
-          <p v-else-if="detailError" class="outfit-detail-error" role="alert">{{
-            messages.detailLoadFailed
-          }}</p>
           <div
-            v-else-if="selectedDetail"
+            v-if="selectedDetail"
             class="outfit-detail-content"
             :class="{ 'is-single-column': !selectedDetail.dyes.length }"
           >
@@ -443,15 +458,19 @@ onBeforeUnmount(() => {
                 }"
                 :aria-busy="!!selectedDetail.detailImageUrl && detailImageState === 'idle'"
               >
-                <img
-                  v-if="selectedDetail.detailImageUrl && detailImageState !== 'failed'"
+                <CatalogImage
+                  :language="language"
+                  v-if="selectedDetail.detailImageUrl"
                   class="outfit-detail-image"
+                  loading="eager"
+                  fetchpriority="high"
                   :class="{ 'is-loading': detailImageState === 'idle' }"
                   referrerpolicy="no-referrer"
                   :src="selectedDetail.detailImageUrl"
                   :alt="selectedDetail.itemName"
                   @load="markDetailImageLoaded"
                   @error="markDetailImageFailed"
+                  @retry="detailImageState = 'idle'"
                 />
                 <div
                   v-if="selectedDetail.detailImageUrl && detailImageState === 'idle'"
@@ -462,7 +481,7 @@ onBeforeUnmount(() => {
                   <span>{{ language === 'zh' ? '正在加载图片…' : 'Loading image…' }}</span>
                 </div>
                 <div
-                  v-else-if="!selectedDetail.detailImageUrl || detailImageState === 'failed'"
+                  v-else-if="!selectedDetail.detailImageUrl"
                   class="outfit-detail-image is-missing"
                   >{{ language === 'zh' ? '暂无图片' : 'No image' }}</div
                 >
@@ -496,9 +515,15 @@ onBeforeUnmount(() => {
                   ><dd>{{ selectedDetail.dyeCondition }}</dd></div
                 >
               </dl>
-              <p v-if="selectedDetail.loadError" class="outfit-detail-error" role="alert">{{
-                messages.detailLoadFailed
-              }}</p>
+              <p v-if="selectedDetail.loadError" class="outfit-detail-error" role="alert">
+                {{ messages.detailLoadFailed }}
+                <button
+                  type="button"
+                  :disabled="detailLoading"
+                  @click="detailItem && openItemDetail(detailItem)"
+                  >{{ messages.parseRetry }}</button
+                >
+              </p>
             </section>
             <section v-if="selectedDetail.dyes.length" class="outfit-detail-dyes">
               <h3>{{ messages.detailDyes }}</h3>
@@ -563,22 +588,5 @@ onBeforeUnmount(() => {
 .wardrobe-outfit-link:focus-visible {
   background: var(--soft);
   outline: 1px solid var(--pink-deep);
-}
-.outfit-detail-image-frame {
-  display: block;
-  width: fit-content;
-  max-width: 100%;
-  height: auto;
-}
-.outfit-detail-image-frame img.outfit-detail-image {
-  display: block;
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: min(400px, 55dvh);
-}
-.outfit-detail-image-frame:has(.is-missing) {
-  width: min(273px, 100%);
-  min-height: 180px;
 }
 </style>

@@ -1,4 +1,4 @@
-import { computed, getCurrentInstance, inject, ref, type InjectionKey } from 'vue'
+import { computed, getCurrentInstance, inject, ref, watch, type InjectionKey } from 'vue'
 import type { ActiveOperation } from './useOperationNotice'
 
 /** 操作记录独立于组件作用域；卸载不释放仍在执行的读写，只有任务收尾可以释放。 */
@@ -15,7 +15,24 @@ export function createOperationCoordinator() {
       pending.value.delete(token)
     }
   }
-  return { activeOperation, isBusy, run }
+  const hasPending = computed(() => pending.value.size > 0)
+  /** 目录恢复的迁移阶段等待独立模块写入完成，避免导入与迁移同时修改存档。 */
+  function waitForPending(): Promise<void> {
+    if (!hasPending.value) return Promise.resolve()
+    return new Promise((resolve) => {
+      const stop = watch(
+        hasPending,
+        (busy) => {
+          if (!busy) {
+            stop()
+            resolve()
+          }
+        },
+        { flush: 'sync' }
+      )
+    })
+  }
+  return { activeOperation, isBusy, hasPending, waitForPending, run }
 }
 export type OperationCoordinator = ReturnType<typeof createOperationCoordinator>
 export const operationCoordinatorKey: InjectionKey<OperationCoordinator> =

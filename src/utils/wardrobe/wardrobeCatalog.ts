@@ -1,3 +1,4 @@
+import { getCatalogImageSource } from '../gongeo/catalogImage'
 import type { Language } from '../../i18n/types'
 import { assignWardrobeRewardSources, wardrobeGameVersionFromSource } from './wardrobeFilters'
 
@@ -174,7 +175,7 @@ export function loadWardrobeCatalog(): Promise<WardrobeCatalog> {
               version: wardrobeGameVersionFromSource(obtainType),
               sourceDetails: [],
               parts,
-              image: `https://cdn.gongeo.us/images/${kind === 'outfit' ? 'outfits' : 'items/icons'}/${id}.png`
+              image: getCatalogImageSource(kind === 'outfit' ? 'outfit' : 'icon', id)
             })
           }
         }

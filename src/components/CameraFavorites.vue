@@ -57,8 +57,9 @@ import {
   type FavoriteSource,
   type ImportPlan
 } from '../utils/photo-params/favorites'
-import { exportCameraBackup, readCameraBackup } from '../utils/photo-params/favoritesBackup'
-import PhotoParamsDialog from './PhotoParamsDialog.vue'
+
+import { lazyComponent } from '../utils/lazyComponent'
+const PhotoParamsDialog = lazyComponent(() => import('./PhotoParamsDialog.vue'), true)
 import CameraImportConflictDialog from './CameraImportConflictDialog.vue'
 
 const props = defineProps<{
@@ -642,6 +643,7 @@ async function exportBackup() {
     busy.value = true
     try {
       releaseBackupDownloads()
+      const { exportCameraBackup } = await import('../utils/photo-params/favoritesBackup')
       for await (const part of exportCameraBackup(await readCameraFavorites())) {
         const url = URL.createObjectURL(part.blob)
         backupDownloads.value.push({ fileName: part.fileName, url })
@@ -674,6 +676,7 @@ async function importBackup(event: Event) {
     busy.value = true
     error.value = ''
     try {
+      const { readCameraBackup } = await import('../utils/photo-params/favoritesBackup')
       const incoming = await readCameraBackup(file)
       const local = await readCameraFavorites()
       const plan = planCameraImport(local, incoming)
@@ -1204,6 +1207,7 @@ function handleImportChoices(value: typeof choices.value) {
     @cancel="importPlan = null"
   />
   <PhotoParamsDialog
+    v-if="detail"
     :visible="!!detail"
     :photo="detail ? { name: detail.name } : null"
     :progress="{ stage: 'ready', percent: 100, message: '' }"

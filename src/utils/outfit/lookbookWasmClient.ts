@@ -48,3 +48,8 @@ export async function decodeLookbookShareCodePathId(code: string): Promise<strin
   const pathId = wasm.__getString(wasm.decodeShareCodePathId(wasm.__newString(code)))
   return /^\d{18}$/.test(pathId) ? pathId : null
 }
+
+/** 进入解析工具时预热，失败由正式解析继续重试，不向用户显示预热错误。 */
+export async function warmLookbookParser(): Promise<void> {
+  await getExports()
+}

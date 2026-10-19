@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { useAppPreferences } from './composables/useAppPreferences'
+import { readLocalStorage, writeLocalStorage, removeLocalStorage } from './utils/localStorage'
+import { useGameCleanup } from './composables/useGameCleanup'
+import { usePhotoTrashActions } from './composables/usePhotoTrashActions'
+import { lazyComponent } from './utils/lazyComponent'
 import { useOutfitWorkspace } from './composables/useOutfitWorkspace'
 import { useDirectorySession, type DirectoryState } from './composables/useDirectorySession'
 import {
@@ -9,11 +14,11 @@ const operations = createOperationCoordinator()
 provide(operationCoordinatorKey, operations)
 import { invalidateCacheWrites } from './utils/cacheLifecycle'
 import { clearAllBrowserData } from './utils/file-system/database'
-import { clearOutfitDetailCache } from './utils/outfit/outfitDetails'
+
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { CircleHelp, Download, Plus, Trash2, Upload } from 'lucide-vue-next'
-import UpdateLogDialog from './components/UpdateLogDialog.vue'
-import HelpAboutDialog from './components/HelpAboutDialog.vue'
+const UpdateLogDialog = lazyComponent(() => import('./components/UpdateLogDialog.vue'), true)
+const HelpAboutDialog = lazyComponent(() => import('./components/HelpAboutDialog.vue'), true)
 import AlbumViewSwitcher, { type AlbumView } from './components/AlbumViewSwitcher.vue'
 import CleanupAccountPicker from './components/CleanupAccountPicker.vue'
 import CleanupDialog from './components/CleanupDialog.vue'
@@ -23,17 +28,17 @@ import Lightbox from './components/Lightbox.vue'
 import OperationNotice from './components/OperationNotice.vue'
 import PageScrollbar from './components/PageScrollbar.vue'
 import NoteDialog from './components/NoteDialog.vue'
-import OutfitEditor from './components/OutfitEditor.vue'
+const OutfitEditor = lazyComponent(() => import('./components/OutfitEditor.vue'), true)
 import OutfitGrid from './components/OutfitGrid.vue'
-import OutfitGuideDialog from './components/OutfitGuideDialog.vue'
-import OutfitParseDialog from './components/OutfitParseDialog.vue'
+const OutfitGuideDialog = lazyComponent(() => import('./components/OutfitGuideDialog.vue'), true)
+const OutfitParseDialog = lazyComponent(() => import('./components/OutfitParseDialog.vue'), true)
 import ParseToolsDialog from './components/ParseToolsDialog.vue'
-import FortuneTimeDialog from './components/FortuneTimeDialog.vue'
+const FortuneTimeDialog = lazyComponent(() => import('./components/FortuneTimeDialog.vue'), true)
 import OutfitSidebar, { type OutfitFilter } from './components/OutfitSidebar.vue'
-import HomeSchemeWorkspace from './components/HomeSchemeWorkspace.vue'
-import ResonanceRecords from './components/ResonanceRecords.vue'
-import PersonalWardrobe from './components/PersonalWardrobe.vue'
-import ResonanceSidebar from './components/ResonanceSidebar.vue'
+const HomeSchemeWorkspace = lazyComponent(() => import('./components/HomeSchemeWorkspace.vue'))
+const ResonanceRecords = lazyComponent(() => import('./components/ResonanceRecords.vue'))
+const PersonalWardrobe = lazyComponent(() => import('./components/PersonalWardrobe.vue'))
+const ResonanceSidebar = lazyComponent(() => import('./components/ResonanceSidebar.vue'))
 import PhotoGrid from './components/PhotoGrid.vue'
 import RecentlyDeletedGrid from './components/RecentlyDeletedGrid.vue'
 import SelectionBar from './components/SelectionBar.vue'
@@ -44,14 +49,13 @@ import MobileNavigation from './components/MobileNavigation.vue'
 import { useCompactLayout, useVisualViewport } from './composables/useCompactLayout'
 import TopBar from './components/TopBar.vue'
 import PhotoTransferProgressDialog from './components/PhotoTransferProgressDialog.vue'
-import PhotoParamsDialog from './components/PhotoParamsDialog.vue'
+const PhotoParamsDialog = lazyComponent(() => import('./components/PhotoParamsDialog.vue'), true)
 import CameraFavorites from './components/CameraFavorites.vue'
 import AllDataBackup from './components/AllDataBackup.vue'
 import { loadResonanceRecords } from './utils/resonance/resonanceStorage'
 import { normalizeCameraCode } from './utils/photo-params/favorites'
-import { DEFAULT_LANGUAGE, messages, type Language } from './i18n'
-import { isThumbnailMode, type ThumbnailMode } from './types/thumbnail'
-import { isThemeMode, type ThemeMode } from './types/theme'
+import { messages } from './i18n'
+import type { ThumbnailMode } from './types/thumbnail'
 import {
   type ActionSort,
   type PhotoDisplayItem,
@@ -60,7 +64,6 @@ import {
 } from './utils/photoGrouping'
 import {
   clearSavedAlbumDirectoryHandle,
-  formatFileSize,
   refreshAlbumPhotos,
   refreshAlbumDirectory,
   saveAlbumDirectoryHandle,
@@ -68,18 +71,13 @@ import {
   type RefreshAlbumResult
 } from './utils/file-system/albumFileSystem'
 import {
-  clearRecentlyDeleted,
   listRecentlyDeleted,
-  movePhotosToRecentlyDeleted,
-  permanentlyDeleteRecentlyDeleted,
-  restoreRecentlyDeletedPhotos
+  movePhotosToRecentlyDeleted
 } from './utils/file-system/trashFileSystem'
 import {
-  getX6GameDirectoryForAlbum,
-  isProtectedAlbumDirectory,
   listGamePlayPhotoAccounts,
+  isProtectedAlbumDirectory,
   pickStandaloneX6GameDirectory,
-  resolveX6GameAccountDirectory,
   supportsDirectoryAuthorization
 } from './utils/file-system/directoryAccess'
 import {
@@ -87,13 +85,6 @@ import {
   getSavedCameraParamUids,
   getSavedX6GameDirectoryHandle
 } from './utils/file-system/directoryStorage'
-import {
-  executeMatchingPhotoCleanup,
-  executeSpecialCleanup,
-  prepareMatchingPhotoCleanup,
-  prepareSpecialCleanup,
-  type SpecialCleanupItem
-} from './utils/file-system/cleanupFileSystem'
 import {
   PhotoMetadataError,
   readAlbumMetadata,
@@ -123,65 +114,22 @@ import { useSelectionState } from './composables/useSelectionState'
 import { usePhotoParams } from './composables/usePhotoParams'
 import { usePhotoActionParsing } from './composables/usePhotoActionParsing'
 import { usePhotoTransfer } from './composables/usePhotoTransfer'
-import { clearOutfitCodeParseCache } from './utils/outfit/outfitCodeParser'
+
 import { clearSavedHomeSchemeParseResults } from './utils/file-system/directoryStorage'
 import { countHomeSchemes } from './utils/homeBuild/homeSchemeStorage'
-import { migrateHomeSchemeLibrary } from './utils/homeBuild/homeSchemeMigration'
+
 import type { ResonanceRecord } from './utils/resonance/resonanceTypes'
 import type {
   ResonanceBannerOrder,
   ResonanceRarityFilter
 } from './utils/resonance/resonanceCatalog'
 
-const THUMBNAIL_STORAGE_KEY = 'infinity-nikki-thumbnail-mode'
-const OUTFIT_THUMBNAIL_STORAGE_KEY = 'infinity-nikki-outfit-thumbnail-mode'
-const HOME_THUMBNAIL_STORAGE_KEY = 'infinity-nikki-home-thumbnail-mode'
 const OUTFIT_GUIDE_DISMISSED_KEY = 'infinity-nikki-outfit-guide-dismissed'
 const X6GAME_AUTO_PROMPT_DISMISSED_KEY = 'infinity-nikki-x6game-auto-prompt-dismissed'
-const THEME_STORAGE_KEY = 'infinity-nikki-theme-mode'
-const LANGUAGE_STORAGE_KEY = 'infinity-nikki-language'
 const FAVORITES_STORAGE_KEY = 'infinity-nikki-favorite-photo-ids'
-const AUTO_PARSE_ACTIONS_STORAGE_KEY = 'infinity-nikki-auto-parse-actions'
 const ABOUT_STATE_STORAGE_KEY = 'infinity-nikki-about-state'
-const CLEANUP_ACCOUNT_CHOICE_KEY = 'infinity-nikki-cleanup-account-choice'
 const currentAboutVersion = messages.zh.updateLog.currentVersion.replace(/^v/, '')
 
-function isLanguage(value: string | null): value is Language {
-  return value === 'zh' || value === 'en'
-}
-
-function readLocalStorage(key: string): string | null {
-  try {
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
-
-function writeLocalStorage(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    /* 持久化不可用时保留当前会话状态。 */
-  }
-}
-
-function removeLocalStorage(key: string): void {
-  try {
-    localStorage.removeItem(key)
-  } catch {
-    /* 持久化不可用时不阻断当前操作。 */
-  }
-}
-
-function readCleanupAccountChoice(): string | null {
-  return readLocalStorage(CLEANUP_ACCOUNT_CHOICE_KEY)
-}
-
-function persistCleanupAccountChoice(choice: string | null): void {
-  if (choice) writeLocalStorage(CLEANUP_ACCOUNT_CHOICE_KEY, choice)
-  else removeLocalStorage(CLEANUP_ACCOUNT_CHOICE_KEY)
-}
 function readStoredAboutState(): { version: string; dismissed: boolean } | null {
   try {
     const parsed = JSON.parse(readLocalStorage(ABOUT_STATE_STORAGE_KEY) ?? 'null') as {
@@ -208,13 +156,6 @@ function readStoredFavoriteIds(): Set<string> {
 }
 
 let suppressLocalPersistence = false
-const storedThumbnailMode = readLocalStorage(THUMBNAIL_STORAGE_KEY)
-const storedOutfitThumbnailMode = readLocalStorage(OUTFIT_THUMBNAIL_STORAGE_KEY)
-const storedHomeThumbnailMode = readLocalStorage(HOME_THUMBNAIL_STORAGE_KEY)
-const storedThemeMode = readLocalStorage(THEME_STORAGE_KEY)
-const storedLanguage = readLocalStorage(LANGUAGE_STORAGE_KEY)
-const storedAutoParseActions = readLocalStorage(AUTO_PARSE_ACTIONS_STORAGE_KEY)
-
 const storedAboutState = readStoredAboutState()
 
 const photos = ref<PhotoItem[]>([])
@@ -265,8 +206,71 @@ const searchQuery = ref('')
 const noteDialogPhoto = ref<PhotoItem | null>(null)
 const noteDialogBaseline = ref('')
 const isNoteDialogVisible = ref(false)
+// 首次打开后保留组件，使关闭监听、焦点恢复及退出动画继续按原流程执行。
+const mountedDialogs = ref(new Set<string>())
+watch(
+  isOutfitParseVisible,
+  (open) => {
+    if (open) mountedDialogs.value.add('OutfitParseDialog')
+  },
+  { immediate: true, flush: 'sync' }
+)
+watch(
+  isOutfitEditorVisible,
+  (open) => {
+    if (open) mountedDialogs.value.add('OutfitEditor')
+  },
+  { immediate: true, flush: 'sync' }
+)
+
+watch(
+  isHelpAboutVisible,
+  (open) => {
+    if (open) mountedDialogs.value.add('HelpAboutDialog')
+  },
+  { immediate: true, flush: 'sync' }
+)
+watch(
+  isUpdateLogVisible,
+  (open) => {
+    if (open) mountedDialogs.value.add('UpdateLogDialog')
+  },
+  { immediate: true, flush: 'sync' }
+)
+watch(
+  isOutfitGuideVisible,
+  (open) => {
+    if (open) mountedDialogs.value.add('OutfitGuideDialog')
+  },
+  { immediate: true, flush: 'sync' }
+)
+watch(
+  isFortuneTimeVisible,
+  (open) => {
+    if (open) mountedDialogs.value.add('FortuneTimeDialog')
+  },
+  { immediate: true, flush: 'sync' }
+)
 const compactLayout = useCompactLayout()
 useVisualViewport()
+const {
+  language,
+  locale,
+  themeMode,
+  autoParseActionsEnabled,
+  effectivePhotoThumbnailMode,
+  effectiveOutfitThumbnailMode,
+  effectiveHomeThumbnailMode,
+  toggleLanguage,
+  toggleTheme,
+  saveThumbnailMode
+} = useAppPreferences({
+  compactLayout,
+  canPersist: () => !suppressLocalPersistence,
+  onStatus: (status) => {
+    statusState.value = status
+  }
+})
 const directorySupported = supportsDirectoryAuthorization()
 const mobileFiltersOpen = ref(false)
 const mobileCollectionPicker = computed(
@@ -284,11 +288,9 @@ const cameraVisibleCount = ref(0)
 const activeView = ref<AlbumView>(compactLayout.value && !directorySupported ? 'outfits' : 'all')
 const sidebarMode = ref<'date' | 'action'>('date')
 const actionSort = ref<ActionSort>('id')
-const autoParseActionsEnabled = ref(storedAutoParseActions === 'true')
 const currentPreview = ref<PhotoDisplayItem | null>(null)
 const sharedOutfitSource = ref<SharedOutfitSource | null>(null)
 const hasX6GameAuthorization = ref(false)
-const language = ref<Language>(isLanguage(storedLanguage) ? storedLanguage : DEFAULT_LANGUAGE)
 const directoryState = ref<DirectoryState>({ type: 'none' })
 const {
   state: photoTransfer,
@@ -302,44 +304,13 @@ const {
   takeMovePending: takePhotoTransferMovePending,
   clearController: clearPhotoTransferController
 } = usePhotoTransfer()
-const isPreferenceUpdating = ref(false)
-const showCleanupDialog = ref(false)
-const cleanupX6GameHandle = ref<FileSystemDirectoryHandle | null>(null)
-const cleaningItem = ref<SpecialCleanupItem | null>(null)
-const showCleanupAccountDialog = ref(false)
-const cleanupAccounts = ref<string[]>([])
-const cleanupRememberedChoice = ref<string | null>(null)
-const cleanupAccountResolver = ref<((accountIds: string[] | null) => void) | null>(null)
 const { confirmDialog, openConfirmDialog, closeConfirmDialog } = useConfirmDialog()
 const albumDirectoryHandle = ref<FileSystemDirectoryHandle | null>(null)
-const thumbnailMode = ref<ThumbnailMode>(
-  isThumbnailMode(storedThumbnailMode) ? storedThumbnailMode : 'default'
-)
-const outfitThumbnailMode = ref<ThumbnailMode>(
-  isThumbnailMode(storedOutfitThumbnailMode) ? storedOutfitThumbnailMode : 'portrait-standard'
-)
-const homeThumbnailMode = ref<ThumbnailMode>(
-  isThumbnailMode(storedHomeThumbnailMode) ? storedHomeThumbnailMode : 'wide'
-)
-// 手机半尺寸不可用：显示时回退普通 1:1，保留电脑端已保存的比例偏好。
-const effectivePhotoThumbnailMode = computed(() =>
-  compactLayout.value && thumbnailMode.value === 'half' ? 'default' : thumbnailMode.value
-)
-const effectiveOutfitThumbnailMode = computed(() =>
-  compactLayout.value && outfitThumbnailMode.value === 'half'
-    ? 'default'
-    : outfitThumbnailMode.value
-)
-const effectiveHomeThumbnailMode = computed(() =>
-  compactLayout.value && homeThumbnailMode.value === 'half' ? 'default' : homeThumbnailMode.value
-)
-const themeMode = ref<ThemeMode>(isThemeMode(storedThemeMode) ? storedThemeMode : 'light')
 const appShellRef = ref<HTMLElement | null>(null)
 let topBarResizeObserver: ResizeObserver | null = null
 let focusRefreshTimer: number | undefined
 let focusRefreshGeneration = 0
 let latestRefreshToken = 0
-let themeSwitchFrame: number | undefined
 let suppressNextFocusRefresh = false
 
 /** 使旧刷新任务和已排队的焦点刷新失效。 */
@@ -353,7 +324,6 @@ function invalidatePendingRefreshes() {
 }
 
 // 派生视图状态
-const locale = computed(() => messages[language.value])
 const favoriteTab = ref<'photos' | 'camera'>('camera')
 const cameraFavoritesRef = ref<InstanceType<typeof CameraFavorites> | null>(null)
 const allDataBackupRef = ref<InstanceType<typeof AllDataBackup> | null>(null)
@@ -361,6 +331,13 @@ const wardrobeRef = ref<InstanceType<typeof PersonalWardrobe> | null>(null)
 const resonanceRecordsRef = ref<InstanceType<typeof ResonanceRecords> | null>(null)
 const hasBackupData = ref(false)
 const allBackupDisabled = operations.isBusy
+// 只读目录恢复允许切换独立模块；所有写任务仍沿用原操作协调器互斥。
+const navigationBusy = computed(
+  () =>
+    operations.hasPending.value ||
+    (activeOperation.value !== null && activeOperation.value !== 'loading')
+)
+
 function handleAllBackupBusy(busy: boolean) {
   if (busy) activeOperation.value = 'all-data-backup'
   else if (activeOperation.value === 'all-data-backup') activeOperation.value = null
@@ -430,6 +407,13 @@ const {
   uidRequired: photoParamsUidRequired,
   progress: photoParamsProgress
 } = photoParams
+watch(
+  isPhotoParamsVisible,
+  (open) => {
+    if (open) mountedDialogs.value.add('PhotoParamsDialog')
+  },
+  { immediate: true, flush: 'sync' }
+)
 const {
   statusState,
   notices: statusNotices,
@@ -603,216 +587,58 @@ const {
   trashSelectedIds,
   activeView
 })
-// 专项清理
-async function openCleanupDialog() {
-  showCleanupDialog.value = true
-  if (cleanupX6GameHandle.value) return
-  const savedHandle = await getSavedX6GameDirectoryHandle()
-  if (!savedHandle || savedHandle.name !== 'X6Game') return
-  try {
-    const permission = savedHandle.queryPermission
-      ? await savedHandle.queryPermission({ mode: 'readwrite' })
-      : 'granted'
-    if (permission === 'granted') {
-      cleanupX6GameHandle.value = savedHandle
-      hasX6GameAuthorization.value = true
-    }
-  } catch {
-    /* 静默恢复失败时由用户手动授权 */
-  }
-}
-async function authorizeCleanupFolder() {
-  if (isAnyFileOperationBusy.value) return
-  let didCancelDirectoryPrompt = false
-  const alreadyAuthorized = Boolean(cleanupX6GameHandle.value || hasX6GameAuthorization.value)
-  try {
-    const handle = await pickStandaloneX6GameDirectory(locale.value.fileSystem, {
-      forcePick: true,
-      beforeRequestX6GamePermission: async () => {
-        if (alreadyAuthorized) return true
-        const confirmed = await openConfirmDialog({
-          title: locale.value.app.x6GameDirectoryDialogTitle,
-          message: locale.value.fileSystem.restoreX6GamePermissionPrompt,
-          tone: 'info',
-          confirmLabel: locale.value.app.dialogContinueAuthorization,
-          cancelLabel: locale.value.app.dialogCancel
-        })
-        didCancelDirectoryPrompt = !confirmed
-        return confirmed
-      },
-      beforePickX6GameDirectory: async () => {
-        if (alreadyAuthorized) return true
-        const confirmed = await openConfirmDialog({
-          title: locale.value.app.x6GameDirectoryDialogTitle,
-          message: locale.value.fileSystem.selectX6GameDirectoryPrompt,
-          tone: 'info',
-          confirmLabel: locale.value.app.dialogOk,
-          cancelLabel: locale.value.app.dialogCancel
-        })
-        didCancelDirectoryPrompt = !confirmed
-        return confirmed
-      }
-    })
-    cleanupX6GameHandle.value = handle
-    hasX6GameAuthorization.value = true
-    statusState.value = {
-      type: 'custom',
-      message: locale.value.app.authorizeX6GameStatus,
-      tone: 'success'
-    }
-  } catch (error) {
-    if (!didCancelDirectoryPrompt)
-      statusState.value = createErrorStatus(error, { type: 'readFailed' })
-  }
-}
-function resolveCleanupAccounts(accountIds: string[] | null, remember = false, choice = '') {
-  showCleanupAccountDialog.value = false
-  if (accountIds) persistCleanupAccountChoice(remember && choice ? choice : null)
-  cleanupAccountResolver.value?.(accountIds)
-  cleanupAccountResolver.value = null
-}
-async function resolveCleanupAccountIds(
-  x6GameHandle: FileSystemDirectoryHandle
-): Promise<string[] | null> {
-  const albumHandle = albumDirectoryHandle.value
-  if (albumHandle) {
-    try {
-      const accountId = await resolveX6GameAccountDirectory(
-        x6GameHandle,
-        albumHandle,
-        locale.value.fileSystem
-      )
-      if (accountId) return [accountId]
-    } catch {
-      /* 相册无关时扫描全部账号 */
-    }
-  }
-  const accounts = await listGamePlayPhotoAccounts(x6GameHandle)
-  if (accounts.length <= 1) return accounts
-  cleanupAccounts.value = accounts
-  cleanupRememberedChoice.value = readCleanupAccountChoice()
-  showCleanupAccountDialog.value = true
-  return new Promise<string[] | null>((resolve) => {
-    cleanupAccountResolver.value = resolve
-  })
-}
-async function cleanLowQualityPhotos(x6GameHandle: FileSystemDirectoryHandle) {
-  const accountIds = await resolveCleanupAccountIds(x6GameHandle)
-  if (!accountIds) {
-    statusState.value = {
-      type: 'custom',
-      message: locale.value.app.relatedCleanupCancelledStatus,
-      tone: 'info'
-    }
-    return
-  }
-  const plan = await prepareSpecialCleanup(x6GameHandle, 'lowQuality', accountIds, {
-    skipDirectoryHandle: albumDirectoryHandle.value ?? undefined
-  })
-  if (!plan.fileCount) {
-    statusState.value = {
-      type: 'custom',
-      message: locale.value.app.noRelatedPhotos(plan.missingDirectories),
-      tone: plan.missingDirectories.length ? 'warning' : 'info'
-    }
-    return
-  }
-  // 当前相册本身是清理目标时，在确认文案中说明本次只清理另一个目录。
-  const skippedAlbumName = plan.skippedDirectories[0]
-  const cleanupScope = skippedAlbumName
-    ? {
-        skippedAlbumName,
-        remainingTargetNames: [...new Set(plan.photoTargets.map((target) => target.directoryName))]
-      }
-    : undefined
-  const confirmed = await openConfirmDialog({
-    title: locale.value.app.relatedCleanupDialogTitle,
-    message: locale.value.app.confirmRelatedCleanup(
-      plan.fileCount,
-      plan.missingDirectories,
-      cleanupScope
-    ),
-    tone: 'warning',
-    confirmLabel: locale.value.app.dialogConfirm,
-    cancelLabel: locale.value.app.dialogCancel
-  })
-  if (!confirmed) {
-    statusState.value = {
-      type: 'custom',
-      message: locale.value.app.relatedCleanupCancelledStatus,
-      tone: 'info'
-    }
-    return
-  }
-  const result = await executeSpecialCleanup(plan)
-  statusState.value = {
-    type: 'custom',
-    message: locale.value.app.relatedCleanupStatus(
-      result.deletedCount,
-      result.deletedBytes,
-      result.failures,
-      result.missingDirectories
-    ),
-    tone: result.failures.length || result.missingDirectories.length ? 'warning' : 'success'
-  }
-}
-async function cleanSpecialDirectory(
-  x6GameHandle: FileSystemDirectoryHandle,
-  item: Exclude<SpecialCleanupItem, 'lowQuality'>
-) {
-  const itemTitle = locale.value.cleanup.items[item].title
-  const plan = await prepareSpecialCleanup(x6GameHandle, item)
-  if (!plan.fileCount) {
-    statusState.value = {
-      type: 'custom',
-      message: locale.value.cleanup.noDirectoryFilesToClean(itemTitle, plan.missingDirectories),
-      tone: plan.missingDirectories.length ? 'warning' : 'info'
-    }
-    return
-  }
-  const sizeText = `${formatFileSize(plan.totalBytes)}${plan.totalBytesKnown ? '' : language.value === 'zh' ? '（部分文件大小未知）' : ' (some file sizes unknown)'}`
-  const confirmed = await openConfirmDialog({
-    title: locale.value.cleanup.confirmDirectoryCleanupTitle,
-    message: locale.value.cleanup.confirmDirectoryCleanup(itemTitle, plan.fileCount, sizeText),
-    tone: 'warning',
-    confirmLabel: locale.value.app.dialogConfirm,
-    cancelLabel: locale.value.app.dialogCancel
-  })
-  if (!confirmed) {
-    statusState.value = {
-      type: 'custom',
-      message: locale.value.app.relatedCleanupCancelledStatus,
-      tone: 'info'
-    }
-    return
-  }
-  const result = await executeSpecialCleanup(plan)
-  statusState.value = {
-    type: 'custom',
-    message: locale.value.cleanup.directoryCleanupStatus(
-      itemTitle,
-      result.deletedCount,
-      result.deletedBytes,
-      result.failures,
-      result.missingDirectories
-    ),
-    tone: result.failures.length || result.missingDirectories.length ? 'warning' : 'success'
-  }
-}
-async function cleanSpecialItem(item: SpecialCleanupItem) {
-  const x6GameHandle = cleanupX6GameHandle.value
-  if (!x6GameHandle || cleaningItem.value !== null) return
-  cleaningItem.value = item
-  activeOperation.value = 'cleanup'
-  try {
-    if (item === 'lowQuality') await cleanLowQualityPhotos(x6GameHandle)
-    else await cleanSpecialDirectory(x6GameHandle, item)
-  } catch (error) {
-    statusState.value = createErrorStatus(error, { type: 'readFailed' })
-  } finally {
-    cleaningItem.value = null
-    if (activeOperation.value === 'cleanup') activeOperation.value = null
-  }
+const {
+  mergeRecentlyDeleted,
+  applyMovedPhotosResult,
+  movePhotosToTrash,
+  restoreTrashPhotos,
+  permanentlyDeleteTrashPhotos,
+  deleteAllTrash
+} = usePhotoTrashActions({
+  albumDirectoryHandle,
+  photos,
+  recentlyDeleted,
+  selectedIds,
+  trashSelectedIds,
+  favoriteIds,
+  currentPreview,
+  currentPreviewIndex,
+  visiblePhotos,
+  locale,
+  activeOperation,
+  isAnyFileOperationBusy,
+  statusState,
+  createErrorStatus,
+  openConfirmDialog
+})
+
+const {
+  showCleanupDialog,
+  cleanupX6GameHandle,
+  cleaningItem,
+  showCleanupAccountDialog,
+  cleanupAccounts,
+  cleanupRememberedChoice,
+  openCleanupDialog,
+  authorizeCleanupFolder,
+  resolveCleanupAccounts,
+  cleanSpecialItem,
+  deleteMatchingLowQualityPhotos: cleanMatchingPhotos
+} = useGameCleanup({
+  albumDirectoryHandle,
+  hasX6GameAuthorization,
+  language,
+  locale,
+  activeOperation,
+  isAnyFileOperationBusy,
+  statusState,
+  createErrorStatus,
+  openConfirmDialog
+})
+
+function deleteMatchingLowQualityPhotos() {
+  if (activeView.value === 'trash' || activeView.value === 'outfits') return
+  return cleanMatchingPhotos(scopedSelectedPhotos.value)
 }
 // 通用通知、偏好与持久化
 watch(
@@ -823,39 +649,6 @@ watch(
   },
   { deep: true }
 )
-watch(
-  language,
-  (value) => {
-    document.documentElement.lang = value === 'zh' ? 'zh-CN' : 'en'
-    if (!suppressLocalPersistence) writeLocalStorage(LANGUAGE_STORAGE_KEY, value)
-  },
-  { immediate: true }
-)
-watch(
-  themeMode,
-  (value) => {
-    const root = document.documentElement
-    const isThemeChange = Boolean(root.dataset.theme && root.dataset.theme !== value)
-
-    if (themeSwitchFrame !== undefined) window.cancelAnimationFrame(themeSwitchFrame)
-    if (isThemeChange) root.classList.add('is-theme-switching')
-    root.dataset.theme = value
-
-    if (isThemeChange) {
-      themeSwitchFrame = window.requestAnimationFrame(() => {
-        themeSwitchFrame = window.requestAnimationFrame(() => {
-          root.classList.remove('is-theme-switching')
-          themeSwitchFrame = undefined
-        })
-      })
-    }
-  },
-  { immediate: true }
-)
-watch(autoParseActionsEnabled, (value) => {
-  if (!suppressLocalPersistence) writeLocalStorage(AUTO_PARSE_ACTIONS_STORAGE_KEY, String(value))
-})
-
 async function resolveActionCandidateUids(): Promise<string[]> {
   const source = sharedOutfitSource.value ?? (await ensureSharedOutfitSource(true, false))
   if (!source) return []
@@ -883,27 +676,6 @@ watch(
   { immediate: true }
 )
 
-/**
- * 合并最近删除扫描结果，复用未变化照片已加载的对象地址。
- * 参数：nextPhotos 为最新扫描结果。
- */
-function mergeRecentlyDeleted(nextPhotos: RecentlyDeletedPhoto[]) {
-  const currentByName = new Map(recentlyDeleted.value.map((photo) => [photo.trashName, photo]))
-  const nextNames = new Set(nextPhotos.map((photo) => photo.trashName))
-  for (const photo of recentlyDeleted.value) {
-    if (!nextNames.has(photo.trashName)) releasePhotoUrl(photo)
-  }
-  recentlyDeleted.value = nextPhotos.map((photo) => {
-    const existing = currentByName.get(photo.trashName)
-    if (!existing) return photo
-    existing.size = photo.size
-    existing.fileSizeText = photo.fileSizeText
-    return existing
-  })
-  const validIds = new Set(recentlyDeleted.value.map((photo) => photo.id))
-  trashSelectedIds.value = new Set([...trashSelectedIds.value].filter((id) => validIds.has(id)))
-}
-
 async function updateHomeSchemeCount() {
   const generation = ++homeCountGeneration
   const count = await countHomeSchemes()
@@ -914,7 +686,9 @@ async function migrateHomeSchemes(
   directory: FileSystemDirectoryHandle
 ): Promise<StatusState | null> {
   try {
-    const result = await migrateHomeSchemeLibrary(directory)
+    const result = await (
+      await import('./utils/homeBuild/homeSchemeMigration')
+    ).migrateHomeSchemeLibrary(directory)
     await updateHomeSchemeCount()
     if (result.addedCount || result.replacedCount || result.tagsChanged) homeLibraryRevision.value++
     if (
@@ -970,86 +744,73 @@ function handleHomeSchemeCount(count: number) {
  * 替换当前相册并同步其最近删除目录。
  * 参数：result 为新相册结果，nextStatus 为完成后的状态提示。
  */
-async function replaceAlbum(result: AlbumDirectoryResult, nextStatus: StatusState) {
-  invalidatePendingRefreshes()
-  const [outfitResult, nextRecentlyDeleted] = await Promise.all([
-    readOutfitLibrary(result.directoryHandle),
-    listRecentlyDeleted(result.directoryHandle)
-  ])
-  await saveAlbumDirectoryHandle(result.directoryHandle)
-
-  releasePhotoUrls(photos.value)
-  releasePhotoUrls(outfits.value)
-  releasePhotoUrls(recentlyDeleted.value)
-  sharedOutfitSource.value = null
-  selectedIds.value = new Set()
-  selectedOutfitIds.value = new Set()
-  trashSelectedIds.value = new Set()
-  currentPreview.value = null
-  editingOutfit.value = null
-  isOutfitEditorVisible.value = false
-  isOutfitGuideVisible.value = false
-  photos.value = result.photos
-  outfits.value = outfitResult.outfits
-  outfitTags.value = outfitResult.tags
-  recentlyDeleted.value = nextRecentlyDeleted
-  // 收藏记录跨相册保留，切换相册时不再按当前照片裁剪，避免切回后丢失
-  activeView.value = 'all'
-  albumDirectoryHandle.value = result.directoryHandle
-  directoryState.value = { type: 'selected', name: result.directoryName }
-  statusState.value = outfitResult.failedCount
-    ? {
-        type: 'custom',
-        message: outfitLocale.value.operations.albumOpenedWithFailures(outfitResult.failedCount),
-        tone: 'warning'
-      }
-    : nextStatus
-  if (
-    outfitResult.migration &&
-    (outfitResult.migration.addedCount ||
-      outfitResult.migration.replacedCount ||
-      outfitResult.migration.tagsChanged ||
-      outfitResult.migration.clotheDirectoryRemoved ||
-      outfitResult.failedCount)
-  )
-    showOutfitRefreshResult(outfitResult, false)
-  const migrationStatus = await migrateHomeSchemes(result.directoryHandle)
-  if (migrationStatus) statusState.value = migrationStatus
-}
-
-/** 应用语言或主题偏好，并显示加载及完成提示。参数：preference 为要切换的偏好。 */
-async function applyPreference(preference: 'language' | 'theme') {
-  if (isPreferenceUpdating.value) return
-
-  isPreferenceUpdating.value = true
-  statusState.value = {
-    type: 'custom',
-    message: locale.value.app.preferencesUpdating,
-    tone: 'info',
-    loading: true
+async function replaceAlbum(
+  result: AlbumDirectoryResult,
+  nextStatus: StatusState,
+  options: { preserveView?: boolean } = {}
+) {
+  await operations.waitForPending()
+  if (appDisposed) {
+    releasePhotoUrls(result.photos)
+    return
   }
-  await new Promise<void>((resolve) => window.setTimeout(resolve, 280))
+  const restoring = activeOperation.value === 'loading'
+  // 读取目录后可能迁移搭配和家园文件；该阶段恢复全局写互斥。
+  if (restoring) activeOperation.value = 'updating-outfits'
+  try {
+    invalidatePendingRefreshes()
+    const [outfitResult, nextRecentlyDeleted] = await Promise.all([
+      readOutfitLibrary(result.directoryHandle),
+      listRecentlyDeleted(result.directoryHandle)
+    ])
+    if (appDisposed) {
+      releasePhotoUrls(result.photos)
+      releasePhotoUrls(outfitResult.outfits)
+      releasePhotoUrls(nextRecentlyDeleted)
+      return
+    }
+    await saveAlbumDirectoryHandle(result.directoryHandle)
 
-  if (preference === 'language') {
-    language.value = language.value === 'zh' ? 'en' : 'zh'
-  } else {
-    themeMode.value = themeMode.value === 'light' ? 'dark' : 'light'
-    if (!suppressLocalPersistence) writeLocalStorage(THEME_STORAGE_KEY, themeMode.value)
+    releasePhotoUrls(photos.value)
+    releasePhotoUrls(outfits.value)
+    releasePhotoUrls(recentlyDeleted.value)
+    sharedOutfitSource.value = null
+    selectedIds.value = new Set()
+    selectedOutfitIds.value = new Set()
+    trashSelectedIds.value = new Set()
+    currentPreview.value = null
+    editingOutfit.value = null
+    isOutfitEditorVisible.value = false
+    isOutfitGuideVisible.value = false
+    photos.value = result.photos
+    outfits.value = outfitResult.outfits
+    outfitTags.value = outfitResult.tags
+    recentlyDeleted.value = nextRecentlyDeleted
+    // 收藏记录跨相册保留，切换相册时不再按当前照片裁剪，避免切回后丢失
+    if (!options.preserveView) activeView.value = 'all'
+    albumDirectoryHandle.value = result.directoryHandle
+    directoryState.value = { type: 'selected', name: result.directoryName }
+    statusState.value = outfitResult.failedCount
+      ? {
+          type: 'custom',
+          message: outfitLocale.value.operations.albumOpenedWithFailures(outfitResult.failedCount),
+          tone: 'warning'
+        }
+      : nextStatus
+    if (
+      outfitResult.migration &&
+      (outfitResult.migration.addedCount ||
+        outfitResult.migration.replacedCount ||
+        outfitResult.migration.tagsChanged ||
+        outfitResult.migration.clotheDirectoryRemoved ||
+        outfitResult.failedCount)
+    )
+      showOutfitRefreshResult(outfitResult, false)
+    const migrationStatus = await migrateHomeSchemes(result.directoryHandle)
+    if (migrationStatus) statusState.value = migrationStatus
+  } finally {
+    if (restoring && activeOperation.value === 'updating-outfits') activeOperation.value = 'loading'
   }
-
-  await nextTick()
-  statusState.value = {
-    type: 'custom',
-    message:
-      preference === 'language' ? locale.value.app.languageUpdated : locale.value.app.themeUpdated,
-    tone: 'success'
-  }
-  isPreferenceUpdating.value = false
-}
-
-/** 切换中英文。参数：无。 */
-function toggleLanguage() {
-  return applyPreference('language')
 }
 
 const { restoreSavedDirectory, restoreSavedX6GameAuthorization, chooseDirectory } =
@@ -1127,9 +888,12 @@ async function clearCache() {
   try {
     photoActionParsing.reset()
     await invalidateCacheWrites()
+    const { clearOutfitDetailCache } = await import('./utils/outfit/outfitDetails')
     clearOutfitDetailCache()
     await Promise.all([
-      clearOutfitCodeParseCache(),
+      import('./utils/outfit/outfitCodeParser').then(({ clearOutfitCodeParseCache }) =>
+        clearOutfitCodeParseCache()
+      ),
       clearSavedHomeSchemeParseResults(),
       clearSavedPhotoActionCache()
     ])
@@ -1257,22 +1021,14 @@ async function refreshAlbum(manual: boolean) {
 function changeThumbnailMode(mode: ThumbnailMode) {
   if (isThumbnailModeDisabled.value || (compactLayout.value && mode === 'half')) return
   if (activeView.value === 'home') {
-    homeThumbnailMode.value = mode
-    if (!suppressLocalPersistence) writeLocalStorage(HOME_THUMBNAIL_STORAGE_KEY, mode)
+    saveThumbnailMode('home', mode)
     return
   }
   if (activeView.value === 'outfits') {
-    outfitThumbnailMode.value = mode
-    if (!suppressLocalPersistence) writeLocalStorage(OUTFIT_THUMBNAIL_STORAGE_KEY, mode)
+    saveThumbnailMode('outfit', mode)
     return
   }
-  thumbnailMode.value = mode
-  if (!suppressLocalPersistence) writeLocalStorage(THUMBNAIL_STORAGE_KEY, mode)
-}
-
-/** 切换亮暗主题。参数：无。 */
-function toggleTheme() {
-  return applyPreference('theme')
+  saveThumbnailMode('photo', mode)
 }
 
 // X6Game 授权与搭配码流程
@@ -1490,7 +1246,7 @@ async function updateOutfitLibrary(announce = true, promptSharedAccess = announc
 
 /** 切换相册视图并清空上个视图的选中状态（重复点击当前视图不清空）。参数：view 为目标视图；电脑端进入搭配码时按用户偏好显示操作指南。 */
 function changeAlbumView(view: AlbumView) {
-  if (operations.isBusy.value) return
+  if (navigationBusy.value) return
   const isViewChanged = view !== activeView.value
   const isEnteringOutfits = view === 'outfits' && isViewChanged
   // 点击收藏夹入口时默认显示相机参数。
@@ -1781,27 +1537,6 @@ async function importAlbumPhotos(event: Event) {
   }
 }
 
-/** 应用照片移入最近删除后的页面状态，供普通删除和导出后移动共用。 */
-function applyMovedPhotosResult(
-  result: Awaited<ReturnType<typeof movePhotosToRecentlyDeleted>>,
-  keepPreviewOpen = false,
-  previewIndex = -1
-) {
-  const movedIds = new Set(result.succeeded.map((photo) => photo.id))
-  photos.value = photos.value.filter((photo) => !movedIds.has(photo.id))
-  selectedIds.value = new Set([...selectedIds.value].filter((id) => !movedIds.has(id)))
-  favoriteIds.value = new Set([...favoriteIds.value].filter((id) => !movedIds.has(id)))
-  mergeRecentlyDeleted(
-    [...recentlyDeleted.value, ...result.movedPhotos].sort((a, b) => b.deletedAt - a.deletedAt)
-  )
-  if (currentPreview.value && movedIds.has(currentPreview.value.id)) {
-    currentPreview.value = keepPreviewOpen
-      ? (visiblePhotos.value[Math.min(Math.max(previewIndex, 0), visiblePhotos.value.length - 1)] ??
-        null)
-      : null
-  }
-}
-
 /** 生成照片与最近删除的刷新提示；搭配更新独立报告结果。 */
 function createRefreshResultStatus(album: RefreshAlbumResult, manual: boolean): StatusState | null {
   if (album.addedCount || album.removedCount)
@@ -1904,148 +1639,9 @@ async function closePhotoTransfer() {
   }
 }
 
-/**
- * 将普通照片移动到最近删除。
- * 参数：targets 为目标照片，keepPreviewOpen 表示删除预览图后是否继续预览相邻照片。
- */
-async function movePhotosToTrash(targets: PhotoItem[], keepPreviewOpen = false) {
-  if (!targets.length || isAnyFileOperationBusy.value) return
-  const confirmed = await openConfirmDialog({
-    title: locale.value.trash.moveDialogTitle,
-    message: locale.value.trash.confirmMove(targets.length),
-    tone: 'warning',
-    confirmLabel: locale.value.app.dialogConfirm,
-    cancelLabel: locale.value.app.dialogCancel
-  })
-  if (!confirmed) return
-
-  activeOperation.value = 'deleting'
-  statusState.value = {
-    type: 'custom',
-    message: locale.value.app.movingPhotosToTrash,
-    tone: 'info',
-    loading: true
-  }
-  const previewIndex = currentPreviewIndex.value
-  try {
-    const result = await movePhotosToRecentlyDeleted(targets, favoriteIds.value)
-    applyMovedPhotosResult(result, keepPreviewOpen, previewIndex)
-    statusState.value = {
-      type: 'custom',
-      message: locale.value.trash.movedStatus(result.succeeded.length, result.failedNames),
-      tone: result.failedNames.length ? 'warning' : 'success'
-    }
-  } catch (error) {
-    statusState.value = createErrorStatus(error, { type: 'readFailed' })
-  } finally {
-    if (activeOperation.value === 'deleting') activeOperation.value = null
-  }
-}
-
 /** 将当前普通视图的选中照片移到最近删除。参数：无。 */
 async function deleteSelectedPhotos() {
   await movePhotosToTrash(scopedSelectedPhotos.value)
-}
-
-/** 永久删除当前账号两个低画质目录中与选中照片同名的图片，不触碰当前相册源文件。 */
-async function deleteMatchingLowQualityPhotos() {
-  const albumHandle = albumDirectoryHandle.value
-  const targets = scopedSelectedPhotos.value
-  if (
-    !albumHandle ||
-    !targets.length ||
-    isAnyFileOperationBusy.value ||
-    activeView.value === 'trash' ||
-    activeView.value === 'outfits'
-  )
-    return
-
-  activeOperation.value = 'cleanup'
-  statusState.value = {
-    type: 'custom',
-    message: locale.value.app.permanentlyDeletingPhotos,
-    tone: 'info',
-    loading: true
-  }
-  let cancelledAuthorization = false
-  try {
-    const { directoryHandle: x6GameHandle, accountDirectoryName } =
-      await getX6GameDirectoryForAlbum(albumHandle, locale.value.fileSystem, {
-        beforeRequestX6GamePermission: async () => {
-          const confirmed = await openConfirmDialog({
-            title: locale.value.app.x6GameDirectoryDialogTitle,
-            message: locale.value.fileSystem.restoreX6GamePermissionPrompt,
-            tone: 'info',
-            confirmLabel: locale.value.app.dialogContinueAuthorization,
-            cancelLabel: locale.value.app.dialogCancel
-          })
-          cancelledAuthorization = !confirmed
-          return confirmed
-        },
-        beforePickX6GameDirectory: async () => {
-          const confirmed = await openConfirmDialog({
-            title: locale.value.app.x6GameDirectoryDialogTitle,
-            message: locale.value.fileSystem.selectX6GameDirectoryPrompt,
-            tone: 'info',
-            confirmLabel: locale.value.app.dialogOk,
-            cancelLabel: locale.value.app.dialogCancel
-          })
-          cancelledAuthorization = !confirmed
-          return confirmed
-        }
-      })
-    const plan = await prepareMatchingPhotoCleanup(
-      x6GameHandle,
-      accountDirectoryName,
-      targets.map((photo) => photo.name),
-      albumHandle
-    )
-    if (!plan.matchedCount) {
-      statusState.value = {
-        type: 'custom',
-        message: locale.value.app.noMatchingRelatedPhotos(
-          plan.missingDirectories,
-          plan.skippedDirectories
-        ),
-        tone: plan.missingDirectories.length ? 'warning' : 'info'
-      }
-      return
-    }
-    const confirmed = await openConfirmDialog({
-      title: locale.value.app.relatedPhotoDeleteDialogTitle,
-      message: locale.value.app.confirmRelatedPhotoDelete(
-        plan.matchedCount,
-        plan.skippedDirectories
-      ),
-      tone: 'warning',
-      confirmLabel: locale.value.app.dialogConfirm,
-      cancelLabel: locale.value.app.dialogCancel
-    })
-    if (!confirmed) {
-      statusState.value = {
-        type: 'custom',
-        message: locale.value.app.relatedPhotoDeleteCancelledStatus,
-        tone: 'info'
-      }
-      return
-    }
-    const result = await executeMatchingPhotoCleanup(plan)
-    statusState.value = {
-      type: 'custom',
-      message: locale.value.app.relatedPhotoDeleteStatus(result.deletedCount, result.failures),
-      tone: result.failures.length ? 'warning' : 'success'
-    }
-  } catch (error) {
-    if (cancelledAuthorization)
-      statusState.value = {
-        type: 'custom',
-        message: locale.value.app.relatedPhotoDeleteCancelledStatus,
-        tone: 'info'
-      }
-    else statusState.value = createErrorStatus(error, { type: 'readFailed' })
-  } finally {
-    if (activeOperation.value === 'cleanup') activeOperation.value = null
-  }
 }
 
 /** 将当前预览照片移到最近删除。参数：无。 */
@@ -2057,112 +1653,6 @@ async function deleteCurrentPreview() {
   )
     return
   await movePhotosToTrash([currentPreview.value as PhotoItem], true)
-}
-
-/**
- * 恢复最近删除照片。
- * 参数：targets 为待恢复的回收照片，keepPreviewOpen 表示是否继续预览相邻回收照片。
- */
-async function restoreTrashPhotos(targets: RecentlyDeletedPhoto[], keepPreviewOpen = false) {
-  const directoryHandle = albumDirectoryHandle.value
-  if (!directoryHandle || !targets.length || isAnyFileOperationBusy.value) return
-  activeOperation.value = 'trash'
-  statusState.value = {
-    type: 'custom',
-    message: locale.value.app.restoringPhotos,
-    tone: 'info',
-    loading: true
-  }
-  const previewIndex = currentPreviewIndex.value
-  try {
-    const result = await restoreRecentlyDeletedPhotos(targets, directoryHandle)
-    const restoredTrashIds = new Set(result.succeeded.map((photo) => photo.id))
-    recentlyDeleted.value = recentlyDeleted.value.filter((photo) => !restoredTrashIds.has(photo.id))
-    trashSelectedIds.value = new Set(
-      [...trashSelectedIds.value].filter((id) => !restoredTrashIds.has(id))
-    )
-    photos.value = [...photos.value, ...result.restoredPhotos].sort(
-      (a, b) => b.timestamp - a.timestamp
-    )
-    result.succeeded.forEach((source, index) => {
-      const restored = result.restoredPhotos[index]
-      if (source.wasFavorite && restored)
-        favoriteIds.value = new Set([...favoriteIds.value, restored.id])
-    })
-    if (currentPreview.value && restoredTrashIds.has(currentPreview.value.id)) {
-      currentPreview.value = keepPreviewOpen
-        ? (recentlyDeleted.value[Math.min(previewIndex, recentlyDeleted.value.length - 1)] ?? null)
-        : null
-    }
-    statusState.value = {
-      type: 'custom',
-      message: locale.value.trash.restoredStatus(result.succeeded.length, result.failedNames),
-      tone: result.failedNames.length ? 'warning' : 'success'
-    }
-  } catch (error) {
-    statusState.value = createErrorStatus(error, { type: 'readFailed' })
-  } finally {
-    if (activeOperation.value === 'trash') activeOperation.value = null
-  }
-}
-
-/**
- * 永久删除最近删除照片并显示不可恢复影响范围。
- * 参数：targets 为待删除照片，options 控制是否继续预览相邻照片及是否已在调用方完成确认。
- */
-async function permanentlyDeleteTrashPhotos(
-  targets: RecentlyDeletedPhoto[],
-  options: { keepPreviewOpen?: boolean; skipConfirmation?: boolean; clearDirectory?: boolean } = {}
-) {
-  if (!targets.length || isAnyFileOperationBusy.value) return
-  if (!options.skipConfirmation) {
-    const confirmed = await openConfirmDialog({
-      title: locale.value.trash.permanentDeleteDialogTitle,
-      message: locale.value.trash.confirmPermanentDelete(targets.length),
-      tone: 'danger',
-      confirmLabel: locale.value.app.dialogConfirm,
-      cancelLabel: locale.value.app.dialogCancel
-    })
-    if (!confirmed) return
-  }
-
-  activeOperation.value = 'trash'
-  statusState.value = {
-    type: 'custom',
-    message: locale.value.app.permanentlyDeletingPhotos,
-    tone: 'info',
-    loading: true
-  }
-  const previewIndex = currentPreviewIndex.value
-  const keepPreviewOpen = options.keepPreviewOpen ?? false
-  try {
-    const result =
-      options.clearDirectory && albumDirectoryHandle.value
-        ? await clearRecentlyDeleted(albumDirectoryHandle.value, targets)
-        : await permanentlyDeleteRecentlyDeleted(targets)
-    const deletedIds = new Set(result.succeeded.map((photo) => photo.id))
-    recentlyDeleted.value = recentlyDeleted.value.filter((photo) => !deletedIds.has(photo.id))
-    trashSelectedIds.value = new Set(
-      [...trashSelectedIds.value].filter((id) => !deletedIds.has(id))
-    )
-    if (currentPreview.value && deletedIds.has(currentPreview.value.id)) {
-      currentPreview.value = keepPreviewOpen
-        ? (recentlyDeleted.value[Math.min(previewIndex, recentlyDeleted.value.length - 1)] ?? null)
-        : null
-    }
-    statusState.value = {
-      type: 'custom',
-      message: locale.value.trash.permanentlyDeletedStatus(
-        result.succeeded.length,
-        result.failedNames
-      ),
-      tone: result.failedNames.length ? 'warning' : 'success'
-    }
-  } catch (error) {
-    statusState.value = createErrorStatus(error, { type: 'readFailed' })
-  } finally {
-    if (activeOperation.value === 'trash') activeOperation.value = null
-  }
 }
 
 /** 恢复当前选中的最近删除照片。参数：无。 */
@@ -2177,23 +1667,6 @@ async function permanentlyDeleteSelectedTrash() {
   await permanentlyDeleteTrashPhotos(
     recentlyDeleted.value.filter((photo) => trashSelectedIds.value.has(photo.id))
   )
-}
-
-/** 一键清空全部最近删除。参数：无。 */
-async function deleteAllTrash() {
-  if (!recentlyDeleted.value.length) return
-  const confirmed = await openConfirmDialog({
-    title: locale.value.trash.permanentDeleteDialogTitle,
-    message: locale.value.trash.confirmDeleteAll(recentlyDeleted.value.length),
-    tone: 'danger',
-    confirmLabel: locale.value.app.dialogConfirm,
-    cancelLabel: locale.value.app.dialogCancel
-  })
-  if (!confirmed) return
-  await permanentlyDeleteTrashPhotos([...recentlyDeleted.value], {
-    skipConfirmation: true,
-    clearDirectory: true
-  })
 }
 
 /** 恢复当前最近删除预览照片。参数：无。 */
@@ -2272,28 +1745,47 @@ function scheduleFocusRefresh() {
 }
 
 // 生命周期
+let startupReady: Promise<unknown> = Promise.resolve()
+let initialOutfitScanStarted = false
+async function ensureInitialOutfitScan() {
+  await startupReady
+  if (
+    appDisposed ||
+    activeView.value !== 'outfits' ||
+    initialOutfitScanStarted ||
+    isAnyFileOperationBusy.value
+  )
+    return
+  initialOutfitScanStarted = true
+  await updateOutfitLibrary(false, false)
+}
+watch(activeView, (view) => {
+  if (view === 'outfits') void ensureInitialOutfitScan()
+})
 onMounted(() => {
   activeOperation.value = 'loading'
+  // 计数独立读取；本地集合与目录迁移仍保持顺序，防止较旧读取覆盖迁移结果。
   void updateHomeSchemeCount().catch(() => {
-    statusState.value = {
-      type: 'custom',
-      message: locale.value.homeScheme.operationFailed,
-      tone: 'error'
-    }
+    if (!appDisposed)
+      statusState.value = {
+        type: 'custom',
+        message: locale.value.homeScheme.operationFailed,
+        tone: 'error'
+      }
   })
-  void (async () => {
-    try {
-      await reloadOutfitCollection()
-    } catch (error) {
-      showOutfitStorageError(error)
-    }
+  const collectionReady = reloadOutfitCollection().catch((error) => {
+    if (!appDisposed) showOutfitStorageError(error)
+  })
+  const directoryReady = (async () => {
+    await collectionReady
     if (appDisposed) return
     await restoreSavedDirectory()
     if (appDisposed) return
     await restoreSavedX6GameAuthorization()
-    if (appDisposed) return
-    await updateOutfitLibrary(false, false)
   })()
+  startupReady = Promise.allSettled([collectionReady, directoryReady])
+  // 重型游戏目录扫描推迟到首次进入搭配码，避免打开其他模块时争用 I/O。
+  void ensureInitialOutfitScan()
   // 没有记录、版本号变化或未勾选“不再提示”时，打开网站自动显示更新记录
   if (
     !storedAboutState ||
@@ -2320,8 +1812,6 @@ onBeforeUnmount(() => {
   invalidatePendingRefreshes()
   disposeStatusNotice()
   if (focusRefreshTimer !== undefined) window.clearTimeout(focusRefreshTimer)
-  if (themeSwitchFrame !== undefined) window.cancelAnimationFrame(themeSwitchFrame)
-  document.documentElement.classList.remove('is-theme-switching')
   topBarResizeObserver?.disconnect()
   window.removeEventListener('resize', updateSidebarStickyOffset)
   window.removeEventListener('focus', scheduleFocusRefresh)
@@ -2433,7 +1923,7 @@ function importAllDataFromMenu() {
           :favorite-count-text="`${favoriteCount + cameraFavoriteCodes.length} ${language === 'zh' ? '项' : 'items'}`"
           :trash-count="recentlyDeleted.length"
           :outfit-label="outfitLocale.viewName"
-          :disabled="isAnyFileOperationBusy"
+          :disabled="navigationBusy"
           :messages="locale.viewNav"
           @change-view="changeAlbumView"
         />
@@ -2515,28 +2005,32 @@ function importAllDataFromMenu() {
           class="archive-main-toolbar"
           :class="{ 'is-wardrobe': activeView === 'wardrobe' }"
         >
-        <nav
-          class="resonance-choice-row archive-main-tabs"
-          :aria-label="locale.viewNav.resonance"
-        >
-          <button
-            type="button"
-            :disabled="operations.isBusy.value"
-            class="resonance-choice"
-            :aria-pressed="activeView === 'resonance'"
-            @click="changeAlbumView('resonance')"
-            >{{ locale.viewNav.resonanceRecords }}</button
+          <nav
+            class="resonance-choice-row archive-main-tabs"
+            :aria-label="locale.viewNav.resonance"
           >
-          <button
-            type="button"
-            :disabled="operations.isBusy.value"
-            class="resonance-choice"
-            :aria-pressed="activeView === 'wardrobe'"
-            @click="changeAlbumView('wardrobe')"
-            >{{ locale.viewNav.wardrobe }}</button
-          >
-        </nav>
-        <div v-if="activeView === 'wardrobe'" id="wardrobe-mobile-category-target" class="archive-wardrobe-extra"></div>
+            <button
+              type="button"
+              :disabled="operations.isBusy.value"
+              class="resonance-choice"
+              :aria-pressed="activeView === 'resonance'"
+              @click="changeAlbumView('resonance')"
+              >{{ locale.viewNav.resonanceRecords }}</button
+            >
+            <button
+              type="button"
+              :disabled="operations.isBusy.value"
+              class="resonance-choice"
+              :aria-pressed="activeView === 'wardrobe'"
+              @click="changeAlbumView('wardrobe')"
+              >{{ locale.viewNav.wardrobe }}</button
+            >
+          </nav>
+          <div
+            v-if="activeView === 'wardrobe'"
+            id="wardrobe-mobile-category-target"
+            class="archive-wardrobe-extra"
+          ></div>
         </div>
         <CollectionFilterBar
           v-if="
@@ -2824,7 +2318,7 @@ function importAllDataFromMenu() {
           :library-revision="homeLibraryRevision"
           :messages="locale.homeScheme"
           :copy-messages="locale.app"
-          :disabled="activeOperation !== null"
+          :disabled="navigationBusy"
           :confirm-action="confirmHomeSchemeAction"
           :search-query="searchQuery"
           :selection-messages="locale.selectionBar"
@@ -2842,7 +2336,7 @@ function importAllDataFromMenu() {
           @update-search="searchQuery = $event"
           @notice="showStatus"
           :language="language"
-          :disabled="activeOperation !== null"
+          :disabled="navigationBusy"
         />
         <ResonanceRecords
           ref="resonanceRecordsRef"
@@ -3006,6 +2500,7 @@ function importAllDataFromMenu() {
     />
 
     <PhotoParamsDialog
+      v-if="mountedDialogs.has('PhotoParamsDialog')"
       :visible="isPhotoParamsVisible && !cameraFavoriteModal"
       :saved="photoParamsSaved"
       :favorite-label="
@@ -3059,12 +2554,14 @@ function importAllDataFromMenu() {
     />
 
     <FortuneTimeDialog
+      v-if="mountedDialogs.has('FortuneTimeDialog')"
       :visible="isFortuneTimeVisible"
       :messages="locale.fortuneTime"
       @close="isFortuneTimeVisible = false"
     />
 
     <OutfitEditor
+      v-if="mountedDialogs.has('OutfitEditor')"
       ref="outfitEditorRef"
       :visible="isOutfitEditorVisible"
       :selection-busy="isSavingOutfit"
@@ -3078,6 +2575,7 @@ function importAllDataFromMenu() {
     />
 
     <OutfitParseDialog
+      v-if="mountedDialogs.has('OutfitParseDialog')"
       :visible="isOutfitParseVisible"
       :code="parsingOutfitCode"
       :language="language"
@@ -3102,6 +2600,7 @@ function importAllDataFromMenu() {
     />
 
     <OutfitGuideDialog
+      v-if="mountedDialogs.has('OutfitGuideDialog')"
       :visible="isOutfitGuideVisible"
       :dismissed="isOutfitGuideDismissed"
       :messages="outfitLocale"
@@ -3109,6 +2608,7 @@ function importAllDataFromMenu() {
     />
 
     <UpdateLogDialog
+      v-if="mountedDialogs.has('UpdateLogDialog')"
       :visible="isUpdateLogVisible"
       :dismissed="isAboutDialogDismissed"
       :messages="locale.updateLog"
@@ -3117,6 +2617,7 @@ function importAllDataFromMenu() {
     />
 
     <HelpAboutDialog
+      v-if="mountedDialogs.has('HelpAboutDialog')"
       :visible="isHelpAboutVisible"
       :compact="compactLayout"
       :messages="locale.helpAbout"

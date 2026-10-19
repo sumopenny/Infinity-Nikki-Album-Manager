@@ -207,7 +207,7 @@ describe('ResonanceRecords', () => {
     )
   })
 
-  it('hides failed CDN images without retrying through a proxy', async () => {
+  it('shows retryable failed images and retries the original without a proxy', async () => {
     await saveResonanceRecords([
       { ...savedRecord, outfitImageUrl: 'https://cdn.gongeo.us/images/outfits/103471.png' }
     ])
@@ -216,12 +216,18 @@ describe('ResonanceRecords', () => {
     await vi.waitFor(() => expect(wrapper.findAll('.resonance-record')).toHaveLength(1))
     const outfit = wrapper.find('.resonance-outfit-image img')
     await outfit.trigger('error')
-    expect(outfit.attributes('src')).toBe('https://cdn.gongeo.us/images/outfits/103471.png')
-    expect((outfit.element as HTMLImageElement).hidden).toBe(true)
+    expect(outfit.attributes('data-image-failed')).toBe('true')
+    await outfit.trigger('click')
+    expect(wrapper.find('.resonance-outfit-image img').attributes('src')).toBe(
+      'https://cdn.gongeo.us/images/outfits/103471.png'
+    )
     const part = wrapper.find('.resonance-part img')
     await part.trigger('error')
-    expect(part.attributes('src')).toBe(`https://cdn.gongeo.us/images/items/icons/${HAIR}.png`)
-    expect((part.element as HTMLImageElement).hidden).toBe(true)
+    expect(part.attributes('data-image-failed')).toBe('true')
+    await part.trigger('click')
+    expect(wrapper.find('.resonance-part img').attributes('src')).toBe(
+      `https://cdn.gongeo.us/images/items/icons/${HAIR}.png`
+    )
   })
 
   it('uses silver for missing parts and banner parity for obtained parts', async () => {

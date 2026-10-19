@@ -19,7 +19,11 @@ interface DirectorySessionOptions {
   directoryState: Ref<DirectoryState>
   photos: Ref<PhotoItem[]>
   hasX6GameAuthorization: Ref<boolean>
-  replaceAlbum: (result: AlbumDirectoryResult, status: StatusState) => Promise<void>
+  replaceAlbum: (
+    result: AlbumDirectoryResult,
+    status: StatusState,
+    options?: { preserveView?: boolean }
+  ) => Promise<void>
   createErrorStatus: ReturnType<typeof useOperationNotice>['createErrorStatus']
 }
 /** 目录授权与恢复入口集中管理；页面仅提供数据应用回调和状态，不再重复编排授权流程。 */
@@ -46,7 +50,7 @@ export function useDirectorySession(options: DirectorySessionOptions) {
         requestPermission: false,
         messages: locale.value.fileSystem
       })
-      await replaceAlbum(result, { type: 'initial' })
+      await replaceAlbum(result, { type: 'initial' }, { preserveView: true })
     } catch (error) {
       statusState.value = createErrorStatus(error, { type: 'restoreFailed' })
     } finally {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CatalogImage from './CatalogImage.vue'
 import { computed, ref, watch } from 'vue'
 import { ExternalLink, X } from 'lucide-vue-next'
 import type { Language } from '../i18n/types'
@@ -60,16 +61,19 @@ useModalFocus(visible, panel, close)
                 :class="{ 'is-image-loading': imageState === 'loading' }"
                 :aria-busy="imageState === 'loading'"
               >
-                <img
-                  v-if="imageState !== 'failed'"
+                <CatalogImage
+                  :language="language"
                   :key="item.id"
                   class="outfit-detail-image"
+                  loading="eager"
+                  fetchpriority="high"
                   :class="{ 'is-loading': imageState === 'loading' }"
                   referrerpolicy="no-referrer"
                   :src="imageUrl"
                   :alt="item.name[language]"
                   @load="imageState = 'loaded'"
                   @error="imageState = 'failed'"
+                  @retry="imageState = 'loading'"
                 />
                 <div
                   v-if="imageState === 'loading'"
@@ -78,9 +82,6 @@ useModalFocus(visible, panel, close)
                 >
                   <span class="outfit-image-spinner" aria-hidden="true"></span>
                   <span>{{ text('正在加载图片…', 'Loading image…') }}</span>
-                </div>
-                <div v-else-if="imageState === 'failed'" class="outfit-detail-image is-missing">
-                  {{ text('暂无图片', 'No image') }}
                 </div>
               </div>
               <dl class="outfit-detail-info">
@@ -134,22 +135,5 @@ useModalFocus(visible, panel, close)
 .wardrobe-outfit-link:focus-visible {
   background: var(--soft);
   outline: 1px solid var(--pink-deep);
-}
-.outfit-detail-image-frame {
-  display: block;
-  width: fit-content;
-  max-width: 100%;
-  height: auto;
-}
-.outfit-detail-image-frame img.outfit-detail-image {
-  display: block;
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: min(400px, 55dvh);
-}
-.outfit-detail-image-frame:has(.is-missing) {
-  width: min(273px, 100%);
-  min-height: 180px;
 }
 </style>

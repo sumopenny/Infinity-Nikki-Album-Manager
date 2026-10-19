@@ -81,6 +81,9 @@ watch(
   () => props.visible,
   (visible) => {
     if (visible) {
+      void import('../utils/outfit/lookbookWasmClient')
+        .then(({ warmLookbookParser }) => warmLookbookParser())
+        .catch(() => undefined)
       previousActiveElement =
         document.activeElement instanceof HTMLElement ? document.activeElement : null
       void nextTick(() => panelRef.value?.querySelector('input')?.focus())

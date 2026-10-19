@@ -32,6 +32,10 @@ export interface OutfitImage {
   sha256: string
   extension?: string
 }
+/** 新校验结果必有真实扩展名；旧数据库记录继续允许缺少该字段。 */
+export interface PreparedOutfitImage extends OutfitImage {
+  extension: string
+}
 export interface OutfitSnapshot {
   records: OutfitRecord[]
   images: Map<string, OutfitImage>
@@ -49,7 +53,7 @@ export async function prepareOutfitImage(
   blob: Blob,
   id: string,
   decode = true
-): Promise<OutfitImage> {
+): Promise<PreparedOutfitImage> {
   const checked = await inspectStoredImage(blob, decode)
   return {
     id,
@@ -61,7 +65,7 @@ export async function prepareOutfitImage(
 }
 
 /** 搭配上传复用通用的 WebP 优先与原图兜底策略。 */
-export async function prepareOutfitUpload(file: File, id: string): Promise<OutfitImage> {
+export async function prepareOutfitUpload(file: File, id: string): Promise<PreparedOutfitImage> {
   return prepareOutfitImage(await convertImageForStorage(file), id, false)
 }
 

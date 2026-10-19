@@ -292,6 +292,7 @@ describe('camera favorite selection and resources', () => {
     ])
     button('详情').click()
     await flushPromises()
+    await vi.waitFor(() => expect(document.querySelector('.photo-params-dialog')).not.toBeNull())
     expect(document.querySelector('.photo-params-dialog')?.textContent).toContain('回眸')
     expect(document.querySelector('.photo-params-dialog')?.textContent).toContain('晴天')
     expect(button('已收藏').disabled).toBe(true)

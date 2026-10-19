@@ -1,5 +1,5 @@
 // 部件图鉴查询:懒加载本地图鉴数据(部件与妆容的中英文名称),按语言返回名称与图标地址。
-const CDN_BASE_URL = 'https://cdn.gongeo.us'
+import { getCatalogImageSource } from '../gongeo/catalogImage'
 
 export interface ItemCatalogEntry {
   id: number
@@ -38,9 +38,7 @@ export function loadItemCatalog(): Promise<Map<number, ItemCatalogEntry>> {
 
 /** 部件与妆容图标分别位于不同 CDN 路径。 */
 export function getCatalogImageUrl(entry: ItemCatalogEntry): string {
-  return entry.makeup
-    ? `${CDN_BASE_URL}/images/items/makeups/${entry.id}.png`
-    : `${CDN_BASE_URL}/images/items/icons/${entry.id}.png`
+  return getCatalogImageSource(entry.makeup ? 'makeup' : 'icon', entry.id)
 }
 
 export function getCatalogEntryName(entry: ItemCatalogEntry, language: 'zh' | 'en'): string {

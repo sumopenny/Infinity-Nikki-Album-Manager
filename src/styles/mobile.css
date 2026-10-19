@@ -1173,6 +1173,38 @@
     flex-direction: column;
     overflow: hidden;
   }
+  /* 解析结果按内容收缩，长列表仅滚动正文，标题和数量栏保持可见。 */
+  .outfit-parse-panel {
+    height: auto;
+  }
+  .outfit-parse-panel > .outfit-parse-content {
+    flex: 0 1 auto;
+  }
+  /* 部件详情按内容收缩；两入口共用正文滚动，不继承编辑器满高或预留空网格行。 */
+  .outfit-detail-panel {
+    height: auto;
+  }
+  .outfit-detail-panel > .outfit-detail-content {
+    flex: 0 1 auto;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    align-content: start;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .outfit-detail-panel .outfit-detail-summary {
+    border-right: 0;
+    border-bottom: 0;
+  }
+  .outfit-detail-panel .outfit-detail-dyes {
+    overflow: visible;
+    border-top: 1px solid var(--line);
+  }
+  .outfit-detail-panel .outfit-detail-table-wrap {
+    max-height: none;
+  }
   .outfit-editor-panel > header,
   .outfit-editor-panel > footer {
     flex-shrink: 0;

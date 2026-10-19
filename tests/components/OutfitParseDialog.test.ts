@@ -23,9 +23,16 @@ vi.mock('../../src/utils/outfit/itemCatalog', () => ({
   getCatalogImageUrl: (entry: { id: number }) => `https://example.test/${entry.id}.png`
 }))
 
-vi.mock('../../src/utils/outfit/outfitDetails', () => ({
-  loadOutfitDetail: loadOutfitDetailMock
-}))
+vi.mock('../../src/utils/outfit/outfitDetails', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/utils/outfit/outfitDetails')>()
+  return {
+    ...actual,
+    loadOutfitDetail: loadOutfitDetailMock,
+    loadLocalOutfitDetail: vi.fn(async (id, _outfit, language, name) =>
+      actual.createOutfitDetailPreview(id, language, name)
+    )
+  }
+})
 
 const detail = {
   itemId: 1020100001,
@@ -41,6 +48,56 @@ const detail = {
 }
 
 describe('OutfitParseDialog', () => {
+  it('补充图鉴期间不显示顶部提示，失败后仍可重试并保留部件预览', async () => {
+    parseOutfitCodeMock.mockResolvedValue({
+      code: '13dub3nPiPu#',
+      wearingClothes: [{ itemId: 1020100001, clothType: 10, outfitId: null }],
+      dyeItems: []
+    })
+    loadItemCatalogMock.mockResolvedValue(
+      new Map([
+        [1020100001, { id: 1020100001, zh: '时光讯号', en: 'Signal of Time', makeup: false }]
+      ])
+    )
+    let rejectDetail!: (error: Error) => void
+    loadOutfitDetailMock
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectDetail = reject
+          })
+      )
+      .mockResolvedValueOnce(detail)
+    const wrapper = mount(OutfitParseDialog, {
+      props: {
+        visible: true,
+        code: '13dub3nPiPu#',
+        language: 'zh',
+        messages: getOutfitMessages('zh')
+      },
+      global: { stubs: { Teleport: true, Transition: true } }
+    })
+    try {
+      await flushPromises()
+      await wrapper.get('.outfit-parse-item-button').trigger('click')
+      await flushPromises()
+      expect(wrapper.find('.outfit-detail-progress').exists()).toBe(false)
+      expect(wrapper.find('.outfit-detail-loading').exists()).toBe(false)
+      expect(wrapper.get('.outfit-detail-summary').text()).not.toContain('正在加载部件图鉴详情')
+      expect(wrapper.get('.outfit-detail-info').text()).toContain('加载中…')
+      expect(wrapper.find('.outfit-detail-image').exists()).toBe(true)
+      rejectDetail(new Error('offline'))
+      await flushPromises()
+      expect(wrapper.get('.outfit-detail-info').text()).toContain('时光讯号')
+      await wrapper.get('.outfit-detail-error button').trigger('click')
+      await flushPromises()
+      expect(wrapper.find('.outfit-detail-error').exists()).toBe(false)
+      expect(wrapper.get('.outfit-detail-info').text()).toContain('绽响黎明前')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('opens item details from a focused image button and returns focus on close', async () => {
     parseOutfitCodeMock.mockResolvedValue({
       code: 'a1B2c3D4e5F#',
@@ -251,3 +308,41 @@ it.each([false, true])(
     }
   }
 )
+
+it('keeps an already loaded image visible when retrying catalog details', async () => {
+  parseOutfitCodeMock.mockResolvedValue({
+    code: 'CODE',
+    wearingClothes: [{ itemId: 1020100001, clothType: 10, outfitId: null }],
+    dyeItems: []
+  })
+  loadItemCatalogMock.mockResolvedValue(
+    new Map([[1020100001, { id: 1020100001, zh: '发型', en: 'Hair', makeup: false }]])
+  )
+  const sameImageDetail = {
+    ...detail,
+    detailImageUrl: 'https://cdn.gongeo.us/images/items/1020100001.png'
+  }
+  loadOutfitDetailMock
+    .mockResolvedValueOnce({ ...sameImageDetail, loadError: true })
+    .mockResolvedValueOnce(sameImageDetail)
+  const wrapper = mount(OutfitParseDialog, {
+    props: { visible: true, code: 'CODE', language: 'zh', messages: getOutfitMessages('zh') },
+    global: { stubs: { Teleport: true, Transition: true } }
+  })
+  try {
+    await flushPromises()
+    await wrapper.get('.outfit-parse-item-button').trigger('click')
+    await flushPromises()
+    const image = wrapper.get('.outfit-detail-image')
+    await image.trigger('load')
+    expect(wrapper.find('.outfit-detail-image-placeholder').exists()).toBe(false)
+    await wrapper.get('.outfit-detail-error button').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.outfit-detail-image').element).toBe(image.element)
+    expect(wrapper.find('.outfit-detail-error').exists()).toBe(false)
+    expect(wrapper.find('.outfit-detail-image-placeholder').exists()).toBe(false)
+    expect(wrapper.get('.outfit-detail-image').classes()).not.toContain('is-loading')
+  } finally {
+    wrapper.unmount()
+  }
+})

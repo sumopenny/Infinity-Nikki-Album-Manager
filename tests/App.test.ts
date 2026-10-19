@@ -505,6 +505,11 @@ describe('App lifecycle coordination', () => {
 
     const wrapper = mount(App)
     await flushPromises()
+    await vi.waitFor(
+      () =>
+        expect(wrapper.findComponent({ name: 'AlbumViewSwitcher' }).props('outfitsCount')).toBe(1),
+      { timeout: 3000 }
+    )
     wrapper.unmount()
 
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:outfit')
@@ -680,6 +685,28 @@ describe('App lifecycle coordination', () => {
     }
   })
 
+  it('keeps a newly selected module when a slow saved album finishes restoring', async () => {
+    const handle = { kind: 'directory', name: 'SavedAlbum' } as FileSystemDirectoryHandle
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(handle)
+    const reading = deferred<Awaited<ReturnType<typeof readAlbumDirectory>>>()
+    readAlbumDirectoryMock.mockReturnValueOnce(reading.promise)
+    const wrapper = mount(App, {
+      global: { stubs: { CameraFavorites: true, HomeSchemeWorkspace: true } }
+    })
+    try {
+      await flushPromises()
+      const navigation = wrapper.findComponent({ name: 'AlbumViewSwitcher' })
+      expect(navigation.props('disabled')).toBe(false)
+      navigation.vm.$emit('changeView', 'home')
+      await flushPromises()
+      reading.resolve({ directoryName: 'SavedAlbum', directoryHandle: handle, photos: [] })
+      await flushPromises()
+      expect(navigation.props('activeView')).toBe('home')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('checks an authorized game directory without an album and skips permission requests in background', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
@@ -694,6 +721,9 @@ describe('App lifecycle coordination', () => {
     getSavedX6GameDirectoryHandleMock.mockResolvedValue(game)
     const wrapper = mount(App, { global: { stubs: { CameraFavorites: true } } })
     try {
+      await flushPromises()
+      expect(readOutfitLibraryMock).not.toHaveBeenCalled()
+      wrapper.findComponent({ name: 'AlbumViewSwitcher' }).vm.$emit('changeView', 'outfits')
       await flushPromises()
       expect(readOutfitLibraryMock).toHaveBeenCalledWith(
         null,

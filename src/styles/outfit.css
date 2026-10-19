@@ -1291,16 +1291,6 @@
   animation: outfit-image-spin 700ms linear infinite;
 }
 
-.outfit-image-failure {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: var(--muted);
-  font-size: 18px;
-  font-weight: 800;
-}
-
 @keyframes outfit-image-spin {
   to {
     transform: rotate(360deg);
@@ -1409,19 +1399,6 @@
   width: min(408px, 100%);
 }
 
-.outfit-detail-loading {
-  display: grid;
-  min-height: 280px;
-  place-items: center;
-  align-content: center;
-  gap: 12px;
-  color: var(--muted);
-}
-
-.outfit-detail-loading p {
-  margin: 0;
-}
-
 .outfit-detail-content {
   display: grid;
   grid-template-columns: minmax(250px, 0.85fr) minmax(0, 1.15fr);
@@ -1469,8 +1446,11 @@
 .outfit-detail-image-frame {
   position: relative;
   display: grid;
-  width: min(273px, 100%);
-  height: 400px;
+  /* 部件原图为 520×724；内框预留同一比例，边框不占图片尺寸，避免上下露底和加载跳动。 */
+  box-sizing: content-box;
+  width: min(273px, calc(100% - 2px), calc(55dvh * 520 / 724));
+  height: auto;
+  aspect-ratio: 520 / 724;
   margin-bottom: 18px;
   margin-inline: auto;
   place-items: center;
@@ -1481,6 +1461,9 @@
 }
 
 .outfit-detail-image-frame .outfit-detail-image {
+  /* 图片不参与网格固有尺寸计算，解码前后均由已预留的原图比例决定内框大小。 */
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   max-width: 100%;
@@ -1672,16 +1655,10 @@
   }
 }
 
-/* Reserve the image area until the item display image is ready. */
-.outfit-detail-summary .outfit-detail-image-frame.is-image-loading {
-  width: min(273px, 100%);
-  height: min(400px, 55dvh);
-}
 .outfit-detail-image-frame.is-image-loading img.outfit-detail-image {
-  position: absolute;
-  inset: 0;
   visibility: hidden;
 }
+
 .outfit-detail-image-placeholder {
   position: absolute;
   inset: 0;

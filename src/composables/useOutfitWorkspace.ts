@@ -15,7 +15,7 @@ import {
   type OutfitLibraryResult,
   type SaveOutfitInput
 } from '../utils/outfit/outfitFileSystem'
-import { exportOutfitBackup, importOutfitBackup } from '../utils/outfit/outfitBackup'
+
 import {
   isValidOutfitTag,
   MAX_OUTFIT_TAG_LENGTH,
@@ -245,6 +245,7 @@ export function useOutfitWorkspace(options: OutfitWorkspaceOptions) {
     activeOperation.value = 'exporting-outfits'
     showOutfitStatus(outfitLocale.value.exporting, 'info', true)
     try {
+      const { exportOutfitBackup } = await import('../utils/outfit/outfitBackup')
       const result = await exportOutfitBackup()
       statusState.value = {
         type: 'custom',
@@ -270,6 +271,7 @@ export function useOutfitWorkspace(options: OutfitWorkspaceOptions) {
     activeOperation.value = 'importing-outfits'
     showOutfitStatus(outfitLocale.value.importing, 'info', true)
     try {
+      const { importOutfitBackup } = await import('../utils/outfit/outfitBackup')
       const result = await importOutfitBackup(file)
       applyOutfitLibraryResult(result.library)
       const tagNote = result.rejectedTagCount

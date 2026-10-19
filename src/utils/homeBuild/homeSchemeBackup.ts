@@ -15,7 +15,7 @@ import {
   readHomeSchemeLibrary,
   normalizeHomeSchemeTags,
   prepareHomeSchemeImage,
-  type HomeSchemeImage
+  type PreparedHomeSchemeImage
 } from './homeSchemeStorage'
 import {
   createHomeSchemeId,
@@ -103,10 +103,7 @@ export async function exportHomeSchemeBackup(
     const cover = library.images.get(scheme.id)
     if (image && cover) {
       const checked = await prepareHomeSchemeImage(cover.blob, scheme.id)
-      if (
-        checked.sha256 !== cover.sha256 ||
-        !matchesStoredImageExtension(image, checked.extension!)
-      )
+      if (checked.sha256 !== cover.sha256 || !matchesStoredImageExtension(image, checked.extension))
         throw new Error('home_scheme_image_invalid')
     }
     items.push({
@@ -264,13 +261,13 @@ function parseManifest(entries: Map<string, Uint8Array>): BackupManifest {
 export async function prepareHomeSchemeBackup(backupFile: File) {
   const entries = await extractBackup(backupFile)
   const manifest = parseManifest(entries)
-  const prepared: { record: HomeSchemeRecord; image: HomeSchemeImage | null }[] = []
+  const prepared: { record: HomeSchemeRecord; image: PreparedHomeSchemeImage | null }[] = []
   let invalidCount = 0
   for (const raw of manifest.homeSchemes) {
     // An invalid image rejects the archive before any database write.
     const bytes = raw.image ? entries.get(raw.image)! : null
     const image = bytes ? await prepareHomeSchemeImage(new Blob([bytes]), raw.id) : null
-    if (image && !matchesStoredImageExtension(raw.image!, image.extension!))
+    if (image && !matchesStoredImageExtension(raw.image!, image.extension))
       throw new Error('home_scheme_image_format_mismatch')
     try {
       const createdAt = normalizeBackupDate(raw.createdAt, new Date().toISOString())

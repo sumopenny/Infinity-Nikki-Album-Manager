@@ -4,6 +4,31 @@ import { onRequestGet } from '../../functions/api/gongeo/[[path]]'
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Gongeo Pages proxy', () => {
+  it.each([404, 503])('never caches upstream failure %s', async (status) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('Failed', { status }))
+    )
+    const result = await onRequestGet({
+      request: new Request('https://test/api/gongeo/items/1'),
+      params: { path: ['items', '1'] }
+    })
+    expect(result.status).toBe(status === 404 ? 404 : 502)
+    expect(result.headers.get('cache-control')).toBe('no-store')
+  })
+
+  it('rejects malformed successful payloads without caching them', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('[]'))
+    )
+    const result = await onRequestGet({
+      request: new Request('https://test/api/gongeo/items/1'),
+      params: { path: ['items', '1'] }
+    })
+    expect(result.status).toBe(502)
+    expect(result.headers.get('cache-control')).toBe('no-store')
+  })
   it('forwards makeup detail paths and language', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response('{"id":1}', {

@@ -1,3 +1,4 @@
+import { getCatalogImageSource } from '../gongeo/catalogImage'
 // 共鸣目录使用上游稳定 ID 和双语目录构造可在不同界面语言间切换的记录。
 import banners from '../../data/gongeo/banners.json'
 import outfitItems from '../../data/gongeo/outfitItems.json'
@@ -21,7 +22,7 @@ import type {
 const CDN = 'https://cdn.gongeo.us/images'
 /** 部件卡片使用方形图标；从 ID 生成地址可兼容旧记录中保存的全图地址。 */
 export const getResonancePartIconUrl = (itemId: string): string =>
-  `${CDN}/items/icons/${itemId}.png`
+  getCatalogImageSource('icon', itemId)
 const bannerEntries = banners as unknown as Array<Record<string, unknown>>
 const itemNames = {
   zh: itemNamesZh as Record<string, string>,

@@ -28,6 +28,10 @@ export interface HomeSchemeImage {
   sha256: string
   extension?: string
 }
+/** 新校验结果必有真实扩展名；旧数据库记录继续允许缺少该字段。 */
+export interface PreparedHomeSchemeImage extends HomeSchemeImage {
+  extension: string
+}
 export interface HomeSchemeSnapshot {
   records: HomeSchemeRecord[]
   images: Map<string, HomeSchemeImage>
@@ -39,7 +43,10 @@ export {
   runDatabaseTransaction as homeTransaction
 } from '../file-system/transaction'
 
-export async function prepareHomeSchemeImage(blob: Blob, id: string): Promise<HomeSchemeImage> {
+export async function prepareHomeSchemeImage(
+  blob: Blob,
+  id: string
+): Promise<PreparedHomeSchemeImage> {
   const checked = await inspectStoredImage(blob)
   return {
     id,

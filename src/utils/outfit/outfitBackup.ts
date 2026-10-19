@@ -62,7 +62,7 @@ export async function exportOutfitBackup(
   for (const record of snapshot.records) {
     const image = snapshot.images.get(record.id)!,
       checked = await prepareOutfitImage(image.blob, record.id)
-    if (checked.sha256 !== image.sha256 || !matchesImageExtension(record.image, checked.extension!))
+    if (checked.sha256 !== image.sha256 || !matchesImageExtension(record.image, checked.extension))
       throw new Error('outfit_image_invalid')
     const path = `images/${record.image}`
     // Directory identities are local authorization, never portable backup data.
@@ -272,7 +272,7 @@ export async function inspectOutfitBackup(file: File): Promise<BackupManifest> {
       }
       if (!content?.byteLength) throw new Error('Backup is missing an outfit image')
       const checked = await prepareOutfitImage(new Blob([content]), 'validation')
-      if (!matchesImageExtension(name, checked.extension!))
+      if (!matchesImageExtension(name, checked.extension))
         throw new Error('outfit_image_format_mismatch')
       images.add(name)
     },
