@@ -8,15 +8,9 @@ const TOKEN_SNIPPET = 'document.cookie.match(/momoToken=([^;]+)/)?.[1]'
 /** 从 Cookie 中取 momoNid（对应 Momo ID 字段）。 */
 const ID_SNIPPET = 'document.cookie.match(/momoNid=([^;]+)/)?.[1]'
 
-/** 控制台方法：在美鸭梨页面控制台粘贴执行，输出 Cookie JSON。 */
+/** 控制台方法：按指定脚本读取首个以 UID: 开头的 div，输出凭据 JSON。 */
 export const resonanceConsoleScript =
-  'console.log(JSON.stringify({roleid:' +
-  UID_SNIPPET +
-  ',token:' +
-  TOKEN_SNIPPET +
-  ',id:' +
-  ID_SNIPPET +
-  '}));'
+  "console.log(JSON.stringify({roleid:[...document.querySelectorAll('div')].find(el=>el.textContent.startsWith('UID:'))?.textContent.replace('UID:','').trim(),token:document.cookie.match(/momoToken=([^;]+)/)?.[1],id:document.cookie.match(/momoNid=([^;]+)/)?.[1]}));"
 
 /**
  * 书签方法：拖到书签栏后在美鸭梨站点点击执行。
