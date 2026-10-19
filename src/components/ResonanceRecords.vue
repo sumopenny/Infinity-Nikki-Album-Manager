@@ -420,26 +420,31 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
 button.resonance-outfit-image,
 button.resonance-part {
   padding: 0;
-  border: 1px solid transparent;
+  /* 交互轮廓不占布局空间，避免图片与底图之间留下实体边框宽度。 */
+  border: 0;
+  outline: 1px solid transparent;
+  outline-offset: -1px;
   font: inherit;
   color: inherit;
   cursor: pointer;
   box-shadow: var(--photo-shadow);
   transition:
-    border-color var(--motion-fast) ease,
+    outline-color var(--motion-fast) ease,
     box-shadow var(--motion-fast) ease;
 }
 button.resonance-outfit-image:hover,
 button.resonance-outfit-image:focus-visible {
-  border-color: var(--wardrobe-card-hover-border);
+  outline-color: var(--wardrobe-card-hover-border);
   box-shadow: var(--photo-hover-shadow);
-  outline: none;
+}
+button.resonance-part {
+  /* 常态轮廓随底图配色，沿用内侧绘制以免挤压图片。 */
+  outline-color: var(--part-outline-color);
 }
 button.resonance-part:hover,
 button.resonance-part:focus-visible {
-  border-color: color-mix(in srgb, var(--pink-deep) 55%, var(--line));
+  outline-color: var(--pink-deep);
   box-shadow: var(--photo-hover-shadow);
-  outline: none;
 }
 
 .resonance-page {
@@ -551,15 +556,22 @@ button.resonance-part:focus-visible {
   align-items: flex-start;
 }
 .resonance-outfit-image {
+  position: relative;
   flex-shrink: 0;
   width: min(180px, 28%);
   aspect-ratio: 448 / 656;
   overflow: hidden;
   border-radius: 8px;
   background: var(--frame-bg) url('../../img/back.png') center / cover no-repeat;
+  /* 背景覆盖整个卡片区域。 */
+  background-origin: border-box;
 }
 .resonance-outfit-image img,
 .resonance-part img {
+  /* 图片不参与固有尺寸计算，避免撑高比例容器或产生行内基线间隙。 */
+  position: absolute;
+  inset: 0;
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -604,21 +616,24 @@ button.resonance-part:focus-visible {
   gap: 10px;
 }
 .resonance-part {
+  --part-outline-color: #e7bfc1;
   position: relative;
   aspect-ratio: 1;
   overflow: visible;
   border-radius: 8px;
-  background: var(--frame-bg) url('../../img/pinkCardBg.png') center / contain no-repeat;
+  background: var(--frame-bg) url('../../img/pinkCardBg.png') center / 100% 100% no-repeat;
+  /* 方形底图按实际宽高铺满，避免移动端亚像素取整留下细条。 */
+  background-origin: border-box;
 }
 .resonance-part.is-even-banner {
+  --part-outline-color: #cec4dd;
   background-image: url('../../img/purpleCardBg.png');
 }
 .resonance-part.is-missing {
+  --part-outline-color: #d0d0d3;
   background-image: url('../../img/silverCardBg.png');
 }
 .resonance-part img {
-  /* 本次修复：消除行内图片的基线留白，避免撑高方形卡片导致背景上下露底。 */
-  display: block;
   border-radius: 8px;
 }
 .resonance-pull-number {
