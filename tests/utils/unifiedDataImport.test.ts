@@ -35,6 +35,33 @@ const baseline = async () => ({
 })
 
 describe('unified import', () => {
+  it('reports only actual parsing stages for each data type', async () => {
+    const report = vi.fn()
+    const result = await parseDataPreview(notebook, { onProgress: report })
+    expect(report.mock.calls.map(([stage]) => stage)).toEqual(['check', 'wardrobe', 'resonance'])
+    expect(
+      report.mock.calls.every(([, stages]) => stages.join(',') === 'check,wardrobe,resonance')
+    ).toBe(true)
+    report.mockClear()
+    await parseDataPreview(createResonanceExport(result.resonance!), { onProgress: report })
+    expect(report.mock.calls.map(([stage]) => stage)).toEqual(['check', 'resonance'])
+    report.mockClear()
+    await parseDataPreview(JSON.parse(createWardrobeBackup(result.wardrobe!)), {
+      onProgress: report
+    })
+    expect(report.mock.calls.map(([stage]) => stage)).toEqual(['check', 'wardrobe'])
+  })
+
+  it('stops before parsing when the progress callback cancels the task', async () => {
+    const controller = new AbortController()
+    const report = vi.fn(() => controller.abort())
+    await expect(
+      parseDataPreview(notebook, { signal: controller.signal, onProgress: report })
+    ).rejects.toMatchObject({ name: 'AbortError' })
+    expect(report).toHaveBeenCalledOnce()
+    expect(await loadResonanceRecords()).toEqual([])
+    expect((await loadWardrobe()).entries).toEqual({})
+  })
   it('parses both notebook sections and enables only the supported type in dedicated backups', async () => {
     const preview = await parseDataPreview(notebook)
     expect(preview.resonance).toHaveLength(1)

@@ -12,7 +12,42 @@
   min-height: 48px;
 }
 
+/* 解析与照片传输共用轨道和填充；业务只提供高度、实际进度及等待/失败状态。 */
+.progress-track {
+  height: var(--progress-track-height, 12px);
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pink-deep) 14%, var(--surface-soft));
+}
+.progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary-button-bg);
+  transition: width 0.2s ease;
+}
+.progress-track.is-indeterminate .progress-fill {
+  width: 30%;
+  animation: progress-wait 1.4s ease-in-out infinite alternate;
+}
+.progress-track.is-failed .progress-fill {
+  background: var(--notice-error);
+  animation: none;
+}
+@keyframes progress-wait {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(334%);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
+  .progress-track.is-indeterminate .progress-fill {
+    animation: none !important;
+    transform: translateX(116%);
+    opacity: 0.65;
+  }
   *,
   *::before,
   *::after {

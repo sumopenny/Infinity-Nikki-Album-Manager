@@ -61,8 +61,8 @@ const percent = computed(() => {
           :aria-valuemax="100"
           :aria-valuenow="percent"
         >
-          <div class="photo-transfer-progress-track"
-            ><span :style="{ width: `${percent}%` }"></span
+          <div class="photo-transfer-progress-track progress-track"
+            ><span class="progress-fill" :style="{ width: `${percent}%` }"></span
           ></div>
           <strong>{{ completed }} / {{ total }}</strong>
         </div>

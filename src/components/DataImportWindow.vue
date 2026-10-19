@@ -21,7 +21,12 @@ import {
 } from '../utils/resonance/resonanceScripts'
 import { loadResonanceRecords } from '../utils/resonance/resonanceStorage'
 import { loadWardrobe } from '../utils/wardrobe/wardrobeStorage'
-import { parseDataPreview, saveDataImport, type DataPreview } from '../utils/unifiedDataImport'
+import {
+  parseDataPreview,
+  saveDataImport,
+  type DataPreview,
+  type DataPreviewStage
+} from '../utils/unifiedDataImport'
 import { sortResonanceRecords } from '../utils/resonance/resonanceCatalog'
 
 const props = withDefaults(
@@ -55,6 +60,34 @@ const importing = ref(false),
   error = ref('')
 const panel = ref<HTMLElement | null>(null)
 const preview = ref<DataPreview | null>(null)
+type ImportStage = 'source' | DataPreviewStage | 'preview'
+const progress = ref<{
+  stage: ImportStage
+  stages: ImportStage[] | null
+  failed: boolean
+} | null>(null)
+const progressStep = computed(() =>
+  progress.value?.stages ? progress.value.stages.indexOf(progress.value.stage) + 1 : 0
+)
+const progressLabel = computed(
+  () =>
+    ({
+      source:
+        method.value === 'file'
+          ? text('正在读取文件…', 'Reading file…')
+          : text('正在获取手账数据…', 'Fetching notebook data…'),
+      check: text('正在检查数据格式…', 'Checking data format…'),
+      wardrobe: text(
+        '正在加载图鉴并解析衣橱记录…',
+        'Loading the catalog and parsing wardrobe records…'
+      ),
+      resonance: text('正在解析共鸣记录…', 'Parsing resonance records…'),
+      preview: text(
+        '正在核对本地记录并生成预览…',
+        'Checking local records and preparing the preview…'
+      )
+    })[progress.value?.stage ?? 'source']
+)
 const selectedResonance = ref(true),
   selectedWardrobe = ref(true)
 const base = ref({ resonance: '', wardrobe: '' })
@@ -78,11 +111,20 @@ const canConfirm = computed(
 const wardrobeCount = computed(
   () => Object.values(preview.value?.wardrobe?.entries ?? {}).filter((entry) => entry.owned).length
 )
+/** 仅滚动导入正文，把当前阶段带入视口，避免手机长凭据教程遮住进度。 */
+function revealProgress() {
+  const body = panel.value?.querySelector<HTMLElement>('.resonance-import-body')
+  const node = body?.querySelector<HTMLElement>('.data-import-progress')
+  if (!body || !node) return
+  const overflow = node.getBoundingClientRect().bottom - body.getBoundingClientRect().bottom
+  if (overflow > 0) body.scrollTop += overflow + 12
+}
 function invalidate() {
   request.invalidate()
   importing.value = false
   preview.value = null
   error.value = ''
+  progress.value = null
 }
 function reset() {
   invalidate()
@@ -169,11 +211,22 @@ async function createPreview() {
 
   preview.value = null
   const bytes = fileBytes
+  // 阶段切换先让页面绘制；所有回调都绑定当前任务，旧读取不能覆盖新进度。
+  const showProgress = async (stage: ImportStage, stages: ImportStage[] | null = null) => {
+    if (!current.isCurrent()) throw new DOMException('Import cancelled', 'AbortError')
+    progress.value = { stage, stages, failed: false }
+    await nextTick()
+    revealProgress()
+    await new Promise<void>((resolve) => setTimeout(resolve, 16))
+    if (!current.isCurrent()) throw new DOMException('Import cancelled', 'AbortError')
+  }
   try {
+    await showProgress('source')
     let raw: unknown
     if (method.value === 'file') {
       const result = await bytes!
       if ('error' in result) throw result.error
+      await showProgress('check')
       raw = JSON.parse(result.content)
     } else {
       const credentials = {
@@ -185,7 +238,11 @@ async function createPreview() {
         throw new Error('MISSING_CREDENTIALS')
       raw = await fetchPearpalSnapshot(credentials, current.signal)
     }
-    const parsed = await parseDataPreview(raw)
+    const parsed = await parseDataPreview(raw, {
+      signal: current.signal,
+      onProgress: (stage, stages) => showProgress(stage, ['source', ...stages, 'preview'])
+    })
+    await showProgress('preview', progress.value?.stages ?? null)
     const [resonance, wardrobe] = await Promise.all([
       parsed.resonance === null ? null : loadResonanceRecords(),
       parsed.wardrobe === null ? null : loadWardrobe()
@@ -193,6 +250,7 @@ async function createPreview() {
     if (!current.isCurrent()) return
     base.value = { resonance: JSON.stringify(resonance), wardrobe: JSON.stringify(wardrobe) }
     preview.value = parsed
+    progress.value = null
     selectedResonance.value = parsed.resonance !== null
     selectedWardrobe.value = parsed.wardrobe !== null
     await nextTick()
@@ -205,7 +263,12 @@ async function createPreview() {
         : 'smooth'
     })
   } catch (cause) {
-    if (current.isCurrent()) report(cause)
+    if (current.isCurrent()) {
+      if (progress.value) progress.value.failed = true
+      report(cause)
+      await nextTick()
+      if (current.isCurrent()) revealProgress()
+    }
   } finally {
     if (current.isCurrent()) importing.value = false
   }
@@ -276,6 +339,51 @@ async function copyScript(kind: 'bookmark' | 'console') {
     @preview="createPreview"
     @confirm="confirm"
   >
+    <section
+      v-if="progress"
+      class="data-import-progress"
+      :role="progress.failed ? 'alert' : 'status'"
+      aria-live="polite"
+      :aria-busy="importing"
+    >
+      <div class="data-import-progress-heading">
+        <p>{{
+          progress.failed
+            ? text('失败阶段：', 'Failed stage: ') +
+              progressLabel.replace(/^正在/, '').replace(/…$/, '')
+            : progressLabel
+        }}</p>
+        <span v-if="progress.stages" class="data-import-progress-step"
+          >{{ text('步骤', 'Step') }} {{ progressStep }}/{{ progress.stages.length }}</span
+        >
+      </div>
+      <div
+        class="progress-track"
+        :class="{
+          'is-indeterminate': !progress.stages && !progress.failed,
+          'is-failed': progress.failed
+        }"
+        role="progressbar"
+        :aria-valuemin="0"
+        :aria-valuemax="progress.stages?.length ?? 1"
+        :aria-valuenow="progress.stages ? progressStep - 1 : undefined"
+        :aria-label="progressLabel"
+      >
+        <span
+          class="progress-fill"
+          :style="{
+            width: progress.stages
+              ? `${((progressStep - 1) / progress.stages.length) * 100}%`
+              : progress.failed
+                ? '0%'
+                : undefined
+          }"
+        ></span>
+      </div>
+      <p v-if="progress.failed">{{
+        text('此阶段失败，请重试。', 'This stage failed. Please retry.')
+      }}</p>
+    </section>
     <p v-if="error" class="data-import-error" role="alert">{{ error }}</p>
     <section v-if="preview" class="resonance-preview">
       <h3
@@ -364,6 +472,39 @@ async function copyScript(kind: 'bookmark' | 'console') {
   </ResonanceImportDialog>
 </template>
 <style scoped>
+.data-import-progress {
+  --progress-track-height: 8px;
+  margin-top: 16px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.data-import-progress-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+}
+.data-import-progress-heading p {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.data-import-progress-step {
+  margin-left: auto;
+  white-space: nowrap;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.data-import-progress p {
+  margin: 0;
+}
+.data-import-progress .progress-track + p {
+  margin-top: 8px;
+}
+.data-import-progress:has(.is-failed) {
+  color: var(--notice-error);
+}
 .resonance-preview {
   margin-top: 18px;
 }

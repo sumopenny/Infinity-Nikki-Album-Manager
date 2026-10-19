@@ -1187,18 +1187,6 @@
 
 .photo-transfer-progress-track {
   flex: 1;
-  height: 12px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--pink-deep) 14%, var(--surface-soft));
-}
-
-.photo-transfer-progress-track span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--primary-button-bg);
-  transition: width 0.2s ease;
 }
 
 .photo-transfer-progress strong {

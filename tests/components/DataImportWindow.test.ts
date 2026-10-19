@@ -5,6 +5,7 @@ import DataImportWindow from '../../src/components/DataImportWindow.vue'
 import { clearAllBrowserData } from '../../src/utils/file-system/database'
 import { loadWardrobe } from '../../src/utils/wardrobe/wardrobeStorage'
 import { loadResonanceRecords } from '../../src/utils/resonance/resonanceStorage'
+import * as resonanceImport from '../../src/utils/resonance/resonanceImport'
 
 let wrapper: VueWrapper
 beforeEach(async () => {
@@ -18,6 +19,7 @@ beforeEach(async () => {
 })
 afterEach(() => {
   wrapper.unmount()
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
   document.body.innerHTML = ''
 })
@@ -52,6 +54,117 @@ const raw = {
     ]
   }
 }
+
+async function selectProgressFile(text: () => Promise<string>) {
+  document
+    .querySelectorAll<HTMLButtonElement>('.resonance-choice-row:first-child button')[1]!
+    .click()
+  await flushPromises()
+  const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+  Object.defineProperty(input, 'files', {
+    configurable: true,
+    value: [{ name: 'progress.json', size: 100, text }]
+  })
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  await flushPromises()
+}
+
+it('shows real stages and replaces progress with an unsaved preview', async () => {
+  let resolveRead!: (value: string) => void
+  await selectProgressFile(
+    () =>
+      new Promise((resolve) => {
+        resolveRead = resolve
+      })
+  )
+  const stages: string[] = []
+  const observer = new MutationObserver(() => {
+    const node = document.querySelector('.data-import-progress')
+    if (node) stages.push(node.textContent ?? '')
+  })
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+  try {
+    submit().click()
+    await vi.waitFor(() =>
+      expect(document.querySelector('.data-import-progress')?.textContent).toContain('正在读取文件')
+    )
+    expect(document.querySelector('[role="progressbar"]')?.hasAttribute('aria-valuenow')).toBe(
+      false
+    )
+    expect(document.querySelector('.progress-track.is-indeterminate')).not.toBeNull()
+    resolveRead(JSON.stringify(raw))
+    await vi.waitFor(() => expect(document.querySelector('.data-import-targets')).not.toBeNull())
+    expect(stages.some((s) => s.includes('正在检查数据格式'))).toBe(true)
+    expect(stages.some((s) => s.includes('解析衣橱记录') && s.includes('3/5'))).toBe(true)
+    expect(stages.some((s) => s.includes('解析共鸣记录') && s.includes('4/5'))).toBe(true)
+    expect(stages.some((s) => s.includes('生成预览') && s.includes('5/5'))).toBe(true)
+    expect(document.querySelector('.data-import-progress')).toBeNull()
+    expect(await loadResonanceRecords()).toEqual([])
+    expect((await loadWardrobe()).entries).toEqual({})
+  } finally {
+    observer.disconnect()
+  }
+})
+
+it('retains the failed format stage and recovers with a new file', async () => {
+  await selectProgressFile(async () => '{broken')
+  submit().click()
+  await vi.waitFor(() =>
+    expect(document.querySelector('.data-import-progress[role="alert"]')?.textContent).toContain(
+      '检查数据格式'
+    )
+  )
+  expect(document.querySelector('.data-import-progress')?.textContent).toContain('此阶段失败')
+  await selectProgressFile(async () => JSON.stringify({ 77: [['2026-01-01', '1020100347']] }))
+  expect(document.querySelector('.data-import-progress')).toBeNull()
+  submit().click()
+  await vi.waitFor(() => expect(document.querySelector('.data-import-targets')).not.toBeNull())
+})
+
+it('does not restore progress or preview after closing a pending read', async () => {
+  let resolveRead!: (value: string) => void
+  await selectProgressFile(
+    () =>
+      new Promise((resolve) => {
+        resolveRead = resolve
+      })
+  )
+  submit().click()
+  await vi.waitFor(() => expect(document.querySelector('.data-import-progress')).not.toBeNull())
+  await wrapper.setProps({ visible: false })
+  await wrapper.setProps({ visible: true })
+  resolveRead(JSON.stringify(raw))
+  await new Promise((resolve) => setTimeout(resolve, 40))
+  await flushPromises()
+  expect(document.querySelector('.data-import-progress')).toBeNull()
+  expect(document.querySelector('.data-import-targets')).toBeNull()
+})
+
+it('shows notebook fetching and drops its results after switching to file import', async () => {
+  let finish!: (value: unknown) => void
+  vi.spyOn(resonanceImport, 'fetchPearpalSnapshot').mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve
+      })
+  )
+  for (const input of document.querySelectorAll<HTMLInputElement>('.resonance-form input')) {
+    input.value = '123'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  }
+  await flushPromises()
+  submit().click()
+  await vi.waitFor(() => expect(resonanceImport.fetchPearpalSnapshot).toHaveBeenCalledOnce())
+  expect(document.querySelector('.data-import-progress')?.textContent).toContain('正在获取手账数据')
+  document
+    .querySelectorAll<HTMLButtonElement>('.resonance-choice-row:first-child button')[1]!
+    .click()
+  await flushPromises()
+  finish(raw)
+  await flushPromises()
+  expect(document.querySelector('.data-import-progress')).toBeNull()
+  expect(document.querySelector('.data-import-targets')).toBeNull()
+})
 
 it('shows recommended mobile browsers directly without a compatibility dialog', () => {
   const guide = document.querySelector('.resonance-mobile-browsers')!

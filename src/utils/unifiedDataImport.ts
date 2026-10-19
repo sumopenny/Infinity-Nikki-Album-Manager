@@ -17,20 +17,57 @@ export interface DataPreview {
   skippedPools: number
 }
 
+export type DataPreviewStage = 'check' | 'wardrobe' | 'resonance'
+export interface DataPreviewOptions {
+  signal?: AbortSignal
+  onProgress?: (
+    stage: DataPreviewStage,
+    stages: readonly DataPreviewStage[]
+  ) => void | Promise<void>
+}
+
 /** 两种备份仅启用自身模块；原始手账分别解析，缺失的数据不可用于清空另一模块。 */
-export async function parseDataPreview(value: unknown): Promise<DataPreview> {
+export async function parseDataPreview(
+  value: unknown,
+  options: DataPreviewOptions = {}
+): Promise<DataPreview> {
   const raw = value as {
     format?: string
     info_from_self?: { suit_list?: unknown; gacha_list?: unknown }
     info_from_gm?: { clothes?: unknown }
   } | null
+  const wardrobeBackup = raw?.format === 'nikki-personal-wardrobe'
+  const resonanceBackup =
+    !wardrobeBackup &&
+    (!!raw?.format ||
+      (!!raw && typeof raw === 'object' && !('info_from_self' in raw || 'info_from_gm' in raw)))
+  const hasWardrobe =
+    wardrobeBackup ||
+    (!resonanceBackup &&
+      (Array.isArray(raw?.info_from_self?.suit_list) || Array.isArray(raw?.info_from_gm?.clothes)))
+  const hasResonance = resonanceBackup || (!wardrobeBackup && !!raw?.info_from_self?.gacha_list)
+  const stages: DataPreviewStage[] = ['check']
+  if (hasWardrobe) stages.push('wardrobe')
+  if (hasResonance) stages.push('resonance')
+  const checkCurrent = () => {
+    if (options.signal?.aborted) throw new DOMException('Import cancelled', 'AbortError')
+  }
+  // 在实际工作边界报告阶段；回调可让页面先绘制进度，取消后不再继续解析。
+  const report = async (stage: DataPreviewStage) => {
+    checkCurrent()
+    await options.onProgress?.(stage, stages)
+    checkCurrent()
+  }
+  await report('check')
   if (!raw || typeof raw !== 'object') throw new Error('INVALID_IMPORT')
   const result: DataPreview = { resonance: null, wardrobe: null, skippedPools: 0 }
   if (raw.format === 'nikki-personal-wardrobe') {
+    await report('wardrobe')
     result.wardrobe = parseWardrobeBackup(JSON.stringify(raw))
     return result
   }
   if (raw.format || !('info_from_self' in raw || 'info_from_gm' in raw)) {
+    await report('resonance')
     const parsed = parseResonanceFile(raw, true)
     result.resonance = parsed.records
     result.skippedPools = parsed.skippedPools
@@ -38,9 +75,13 @@ export async function parseDataPreview(value: unknown): Promise<DataPreview> {
   }
   // 单独的共鸣清单不能证明完整衣橱；至少需要手账套装或直接服装字段。
   if (Array.isArray(raw.info_from_self?.suit_list) || Array.isArray(raw.info_from_gm?.clothes)) {
-    result.wardrobe = parseWardrobePearpal(raw, await loadWardrobeCatalog()).snapshot
+    await report('wardrobe')
+    const catalog = await loadWardrobeCatalog()
+    checkCurrent()
+    result.wardrobe = parseWardrobePearpal(raw, catalog).snapshot
   }
   if (raw.info_from_self?.gacha_list) {
+    await report('resonance')
     try {
       const parsed = parsePearpalResonance(raw)
       result.resonance = parsed.records

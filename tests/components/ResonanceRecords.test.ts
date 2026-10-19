@@ -494,8 +494,10 @@ describe('ResonanceRecords', () => {
     ;(panel.querySelector('.resonance-import-footer button') as HTMLButtonElement).click()
     await flushPromises()
 
+    await vi.waitFor(() =>
+      expect(latestNotice(wrapper)?.message).toContain('UID 与输入的 UID 不一致')
+    )
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(latestNotice(wrapper)?.message).toContain('UID 与输入的 UID 不一致')
     expect(await loadResonanceRecords()).toHaveLength(1)
     expect(panel.querySelector('.resonance-preview')).toBeNull()
   })
