@@ -1,5 +1,3 @@
-import { sha256Hex } from './sha256'
-
 // 通用图片处理：负责图片格式识别、WebP 转换、尺寸校验。
 const SUPPORTED_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
 export const MAX_IMAGE_BYTES = 64 * 1024 * 1024
@@ -78,84 +76,6 @@ function validateImageDimensions(width: number, height: number): void {
   if (width * height > MAX_IMAGE_PIXELS) throw new Error('Image dimensions are too large')
 }
 
-// 仅在原解码路径失败时诊断；不输出完整 Data URL，也不改变保存结果。
-async function diagnoseDataUrl(blob: Blob): Promise<string> {
-  let dataUrl: string
-  try {
-    dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      const timer = setTimeout(() => {
-        reject(new Error('FileReader timeout (15000ms)'))
-        reader.abort()
-      }, 15000)
-      const finish = () => {
-        clearTimeout(timer)
-        reader.onload = reader.onerror = reader.onabort = null
-      }
-      reader.onload = () => {
-        const result = reader.result
-        finish()
-        if (typeof result === 'string') resolve(result)
-        else reject(new Error('FileReader returned a non-string result'))
-      }
-      reader.onerror = () => {
-        const error = reader.error ?? new Error('FileReader error without native reason')
-        finish()
-        reject(error)
-      }
-      reader.onabort = () => {
-        finish()
-        reject(new Error('FileReader aborted'))
-      }
-      try {
-        reader.readAsDataURL(blob)
-      } catch (error) {
-        finish()
-        reject(error)
-      }
-    })
-  } catch (error) {
-    return `FileReader=FAILED (${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}); DataURL=SKIPPED`
-  }
-  let byteReport: string
-  try {
-    const binary = atob(dataUrl.slice(dataUrl.indexOf(',') + 1))
-    const bytes = Uint8Array.from(binary, (value) => value.charCodeAt(0))
-    const header = Array.from(bytes.slice(0, 16), (value) =>
-      value.toString(16).padStart(2, '0')
-    ).join('')
-    byteReport = `readBytes=${bytes.length}; sizeMatch=${bytes.length === blob.size}; header=${header}; sha256=${await sha256Hex(bytes.buffer)}`
-  } catch (error) {
-    byteReport = `byte inspection failed: ${String(error)}`
-  }
-  const image = new Image()
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Data URL load timeout (15000ms)')), 15000)
-      image.onload = () => {
-        clearTimeout(timer)
-        resolve()
-      }
-      image.onerror = () => {
-        clearTimeout(timer)
-        reject(new Error('img error event (no native reason)'))
-      }
-      try {
-        image.src = dataUrl
-      } catch (error) {
-        clearTimeout(timer)
-        reject(error)
-      }
-    })
-    return `FileReader=OK; ${byteReport}; DataURL=OK; dimensions=${image.naturalWidth}x${image.naturalHeight}`
-  } catch (error) {
-    return `FileReader=OK; ${byteReport}; DataURL=FAILED (${String(error)}); dimensions=${image.naturalWidth}x${image.naturalHeight}`
-  } finally {
-    image.onload = image.onerror = null
-    image.removeAttribute('src')
-  }
-}
-
 // 统一供转换和校验使用；部分手机浏览器能显示图片，但无法通过 ImageBitmap 解码。
 async function decodeImage(blob: Blob): Promise<{
   source: CanvasImageSource
@@ -205,13 +125,7 @@ async function decodeImage(blob: Blob): Promise<{
   } catch (error) {
     image.removeAttribute('src')
     URL.revokeObjectURL(url)
-    const diagnosis = await diagnoseDataUrl(blob)
-    const reason = error instanceof Error ? error.message : String(error)
-    throw imageDiagnosticError(
-      'decode:img-blob-url',
-      blob,
-      new Error(`${reason}; ${diagnosis}`, { cause: error })
-    )
+    throw imageDiagnosticError('decode:img-blob-url', blob, error)
   } finally {
     image.onload = null
     image.onerror = null
@@ -230,8 +144,7 @@ export async function validateImageBlob(blob: Blob): Promise<void> {
 async function readImageBytes(file: File): Promise<ArrayBuffer> {
   try {
     return await file.arrayBuffer()
-  } catch (error) {
-    imageDiagnosticError('read:arrayBuffer (retry FileReader)', file, error)
+  } catch {
     return new Promise<ArrayBuffer>((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => {
@@ -251,8 +164,7 @@ async function convertImageToWebpInternal(file: File): Promise<Blob> {
     let bytes: ArrayBuffer | undefined
     try {
       bytes = await readImageBytes(file)
-    } catch (error) {
-      imageDiagnosticError('read:webp-bytes (retry decoding)', file, error)
+    } catch {
       // 原文件字节无法读取时，尝试与其他格式一样解码并重新生成 WebP。
     }
     if (bytes) {

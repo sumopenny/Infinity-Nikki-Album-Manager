@@ -356,10 +356,10 @@ onBeforeUnmount(() => {
                       'is-loading': !loadedItemImages.has(item.id),
                       'is-failed': failedItemImages.has(item.id)
                     }"
+                    referrerpolicy="no-referrer"
                     :src="item.imageUrl"
                     :alt="item.name"
                     loading="lazy"
-                    referrerpolicy="no-referrer"
                     @load="markItemImageLoaded(item.id)"
                     @error="markItemImageFailed(item.id)"
                   />
@@ -447,9 +447,9 @@ onBeforeUnmount(() => {
                   v-if="selectedDetail.detailImageUrl && detailImageState !== 'failed'"
                   class="outfit-detail-image"
                   :class="{ 'is-loading': detailImageState === 'idle' }"
+                  referrerpolicy="no-referrer"
                   :src="selectedDetail.detailImageUrl"
                   :alt="selectedDetail.itemName"
-                  referrerpolicy="no-referrer"
                   @load="markDetailImageLoaded"
                   @error="markDetailImageFailed"
                 />

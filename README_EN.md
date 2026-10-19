@@ -287,7 +287,7 @@ Stack: Vue 3, TypeScript, Vite, File System Access API, IndexedDB.
 
 Some features were inspired by and use the related services of [Nikki Albums](https://github.com/RanAxro/nikki_albums) and [Gongeo.us Nikki Tracker](https://github.com/dastrokes/gongeo.us-nikki-tracker). Please refer to the root [LICENSE](LICENSE) file for this project's license.
 
-Outfit images are copied into memory immediately upon selection; preview and saving use that copy if the original mobile file reference later becomes unreadable. Confirmation waits while “Reading image…” is shown; select the file again if reading fails. Temporary selection/save rereading comparisons have been removed; ordinary error messages remain.
+Outfit images are copied into memory immediately upon selection; preview and saving use that copy if the original mobile file reference later becomes unreadable. Confirmation waits while “Reading image…” is shown; select the file again if reading fails. Image decoding failures are reported without extra Data URL reads, hashing or diagnostic decoding.
 
 Image memory copies apply only in compact layouts (viewport width ≤899px). Desktop layouts (≥900px) preview and save the original selected file without an eager copy. The layout at selection time determines the path.
 
@@ -315,3 +315,7 @@ Resonance regression tests check statistic labels and values, sidebar outfit nam
 Outfit codes, home codes, camera parameters, and data-import scripts share clipboard compatibility handling. The system API is preferred; when unavailable on LAN HTTP or rejected, text-selection copying is attempted. Temporary elements are removed and focus restored. Browser restrictions can still cause failure, which is reported normally.
 
 Top notifications dismiss after 3 seconds for success, 5.2 seconds for info, and 6 seconds for warnings and errors. Loading notices stay visible; hovering pauses the timer.
+
+The personal wardrobe shows an inline loading state and offers Retry if loading fails or takes longer than 15 seconds. Refresh the page if retries keep failing.
+
+Catalog images in resonance records and the sidebar, wardrobe, outfit/item details and outfit parsing set `no-referrer` before assigning the image URL to prevent the initial request from sending a page referrer that triggers CDN hotlink protection. Temporary image diagnostics and image proxy fallbacks have been removed; Safari device verification is still required.

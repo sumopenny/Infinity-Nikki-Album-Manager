@@ -209,14 +209,16 @@ function hideBrokenImage(event: Event) {
     >
       <span class="resonance-sidebar-thumbnail">
         <img
+          referrerpolicy="no-referrer"
           :src="record.outfitImageUrl"
           alt=""
-          referrerpolicy="no-referrer"
           @error="hideBrokenImage"
         />
       </span>
       <span class="resonance-sidebar-name">
-        <span class="resonance-sidebar-outfit-name" :title="displayName(record.outfitName)">{{ displayName(record.outfitName) }}</span>
+        <span class="resonance-sidebar-outfit-name" :title="displayName(record.outfitName)">{{
+          displayName(record.outfitName)
+        }}</span>
         <span class="resonance-sidebar-rarity">{{ t.rarity(record.rarity) }}</span>
       </span>
     </button>

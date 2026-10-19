@@ -77,6 +77,40 @@ afterEach(() => {
 })
 
 describe('personal wardrobe interactions', () => {
+  it('shows a retry action after a failed load and recovers', async () => {
+    vi.spyOn(storage, 'loadWardrobe').mockRejectedValueOnce(new Error('read failed'))
+    await reload()
+    expect(wrapper.text()).toContain('衣橱加载失败或超时')
+    await new DOMWrapper(button('重新加载')).trigger('click')
+    await vi.waitFor(() => expect(wrapper.find('.wardrobe-grid').exists()).toBe(true))
+  })
+
+  it('times out a stalled load and ignores its late result after retry', async () => {
+    const saved = await storage.loadWardrobe()
+    let resolveStalled!: (value: storage.WardrobeSnapshot) => void
+    vi.spyOn(storage, 'loadWardrobe')
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveStalled = resolve
+        })
+      )
+      .mockResolvedValueOnce(saved)
+    vi.useFakeTimers()
+    try {
+      const pending = (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
+      await vi.advanceTimersByTimeAsync(15000)
+      await pending
+      expect(wrapper.text()).toContain('衣橱加载失败或超时')
+      await reload()
+      expect(wrapper.find('.wardrobe-grid').exists()).toBe(true)
+      resolveStalled(storage.emptyWardrobe())
+      await flushPromises()
+      expect(wrapper.find('.wardrobe-grid').exists()).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('remembers dismissal and allows the ownership explanation to be reopened', async () => {
     expect(wrapper.get('.wardrobe-collection-notice').text()).toContain('不代表游戏内实际未拥有')
     await wrapper.get('.wardrobe-collection-notice-close').trigger('click')

@@ -166,8 +166,10 @@ function exportRecords() {
   }
 }
 
-function hideBrokenImage(event: Event) {
-  ;(event.target as HTMLImageElement).hidden = true
+/** 隐藏加载失败的图片，保留原有列表布局。 */
+function handleRecordImageError(event: Event) {
+  const image = event.currentTarget as HTMLImageElement
+  image.hidden = true
 }
 function requestClearRecords() {
   if (!records.value.length || clearing.value) return
@@ -328,10 +330,10 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
             :aria-label="displayName(record.outfitName)"
             @click="openPreview(record.outfitId, 'outfit')"
             ><img
+              referrerpolicy="no-referrer"
               :src="record.outfitImageUrl"
               :alt="displayName(record.outfitName)"
-              referrerpolicy="no-referrer"
-              @error="hideBrokenImage"
+              @error="handleRecordImageError($event)"
           /></button>
           <div class="resonance-sets">
             <section
@@ -361,10 +363,10 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
                   }"
                 >
                   <img
+                    referrerpolicy="no-referrer"
                     :src="getResonancePartIconUrl(part.id)"
                     :alt="displayName(part.name)"
-                    referrerpolicy="no-referrer"
-                    @error="hideBrokenImage"
+                    @error="handleRecordImageError($event)"
                   />
                   <span
                     class="resonance-pull-number"

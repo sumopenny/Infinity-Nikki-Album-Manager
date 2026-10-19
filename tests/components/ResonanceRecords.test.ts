@@ -207,6 +207,23 @@ describe('ResonanceRecords', () => {
     )
   })
 
+  it('hides failed CDN images without retrying through a proxy', async () => {
+    await saveResonanceRecords([
+      { ...savedRecord, outfitImageUrl: 'https://cdn.gongeo.us/images/outfits/103471.png' }
+    ])
+    const wrapper = mount(ResonanceRecords, { props: { language: 'zh' } })
+    wrappers.push(wrapper)
+    await vi.waitFor(() => expect(wrapper.findAll('.resonance-record')).toHaveLength(1))
+    const outfit = wrapper.find('.resonance-outfit-image img')
+    await outfit.trigger('error')
+    expect(outfit.attributes('src')).toBe('https://cdn.gongeo.us/images/outfits/103471.png')
+    expect((outfit.element as HTMLImageElement).hidden).toBe(true)
+    const part = wrapper.find('.resonance-part img')
+    await part.trigger('error')
+    expect(part.attributes('src')).toBe(`https://cdn.gongeo.us/images/items/icons/${HAIR}.png`)
+    expect((part.element as HTMLImageElement).hidden).toBe(true)
+  })
+
   it('uses silver for missing parts and banner parity for obtained parts', async () => {
     const obtained = savedRecord.sets[0].parts[0]!
     const manual = {

@@ -23,7 +23,8 @@ watch(
   () => props.item?.id,
   () => {
     imageState.value = 'loading'
-  }
+  },
+  { immediate: true }
 )
 useBodyScrollLock(visible)
 useModalFocus(visible, panel, close)
@@ -64,9 +65,9 @@ useModalFocus(visible, panel, close)
                   :key="item.id"
                   class="outfit-detail-image"
                   :class="{ 'is-loading': imageState === 'loading' }"
+                  referrerpolicy="no-referrer"
                   :src="imageUrl"
                   :alt="item.name[language]"
-                  referrerpolicy="no-referrer"
                   @load="imageState = 'loaded'"
                   @error="imageState = 'failed'"
                 />

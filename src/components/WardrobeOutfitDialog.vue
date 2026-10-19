@@ -171,9 +171,9 @@ useModalFocus(dialogOpen, panel, closeDialog)
                   <img
                     v-if="!detailImageErrors.has(detail.id)"
                     :key="detail.id"
+                    referrerpolicy="no-referrer"
                     :src="detail.image"
                     :alt="name(detail)"
-                    referrerpolicy="no-referrer"
                     @error="detailImageErrors.add(detail.id)"
                   />
                   <div v-else class="wardrobe-image-fallback">
@@ -274,10 +274,10 @@ useModalFocus(dialogOpen, panel, closeDialog)
                   <div class="wardrobe-part-image">
                     <img
                       v-if="part.entry && !detailImageErrors.has(part.id)"
+                      referrerpolicy="no-referrer"
                       :src="part.entry.image"
                       alt=""
                       loading="lazy"
-                      referrerpolicy="no-referrer"
                       @error="detailImageErrors.add(part.id)"
                     />
                     <div v-else class="wardrobe-image-fallback">

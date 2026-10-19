@@ -97,6 +97,13 @@ const catalog = shallowRef<WardrobeCatalog | null>(null)
 const snapshot = ref<WardrobeSnapshot>(emptyWardrobe())
 const loaded = ref(false),
   busy = ref(false)
+const loadFailed = ref(false)
+let loadVersion = 0
+let cancelLoad: (() => void) | undefined
+onBeforeUnmount(() => {
+  loadVersion++
+  cancelLoad?.()
+})
 const blocked = computed(() => props.disabled || busy.value || !loaded.value)
 const tab = ref<WardrobeKind>('outfit')
 const {
@@ -296,19 +303,34 @@ function reportError(cause: unknown) {
   emit('notice', { message, tone: 'error' })
 }
 async function reload() {
+  const version = ++loadVersion
+  cancelLoad?.()
   loaded.value = false
-  const loadingNotice = setTimeout(() => {
-    emit('notice', { message: text('正在加载衣橱…', 'Loading wardrobe…'), tone: 'warning' })
-  }, 300)
+  loadFailed.value = false
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  // 限制等待时间；重试或离开页面后，旧请求不得覆盖当前状态。
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => reject(new Error('WARDROBE_LOAD_TIMEOUT')), 15000)
+    cancelLoad = () => {
+      clearTimeout(timeout)
+      reject(new Error('WARDROBE_LOAD_CANCELLED'))
+    }
+  })
   try {
-    const [data, saved] = await Promise.all([loadWardrobeCatalog(), loadWardrobe()])
+    const [data, saved] = await Promise.race([
+      Promise.all([loadWardrobeCatalog(), loadWardrobe()]),
+      deadline
+    ])
+    if (version !== loadVersion) return
     catalog.value = data
     snapshot.value = saved
     loaded.value = true
-  } catch (cause) {
-    reportError(cause)
+  } catch {
+    if (version !== loadVersion) return
+    loadFailed.value = true
   } finally {
-    clearTimeout(loadingNotice)
+    clearTimeout(timeout)
+    if (version === loadVersion) cancelLoad = undefined
   }
 }
 onMounted(reload)
@@ -504,6 +526,19 @@ async function clearRecords() {
     >
       <div id="wardrobe-mobile-filter-target"></div>
     </AdaptiveFilterPanel>
+    <div v-if="!loaded" class="wardrobe-empty" role="status">
+      <p>{{
+        loadFailed
+          ? text(
+              '衣橱加载失败或超时，请重试；若仍无法加载，请刷新页面。',
+              'Wardrobe loading failed or timed out. Retry, or refresh the page if it still fails.'
+            )
+          : text('正在加载衣橱…', 'Loading wardrobe…')
+      }}</p>
+      <button v-if="loadFailed" class="primary-button" type="button" @click="reload">
+        {{ text('重新加载', 'Retry') }}
+      </button>
+    </div>
     <div v-if="loaded && !hasRecords" class="wardrobe-initial">
       <h3>{{ text('还没有衣橱数据', 'No wardrobe data yet') }}</h3>
       <p>{{
@@ -658,10 +693,10 @@ async function clearRecords() {
             <div class="wardrobe-cover">
               <img
                 v-if="!failedImages.has(entry.id)"
+                referrerpolicy="no-referrer"
                 :src="entry.image"
                 alt=""
                 loading="lazy"
-                referrerpolicy="no-referrer"
                 @error="failedImages.add(entry.id)"
               />
               <span v-else class="wardrobe-image-fallback"
