@@ -40,6 +40,20 @@ const panel = ref<HTMLElement | null>(null),
 watch(panel, (value) => emit('panel', value), { flush: 'sync' })
 watch(fileInput, (value) => emit('fileInput', value), { flush: 'sync' })
 const PEARPAL_URL = 'https://myl.nuanpaper.com/home'
+const VIDEO_TUTORIALS = [
+  {
+    label: 'desktopVideoTutorial',
+    href: 'https://www.xiaohongshu.com/discovery/item/6ad60e630000000028038cdd?source=webshare&xhsshare=pc_web&xsec_token=ABJuRIb-ZNqYvm2g_gBWAoQP0dJboBOS7spp4mVFCuR74=&xsec_source=pc_share'
+  },
+  {
+    label: 'androidVideoTutorial',
+    href: 'https://www.xiaohongshu.com/discovery/item/6ad6077d00000000260149a3?source=webshare&xhsshare=pc_web&xsec_token=ABJuRIb-ZNqYvm2g_gBWAoQC8dkrKs7M4dQJFDWPm_ZMc=&xsec_source=pc_share'
+  },
+  {
+    label: 'iosVideoTutorial',
+    href: 'https://www.xiaohongshu.com/discovery/item/6ad606ad00000000260146cb?source=webshare&xhsshare=pc_web&xsec_token=ABJuRIb-ZNqYvm2g_gBWAoQHWbKjYcP5DBvJKo6uiqKpc=&xsec_source=pc_share'
+  }
+] as const
 </script>
 <template>
   <Teleport to="body">
@@ -124,6 +138,21 @@ const PEARPAL_URL = 'https://myl.nuanpaper.com/home'
 
             <section v-if="importMethod === 'pearpal'">
               <h3>{{ t.getCookie }}</h3>
+              <div class="parse-tools-section resonance-info-card resonance-video-tutorials">
+                <h4>{{ t.videoTutorials }}</h4>
+                <div class="resonance-video-links">
+                  <a
+                    v-for="video in VIDEO_TUTORIALS"
+                    :key="video.label"
+                    :href="video.href"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {{ t[video.label] }}
+                    <ExternalLink :size="14" aria-hidden="true" />
+                  </a>
+                </div>
+              </div>
               <div v-if="showMobileCredentialTip" class="resonance-mobile-browsers resonance-hint">
                 <p>{{ t.mobileAndroidBrowsers }}</p>
                 <p>{{ t.mobileIosBrowsers }}</p>
@@ -275,6 +304,42 @@ const PEARPAL_URL = 'https://myl.nuanpaper.com/home'
   </Teleport>
 </template>
 <style scoped>
+.resonance-video-tutorials {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.resonance-video-tutorials h4 {
+  margin: 0;
+}
+.resonance-video-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.resonance-video-tutorials .resonance-video-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--pink-deep) 35%, var(--line-soft));
+  border-radius: 10px;
+  color: var(--pink-deep);
+  background: var(--surface-strong);
+  box-shadow: 0 2px 7px color-mix(in srgb, var(--pink-deep) 12%, transparent);
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+.resonance-video-links a:hover {
+  border-color: var(--pink-deep);
+}
+.resonance-video-links a:focus-visible {
+  outline: 2px solid var(--pink-deep);
+  outline-offset: 2px;
+}
 .resonance-choice-row {
   display: flex;
   flex-wrap: wrap;

@@ -38,6 +38,10 @@ export interface ResonanceMessages {
   loginPearpalDesc: string
   pearpalSite: string
   getCookie: string
+  videoTutorials: string
+  desktopVideoTutorial: string
+  androidVideoTutorial: string
+  iosVideoTutorial: string
   mobileAndroidBrowsers: string
   mobileIosBrowsers: string
   mobileCredentialTip: string
@@ -144,6 +148,10 @@ export const resonanceZh: ResonanceMessages = {
   loginPearpalDesc: '在新标签页打开美鸭梨并登录叠纸账号。登录后返回此窗口获取凭据。',
   pearpalSite: '打开美鸭梨',
   getCookie: '获取登录凭据',
+  videoTutorials: '小红书视频教程',
+  desktopVideoTutorial: '电脑端',
+  androidVideoTutorial: '安卓端',
+  iosVideoTutorial: '苹果端',
   mobileCredentialTip: '建议使用电脑端获取登录凭据，操作更加方便。获取后可复制到手机端继续导入。',
   mobileAndroidBrowsers: '安卓建议浏览器：Chrome（谷歌）、Firefox（火狐）。',
   mobileIosBrowsers: 'iOS 建议浏览器：Chrome（谷歌）、Firefox（火狐）、Safari。',
@@ -256,6 +264,10 @@ export const resonanceEn: ResonanceMessages = {
     'Open Pear-Pal in a new tab and sign in with your Infold account. Return here to get your credentials.',
   pearpalSite: 'Open Pear-Pal',
   getCookie: 'Get sign-in credentials',
+  videoTutorials: 'Xiaohongshu video tutorials',
+  desktopVideoTutorial: 'Desktop',
+  androidVideoTutorial: 'Android',
+  iosVideoTutorial: 'iOS',
   mobileCredentialTip:
     'We recommend obtaining sign-in credentials on a computer for easier access. You can then copy them to your phone to continue importing.',
   mobileAndroidBrowsers: 'Recommended browsers for Android: Chrome and Firefox.',

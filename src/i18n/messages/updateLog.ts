@@ -5,52 +5,73 @@ export const updateLogZh: LocaleMessages['updateLog'] = {
   title: '更新记录',
   helpAbout: '使用帮助',
   currentTitle: '当前版本',
-  currentVersion: 'v2.1',
-  currentDate: '2026.10.18 更新',
+  currentVersion: 'v2.1.1',
+  currentDate: '2026.10.19 更新',
   currentItems: [
     {
-      title: '个人衣橱模块上线：',
-      text: '支持按状态、星级、进化阶段、游戏版本、风格、获取来源、标签及部位筛选。'
+      title: '新增共鸣记录/衣橱导入视频教程：',
+      text: '在“获取登录凭据”下方点击“电脑端”“安卓端”“苹果端”，即可前往小红书查看对应教程。'
     },
     {
-      title: '个人衣橱新增详情查看：',
-      text: '点击套装卡片打开套装详情，查看收集进度、星级、风格、来源版本、介绍及部件列表；点击部件卡片打开部件详情。'
+      title: '档案导入新增进度展示：',
+      text: '显示数据获取、格式检查、衣橱与共鸣记录解析、预览生成等处理阶段。'
     },
     {
-      title: '共鸣记录支持查看详情：',
-      text: '点击套装图片打开套装详情，点击记录中的部件图片打开部件详情。'
+      title: '修复图片导入与保存问题：',
+      text: '改善多种图片格式的读取、预览及保存兼容性，修复部分图片选择后无法保存的问题。'
     },
     {
-      title: '搭配码解析新增套装详情入口：',
-      text: '在解析结果中点击部件图片打开部件详情，再点击“所属套装”名称旁的跳转图标，即可查看对应套装详情。'
-    },
-    {
-      title: '完善衣橱拥有状态识别：',
-      text: '结合共鸣记录补充部分服装的拥有信息；星光小铺、服装商店、奇迹之冠、滚滚机、世界逸事来源中，未识别到的部件显示为“未知”。筛选上述来源时，自动切换到“未知”状态，并展示说明。'
-    },
-    {
-      title: '优化共鸣记录排版：',
-      text: '调整套装名称、星级及总抽数、平均抽数的展示；手机端“第一套／第二套”切换按钮移至卡片右上角，竖向排列，减少占位。'
-    },
-    {
-      title: '优化顶部操作提示：',
-      text: '连续操作时支持同时展示多条通知。'
-    },
-    {
-      title: '调整入口名称：',
-      text: '“共鸣”更名为“暖暖档案”，下设“共鸣记录”和“个人衣橱”。'
-    },
-    {
-      title: '衣橱界面展示图：',
-      text: '可前往小红书查看。',
-      link: {
-        label: '前往小红书',
-        href: 'https://www.xiaohongshu.com/discovery/item/6ad4765c0000000028002402?source=webshare&xhsshare=pc_web&xsec_token=ABjeDe5Todarh39N7ZgKZAUc-FyPIeTAKg25qOtcSrOI0=&xsec_source=pc_share'
-      }
+      title: '优化共鸣记录图片展示：',
+      text: '调整套装与部件图片的边框及背景填充，减少边缘留白。'
     }
   ],
   historyTitle: '历史版本记录',
   history: [
+    {
+      version: 'v2.1',
+      items: [
+        {
+          title: '个人衣橱模块上线：',
+          text: '支持按状态、星级、进化阶段、游戏版本、风格、获取来源、标签及部位筛选。'
+        },
+        {
+          title: '个人衣橱新增详情查看：',
+          text: '点击套装卡片打开套装详情，查看收集进度、星级、风格、来源版本、介绍及部件列表；点击部件卡片打开部件详情。'
+        },
+        {
+          title: '共鸣记录支持查看详情：',
+          text: '点击套装图片打开套装详情，点击记录中的部件图片打开部件详情。'
+        },
+        {
+          title: '搭配码解析新增套装详情入口：',
+          text: '在解析结果中点击部件图片打开部件详情，再点击“所属套装”名称旁的跳转图标，即可查看对应套装详情。'
+        },
+        {
+          title: '完善衣橱拥有状态识别：',
+          text: '结合共鸣记录补充部分服装的拥有信息；星光小铺、服装商店、奇迹之冠、滚滚机、世界逸事来源中，未识别到的部件显示为“未知”。筛选上述来源时，自动切换到“未知”状态，并展示说明。'
+        },
+        {
+          title: '优化共鸣记录排版：',
+          text: '调整套装名称、星级及总抽数、平均抽数的展示；手机端“第一套／第二套”切换按钮移至卡片右上角，竖向排列，减少占位。'
+        },
+        {
+          title: '优化顶部操作提示：',
+          text: '连续操作时支持同时展示多条通知。'
+        },
+        {
+          title: '调整入口名称：',
+          text: '“共鸣”更名为“暖暖档案”，下设“共鸣记录”和“个人衣橱”。'
+        },
+        {
+          title: '衣橱界面展示图：',
+          text: '可前往小红书查看。',
+          link: {
+            label: '前往小红书',
+            href: 'https://www.xiaohongshu.com/discovery/item/6ad4765c0000000028002402?source=webshare&xhsshare=pc_web&xsec_token=ABjeDe5Todarh39N7ZgKZAUc-FyPIeTAKg25qOtcSrOI0=&xsec_source=pc_share'
+          }
+        }
+      ]
+    },
     {
       version: 'v2.0.2',
       items: [
@@ -514,52 +535,73 @@ export const updateLogEn: LocaleMessages['updateLog'] = {
   title: 'Release history',
   helpAbout: 'Help',
   currentTitle: 'Current version',
-  currentVersion: 'v2.1',
-  currentDate: 'Updated 2026.10.18',
+  currentVersion: 'v2.1.1',
+  currentDate: 'Updated 2026.10.19',
   currentItems: [
     {
-      title: 'Personal Wardrobe is now available: ',
-      text: 'Filter by ownership, rarity, evolution stage, game version, style, source, tag, and category.'
+      title: 'Video tutorials for importing resonance records and wardrobe data: ',
+      text: 'Under “Get sign-in credentials”, click Desktop, Android, or iOS to view the corresponding tutorial on Xiaohongshu.'
     },
     {
-      title: 'Wardrobe details: ',
-      text: 'Click an outfit card to view collection progress, rarity, style, release version, description, and pieces. Click a piece card to open its details.'
+      title: 'Archive import progress: ',
+      text: 'See the current stage, including fetching data, checking its format, parsing wardrobe and resonance records, and preparing the preview.'
     },
     {
-      title: 'Details from resonance records: ',
-      text: 'Click an outfit image to open outfit details, or a piece image in a record to open piece details.'
+      title: 'Fixed image import and saving: ',
+      text: 'Improved compatibility when reading, previewing, and saving various image formats, fixing cases where selected images could not be saved.'
     },
     {
-      title: 'Outfit details from outfit-code decoding: ',
-      text: 'Click a piece image in the decoding results, then click the link icon next to its outfit name to open outfit details.'
-    },
-    {
-      title: 'Improved ownership recognition: ',
-      text: 'Use resonance records to supplement ownership for some clothing. Unrecognized pieces from Starlit Shop, clothing shops, Mira Crown, Surprise-O-Matic, and world quests show as Unknown. Selecting these sources automatically selects Unknown and displays an explanation.'
-    },
-    {
-      title: 'Improved resonance layout: ',
-      text: 'Refined outfit names, rarity, total pulls, and average pulls. On mobile, first/second set buttons are stacked in the top-right corner to save space.'
-    },
-    {
-      title: 'Improved operation notices: ',
-      text: 'Multiple notices can appear together during consecutive operations.'
-    },
-    {
-      title: 'Renamed navigation: ',
-      text: 'Resonance is now Nikki Archive, containing Resonance Records and Personal Wardrobe.'
-    },
-    {
-      title: 'Wardrobe interface previews: ',
-      text: 'View the screenshots on Xiaohongshu. ',
-      link: {
-        label: 'Open Xiaohongshu',
-        href: 'https://www.xiaohongshu.com/discovery/item/6ad4765c0000000028002402?source=webshare&xhsshare=pc_web&xsec_token=ABjeDe5Todarh39N7ZgKZAUc-FyPIeTAKg25qOtcSrOI0=&xsec_source=pc_share'
-      }
+      title: 'Improved resonance images: ',
+      text: 'Adjusted outfit and piece image borders and background fill to reduce gaps around the edges.'
     }
   ],
   historyTitle: 'Previous releases',
   history: [
+    {
+      version: 'v2.1',
+      items: [
+        {
+          title: 'Personal Wardrobe is now available: ',
+          text: 'Filter by ownership, rarity, evolution stage, game version, style, source, tag, and category.'
+        },
+        {
+          title: 'Wardrobe details: ',
+          text: 'Click an outfit card to view collection progress, rarity, style, release version, description, and pieces. Click a piece card to open its details.'
+        },
+        {
+          title: 'Details from resonance records: ',
+          text: 'Click an outfit image to open outfit details, or a piece image in a record to open piece details.'
+        },
+        {
+          title: 'Outfit details from outfit-code decoding: ',
+          text: 'Click a piece image in the decoding results, then click the link icon next to its outfit name to open outfit details.'
+        },
+        {
+          title: 'Improved ownership recognition: ',
+          text: 'Use resonance records to supplement ownership for some clothing. Unrecognized pieces from Starlit Shop, clothing shops, Mira Crown, Surprise-O-Matic, and world quests show as Unknown. Selecting these sources automatically selects Unknown and displays an explanation.'
+        },
+        {
+          title: 'Improved resonance layout: ',
+          text: 'Refined outfit names, rarity, total pulls, and average pulls. On mobile, first/second set buttons are stacked in the top-right corner to save space.'
+        },
+        {
+          title: 'Improved operation notices: ',
+          text: 'Multiple notices can appear together during consecutive operations.'
+        },
+        {
+          title: 'Renamed navigation: ',
+          text: 'Resonance is now Nikki Archive, containing Resonance Records and Personal Wardrobe.'
+        },
+        {
+          title: 'Wardrobe interface previews: ',
+          text: 'View the screenshots on Xiaohongshu. ',
+          link: {
+            label: 'Open Xiaohongshu',
+            href: 'https://www.xiaohongshu.com/discovery/item/6ad4765c0000000028002402?source=webshare&xhsshare=pc_web&xsec_token=ABjeDe5Todarh39N7ZgKZAUc-FyPIeTAKg25qOtcSrOI0=&xsec_source=pc_share'
+          }
+        }
+      ]
+    },
     {
       version: 'v2.0.2',
       items: [
