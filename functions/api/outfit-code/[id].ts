@@ -34,7 +34,8 @@ async function fetchSnapshot(id: string, controller: AbortController): Promise<S
     controller.signal.throwIfAborted()
     const upstream = await fetch(UPSTREAM_BASE_URL + id + '.json', {
       signal: controller.signal,
-      redirect: 'error'
+      // workerd 不支持 error 模式；manual 不跟随跳转，下面统一拒绝非 200 响应。
+      redirect: 'manual'
     })
     headersMs = Date.now() - started
     if (upstream.status !== 200) {

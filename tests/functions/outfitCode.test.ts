@@ -24,7 +24,7 @@ describe('outfit-code Pages Function', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       'https://x6cn-clothdiydata.nuanpaper.com/default/488547348102388135.json',
-      { signal: expect.any(AbortSignal), redirect: 'error' }
+      { signal: expect.any(AbortSignal), redirect: 'manual' }
     )
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('application/octet-stream')
