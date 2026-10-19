@@ -118,3 +118,28 @@ it('loads images only on demand when displaying a global collection', async () =
   ).toBe(false)
   expect(await library.outfits[0].loadImageBlob!()).toBeInstanceOf(Blob)
 })
+
+// 模拟浏览器回退 PNG 且原图损坏，确认拒绝保存并保持数据库不变。
+it('rejects invalid originals after a non-WebP encoding result', async () => {
+  vi.stubGlobal('document', {
+    createElement: () => ({
+      getContext: () => ({ drawImage() {} }),
+      toBlob: (callback: BlobCallback) =>
+        callback(
+          new Blob([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], { type: 'image/png' })
+        )
+    })
+  })
+  let failure: unknown
+  try {
+    await saveOutfit({
+      ...input(),
+      imageFile: new File(['jpeg'], 'test.jpg', { type: 'image/jpeg' })
+    })
+  } catch (error) {
+    failure = error
+  }
+  expect(failure).toBeInstanceOf(Error)
+  expect((failure as Error).message).toContain('signature')
+  expect((await readOutfitSnapshot()).records).toHaveLength(0)
+})

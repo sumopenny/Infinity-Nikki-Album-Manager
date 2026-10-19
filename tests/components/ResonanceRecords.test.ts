@@ -14,6 +14,13 @@ import {
 import type { ResonanceRecord } from '../../src/utils/resonance/resonanceTypes'
 import { encodeSnappyLiteral } from '../utils/resonanceSnappyFixture'
 
+// 分别校验指标标签与数值，不依赖布局中的分隔符和空白。
+const summaryValues = (wrapper: ReturnType<typeof mount>) =>
+  wrapper.findAll('.resonance-overall-summary .resonance-summary-group').map((group) => ({
+    label: group.get('.resonance-summary-label').text(),
+    value: group.get('strong').text()
+  }))
+
 const dbName = 'infinity-nikki-album-manager'
 const HAIR = '1020100347'
 const wrappers: Array<ReturnType<typeof mount>> = []
@@ -407,9 +414,10 @@ describe('ResonanceRecords', () => {
 
     const loaded = (await loadResonanceRecords())[0]!
     expect(wrapper.find('.resonance-record h3').text()).toContain(loaded.outfitName.en)
-    const summary = wrapper.find('.resonance-record-heading p').text()
-    expect(summary).toContain('Total pulls: 19')
-    expect(summary).toContain('Average pulls: 19.0')
+    expect(summaryValues(wrapper)).toEqual([
+      { label: 'Total pulls', value: '19' },
+      { label: 'Average pulls', value: '19.0' }
+    ])
     const headings = wrapper.findAll('.resonance-desktop-set-heading')
     expect(headings).toHaveLength(2)
     expect(headings[0]!.text()).toContain('First set')
@@ -443,8 +451,10 @@ describe('ResonanceRecords', () => {
     const wrapper = mount(ResonanceRecords, { props: { language: 'zh' } })
     wrappers.push(wrapper)
     await vi.waitFor(() => expect(wrapper.findAll('.resonance-record')).toHaveLength(1))
-    expect(wrapper.find('.resonance-record-heading p').text()).toContain('总抽数：58')
-    expect(wrapper.find('.resonance-record-heading p').text()).toContain('平均抽数：19.3')
+    expect(summaryValues(wrapper)).toEqual([
+      { label: '总抽数', value: '58' },
+      { label: '平均抽数', value: '19.3' }
+    ])
   })
 
   it('checks the UID before reading the notebook and keeps local records on mismatch', async () => {
@@ -520,7 +530,10 @@ describe('ResonanceRecords', () => {
     expect(stored.map((record) => record.id)).toEqual(['77:10347'])
     expect(stored.some((record) => record.id === localOnly.id)).toBe(false)
     expect(stored.find((record) => record.id === '77:10347')?.sets[0].totalPulls).toBe(17)
-    expect(wrapper.find('.resonance-record-heading p').text()).toContain('总抽数：17')
+    expect(summaryValues(wrapper)).toEqual([
+      { label: '总抽数', value: '17' },
+      { label: '平均抽数', value: '17.0' }
+    ])
     expect(document.body.querySelector('.resonance-import-panel')).toBeNull()
     expect(latestNotice(wrapper)?.tone).toBe('success')
   })
@@ -776,7 +789,10 @@ it('opens outfit and item details from record images without changing records', 
   await vi.waitFor(() => expect(wrapper.find('button.resonance-outfit-image').exists()).toBe(true))
   await wrapper.get('button.resonance-outfit-image').trigger('click')
   await vi.waitFor(() => expect(document.querySelector('.wardrobe-dialog')).not.toBeNull())
-  expect(document.querySelector('.wardrobe-state-tag')?.textContent).toContain('未知')
+  // 未导入衣橱数据时，当前弹窗用状态说明表达未知，不应展示拥有进度。
+  const dialog = document.querySelector('.wardrobe-dialog')!
+  expect(dialog.querySelector('.wardrobe-suit-message')?.textContent).toContain('未知')
+  expect(dialog.querySelector('.wardrobe-suit-progress')).toBeNull()
   document.querySelector<HTMLButtonElement>('.wardrobe-detail-header button')!.click()
   await flushPromises()
   expect(document.querySelector('.wardrobe-dialog')).toBeNull()

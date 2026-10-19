@@ -1,3 +1,6 @@
+vi.mock('../../src/utils/imageSelection', () => ({
+  validateSelectedImage: vi.fn().mockResolvedValue(undefined)
+}))
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { ref } from 'vue'
@@ -30,6 +33,7 @@ vi.mock('../../src/utils/image', () => ({
   convertImageToWebp: mocks.webp,
   snapshotImageFile: mocks.snapshot
 }))
+vi.mock('../../src/utils/storedImage', () => ({ convertImageForStorage: mocks.webp }))
 vi.mock('../../src/utils/clipboard', () => ({ copyTextToClipboard: mocks.copy }))
 vi.mock('../../src/composables/usePhotoParams', () => ({
   usePhotoParams: () => {
@@ -176,7 +180,7 @@ describe('camera favorite UI', () => {
     button('添加收藏').click()
     await flushPromises()
     expect(button('保存收藏').disabled).toBe(true)
-    const input = document.querySelector('textarea')!
+    const input = document.querySelector<HTMLTextAreaElement>('textarea:not([readonly])')!
     input.value = 'ABC'
     input.dispatchEvent(new Event('input', { bubbles: true }))
     await flushPromises()
@@ -199,7 +203,7 @@ describe('camera favorite UI', () => {
     await flushPromises()
     button('添加收藏').click()
     await flushPromises()
-    const input = document.querySelector('textarea')!
+    const input = document.querySelector<HTMLTextAreaElement>('textarea:not([readonly])')!
     input.value = 'ABC'
     input.dispatchEvent(new Event('input', { bubbles: true }))
     await flushPromises()
@@ -448,7 +452,7 @@ it('places the camera sidebar in the navigation column and removes it when leavi
 
 describe('camera favorite automatic parsing', () => {
   async function enter(value: string) {
-    const input = document.querySelector('textarea')!
+    const input = document.querySelector<HTMLTextAreaElement>('textarea:not([readonly])')!
     input.value = value
     input.dispatchEvent(new Event('input', { bubbles: true }))
     await flushPromises()
@@ -668,12 +672,28 @@ describe('camera cover conversion', () => {
     mocks.webp.mockRejectedValueOnce(new Error('decode failed'))
     await submit()
     expect(mocks.save).not.toHaveBeenCalled()
-    expect(document.querySelector('textarea')?.value).toBe('ABC')
+    expect(document.querySelector<HTMLTextAreaElement>('textarea:not([readonly])')?.value).toBe(
+      'ABC'
+    )
     expect(document.querySelector('.camera-editor-preview')).not.toBeNull()
-    expect(view.emitted('status')?.at(-1)).toEqual(['封面转为 WebP 失败：decode failed', 'error'])
+    expect(view.emitted('status')?.at(-1)).toEqual(['封面处理失败：decode failed', 'error'])
     await submit()
     expect(mocks.save).toHaveBeenCalledTimes(1)
   })
+  it.each(['image/png', 'image/jpeg'])(
+    'saves a validated original cover with MIME %s',
+    async (type) => {
+      await openAlbum()
+      const original = new Blob(['original'], { type })
+      mocks.webp.mockResolvedValueOnce(original)
+      await submit()
+      expect(mocks.save.mock.calls[0][1]).toBe(original)
+      expect(mocks.save.mock.calls[0][0].cover).toMatchObject({
+        type,
+        name: type === 'image/jpeg' ? 'album.jpg' : 'album.png'
+      })
+    }
+  )
   it('does not reconvert on a storage retry or when editing a saved cover', async () => {
     await openAlbum()
     mocks.save.mockRejectedValueOnce(new Error('storage failed'))
@@ -698,6 +718,7 @@ describe('camera cover conversion', () => {
       const input = document.querySelector('#camera-favorite-cover')!
       Object.defineProperty(input, 'files', { value: [upload] })
       input.dispatchEvent(new Event('change', { bubbles: true }))
+      await flushPromises()
       await submit()
       expect(mocks.webp).toHaveBeenCalledTimes(1)
       expect(mocks.save.mock.calls[0][1].type).toBe('image/webp')
@@ -740,4 +761,24 @@ it('converts an existing non-WebP cover when saving an edit', async () => {
     type: 'image/webp'
   })
   expect(mocks.save.mock.calls[0][1].type).toBe('image/webp')
+})
+
+it('skips focus refresh for an inactive module and while its editor is open', async () => {
+  const view = create()
+  await flushPromises()
+  await view.setProps({ active: false })
+  mocks.read.mockClear()
+  window.dispatchEvent(new Event('focus'))
+  await flushPromises()
+  expect(mocks.read).not.toHaveBeenCalled()
+  await view.setProps({ active: true })
+  window.dispatchEvent(new Event('focus'))
+  await flushPromises()
+  expect(mocks.read).toHaveBeenCalledOnce()
+  button('添加收藏').click()
+  await flushPromises()
+  mocks.read.mockClear()
+  window.dispatchEvent(new Event('focus'))
+  await flushPromises()
+  expect(mocks.read).not.toHaveBeenCalled()
 })

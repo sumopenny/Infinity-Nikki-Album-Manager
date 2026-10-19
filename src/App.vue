@@ -3067,6 +3067,7 @@ function importAllDataFromMenu() {
     <OutfitEditor
       ref="outfitEditorRef"
       :visible="isOutfitEditorVisible"
+      :selection-busy="isSavingOutfit"
       :outfit="editingOutfit"
       :tags="outfitTags"
       :busy="isAnyFileOperationBusy"

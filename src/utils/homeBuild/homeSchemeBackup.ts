@@ -1,3 +1,4 @@
+import { STORED_IMAGE_EXTENSIONS, matchesStoredImageExtension } from '../storedImage'
 import { backupBaseName } from '../backup/backupName'
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from 'fflate'
 import {
@@ -27,7 +28,7 @@ import {
 } from './homeSchemeTypes'
 
 const BACKUP_FORMAT = 'infinity-nikki-home-scheme-backup'
-const BACKUP_VERSION = 1
+const BACKUP_VERSION = 2
 const MAX_BACKUP_BYTES = HOME_BACKUP_LIMITS.bytes
 const MAX_IMAGE_BYTES = HOME_BACKUP_LIMITS.image
 const MAX_ENTRIES = HOME_BACKUP_LIMITS.entries
@@ -102,7 +103,11 @@ export async function exportHomeSchemeBackup(
     const cover = library.images.get(scheme.id)
     if (image && cover) {
       const checked = await prepareHomeSchemeImage(cover.blob, scheme.id)
-      if (checked.sha256 !== cover.sha256) throw new Error('home_scheme_image_invalid')
+      if (
+        checked.sha256 !== cover.sha256 ||
+        !matchesStoredImageExtension(image, checked.extension!)
+      )
+        throw new Error('home_scheme_image_invalid')
     }
     items.push({
       record: {
@@ -124,7 +129,9 @@ export async function exportHomeSchemeBackup(
     items,
     (homeSchemes) => ({
       format: BACKUP_FORMAT,
-      version: BACKUP_VERSION,
+      version: library.records.every((record) => !record.image || record.image.endsWith('.webp'))
+        ? 1
+        : BACKUP_VERSION,
       exportedAt,
       tags: library.tags,
       homeSchemes
@@ -154,7 +161,7 @@ async function extractBackup(file: File): Promise<Map<string, Uint8Array>> {
       if (count > MAX_ENTRIES || !isSafePath(entry.name))
         throw new Error('home_scheme_backup_path_invalid')
       const manifest = entry.name === 'manifest.json'
-      if (!manifest && !/^images\/[^/]+\.webp$/i.test(entry.name))
+      if (!manifest && !/^images\/[^/]+\.(webp|png|jpe?g|gif|bmp|avif)$/i.test(entry.name))
         throw new Error('home_scheme_backup_entry_invalid')
       const chunks: Uint8Array[] = []
       let size = 0
@@ -224,7 +231,8 @@ function parseManifest(entries: Map<string, Uint8Array>): BackupManifest {
   const manifest = raw as Partial<BackupManifest>
   if (
     manifest.format !== BACKUP_FORMAT ||
-    manifest.version !== BACKUP_VERSION ||
+    typeof manifest.version !== 'number' ||
+    ![1, BACKUP_VERSION].includes(manifest.version) ||
     !Array.isArray(manifest.homeSchemes) ||
     !Array.isArray(manifest.tags)
   )
@@ -242,7 +250,9 @@ function parseManifest(entries: Map<string, Uint8Array>): BackupManifest {
       (item.image !== null &&
         (typeof item.image !== 'string' ||
           !isSafePath(item.image) ||
-          item.image !== `images/${item.id}.webp`))
+          !STORED_IMAGE_EXTENSIONS.some(
+            (extension) => item.image === `images/${item.id}.${extension}`
+          )))
     ) {
       throw new Error('home_scheme_backup_record_invalid')
     }
@@ -259,16 +269,16 @@ export async function prepareHomeSchemeBackup(backupFile: File) {
   for (const raw of manifest.homeSchemes) {
     // An invalid image rejects the archive before any database write.
     const bytes = raw.image ? entries.get(raw.image)! : null
-    const image = bytes
-      ? await prepareHomeSchemeImage(new Blob([bytes], { type: 'image/webp' }), raw.id)
-      : null
+    const image = bytes ? await prepareHomeSchemeImage(new Blob([bytes]), raw.id) : null
+    if (image && !matchesStoredImageExtension(raw.image!, image.extension!))
+      throw new Error('home_scheme_image_format_mismatch')
     try {
       const createdAt = normalizeBackupDate(raw.createdAt, new Date().toISOString())
       prepared.push({
         record: normalizeHomeSchemeRecord({
           ...raw,
           version: 1,
-          image: image ? `${raw.id}.webp` : null,
+          image: image ? `${raw.id}.${image.extension}` : null,
           tags: raw.tags
             .map(normalizeHomeSchemeTag)
             .filter((tag) => tag && [...tag].length <= 5)
@@ -323,7 +333,7 @@ export async function importHomeSchemeBackup(backupFile: File): Promise<{
         store.put({
           ...record,
           id,
-          image: image ? `${id}.webp` : null,
+          image: image ? `${id}.${image.extension}` : null,
           tags: record.tags.filter((tag) => tags.includes(tag))
         })
         if (image) tx.objectStore(HOME_IMAGES_STORE).put({ ...image, id })

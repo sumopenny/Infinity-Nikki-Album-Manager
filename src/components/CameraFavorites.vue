@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { validateSelectedImage } from '../utils/imageSelection'
 import { createUuid } from '../utils/uuid'
 import { useModuleOperation } from '../composables/useOperationCoordinator'
 const trackOperation = useModuleOperation('camera')
@@ -37,7 +38,8 @@ import { usePhotoParams } from '../composables/usePhotoParams'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import { copyTextToClipboard } from '../utils/clipboard'
 import { useCompactLayout } from '../composables/useCompactLayout'
-import { convertImageToWebp, snapshotImageFile } from '../utils/image'
+import { snapshotImageFile } from '../utils/image'
+import { convertImageForStorage } from '../utils/storedImage'
 import {
   applyCameraImport,
   cloneFavorite,
@@ -491,23 +493,22 @@ async function parse() {
   source.value = 'manual'
   emit('status', t('参数已解析', 'Parameters parsed'), 'success')
 }
+// 捕获验证通过后仍可能出现的预览失效，避免无提示空白。
+function handleCoverPreviewError() {
+  error.value = t(
+    '图片预览失败，请重新选择；浏览器可能不支持该格式。',
+    'Image preview failed. Please select again; this format may be unsupported.'
+  )
+  coverReadFailed.value = true
+  emit('status', error.value, 'error')
+}
 async function selectCover(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  input.value = ''
-  if (!file || busy.value) return
-  if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'].includes(file.type)) {
-    error.value = t(
-      '请选择 JPG、PNG、WebP、GIF 或 AVIF 图片',
-      'Choose a JPG, PNG, WebP, GIF or AVIF image'
-    )
+  if (!file || busy.value) {
     return
   }
   error.value = ''
-  if (!compact.value) {
-    setCover(file, file.name)
-    return
-  }
   // 失败时保留旧封面或空封面，封面可选，不因一次失败锁死保存。
   // 移动布局立即读取原始字节；重选、关闭和卸载后不得采用旧任务结果。
   const run = ++coverReadGeneration
@@ -515,16 +516,24 @@ async function selectCover(event: Event) {
   coverReadFailed.value = false
   emit('status', t('正在读取图片…', 'Reading image…'), 'info')
   try {
-    const snapshot = await snapshotImageFile(file)
-    if (disposed || !editor.value || run !== coverReadGeneration) return
+    const reading = compact.value ? snapshotImageFile(file) : Promise.resolve(file)
+    input.value = ''
+    const snapshot = await reading
+
+    await validateSelectedImage(snapshot)
+    if (disposed || !editor.value || run !== coverReadGeneration) {
+      return
+    }
     setCover(snapshot, snapshot.name)
     emit('status', t('图片读取完成', 'Image loaded'), 'success')
   } catch (caught) {
     if (disposed || !editor.value || run !== coverReadGeneration) return
     coverReadFailed.value = true
     error.value =
-      t('图片读取失败，请重新选择文件：', 'Unable to read image. Please select the file again: ') +
-      (caught instanceof Error ? caught.message : String(caught))
+      t(
+        '图片读取或预览失败，可能是格式不支持或文件损坏：',
+        'Unable to read or preview image; the format may be unsupported or the file damaged: '
+      ) + (caught instanceof Error ? caught.message : String(caught))
     emit('status', error.value, 'error')
   } finally {
     if (run === coverReadGeneration) coverReading.value = false
@@ -554,7 +563,7 @@ async function save() {
     busy.value = true
     error.value = ''
     try {
-      // 统一转为 WebP；移动端上传的原始字节已在选择时复制到内存。
+      // 优先 WebP，编码失败则保存通过校验的原图；移动端已复制原始字节。
       if (
         cover.value &&
         (cover.value instanceof File ||
@@ -563,20 +572,13 @@ async function save() {
       ) {
         try {
           const file = new File([cover.value], coverName.value, { type: cover.value.type })
-          const webp = await convertImageToWebp(file)
-          if (webp.type !== 'image/webp' || !webp.size)
-            throw new Error(
-              t('未能生成有效的 WebP 图片', 'A valid WebP image could not be generated')
-            )
-          const filename = (coverName.value.replace(/\.[^.]+$/, '') || 'cover') + '.webp'
-          setCover(webp, filename)
+          const image = await convertImageForStorage(file)
+          const extension = image.type === 'image/jpeg' ? 'jpg' : image.type.slice('image/'.length)
+          const filename = (coverName.value.replace(/\.[^.]+$/, '') || 'cover') + '.' + extension
+          setCover(image, filename)
         } catch (caught) {
           const reason = caught instanceof Error ? caught.message : String(caught)
-          emit(
-            'status',
-            t('封面转为 WebP 失败：', 'Cover conversion to WebP failed: ') + reason,
-            'error'
-          )
+          emit('status', t('封面处理失败：', 'Cover processing failed: ') + reason, 'error')
           return
         }
       }
@@ -743,8 +745,10 @@ function modalKey(event: KeyboardEvent) {
     first?.focus()
   }
 }
+// 选择器返回也会触发 focus；隐藏模块或打开弹窗时不刷新，避免占用全局忙碌状态。
 function focusRefresh() {
-  if (!busy.value) void reload()
+  if (disposed || !props.active || modal.value || busy.value) return
+  void reload()
 }
 onMounted(() => {
   void reload()
@@ -1043,6 +1047,7 @@ function handleImportChoices(value: typeof choices.value) {
                   class="camera-editor-preview"
                   :src="previewUrl"
                   :alt="t('封面预览', 'Cover preview')"
+                  @error="handleCoverPreviewError"
                 />
                 <span v-else class="outfit-image-prompt"
                   ><ImagePlus :size="30" aria-hidden="true" />{{
@@ -1074,7 +1079,7 @@ function handleImportChoices(value: typeof choices.value) {
                 id="camera-favorite-cover"
                 ref="coverInput"
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                accept="image/*"
                 hidden
                 @change="selectCover"
               />
@@ -1085,8 +1090,8 @@ function handleImportChoices(value: typeof choices.value) {
               >
               <p class="camera-cover-hint">{{
                 t(
-                  '封面统一保存为 WebP；不添加时展示已解析的动作、灯光和滤镜。',
-                  'All covers are saved as WebP. Without a cover, parsed action, lighting and filter resources are shown.'
+                  '封面优先保存为 WebP，不支持时保留原格式；不添加时展示动作、灯光和滤镜。',
+                  'Covers use WebP when available, otherwise their original format. Without a cover, action, lighting and filter resources are shown.'
                 )
               }}</p>
               <div v-if="parsed && resources(parsed).length" class="camera-parsed-summary"

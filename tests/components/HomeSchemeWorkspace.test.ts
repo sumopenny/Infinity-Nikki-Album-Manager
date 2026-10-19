@@ -1,3 +1,6 @@
+vi.mock('../../src/utils/imageSelection', () => ({
+  validateSelectedImage: vi.fn().mockResolvedValue(undefined)
+}))
 import {
   createOperationCoordinator,
   operationCoordinatorKey

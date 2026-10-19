@@ -9,7 +9,7 @@ import {
   OUTFIT_TAGS_STORE,
   OUTFIT_IGNORED_CODES_STORE
 } from '../file-system/database'
-import { convertImageToWebp, MAX_IMAGE_BYTES, validateImageBlob } from '../image'
+import { convertImageForStorage, inspectStoredImage } from '../storedImage'
 import { displayOutfit } from './outfitImageLoader'
 import { sha256Hex } from '../sha256'
 import {
@@ -30,6 +30,7 @@ export interface OutfitImage {
   blob: Blob
   size: number
   sha256: string
+  extension?: string
 }
 export interface OutfitSnapshot {
   records: OutfitRecord[]
@@ -49,22 +50,21 @@ export async function prepareOutfitImage(
   id: string,
   decode = true
 ): Promise<OutfitImage> {
-  if (!blob.size || blob.size > MAX_IMAGE_BYTES) throw new Error('outfit_image_invalid')
-  const bytes = await blob.arrayBuffer(),
-    signature = new Uint8Array(bytes, 0, Math.min(12, bytes.byteLength))
-  if (
-    String.fromCharCode(...signature.slice(0, 4)) !== 'RIFF' ||
-    String.fromCharCode(...signature.slice(8, 12)) !== 'WEBP'
-  )
-    throw new Error('outfit_image_invalid')
-  if (decode) await validateImageBlob(blob)
+  const checked = await inspectStoredImage(blob, decode)
   return {
     id,
-    blob: new Blob([bytes], { type: 'image/webp' }),
-    size: bytes.byteLength,
-    sha256: await hashOutfitBlob(blob)
+    blob: checked.blob,
+    size: checked.bytes.byteLength,
+    sha256: await sha256Hex(checked.bytes),
+    extension: checked.extension
   }
 }
+
+/** 搭配上传复用通用的 WebP 优先与原图兜底策略。 */
+export async function prepareOutfitUpload(file: File, id: string): Promise<OutfitImage> {
+  return prepareOutfitImage(await convertImageForStorage(file), id, false)
+}
+
 export async function initializeOutfitTags(): Promise<void> {
   await outfitTransaction([OUTFIT_TAGS_STORE], 'readwrite', async (tx) => {
     const store = tx.objectStore(OUTFIT_TAGS_STORE)
@@ -154,11 +154,7 @@ export async function readOutfitSnapshot(): Promise<OutfitSnapshot> {
 export async function saveOutfit(input: SaveOutfitInput): Promise<OutfitItem> {
   if (!input.outfit && !input.imageFile) throw new Error('outfit_image_required')
   const prepared = input.imageFile
-    ? await prepareOutfitImage(
-        await convertImageToWebp(input.imageFile),
-        input.outfit?.id ?? createOutfitId(),
-        false
-      )
+    ? await prepareOutfitUpload(input.imageFile, input.outfit?.id ?? createOutfitId())
     : null
   await initializeOutfitTags()
   const saved = await outfitTransaction(
@@ -192,7 +188,7 @@ export async function saveOutfit(input: SaveOutfitInput): Promise<OutfitItem> {
         ...previous,
         version: 1,
         id,
-        image: `${id}.webp`,
+        image: prepared ? `${id}.${prepared.extension}` : previous!.image,
         imageSize: prepared?.size ?? previous?.imageSize,
         code,
         tags: tag ? [tag] : [],

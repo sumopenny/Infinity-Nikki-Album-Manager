@@ -16,6 +16,14 @@ const menuOptions = () =>
   [...document.querySelectorAll('.resonance-options-menu [role="menuitemradio"]')].map(
     (node) => new DOMWrapper(node)
   )
+// 名称与星级是独立元素；按条目顺序校验两者，保留排序及本地化覆盖。
+const sidebarEntries = (wrapper: VueWrapper) =>
+  wrapper
+    .findAll('.resonance-sidebar-link')
+    .map((link) => [
+      link.get('.resonance-sidebar-outfit-name').text(),
+      link.get('.resonance-sidebar-rarity').text()
+    ])
 function record(id: string, bannerId: string, rarity: 4 | 5): ResonanceRecord {
   return {
     id,
@@ -40,7 +48,10 @@ describe('ResonanceSidebar', () => {
     })
 
     const links = wrapper.findAll('.resonance-sidebar-link')
-    expect(links.map((link) => link.text())).toEqual(['套装newer · 5星', '套装older · 4星'])
+    expect(sidebarEntries(wrapper)).toEqual([
+      ['套装newer', '5星'],
+      ['套装older', '4星']
+    ])
     expect(links[0].find('img').attributes()).toMatchObject({
       src: '/outfit-newer.png',
       alt: '',
@@ -50,9 +61,9 @@ describe('ResonanceSidebar', () => {
     expect(wrapper.emitted('jumpToRecord')).toEqual([['newer']])
 
     await wrapper.setProps({ language: 'en' })
-    expect(wrapper.findAll('.resonance-sidebar-link').map((link) => link.text())).toEqual([
-      'Outfit newer · 5-star',
-      'Outfit older · 4-star'
+    expect(sidebarEntries(wrapper)).toEqual([
+      ['Outfit newer', '5-star'],
+      ['Outfit older', '4-star']
     ])
   })
 
@@ -87,9 +98,9 @@ describe('ResonanceSidebar', () => {
     expect(wrapper.emitted('changeBannerOrder')).toEqual([['oldest']])
 
     await wrapper.setProps({ bannerOrder: 'oldest' })
-    expect(wrapper.findAll('.resonance-sidebar-link').map((link) => link.text())).toEqual([
-      '套装older · 4星',
-      '套装newer · 5星'
+    expect(sidebarEntries(wrapper)).toEqual([
+      ['套装older', '4星'],
+      ['套装newer', '5星']
     ])
     expect(wrapper.find('.resonance-sort-control > button').text()).toBe('最早优先')
   })
@@ -102,9 +113,7 @@ describe('ResonanceSidebar', () => {
     await menuOptions()[3].trigger('click')
     expect(wrapper.emitted('changeRarityFilter')).toEqual([[5]])
     await wrapper.setProps({ rarityFilter: 5 })
-    expect(wrapper.findAll('.resonance-sidebar-link').map((link) => link.text())).toEqual([
-      '套装five · 5星'
-    ])
+    expect(sidebarEntries(wrapper)).toEqual([['套装five', '5星']])
     expect(wrapper.find('.resonance-sort-control > button').text()).toBe('5星 · 最新优先')
 
     await wrapper.setProps({ records: [record('four', '1', 4)] })

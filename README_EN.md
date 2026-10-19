@@ -71,7 +71,6 @@
   <p><sub>Left · Photo parameter parsing: capture time, weather, focal length, aperture, normal poses, lights, and filters ｜ Right · Special cleanup: low-quality images, crash snapshots, runtime logs, and the game's built-in browser cache</sub></p>
 </div>
 
-
 ## Features
 
 ### Browsing the album
@@ -93,7 +92,6 @@ On desktop, wardrobe categories and filters sit below the global navigation in t
 The Resonance menu now includes **Personal wardrobe**. Open it from the desktop sidebar submenu or switch to it within Resonance on mobile. The first version tracks clothes only, with Outfit / Piece views and a separate card for every original, glow-up and evolution variant. Search names or IDs, filter rarity, variant, category, and ownership. Outfit and piece details are read-only, showing parts and collection status without manual editing or batch management. Outfit covers use the artwork's 448:656 aspect ratio without cropping, removing side gaps caused by the previous ratio and the inline image baseline gap. Piece images are unchanged.
 
 Wardrobe data stays in the current browser and supports dedicated JSON backup / restore. Importing the CN notebook or a wardrobe backup shows a preview before replacing the entire wardrobe. Pieces absent from the notebook are **unrecorded**, not necessarily missing in game. Raw notebook JSON is supported; resonance-only exports are not. This version excludes makeup and cloud sync. Use the wardrobe’s own JSON backup: it is not yet included in the all-data ZIP. Clearing site data also clears the wardrobe.
-
 
 Desktop resonance filters, pose sorting and wardrobe menus share floating positioning outside the sidebar to prevent clipping. The sidebar remains scrollable; outer scrolling or resizing closes the menu.
 
@@ -131,7 +129,7 @@ Official site: https://nikki3.pages.dev/. Open https://infinity-nikki-album-mana
 On desktop, entering Outfit codes opens a standalone guide according to your saved preference; the guide button beside the title can also open it. Phones show neither the guide entry nor an automatic guide dialog.
 - You can create up to 40 user tags, and each tag can contain up to 5 characters. Deleting a tag in use only moves related plans to Uncategorized.
 - New tags appear at the top of the tag list; drag the left handle to adjust the order.
-- Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press `Ctrl+V`). JPG and PNG files are converted locally to WebP, the outfit code can be empty, each plan can use one tag, and double-clicking the image opens the preview.
+- Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press `Ctrl+V`). Images prefer local WebP conversion, falling back to validated originals, the outfit code can be empty, each plan can use one tag, and double-clicking the image opens the preview.
 - On desktop, the decode button appears in the upper-right corner of each outfit card; on mobile, use the decode button at the bottom of the card. The button stays disabled until a code is entered. The delete button sits to the left of the decode button and appears when the card is hovered or the button receives keyboard focus.
 - Open the shared Parameter / outfit-code parser from the upper-right Tools menu and enter a code without creating a plan first; results open in the same decoder dialog.
 - The outfit preview toolbar shows the current tag and outfit code, with Copy and Edit buttons.
@@ -144,7 +142,7 @@ On desktop, entering Outfit codes opens a standalone guide according to your sav
 </div>
 
 - Export data downloads ZIP backups through the browser, with the save location determined by the browser's download settings and no album folder required; large datasets produce multiple ZIP files, so allow multiple downloads. Backups preserve outfit codes, tags, notes, and creation times. Import data does not overwrite existing plans, and duplicate or invalid content is skipped; imports validate the complete backup first, then extract and write images in batches to reduce browser memory use with large backups.
-- JPG, PNG, and WebP sources are decoded for validation only once before saving. JPG and PNG files are still converted locally to WebP, and images are never uploaded.
+- Images are read and validated locally, with WebP preferred and validated originals retained when needed. Images are never uploaded.
 - Single-click outfit plans to select multiple items and show the bottom toolbar. <span style="color: red;">Deleted outfit plans cannot be restored, so check the plan information before confirming.</span>
 
 ## Special Cleanup
@@ -194,7 +192,6 @@ Do not select the C drive, Program Files, the game install root, or other protec
 - Recently Deleted is sorted by deletion time, with total photo count and total size shown at the top; it supports single or batch restore, permanent deletion, select all, large preview, and clearing everything.
 - When restoring, if a file with the same name exists in the original album, suffixes like `_restored_1` and `_restored_2` are used automatically without overwriting existing photos.
 - Recently Deleted photos do not expire automatically and remain until restored or manually permanently deleted.
-
 
 ## FAQ
 
@@ -290,12 +287,7 @@ Stack: Vue 3, TypeScript, Vite, File System Access API, IndexedDB.
 
 Some features were inspired by and use the related services of [Nikki Albums](https://github.com/RanAxro/nikki_albums) and [Gongeo.us Nikki Tracker](https://github.com/dastrokes/gongeo.us-nikki-tracker). Please refer to the root [LICENSE](LICENSE) file for this project's license.
 
-Image diagnostics: outfit preview/save errors include the failed stage, MIME type, byte count and browser version. The console retains original exceptions. Image error events do not expose the underlying decoder reason; these details do not establish a root cause.
-
-After decoding fails, FileReader / Data URL diagnostics report byte count, file header, SHA-256 and loading results. This is diagnostic only, not a save fallback; reading and loading each time out after 15 seconds.
-
-
-Outfit images are copied into memory immediately upon selection; preview and saving use that copy if the original mobile file reference later becomes unreadable. Confirmation waits while “Reading image…” is shown; select the file again if reading fails. Temporary selection/save rereading comparisons have been removed; failure-stage diagnostics remain.
+Outfit images are copied into memory immediately upon selection; preview and saving use that copy if the original mobile file reference later becomes unreadable. Confirmation waits while “Reading image…” is shown; select the file again if reading fails. Temporary selection/save rereading comparisons have been removed; ordinary error messages remain.
 
 Image memory copies apply only in compact layouts (viewport width ≤899px). Desktop layouts (≥900px) preview and save the original selected file without an eager copy. The layout at selection time determines the path.
 
@@ -309,3 +301,17 @@ Unexpected cloud API failures produce structured logs containing the operation, 
 
 Image read recovery: a persistent status near the image explains reading or failure. Saving waits during reading. Failed replacements retain the previous image; camera favorites can save without an optional cover, while new outfits still require an image. Reselecting the same file retries reading.
 On desktop, date, tag and resonance lists scroll independently when they exceed the available sidebar height, while the module navigation stays fixed. On mobile, scrolling remains inside the filter dialog.
+
+### Image selection and storage compatibility
+
+- Outfit, home, and camera favorite pickers accept images the browser can preview. Mobile layouts snapshot file bytes before validation; reading, decoding, size, and pixel checks run before replacing the previous image. Failed selections retain the previous image and can be retried with the same file.
+- Saving prefers WebP. If encoding fails or returns another format, the validated original is retained. WebP, PNG, JPEG, GIF, BMP, and AVIF are supported with MIME types and extensions derived from file signatures. HEIC/HEIF still require browser decoding and successful WebP conversion; selecting a format does not guarantee it can be saved.
+- Outfit and home backups preserve original-format images and still import older WebP backups. Mixed-format backups require the updated app. Camera backups preserve cover bytes and formats.
+- Returning from a system picker does not refresh inactive camera favorites or a module with an open dialog. Outfit selection is independent of background reads, while saving still prevents replacement.
+- Home and camera covers load near the viewport with a visibility fallback and release image URLs offscreen. Images explicitly fill their frames while keeping existing aspect ratios and centered cropping. Ordinary error messages remain; temporary debug panels are removed.
+
+Resonance regression tests check statistic labels and values, sidebar outfit names and rarity separately, and unknown ownership in the detail dialog, without depending on decorative separators or removed elements.
+
+Outfit codes, home codes, camera parameters, and data-import scripts share clipboard compatibility handling. The system API is preferred; when unavailable on LAN HTTP or rejected, text-selection copying is attempted. Temporary elements are removed and focus restored. Browser restrictions can still cause failure, which is reported normally.
+
+Top notifications dismiss after 3 seconds for success, 5.2 seconds for info, and 6 seconds for warnings and errors. Loading notices stay visible; hovering pauses the timer.

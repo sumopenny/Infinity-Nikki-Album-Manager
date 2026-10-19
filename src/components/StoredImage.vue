@@ -8,6 +8,34 @@ const failed = ref(false)
 let observer: IntersectionObserver | null = null
 let visible = false
 let generation = 0
+let frame = 0
+let fallbackTimer: ReturnType<typeof setTimeout> | undefined
+
+/** 不依赖观察器首次通知：挂载、页面返回和滚动后核对实际占位，仍只加载附近封面。 */
+function checkVisibility() {
+  frame = 0
+  if (!root.value) return
+  const rect = root.value.getBoundingClientRect()
+  const next =
+    rect.width > 0 &&
+    rect.height > 0 &&
+    rect.bottom >= -240 &&
+    rect.top <= window.innerHeight + 240 &&
+    rect.right >= 0 &&
+    rect.left <= window.innerWidth
+  setVisible(next)
+}
+
+function scheduleCheck() {
+  if (!frame) frame = requestAnimationFrame(checkVisibility)
+}
+
+function setVisible(next: boolean) {
+  if (next === visible) return
+  visible = next
+  if (visible) void load()
+  else release()
+}
 
 /** 离开预加载区域或数据变化时释放地址，并使尚未完成的读取失效。 */
 function release() {
@@ -25,7 +53,9 @@ async function load() {
     if (run !== generation || !visible) return
     url.value = URL.createObjectURL(blob)
   } catch {
-    if (run === generation && visible) failed.value = true
+    if (run === generation && visible) {
+      failed.value = true
+    }
   }
 }
 
@@ -37,24 +67,32 @@ watch(
   }
 )
 onMounted(() => {
-  if (!('IntersectionObserver' in window)) {
-    visible = true
-    void load()
+  window.addEventListener('scroll', scheduleCheck, true)
+  window.addEventListener('resize', scheduleCheck)
+  window.addEventListener('focus', scheduleCheck)
+  scheduleCheck()
+  fallbackTimer = setTimeout(() => {
+    checkVisibility()
+  }, 1000)
+  if (typeof window.IntersectionObserver !== 'function') {
+    setVisible(true)
     return
   }
   observer = new IntersectionObserver(
     (entries) => {
       const next = entries.some((entry) => entry.isIntersecting)
-      if (next === visible) return
-      visible = next
-      if (visible) void load()
-      else release()
+      setVisible(next)
     },
     { rootMargin: '240px 0px' }
   )
   if (root.value) observer.observe(root.value)
 })
 onBeforeUnmount(() => {
+  cancelAnimationFrame(frame)
+  clearTimeout(fallbackTimer)
+  window.removeEventListener('scroll', scheduleCheck, true)
+  window.removeEventListener('resize', scheduleCheck)
+  window.removeEventListener('focus', scheduleCheck)
   visible = false
   observer?.disconnect()
   release()
@@ -80,9 +118,15 @@ onBeforeUnmount(() => {
   color: var(--muted);
 }
 .stored-image img {
+  /* 图片直接铺满封面框，避免固有尺寸参与 Grid 轨道计算后被居中偏移、裁切。 */
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   object-fit: cover;
+  object-position: center;
 }
 </style>

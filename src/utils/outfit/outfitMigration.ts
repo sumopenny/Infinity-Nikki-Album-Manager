@@ -7,7 +7,7 @@ import {
   OUTFIT_MIGRATION_ENTRIES_STORE,
   runStoreRequest
 } from '../file-system/database'
-import { convertImageToWebp, isSupportedImage } from '../image'
+import { isSupportedImage } from '../image'
 import {
   createOutfitId,
   normalizeOutfitCode,
@@ -22,7 +22,7 @@ import {
   initializeOutfitTags,
   outfitRequest,
   outfitTransaction,
-  prepareOutfitImage,
+  prepareOutfitUpload,
   withOutfitImportLock,
   type OutfitImage
 } from './outfitStorage'
@@ -307,11 +307,7 @@ async function migrate(album: FileSystemDirectoryHandle): Promise<OutfitMigratio
       const sourceImage = snapshot.get(raw.image)?.file
       if (!sourceImage) throw new Error('outfit_image_missing')
       const imageFingerprint = snapshot.get(raw.image)!.fingerprint
-      const image = await prepareOutfitImage(
-        await convertImageToWebp(sourceImage),
-        record.id,
-        false
-      )
+      const image = await prepareOutfitUpload(sourceImage, record.id)
       // Recheck files after conversion before committing a durable marker.
       if (
         (await hashOutfitBlob(await (await directory.getFileHandle(fileName)).getFile())) !==
@@ -347,7 +343,7 @@ async function migrate(album: FileSystemDirectoryHandle): Promise<OutfitMigratio
           const incoming = normalizeOutfitRecord({
             ...record,
             id,
-            image: `${id}.webp`,
+            image: `${id}.${image.extension}`,
             imageSize: image.size
           })
           const oldImage = existing

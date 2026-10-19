@@ -173,3 +173,32 @@ describe('home scheme ZIP backup', () => {
     await deleteHomeScheme(saved)
   })
 })
+
+it('round-trips a PNG fallback with its actual extension', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {})
+  vi.stubGlobal('document', {
+    createElement: () => ({
+      getContext: () => ({ drawImage() {} }),
+      toBlob: (cb: BlobCallback) => cb(null)
+    })
+  })
+  const bytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1])
+  const saved = await saveHomeScheme({
+    ...input(),
+    tags: [],
+    imageFile: new File([bytes], 'a.png', { type: 'image/png' })
+  })
+  expect(saved.image).toBe(saved.id + '.png')
+  let backup!: File
+  await exportHomeSchemeBackup(async (name, blob) => {
+    backup = new File([blob], name)
+  })
+  await reset()
+  expect(await importHomeSchemeBackup(backup)).toMatchObject({ addedCount: 1, failedCount: 0 })
+  const snapshot = await readHomeSchemeSnapshot(),
+    record = snapshot.records[0]
+  expect(record.image).toBe(saved.image)
+  const image = snapshot.images.get(record.id)!
+  expect(image.blob.type).toBe('image/png')
+  expect(new Uint8Array(await image.blob.arrayBuffer())).toEqual(bytes)
+})

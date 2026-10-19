@@ -1,3 +1,7 @@
+import {
+  STORED_IMAGE_EXTENSIONS,
+  matchesStoredImageExtension as matchesImageExtension
+} from '../storedImage'
 import { backupBaseName } from '../backup/backupName'
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from 'fflate'
 import {
@@ -37,7 +41,7 @@ import {
 } from './outfitTypes'
 
 const BACKUP_FORMAT = 'infinity-nikki-outfit-backup'
-const BACKUP_VERSION = 2
+const BACKUP_VERSION = 3
 const MAX_BACKUP_BYTES = OUTFIT_BACKUP_LIMITS.bytes
 const MAX_BACKUP_ENTRIES = OUTFIT_BACKUP_LIMITS.entries
 const IMPORT_CONCURRENCY = 6
@@ -58,17 +62,23 @@ export async function exportOutfitBackup(
   for (const record of snapshot.records) {
     const image = snapshot.images.get(record.id)!,
       checked = await prepareOutfitImage(image.blob, record.id)
-    if (checked.sha256 !== image.sha256) throw new Error('outfit_image_invalid')
+    if (checked.sha256 !== image.sha256 || !matchesImageExtension(record.image, checked.extension!))
+      throw new Error('outfit_image_invalid')
     const path = `images/${record.image}`
     // Directory identities are local authorization, never portable backup data.
     const { gameSourceId: _gameSourceId, codeKey: _codeKey, ...portable } = record
-    items.push({ record: { ...portable, image: path }, files: [{ name: path, blob: image.blob }] })
+    items.push({
+      record: { ...portable, image: path },
+      files: [{ name: path, blob: checked.blob }]
+    })
   }
   const parts = planBackupParts(
     items,
     (outfits) => ({
       format: BACKUP_FORMAT,
-      version: BACKUP_VERSION,
+      version: snapshot.records.every((record) => imageExtension(record.image) === 'webp')
+        ? 2
+        : BACKUP_VERSION,
       exportedAt,
       tags: snapshot.tags,
       ignoredCodes: snapshot.ignoredCodes,
@@ -141,7 +151,8 @@ async function streamBackupEntries(
       if (!isSafeOutfitArchivePath(entry.name)) throw new Error('Backup contains an unsafe path')
       if (
         entry.name !== 'manifest.json' &&
-        (!entry.name.startsWith('images/') || imageExtension(entry.name) !== 'webp')
+        (!entry.name.startsWith('images/') ||
+          !STORED_IMAGE_EXTENSIONS.includes(imageExtension(entry.name)))
       ) {
         throw new Error('Backup contains an unsupported file')
       }
@@ -260,7 +271,9 @@ export async function inspectOutfitBackup(file: File): Promise<BackupManifest> {
         return
       }
       if (!content?.byteLength) throw new Error('Backup is missing an outfit image')
-      await prepareOutfitImage(new Blob([content], { type: 'image/webp' }), 'validation')
+      const checked = await prepareOutfitImage(new Blob([content]), 'validation')
+      if (!matchesImageExtension(name, checked.extension!))
+        throw new Error('outfit_image_format_mismatch')
       images.add(name)
     },
     IMPORT_CONCURRENCY
@@ -270,7 +283,7 @@ export async function inspectOutfitBackup(file: File): Promise<BackupManifest> {
   if (
     !manifest ||
     manifest.format !== BACKUP_FORMAT ||
-    ![1, BACKUP_VERSION].includes(manifest.version) ||
+    ![1, 2, BACKUP_VERSION].includes(manifest.version) ||
     !Array.isArray(manifest.outfits) ||
     !Array.isArray(manifest.tags)
   )
@@ -281,13 +294,13 @@ export async function inspectOutfitBackup(file: File): Promise<BackupManifest> {
       typeof raw !== 'object' ||
       typeof raw.image !== 'string' ||
       !isSafeOutfitArchivePath(raw.image) ||
-      !/^images\/[^/]+\.webp$/i.test(raw.image)
+      !/^images\/[^/]+\.(webp|png|jpe?g|gif|bmp|avif)$/i.test(raw.image)
     )
       throw new Error('Backup contains invalid outfit metadata')
     if (!images.has(raw.image)) throw new Error('Backup is missing an outfit image')
   }
   if (
-    manifest.version === 2 &&
+    manifest.version >= 2 &&
     (!Array.isArray(manifest.ignoredCodes) ||
       manifest.ignoredCodes.some(
         (code) =>
@@ -319,7 +332,7 @@ async function importBackup(backupFile: File): Promise<OutfitImportResult> {
         record: normalizeOutfitRecord({
           ...raw,
           version: 1,
-          image: `${raw.id}.webp`,
+          image: `${raw.id}.${imageExtension(raw.image)}`,
           note: raw.note ?? '',
           createdAt,
           updatedAt: raw.updatedAt ?? createdAt,
@@ -364,11 +377,7 @@ async function importBackup(backupFile: File): Promise<OutfitImportResult> {
     (name) => byImage.has(name),
     async (path, bytes) => {
       if (!bytes || !byImage.has(path)) return
-      const image = await prepareOutfitImage(
-        new Blob([bytes], { type: 'image/webp' }),
-        'prepared',
-        false
-      )
+      const image = await prepareOutfitImage(new Blob([bytes]), 'prepared', false)
       for (const { record } of byImage.get(path)!) {
         try {
           const result = await outfitTransaction(
@@ -409,7 +418,7 @@ async function importBackup(backupFile: File): Promise<OutfitImportResult> {
               const incoming = normalizeOutfitRecord({
                 ...record,
                 id,
-                image: `${id}.webp`,
+                image: `${id}.${image.extension}`,
                 imageSize: image.size,
                 tags: record.tags.filter((tag) => tags.includes(tag))
               })

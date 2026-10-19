@@ -70,13 +70,6 @@ export function imageDiagnosticError(stage: string, blob: Blob, error: unknown):
   const environment = typeof navigator === 'undefined' ? '' : navigator.userAgent
   const detail = `[${stage}] ${reason}; type=${blob.type || 'unknown'}; bytes=${blob.size}; browser=${environment}`
   const diagnostic = new Error(detail, { cause: error })
-  console.error('Image diagnostic', {
-    stage,
-    type: blob.type,
-    bytes: blob.size,
-    environment,
-    error
-  })
   return diagnostic
 }
 

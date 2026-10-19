@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import { validateSelectedImage } from '../utils/imageSelection'
+import { snapshotImageFile } from '../utils/image'
+import { useCompactLayout } from '../composables/useCompactLayout'
+const compact = useCompactLayout()
+const imageReading = ref(false)
+const imageSelectionError = ref('')
 import { useModuleOperation } from '../composables/useOperationCoordinator'
 const trackOperation = useModuleOperation('home')
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
@@ -170,6 +176,8 @@ watch(previewPhoto, (_next, previous) => {
 })
 onBeforeUnmount(() => {
   editorImageGeneration++
+  imageReading.value = false
+  imageSelectionError.value = ''
   if (previewPhoto.value?.loadImageBlob) releasePhotoUrl(previewPhoto.value)
 })
 
@@ -273,6 +281,8 @@ async function runParse(requestCode: string) {
 
 /** 初始化编辑器；本地封面单独读取，关闭或替换图片后丢弃晚到结果。 */
 function resetEditor(item: HomeSchemeItem | null) {
+  imageReading.value = false
+  imageSelectionError.value = ''
   const imageRun = ++editorImageGeneration
   cancelParse()
   closeTagInput()
@@ -345,27 +355,52 @@ function onCodeInput(event: Event) {
   queueParse(code.value)
 }
 
+// 预览元素本身加载失败也必须反馈，涵盖已失效的文件引用。
+function handleEditorPreviewError() {
+  imageSelectionError.value =
+    props.language === 'en'
+      ? 'Image preview failed. Please select again; this format may be unsupported.'
+      : '图片预览失败，请重新选择；浏览器可能不支持该格式。'
+  emit('status', imageSelectionError.value, 'error')
+}
 function selectImage(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  input.value = ''
   if (!file) return
-  setImageFile(file)
+  void setImageFile(file)
+  input.value = ''
 }
 
-function setImageFile(file: File) {
-  if (
-    !/\.(jpe?g|png|webp)$/i.test(file.name) &&
-    !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
-  ) {
-    emit('status', props.messages.operationFailed, 'error')
+// 验证完成才替换旧图；关闭、删除或重选后忽略过期结果。
+async function setImageFile(file: File) {
+  if (isBusy.value) {
     return
   }
-  if (localImageUrl.value && localImageUrl.value !== editing.value?.imageUrl)
-    URL.revokeObjectURL(localImageUrl.value)
-  imageFile.value = file
-  localImageUrl.value = URL.createObjectURL(file)
-  removeLocalImage.value = false
+  const run = ++editorImageGeneration
+  imageReading.value = true
+  imageSelectionError.value = ''
+  try {
+    const selected = compact.value ? await snapshotImageFile(file) : file
+
+    await validateSelectedImage(selected)
+    if (!editorVisible.value || run !== editorImageGeneration) {
+      return
+    }
+    if (localImageUrl.value && localImageUrl.value !== editing.value?.imageUrl)
+      URL.revokeObjectURL(localImageUrl.value)
+    imageFile.value = selected
+    localImageUrl.value = URL.createObjectURL(selected)
+    removeLocalImage.value = false
+  } catch (error) {
+    if (!editorVisible.value || run !== editorImageGeneration) return
+    imageSelectionError.value =
+      (props.language === 'en'
+        ? 'Unable to read or preview image: '
+        : '图片读取或预览失败，可能是格式不支持或文件损坏：') + String(error)
+    emit('status', imageSelectionError.value, 'error')
+  } finally {
+    if (run === editorImageGeneration) imageReading.value = false
+  }
 }
 
 function handleImageDrop(event: DragEvent) {
@@ -386,6 +421,9 @@ function handlePaste(event: ClipboardEvent) {
 }
 
 function removeLocalImageFile() {
+  editorImageGeneration++
+  imageReading.value = false
+  imageSelectionError.value = ''
   if (localImageUrl.value && localImageUrl.value !== editing.value?.imageUrl)
     URL.revokeObjectURL(localImageUrl.value)
   imageFile.value = null
@@ -425,7 +463,7 @@ function handleEditorBackdropClick() {
 
 async function save() {
   return trackOperation(async () => {
-    if (isBusy.value || parsing.value) return
+    if (isBusy.value || parsing.value || imageReading.value) return
     const normalizedCode = normalizeHomeSchemeCode(code.value)
     if (normalizedCode.length < 2 || normalizedCode.length > MAX_HOME_SCHEME_CODE_LENGTH) {
       emit('status', props.messages.invalidCode, 'warning')
@@ -776,6 +814,7 @@ document.addEventListener('pointerdown', handleTagPointerDown)
 window.addEventListener('resize', handleTagEditorViewportChange)
 window.addEventListener('scroll', handleTagEditorViewportChange, true)
 onBeforeUnmount(() => {
+  editorImageGeneration++
   loadGeneration += 1
   cancelParse()
   releaseHomeSchemeUrls(schemes.value)
@@ -1113,7 +1152,12 @@ function handleAddTag(value: string) {
                   @dragleave.prevent="isDragging = false"
                   @drop.prevent="handleImageDrop"
                 >
-                  <img v-if="previewUrl" :src="previewUrl" alt="" />
+                  <img
+                    v-if="previewUrl"
+                    :src="previewUrl"
+                    alt=""
+                    @error="handleEditorPreviewError"
+                  />
                   <span v-else class="outfit-image-prompt"
                     ><ImagePlus :size="30" aria-hidden="true" />{{ messages.imageHint }}</span
                   >
@@ -1125,7 +1169,7 @@ function handleAddTag(value: string) {
                   ref="fileInput"
                   class="visually-hidden"
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                  accept="image/*"
                   @change="selectImage"
                 />
                 <button
@@ -1227,6 +1271,15 @@ function handleAddTag(value: string) {
               </div>
             </div>
 
+            <p v-if="imageReading" role="status">{{
+              language === 'en' ? 'Reading image…' : '正在读取图片…'
+            }}</p>
+            <p
+              v-if="imageSelectionError"
+              role="alert"
+              style="white-space: pre-wrap; overflow-wrap: anywhere; user-select: text"
+              >{{ imageSelectionError }}</p
+            >
             <footer>
               <button
                 class="confirm-dialog-button ghost"
@@ -1238,7 +1291,7 @@ function handleAddTag(value: string) {
               <button
                 class="confirm-dialog-button primary"
                 type="button"
-                :disabled="isBusy || parsing"
+                :disabled="isBusy || imageReading || parsing"
                 @click="save"
                 >{{ busy ? messages.saving : messages.confirm }}</button
               >

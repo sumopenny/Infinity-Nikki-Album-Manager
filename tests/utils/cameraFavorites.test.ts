@@ -111,14 +111,17 @@ describe('camera favorites', () => {
     expect(library.records.find((r) => r.id === a.id)).toEqual(a)
     expect(await library.covers.get(a.id)?.text()).toBe('original')
   })
-  it.each(['image/png', 'image/webp'])(
+  it.each(['image/png', 'image/webp', 'image/jpeg', 'image/gif', 'image/avif'])(
     'exports and restores exact %s cover bytes and complete photo details',
     async (type) => {
       const bytes = Uint8Array.from({ length: 1024 }, (_, i) => i % 256)
       const image = new Blob([bytes], { type })
       const a = {
         ...record(),
-        cover: await coverMetadata(image, type === 'image/webp' ? '封面.webp' : '原图.png')
+        cover: await coverMetadata(
+          image,
+          'cover.' + (type === 'image/jpeg' ? 'jpg' : type.slice(6))
+        )
       }
       await saveCameraFavorite(a, image)
       const archive = await exportCameraBackup(await readCameraFavorites())

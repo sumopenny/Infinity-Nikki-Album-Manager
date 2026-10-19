@@ -8,6 +8,7 @@ import { useLatestRequest } from '../composables/useLatestRequest'
 import { useModuleOperation } from '../composables/useOperationCoordinator'
 import { useModalFocus } from '../composables/useModalFocus'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
+import { copyTextToClipboard } from '../utils/clipboard'
 import {
   fetchPearpalSnapshot,
   PEARPAL_AUTH_FAILED,
@@ -239,12 +240,9 @@ async function confirm() {
   }
 }
 async function copyScript(kind: 'bookmark' | 'console') {
-  try {
-    await navigator.clipboard.writeText(
-      kind === 'bookmark' ? bookmark.value : resonanceConsoleScript
-    )
+  if (await copyTextToClipboard(kind === 'bookmark' ? bookmark.value : resonanceConsoleScript)) {
     emit('notice', t.value.copyCodeSuccess, 'success')
-  } catch {
+  } else {
     emit('notice', text('复制代码失败，请重试。', 'Failed to copy code. Please retry.'), 'error')
   }
 }

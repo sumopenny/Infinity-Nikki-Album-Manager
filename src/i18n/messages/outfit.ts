@@ -160,7 +160,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     addOutfit: '添加方案',
     editTitle: '编辑方案',
     imageLabel: '搭配图片',
-    imageHint: '点击选择、拖拽或粘贴 JPG、PNG、WebP 图片',
+    imageHint: '点击选择、拖拽或粘贴图片（需浏览器支持预览）',
     replaceImage: '更换图片',
     codeLabel: '搭配码',
     codePlaceholder: '可以留空，稍后填写',
@@ -204,7 +204,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     imageRequired: '请先选择一张搭配图片。',
     unsupportedImage: '请选择 JPG、JPEG、PNG 或 WebP 图片。',
     imageReading: '正在读取图片…',
-    imageLoadFailed: '搭配图片读取失败，请重新选择文件',
+    imageLoadFailed: '图片读取或预览失败，可能是格式不支持或文件损坏，请重新选择',
     operations: {
       copyCode: '复制搭配码',
       albumOpenedWithFailures: (failed) => `相册已打开，${failed} 个搭配方案读取或导入失败。`,
@@ -324,7 +324,7 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     addOutfit: 'Add outfit',
     editTitle: 'Edit Outfit',
     imageLabel: 'Outfit image',
-    imageHint: 'Click, drop, or paste a JPG, PNG, or WebP image',
+    imageHint: 'Click, drop, or paste an image your browser can preview',
     replaceImage: 'Replace image',
     codeLabel: 'Outfit code',
     codePlaceholder: 'Optional; you can add it later',
@@ -371,7 +371,8 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
     imageRequired: 'Choose an outfit image first.',
     unsupportedImage: 'Choose a JPG, JPEG, PNG, or WebP image.',
     imageReading: 'Reading image…',
-    imageLoadFailed: 'Unable to read outfit image. Please select the file again',
+    imageLoadFailed:
+      'Unable to read or preview image. The format may be unsupported or the file damaged. Please select again',
     operations: {
       copyCode: 'Copy outfit code',
       albumOpenedWithFailures: (failed) =>

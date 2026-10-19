@@ -74,3 +74,73 @@ it('does not create a URL when unmounted during an image read', async () => {
   await flushPromises()
   expect(create).not.toHaveBeenCalled()
 })
+
+it('loads visible covers even when the observer never calls back, and keeps distant covers lazy', async () => {
+  let frame!: FrameRequestCallback
+  vi.stubGlobal(
+    'requestAnimationFrame',
+    vi.fn((callback) => {
+      frame = callback
+      return 1
+    })
+  )
+  vi.stubGlobal('cancelAnimationFrame', vi.fn())
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    }
+  )
+  vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:fallback'), revokeObjectURL: vi.fn() })
+  let top = 3000
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({
+    x: 0,
+    y: top,
+    top,
+    left: 0,
+    right: 160,
+    bottom: top + 90,
+    width: 160,
+    height: 90,
+    toJSON() {}
+  }))
+  const load = vi.fn(async () => new Blob(['image'], { type: 'image/png' }))
+  const wrapper = mount(StoredImage, { props: { sourceKey: 'saved', load, alt: 'cover' } })
+  frame(0)
+  await flushPromises()
+  expect(load).not.toHaveBeenCalled()
+  top = 100
+  window.dispatchEvent(new Event('scroll'))
+  frame(1)
+  await flushPromises()
+  expect(load).toHaveBeenCalledOnce()
+  expect(wrapper.get('img').attributes('src')).toBe('blob:fallback')
+  await wrapper.get('img').trigger('load')
+  window.dispatchEvent(new Event('focus'))
+  frame(2)
+  await flushPromises()
+  expect(load).toHaveBeenCalledOnce()
+  top = 3000
+  window.dispatchEvent(new Event('scroll'))
+  frame(3)
+  await flushPromises()
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:fallback')
+  wrapper.unmount()
+})
+
+it('shows an error placeholder when saved cover reading fails', async () => {
+  vi.stubGlobal('IntersectionObserver', undefined)
+  const wrapper = mount(StoredImage, {
+    props: {
+      sourceKey: 'missing',
+      alt: 'cover',
+      load: async () => {
+        throw new Error('missing saved bytes')
+      }
+    }
+  })
+  await flushPromises()
+  expect(wrapper.get('[role="img"]').text()).toBe('×')
+  wrapper.unmount()
+})

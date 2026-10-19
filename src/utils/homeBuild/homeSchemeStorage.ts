@@ -8,7 +8,7 @@ import {
   HOME_IMAGES_STORE,
   HOME_TAGS_STORE
 } from '../file-system/database'
-import { convertImageToWebp, validateImageBlob, MAX_IMAGE_BYTES } from '../image'
+import { convertImageForStorage, inspectStoredImage } from '../storedImage'
 import { sha256Hex } from '../sha256'
 import {
   createHomeSchemeId,
@@ -26,6 +26,7 @@ export interface HomeSchemeImage {
   blob: Blob
   size: number
   sha256: string
+  extension?: string
 }
 export interface HomeSchemeSnapshot {
   records: HomeSchemeRecord[]
@@ -39,17 +40,14 @@ export {
 } from '../file-system/transaction'
 
 export async function prepareHomeSchemeImage(blob: Blob, id: string): Promise<HomeSchemeImage> {
-  if (!blob.size || blob.size > MAX_IMAGE_BYTES) throw new Error('home_scheme_image_invalid')
-  const bytes = await blob.arrayBuffer()
-  const signature = new Uint8Array(bytes, 0, Math.min(12, bytes.byteLength))
-  if (
-    String.fromCharCode(...signature.slice(0, 4)) !== 'RIFF' ||
-    String.fromCharCode(...signature.slice(8, 12)) !== 'WEBP'
-  )
-    throw new Error('home_scheme_image_invalid')
-  await validateImageBlob(blob)
-  const sha256 = await sha256Hex(bytes)
-  return { id, blob: new Blob([bytes], { type: 'image/webp' }), size: bytes.byteLength, sha256 }
+  const checked = await inspectStoredImage(blob)
+  return {
+    id,
+    blob: checked.blob,
+    size: checked.bytes.byteLength,
+    sha256: await sha256Hex(checked.bytes),
+    extension: checked.extension
+  }
 }
 
 export function normalizeHomeSchemeTags(values: unknown): string[] {
@@ -140,7 +138,7 @@ export async function saveHomeScheme(input: SaveHomeSchemeInput): Promise<HomeSc
   const prepared =
     input.imageFile && !input.removeImage
       ? await prepareHomeSchemeImage(
-          await convertImageToWebp(input.imageFile),
+          await convertImageForStorage(input.imageFile),
           input.item?.id ?? input.id ?? createHomeSchemeId()
         )
       : null
@@ -169,7 +167,11 @@ export async function saveHomeScheme(input: SaveHomeSchemeInput): Promise<HomeSc
       const record = normalizeHomeSchemeRecord({
         version: 1,
         id,
-        image: input.removeImage ? null : prepared ? `${id}.webp` : (previous?.image ?? null),
+        image: input.removeImage
+          ? null
+          : prepared
+            ? `${id}.${prepared.extension}`
+            : (previous?.image ?? null),
         code: input.code,
         name: input.name,
         schemeType: input.schemeType,

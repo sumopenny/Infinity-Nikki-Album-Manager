@@ -219,7 +219,12 @@ export function useOperationNotice(
         dispose()
         return
       }
-      const duration = statusTone.value === 'error' || statusTone.value === 'warning' ? 7200 : 5200
+      const duration =
+        statusTone.value === 'error' || statusTone.value === 'warning'
+          ? 6000
+          : statusTone.value === 'success'
+            ? 3000
+            : 5200
       showNotice({ loading: isStatusLoading.value, duration })
     },
     { flush: 'sync' }

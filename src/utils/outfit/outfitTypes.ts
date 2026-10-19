@@ -1,3 +1,4 @@
+import { STORED_IMAGE_EXTENSIONS } from '../storedImage'
 import type { PhotoDisplayItem } from '../photoGrouping'
 import { createUuid } from '../uuid'
 
@@ -135,7 +136,8 @@ export function normalizeOutfitRecord(value: unknown): OutfitRecord {
   if (
     raw.version !== 1 ||
     !isSafeOutfitId(raw.id) ||
-    raw.image !== `${raw.id}.webp` ||
+    typeof raw.image !== 'string' ||
+    !STORED_IMAGE_EXTENSIONS.some((extension) => raw.image === `${raw.id}.${extension}`) ||
     typeof raw.code !== 'string' ||
     raw.code.replace(/\s/g, '').length > MAX_OUTFIT_CODE_LENGTH ||
     !Array.isArray(raw.tags) ||

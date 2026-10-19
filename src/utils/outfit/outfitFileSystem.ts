@@ -8,7 +8,7 @@ import {
   OUTFIT_MIGRATION_ENTRIES_STORE,
   runStoreRequest
 } from '../file-system/database'
-import { convertImageToWebp, isSupportedImage } from '../image'
+import { isSupportedImage } from '../image'
 import {
   createOutfitId,
   normalizeOutfitCode,
@@ -22,7 +22,7 @@ import {
   initializeOutfitTags,
   outfitRequest,
   outfitTransaction,
-  prepareOutfitImage,
+  prepareOutfitUpload,
   readOutfitCollection,
   withOutfitImportLock
 } from './outfitStorage'
@@ -254,7 +254,7 @@ async function importShared(source: SharedOutfitSource): Promise<SharedOutfitImp
     const fingerprint = await hashOutfitBlob(latest.file),
       originalImageHash = await hashOutfitBlob(latestImage.file)
     const id = createOutfitId()
-    const image = await prepareOutfitImage(await convertImageToWebp(latestImage.file), id, false)
+    const image = await prepareOutfitUpload(latestImage.file, id)
     const refreshedCode = await findLatestShareCode(shareDirectory),
       refreshedImage = await findLatestDiyImage(diyDirectory)
     if (
@@ -272,7 +272,7 @@ async function importShared(source: SharedOutfitSource): Promise<SharedOutfitImp
     const record = normalizeOutfitRecord({
       version: 1,
       id,
-      image: `${id}.webp`,
+      image: `${id}.${image.extension}`,
       imageSize: image.size,
       code: latest.code,
       tags: [],

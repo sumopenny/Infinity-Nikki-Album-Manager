@@ -94,6 +94,18 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
+beforeEach(() => {
+  // jsdom 不提供布局观察器；应用挂载测试使用无布局副作用的替身。
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+  )
+})
+
 describe('App lifecycle coordination', () => {
   beforeEach(() => {
     localStorage.clear()

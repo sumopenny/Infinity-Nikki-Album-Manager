@@ -257,7 +257,7 @@ async function migrate(album: FileSystemDirectoryHandle): Promise<HomeSchemeMigr
           const incoming = {
             ...record,
             id,
-            image: image ? `${id}.webp` : null,
+            image: image ? `${id}.${image.extension}` : null,
             tags: record.tags.filter((tag) => tags.includes(tag))
           }
           const oldImage = existing?.image

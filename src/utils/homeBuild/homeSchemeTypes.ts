@@ -1,3 +1,4 @@
+import { STORED_IMAGE_EXTENSIONS } from '../storedImage'
 import { createUuid } from '../uuid'
 
 export const MAX_HOME_SCHEME_TAGS = 40
@@ -83,7 +84,9 @@ export function normalizeHomeSchemeRecord(value: unknown): HomeSchemeRecord {
     !Number.isFinite(Date.parse(raw.createdAt)) ||
     typeof raw.updatedAt !== 'string' ||
     !Number.isFinite(Date.parse(raw.updatedAt)) ||
-    (raw.image !== null && raw.image !== `${raw.id}.webp`)
+    (raw.image !== null &&
+      (typeof raw.image !== 'string' ||
+        !STORED_IMAGE_EXTENSIONS.some((extension) => raw.image === `${raw.id}.${extension}`)))
   )
     throw new Error('home_scheme_record_invalid')
   const code = normalizeHomeSchemeCode(raw.code)

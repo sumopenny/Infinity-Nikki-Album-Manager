@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { validateSelectedImage } from '../utils/imageSelection'
 import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from 'vue'
 import { ImagePlus, Plus, Upload, X } from 'lucide-vue-next'
 import type { OutfitMessages } from '../i18n'
@@ -10,7 +11,7 @@ import {
   normalizeOutfitCode,
   type OutfitItem
 } from '../utils/outfit/outfitFileSystem'
-import { snapshotImageFile, imageDiagnosticError } from '../utils/image'
+import { snapshotImageFile } from '../utils/image'
 import { readPhotoBlob } from '../utils/file-system/photoUrl'
 import { useCompactLayout } from '../composables/useCompactLayout'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
@@ -20,6 +21,7 @@ const props = defineProps<{
   outfit: OutfitItem | null
   tags: string[]
   busy: boolean
+  selectionBusy?: boolean
   messages: OutfitMessages
 }>()
 
@@ -36,6 +38,8 @@ const imageFile = ref<File | undefined>()
 const compact = useCompactLayout()
 const imageReading = ref(false)
 const imageReadFailed = ref(false)
+// 图片选择只更改编辑器内存草稿；后台读库仍阻止提交，但不丢弃选择器返回的文件。
+const isSelectionBlocked = computed(() => props.selectionBusy ?? props.busy)
 const previewUrl = ref<string | null>(null)
 const code = ref('')
 const note = ref('')
@@ -86,37 +90,25 @@ async function resetForm() {
   }
 }
 
-function isAcceptedImage(file: File): boolean {
-  return (
-    /\.(jpe?g|png|webp)$/i.test(file.name) ||
-    ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
-  )
-}
-
-// 移动布局立即复制字节以避开原文件引用失效；桌面布局保持直接预览和保存。
+// 移动布局立即复制字节以避开原文件引用失效；桌面保留原文件；两端均先验证预览再替换。
 async function selectFile(file: File | undefined) {
-  if (!file || props.busy) return
-  if (!isAcceptedImage(file)) {
-    errorMessage.value = props.messages.unsupportedImage
+  if (!file || isSelectionBlocked.value) {
     return
   }
   // 保留上一张可用图片，只有新图片读取成功后才替换。
   previewRequestId += 1
   imageReadFailed.value = false
   imageReading.value = false
-  if (!compact.value) {
-    revokePreview()
-    imageFile.value = file
-    previewUrl.value = URL.createObjectURL(file)
-    errorMessage.value = ''
-    return
-  }
   const requestId = previewRequestId
   imageReading.value = true
   errorMessage.value = ''
   try {
-    const snapshot = await snapshotImageFile(file)
-    if (requestId !== previewRequestId || !props.visible) return
+    const snapshot = compact.value ? await snapshotImageFile(file) : file
+
+    await validateSelectedImage(snapshot)
+    if (requestId !== previewRequestId || !props.visible) {
+      return
+    }
     if (previewUrl.value?.startsWith('blob:')) URL.revokeObjectURL(previewUrl.value)
     imageFile.value = snapshot
     previewUrl.value = URL.createObjectURL(snapshot)
@@ -133,18 +125,13 @@ async function selectFile(file: File | undefined) {
 function handleImageSelection(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  input.value = ''
   void selectFile(file)
+  input.value = ''
 }
 
-// 预览失败也输出文件上下文，区分选择后的显示失败与保存转换失败。
+// 预览失败显示普通错误提示，保留当前草稿供用户重新选择。
 function handlePreviewError() {
-  if (!imageFile.value) return
-  errorMessage.value = imageDiagnosticError(
-    'preview:img-blob-url',
-    imageFile.value,
-    new Error('Image preview failed; img error event does not expose the native decoder reason')
-  ).message
+  errorMessage.value = props.messages.imageLoadFailed
 }
 
 function handleDrop(event: DragEvent) {
@@ -323,7 +310,7 @@ onBeforeUnmount(() => {
                 class="outfit-image-dropzone"
                 :class="{ 'is-dragging': isDragging, 'has-preview': previewUrl }"
                 type="button"
-                :disabled="busy"
+                :disabled="isSelectionBlocked"
                 @click="fileInput?.click()"
                 @dragenter.prevent="isDragging = true"
                 @dragover.prevent="isDragging = true"
@@ -350,7 +337,7 @@ onBeforeUnmount(() => {
                 ref="fileInput"
                 class="visually-hidden"
                 type="file"
-                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                accept="image/*"
                 @change="handleImageSelection"
               />
             </div>
@@ -432,7 +419,7 @@ onBeforeUnmount(() => {
                   </Transition>
                 </Teleport>
               </fieldset>
-              <p v-if="errorMessage" class="outfit-editor-error">{{ errorMessage }}</p>
+              <p v-if="errorMessage" class="outfit-editor-error" role="alert">{{ errorMessage }}</p>
             </div>
           </div>
 
