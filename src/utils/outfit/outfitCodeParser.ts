@@ -1,5 +1,5 @@
 import { cacheGeneration, isCurrentCacheGeneration, persistCacheIfCurrent } from '../cacheLifecycle'
-// 搭配码解析：在本地 WASM 还原对象路径编号，再通过同源代理读取原始搭配数据。
+// 搭配码解析：缓存未命中时并发请求同源原始数据和第三方，以首个有效解析结果为准。
 import {
   clearSavedOutfitParseResults,
   getSavedOutfitParseResult,
@@ -10,6 +10,7 @@ import { inferClothTypeFromItemId } from './clothType'
 import { lookbookTiming, measureLookbook } from './lookbookDiagnostics'
 
 const LOOKBOOK_DATA_PROXY_BASE_URL = '/api/outfit-code'
+const LOOKBOOK_THIRD_PARTY_URL = 'https://api-nikki.ranaxro.com/conv-clothdiydata'
 const LOOKBOOK_CODE_PATTERN = /^[A-Za-z0-9]{11}#$/
 const LOOKBOOK_REQUEST_TIMEOUT_MS = 10000
 
@@ -58,17 +59,30 @@ export interface LookbookDecodeResult {
   dyeItems: LookbookDyeItem[]
 }
 
-/** 补齐原生搭配码没有携带的部件类型；接口明确返回的类型保持不变。 */
-function inferMissingClothTypes(result: LookbookDecodeResult): LookbookDecodeResult {
+/** 两路统一按部件 ID 推导类型、排序；套装关系交给共同图鉴解析，避免第三方附加信息改变展示。 */
+function normalizeLookbookResult(result: LookbookDecodeResult): LookbookDecodeResult {
   const infer = <T extends { itemId: number; clothType: number | null }>(cloth: T): T =>
     ({
       ...cloth,
-      clothType: cloth.clothType ?? inferClothTypeFromItemId(cloth.itemId)
+      clothType: inferClothTypeFromItemId(cloth.itemId),
+      outfitId: null
     }) as T
   return {
     ...result,
-    wearingClothes: result.wearingClothes.map(infer),
-    dyeItems: result.dyeItems.map((item) => infer(item))
+    wearingClothes: result.wearingClothes.map(infer).sort((a, b) => a.itemId - b.itemId),
+    dyeItems: result.dyeItems
+      .map((item) => ({
+        ...infer(item),
+        dyes: [...item.dyes].sort(
+          (a, b) =>
+            a.targetGroupId - b.targetGroupId ||
+            a.featureTag - b.featureTag ||
+            a.paletteId - b.paletteId ||
+            (a.slot ?? -1) - (b.slot ?? -1) ||
+            a.color.localeCompare(b.color)
+        )
+      }))
+      .sort((a, b) => a.itemId - b.itemId)
   }
 }
 
@@ -131,7 +145,7 @@ const isCachedParseResult = (value: unknown, code: string): value is LookbookDec
   )
 }
 
-/** 请求对象存储代理，并调用浏览器 WASM 归一化搭配数据。 */
+/** 同时启动两条完整解析任务；失败不抢占成功，赢家确定后取消另一条。 */
 async function requestLookbookParse(code: string): Promise<LookbookDecodeResult> {
   let pathId: string | null
   try {
@@ -147,17 +161,77 @@ async function requestLookbookParse(code: string): Promise<LookbookDecodeResult>
     throw new OutfitCodeParseError('invalid', 'Invalid lookbook code: ' + code)
   }
 
+  const controllers = [new AbortController(), new AbortController()]
+  const urls = [
+    LOOKBOOK_DATA_PROXY_BASE_URL + '/' + pathId,
+    LOOKBOOK_THIRD_PARTY_URL + '?' + encodeURIComponent(code)
+  ]
+  try {
+    return await Promise.any(
+      urls.map((url, index) => {
+        const controller = controllers[index]
+        // 独立超时覆盖响应头、正文和解析等待；即使另一条失败也不延长总等待。
+        const timer = setTimeout(
+          () => controller.abort(new DOMException('Timed out', 'TimeoutError')),
+          LOOKBOOK_REQUEST_TIMEOUT_MS
+        )
+        let onAbort!: () => void
+        const cancelled = new Promise<never>((_resolve, reject) => {
+          onAbort = () =>
+            reject(
+              new OutfitCodeParseError('unavailable', 'Lookbook request cancelled or timed out')
+            )
+          controller.signal.addEventListener('abort', onAbort, { once: true })
+        })
+        return Promise.race([
+          requestLookbookSource(
+            code,
+            url,
+            controller.signal,
+            index === 0 ? 'proxy' : 'third_party'
+          ),
+          cancelled
+        ]).finally(() => {
+          clearTimeout(timer)
+          controller.signal.removeEventListener('abort', onAbort)
+        })
+      })
+    )
+  } catch (error) {
+    const errors: unknown[] = error instanceof AggregateError ? error.errors : [error]
+    // 只有两路都明确拒绝才判无效，网络故障与无效码混合时允许用户重试。
+    if (errors.every((value) => value instanceof OutfitCodeParseError && value.kind === 'invalid'))
+      throw new OutfitCodeParseError('invalid', 'Both lookbook sources rejected the code')
+    const unavailable = errors.find(
+      (value) => value instanceof OutfitCodeParseError && value.kind === 'unavailable'
+    )
+    throw unavailable ?? new OutfitCodeParseError('unavailable', 'Both lookbook sources failed')
+  } finally {
+    controllers.forEach((controller) => controller.abort())
+  }
+}
+
+/** 完整读取、WASM 解析和结构校验都成功后，才有资格成为竞速赢家。 */
+async function requestLookbookSource(
+  code: string,
+  url: string,
+  signal: AbortSignal,
+  source: string
+): Promise<LookbookDecodeResult> {
   let response: Response
   try {
     const started = performance.now()
     response = await measureLookbook('request_headers', () =>
-      fetch(LOOKBOOK_DATA_PROXY_BASE_URL + '/' + pathId, {
-        signal: AbortSignal.timeout(LOOKBOOK_REQUEST_TIMEOUT_MS),
+      fetch(url, {
+        signal,
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
         headers: { Accept: 'application/json, application/octet-stream' }
       })
     )
     lookbookTiming('proxy_response', started, {
       status: response.status,
+      source,
       cache: response.headers.get('x-outfit-cache'),
       serverTiming: response.headers.get('server-timing')
     })
@@ -203,7 +277,11 @@ async function requestLookbookParse(code: string): Promise<LookbookDecodeResult>
           : `Lookbook upstream response could not be normalized (${decoded.errorCode})`
     throw new OutfitCodeParseError('unavailable', message)
   }
-  return decoded.value
+  signal.throwIfAborted()
+  if (!isCachedParseResult(decoded.value, code))
+    throw new OutfitCodeParseError('unavailable', 'Lookbook result failed validation')
+  lookbookTiming('source_success', performance.now(), { source })
+  return normalizeLookbookResult(decoded.value)
 }
 
 /** 解析搭配码；成功结果持久化到 IndexedDB，存储不可用时回退到在线请求。 */
@@ -228,7 +306,7 @@ export async function parseOutfitCode(rawCode: string): Promise<LookbookDecodeRe
     try {
       const stored = await measureLookbook('indexeddb_read', () => getSavedOutfitParseResult(code))
       if (isCachedParseResult(stored, code)) {
-        const result = inferMissingClothTypes(stored)
+        const result = normalizeLookbookResult(stored)
         if (isCurrent()) parsedResultCache.set(code, result)
         lookbookTiming('indexeddb_cache_hit', performance.now())
         return result
@@ -237,7 +315,7 @@ export async function parseOutfitCode(rawCode: string): Promise<LookbookDecodeRe
       // IndexedDB 不可用时继续请求上游解析服务。
     }
 
-    const result = inferMissingClothTypes(await requestLookbookParse(code))
+    const result = await requestLookbookParse(code)
     if (isCurrent()) {
       parsedResultCache.set(code, result)
       // 后台保存不阻塞界面；清理时等待已开始的写入，并阻止旧请求再次写回。

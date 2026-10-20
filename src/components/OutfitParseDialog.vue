@@ -228,9 +228,16 @@ async function startParse() {
   }
 
   try {
-    const [catalogIndex, result] = await Promise.all([loadItemCatalog(), parseOutfitCode(code)])
+    // 图鉴仅补充名称与图片，不阻塞部件和染色；失败或旧请求完成均不覆盖当前解析状态。
+    void loadItemCatalog()
+      .then((catalogIndex) => {
+        if (currentRequest === requestId) catalog.value = catalogIndex
+      })
+      .catch(() => {
+        // 保留部件 ID 和染色结果，再次解析时图鉴加载器会重试。
+      })
+    const result = await parseOutfitCode(code)
     if (currentRequest !== requestId) return
-    catalog.value = catalogIndex
     decoded.value = result
     status.value = 'success'
   } catch (error) {

@@ -48,6 +48,90 @@ const detail = {
 }
 
 describe('OutfitParseDialog', () => {
+  it('切换搭配码后旧图鉴的晚响应不能覆盖新图鉴', async () => {
+    parseOutfitCodeMock.mockResolvedValue({
+      code: '13dub3nPiPu#',
+      wearingClothes: [{ itemId: 1020100001, clothType: 10, outfitId: null }],
+      dyeItems: []
+    })
+    let finish!: (value: Map<number, unknown>) => void
+    const catalog = (name: string) =>
+      new Map([[1020100001, { id: 1020100001, zh: name, en: name, makeup: false }]])
+    loadItemCatalogMock
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve
+          })
+      )
+      .mockResolvedValueOnce(catalog('新图鉴'))
+    const wrapper = mount(OutfitParseDialog, {
+      props: {
+        visible: true,
+        code: '13dub3nPiPu#',
+        language: 'zh',
+        messages: getOutfitMessages('zh')
+      },
+      global: { stubs: { Teleport: true, Transition: true } }
+    })
+    try {
+      await flushPromises()
+      await wrapper.setProps({ code: '1I46pljmAER#' })
+      await flushPromises()
+      expect(wrapper.text()).toContain('新图鉴')
+      finish(catalog('旧图鉴'))
+      await flushPromises()
+      expect(wrapper.text()).toContain('新图鉴')
+      expect(wrapper.text()).not.toContain('旧图鉴')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it.each(['success', 'failure'])(
+    '图鉴延迟时先展示解析结果，图鉴 %s 不影响成功状态',
+    async (outcome) => {
+      parseOutfitCodeMock.mockResolvedValue({
+        code: '13dub3nPiPu#',
+        wearingClothes: [{ itemId: 1020100001, clothType: 10, outfitId: null }],
+        dyeItems: []
+      })
+      let finish!: (value: Map<number, unknown>) => void
+      let fail!: (error: Error) => void
+      loadItemCatalogMock.mockImplementationOnce(
+        () =>
+          new Promise((resolve, reject) => {
+            finish = resolve
+            fail = reject
+          })
+      )
+      const wrapper = mount(OutfitParseDialog, {
+        props: {
+          visible: true,
+          code: '13dub3nPiPu#',
+          language: 'zh',
+          messages: getOutfitMessages('zh')
+        },
+        global: { stubs: { Teleport: true, Transition: true } }
+      })
+      try {
+        await flushPromises()
+        expect(wrapper.text()).toContain('1020100001')
+        expect(wrapper.text()).not.toContain(getOutfitMessages('zh').parseLoading)
+        if (outcome === 'success')
+          finish(
+            new Map([[1020100001, { id: 1020100001, zh: '补齐名称', en: 'Loaded', makeup: false }]])
+          )
+        else fail(new Error('offline'))
+        await flushPromises()
+        expect(wrapper.text()).toContain(outcome === 'success' ? '补齐名称' : '1020100001')
+        expect(wrapper.text()).not.toContain(getOutfitMessages('zh').parseUnavailable)
+      } finally {
+        wrapper.unmount()
+      }
+    }
+  )
+
   it('补充图鉴期间不显示顶部提示，失败后仍可重试并保留部件预览', async () => {
     parseOutfitCodeMock.mockResolvedValue({
       code: '13dub3nPiPu#',
