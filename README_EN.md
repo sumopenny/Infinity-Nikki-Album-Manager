@@ -14,179 +14,134 @@
   <p><a href="README.md"><strong>简体中文</strong></a></p>
 </div>
 
----
-### Official site: https://nikki3.pages.dev/
-
-### Use it online (toolkit): https://infinity-nikki-album-manager.pages.dev/
-
-> Toolkit Vercel fallback (VPN may be required): https://infinity-nikki-album-manager.vercel.app
->
-> For local deployment, download the archive or clone the project. Jump to the local deployment guide: [Local installation](#local-installation)
-
----
-## Website and UI
 
 <div align="center">
-  <img src="img/1.webp" alt="Nikki³ official site home page: overview and feature list" width="46%">
-  <p><sub>Official home page: site overview, feature list, and UI previews, with the entry into the toolkit</sub></p>
+  <h3><a href="#mobile">📱 Phone guide</a> &nbsp; · &nbsp; <a href="#desktop">🖥️ Desktop guide</a> &nbsp; · &nbsp; <a href="#backup-and-migration">📦 Backup and migration</a> &nbsp; · &nbsp; <a href="#local-installation">⚙️ Local installation</a></h3>
 </div>
-
-### Browsing the album
-
-<div align="center">
-  <img src="img/2.webp" alt="Main interface: photo timeline" width="49%">
-  <img src="img/3.webp" alt="Large preview: zoom, pan, and keyboard paging" width="49%">
-  <p><sub>Left · Main interface: photo timeline grouped by year / month / day ｜ Right · Large preview: 50%–300% zoom, pan, and keyboard paging</sub></p>
-</div>
-
-### Outfit codes
-
-<div align="center">
-  <img src="img/9.webp" alt="Outfit codes: plans, tags, and pending plans" width="49%">
-  <img src="img/10.webp" alt="Outfit editor: add an image, enter a code, and pick a tag" width="49%">
-  <p><sub>Left · Outfit codes: plan list, tags, and pending plans ｜ Right · Outfit editor: add an image, enter a code, and pick a tag</sub></p>
-</div>
-
-### Home schemes
-
-<div align="center">
-  <img src="img/11.webp" alt="Home schemes: home codes and combo codes scheme list" width="49%">
-  <img src="img/12.webp" alt="Home scheme editor: enter a home code, combo code, and pick a tag" width="49%">
-  <p><sub>Left · Home schemes: manage home codes, combo codes, tags, and the scheme list ｜ Right · Home scheme editor: enter a home code, combo code, and pick a tag</sub></p>
-</div>
-
-### Parsing and cleanup
-
-<div align="center">
-  <img src="img/4.webp" alt="Outfit code parsing: item and makeup catalog lookup" width="49%">
-  <img src="img/13.webp" alt="Outfit item details: outfit, item, and dye information" width="49%">
-  <p><sub>Left · Outfit code parsing: item and makeup catalog lookup ｜ Right · Outfit item details: outfit, item, and dye information</sub></p>
-</div>
-
-### Small tools
-
-<div align="center">
-  <img src="img/7.webp" alt="Photo parameter parsing: capture time, weather, focal length, aperture, poses, lights, and filters" width="35%">
-  <img src="img/5.webp" alt="Special cleanup: low-quality images, crash snapshots, runtime logs, and web cache" width="63%">
-  <p><sub>Left · Photo parameter parsing: capture time, weather, focal length, aperture, normal poses, lights, and filters ｜ Right · Special cleanup: low-quality images, crash snapshots, runtime logs, and the game's built-in browser cache</sub></p>
-</div>
-
-## Features
-
-### Browsing the album
-
-Browse photos by date, with large previews, favorites, searchable notes, and batch import/export. In the Chinese desktop interface, the “参数与收藏” entry opens camera parameters and photo favorites.
-
-### Outfit codes and parameter parsing
-
-Manage outfits and home schemes, parse outfit codes and photo parameters, and organize collections with tags and ZIP backups.
-
-### Personal wardrobe
-
-Outfit and piece card images use `img/back.png` as their shared background. Desktop outfit cards automatically fill the available width with a 160px minimum and 16px gaps, fitting six columns in a 1040px content area. Piece and mobile layouts are unchanged.
-
-Wardrobe and Resonance share the Add data / Clear local records / Export data controls and import dialog, including bookmark and console credential guides. Both entry points open the same Add data window. After previewing, Import resonance records and Import wardrobe records appear in one row, with paste success shown only in the top notification, both selected by default, using the same rounded selection style as the date selection button. In both places, a checkmark appears only when selected; hovering only highlights the border. Confirmation replaces only selected modules; importing both commits them together. Data types absent from a file are disabled, and confirmation is disabled when neither is selected. Clearing the wardrobe requires confirmation and does not affect Resonance records. Device-storage labels and their accompanying timestamp are hidden in the wardrobe UI; storage behavior is unchanged.
-
-On desktop, wardrobe categories and filters sit below the global navigation in the existing scrollable sidebar with the shared custom dropdown styling; open menus render outside the sidebar to avoid clipping. Both layouts use the top-bar search for names or IDs; mobile uses the header search button, without an additional wardrobe search field. Switching between outfits and pieces resets all filters, sorting and the search query.
-
-The Resonance menu now includes **Personal wardrobe**. Open it from the desktop sidebar submenu or switch to it within Resonance on mobile. The first version tracks clothes only, with Outfit / Piece views and a separate card for every original, glow-up and evolution variant. Search names or IDs, filter rarity, variant, category, and ownership. Outfit and piece details are read-only, showing parts and collection status without manual editing or batch management. Outfit covers use the artwork's 448:656 aspect ratio without cropping, removing side gaps caused by the previous ratio and the inline image baseline gap. Piece images are unchanged.
-
-Wardrobe data stays in the current browser and supports dedicated JSON backup / restore. Importing the CN notebook or a wardrobe backup shows a preview before replacing the entire wardrobe. Pieces absent from the notebook are **unrecorded**, not necessarily missing in game. Raw notebook JSON is supported; resonance-only exports are not. This version excludes makeup and cloud sync. Wardrobe data is included in the all-data ZIP and also supports its own JSON backup. Clearing site data also clears the wardrobe.
-
-Desktop resonance filters, pose sorting and wardrobe menus share floating positioning outside the sidebar to prevent clipping. The sidebar remains scrollable; outer scrolling or resizing closes the menu.
-
-### Resonance records
-
-Import, view and analyze resonance records, with JSON import/export and account-based cloud sync.
-
-On desktop (≥900px), the outfit artwork remains on the left, with the first and second sets shown simultaneously in two stacked sections on the right. Each set's recorded pulls and known-piece average appear above its pieces, which wrap in narrower windows. No set switching is needed; the combined total and average remain below the outfit title.
-
-### File cleanup
-
-Clean up low-quality photos, game screenshots, crash snapshots, logs and caches.
-
-### Tools and help
-
-Lucky pull times, release history, usage help and issue feedback.
 
 ## Quick Start
 
-Official site: https://nikki3.pages.dev/. Open https://infinity-nikki-album-manager.pages.dev/ directly to use the toolkit. You can also download the archive or clone the project to run it locally. Jump to the local deployment guide: [Local installation](#local-installation).
+### Official website
 
-> If the China-accessible site is temporarily unavailable, try the Vercel fallback (VPN required): https://infinity-nikki-album-manager.vercel.app
+**Official website: [https://nikki3.pages.dev/](https://nikki3.pages.dev/)**
 
-## Mobile usage
+Use the toolkit here: [https://infinity-nikki-album-manager.pages.dev/](https://infinity-nikki-album-manager.pages.dev/)
 
-- Use bottom navigation to switch between Outfit codes, Home schemes, Camera parameters, and Resonance. Album directory access and file cleanup require a desktop browser.
-- The header provides Search, View settings, and More. Tag or rarity entries filter, + adds, and the ⋯ menu provides actions such as import and export.
-- Large previews support horizontal swipes, pinch-to-zoom, and panning.
-- Resonance records can be manually uploaded to the cloud, then synced by signing in to the same account on another device; sign-in and local edits do not sync automatically.
-- In the mobile layout (≤899px), resonance cards use a small outfit summary above a full-width piece grid: automatic columns with a 68px minimum and 8px gaps across phones and tablets, instead of fixed four- or five-column layouts. Outfit portraits keep their 448:656 ratio: below 600px they use 20vw clamped to 64–80px; at 600–899px they use 14vw clamped to 88–112px; desktop portraits use 22% of the body width clamped to 140–180px. The original combined total and average for both sets appear below the banner name and above owned progress; they remain unchanged when switching sets and wrap on narrow screens. First/second set buttons above the grid update the owned progress, recorded pulls, and known-piece average for that set. Manual entries count only toward owned progress; unknown pull statistics show “—”.
-- Outfits, home schemes, and camera favorites can be exported as a full-data ZIP on a computer, manually transferred to a phone, and then imported.
-- On phones, each empty module shows a usage screenshot below its description. The empty-state import button is removed; import remains available in the “⋯” menu. Search/filter results with no matches do not show screenshots, and desktop behavior is unchanged. Place the images at `img/page/outfits.webp` (outfit codes), `img/page/home.webp` (home schemes), `img/page/camera.webp` (camera parameters), and `img/page/resonance.webp` (resonance records). Images keep their full aspect ratio and are hidden if missing or unable to load. Rebuild and redeploy after adding or replacing these assets.
+Open it directly without downloading anything. Local features need no sign-in. Outfits, home schemes, camera favorites, and Nikki Archive need no album selection; choose an album only for browsing game photos, and sign in only for resonance cloud sync.
 
-## Loading and network requests
+For local use, see [Local installation](#local-installation).
 
-- Home schemes, Wardrobe, Resonance and large dialogs load with the page. Opening them no longer shows a module-download loading dialog or its timeout/retry actions. The full-backup picker still opens synchronously; ZIP processing loads when importing or exporting.
-- You can switch modules while a saved album directory is being read. Outfit and home-scheme migration waits for pending writes and keeps the existing write lock. Background restoration preserves your selected view; the initial game-directory outfit scan waits until you enter Outfit codes.
-- Public catalog lists load the first six images eagerly, prioritizing the first one, and lazy-load later images. Main detail images load eagerly. Failed images show a retry icon that supports pointer and keyboard activation. Existing image sources, sizes and formats are retained; no image transformation service is enabled.
-- Outfit piece details display the name and image immediately, then add relationships and dye information from the local catalog. Only related outfit names need a remote request; unused piece-detail requests are removed. Remote failures offer a retry action that keeps an already loaded image visible when its URL is unchanged.
-- Outfit-code and Wardrobe item details use the source image's 520×724 aspect ratio and scale proportionally to fit the viewport. Images remain complete, without cropping or stretching, with rounded borders fitted to the image. The catalog-loading message above the detail content is removed; pending fields show “Loading…”. The dye column follows the available detail data, without reserving extra columns or space for the outfit link.
-- Public catalog detail requests share in-flight work by entity and language. Cancelling one caller leaves other callers running. Successful responses are cached for five minutes; errors and invalid bodies are not cached. The deployed proxy bounds upstream reading and exposes Server-Timing; the local Vite proxy still forwards directly.
-- Enable catalog diagnostics with `sessionStorage.setItem('nikki-catalog-diagnostics', '1')` and inspect `[catalog-timing]`. Disable with `sessionStorage.removeItem('nikki-catalog-diagnostics')`. Logs contain only stages, status and elapsed time.
+<sub>Fallback address (VPN may be required): <a href="https://infinity-nikki-album-manager.vercel.app/">https://infinity-nikki-album-manager.vercel.app/</a></sub>
 
-## Outfit Code Management
+| Feature | Phone / tablet | Desktop |
+| --- | --- | --- |
+| Outfits, home schemes, camera parameters | Supported | Supported |
+| Resonance and personal wardrobe | Supported | Supported |
+| Manual backup migration and resonance cloud sync | Supported | Supported |
+| Parse codes or uploaded original photos | Supported | Supported |
+| Game album folders and Recently Deleted | Unavailable | Folder authorization required |
+| Automatically read in-game outfit codes | Unavailable | X6Game authorization required |
+| Clean game files | Unavailable | X6Game authorization required |
 
-At viewport widths up to 540px, parsed outfit pieces use an automatically sized grid with an 88px minimum column width, 10px column gaps, and square images.
+## Official website showcase
 
-Outfit and home-scheme cards hide note text on desktop and mobile. Notes remain available in the editor and continue to be included in search and backups. On mobile, the black gradient and tag text at the bottom of outfit images appear only for tagged outfits. Desktop cards retain the existing Uncategorized label. Desktop and mobile outfit tags share a softer black gradient; mobile tag text remains fully opaque.
-
-On desktop, entering Outfit codes opens a standalone guide according to your saved preference; the guide button beside the title can also open it. Phones show neither the guide entry nor an automatic guide dialog.
-- You can create up to 40 user tags, and each tag can contain up to 5 characters. Deleting a tag in use only moves related plans to Uncategorized.
-- New tags appear at the top of the tag list; drag the left handle to adjust the order.
-- Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press `Ctrl+V`). Images prefer local WebP conversion, falling back to validated originals, the outfit code can be empty, each plan can use one tag, and double-clicking the image opens the preview.
-- On desktop, the decode button appears in the upper-right corner of each outfit card; on mobile, use the decode button at the bottom of the card. The button stays disabled until a code is entered. The delete button sits to the left of the decode button and appears when the card is hovered or the button receives keyboard focus.
-- Open the shared Parameter / outfit-code parser from the upper-right Tools menu and enter a code without creating a plan first; results open in the same decoder dialog.
-- Outfit decoding checks the browser result cache first. On a miss, it concurrently requests the existing same-origin object-storage proxy and the third-party `api-nikki.ranaxro.com` decoder. The first fully read, locally WASM-decoded and validated result is displayed and cached; the other request is cancelled. A single failure does not stop the other source; errors are shown only if both fail, with a 10-second limit per source. The third party receives only the share code, without cookies, a Referer header or Pear-Pal credentials. Both sources use the same item-ID ordering and type inference (including choker aliases), catalog-based outfit associations and sorted dye groups. After deployment, the Pages Function can cache complete, valid successful bodies up to 1 MiB for one hour at the current Cloudflare location. Hits skip the upstream request; failures are never cached. Other locations may still fetch upstream, and unavailable caches fall back to fetching. The local Vite proxy does not use this cache. Browser HTTP responses remain uncacheable; existing memory and IndexedDB result lifetimes are unchanged, and clearing local caches does not purge edge entries.
-- Successful results display without waiting for the background IndexedDB write. A failed write does not affect the current result; closing the page immediately may prevent persistence. Clearing caches drains already-started writes and prevents old requests from writing back.
-- Catalog names and images load in the background without blocking item IDs, types or dyes. Catalog failure preserves a successful decode; decoding again retries catalog loading.
-- To diagnose decoding, run `sessionStorage.setItem('nikki-lookbook-diagnostics', '1')` in the browser console, retry, and inspect `[lookbook-timing]` for local-cache, WASM download/initialization, response headers/body, decoding, and persistence durations. Codes and raw payloads are not logged. Disable with `sessionStorage.removeItem('nikki-lookbook-diagnostics')`. The deployed endpoint exposes `X-Outfit-Cache: HIT/MISS` and `Server-Timing` for cache lookup and upstream headers/body/total durations; hits omit historical upstream timings. Production cache behavior requires verification after deployment.
-- If every code immediately returns 502 with `upstream_total;dur=0`, check server-runtime compatibility before assuming an invalid code or network timeout. The immediate failure caused by Cloudflare rejecting `redirect: 'error'` has been fixed in source. Redeploy Pages Functions to apply the fix; clearing browser caches does not replace deployment.
-- The outfit preview toolbar shows the current tag and outfit code, with Copy and Edit buttons.
-- Outfit codes, images, notes and tags are stored in the current browser and shared across albums. No new album `clothe` folder is required. Use the collection ZIP or Import all data for batch migration.
-- Selecting an album migrates its old `clothe` data. The old folder is cleaned only after successful migration and source verification. Damaged data, unassociated images and unknown files remain with a notice; loose images are not converted into plans automatically.
-- Using the <span style="color: orange;">auto update outfit code</span> feature requires authorizing the current game's `X6Game` folder. You can authorize it from the Current album menu in the upper-right corner. <span style="color: red;">How to use: in the game, tap Share, tap the selection button at the lower-right corner of the outfit screenshot, tap Generate Outfit Code after the selection is complete, then return to the web page. The website imports only when both the outfit code is new and the game's outfit image has a newer last-modified time; existing codes, unchanged images, or missing images are skipped with a status message.</span>
+> ### 📸 Explore the full interface showcase
+>
+> **For complete, detailed interface screenshots, visit the [https://nikki3.pages.dev/](https://nikki3.pages.dev/).**
 
 <div align="center">
-  <img src="img/自动更新步骤.webp" alt="In-game steps for auto-updating outfit codes" width="70%">
+  <img src="img/screenshots/1.webp" alt="Nikki³ official home page in light mode: overview and feature list" width="49%">
+  <img src="img/screenshots/2.webp" alt="Nikki³ official home page in dark mode: overview and feature list" width="49%">
+  <p><sub>Left · Official home page in light mode ｜ Right · Dark mode: site overview, feature list, and toolkit entry</sub></p>
 </div>
 
-- Export data downloads ZIP backups through the browser, with the save location determined by the browser's download settings and no album folder required; large datasets produce multiple ZIP files, so allow multiple downloads. Backups preserve outfit codes, tags, notes, and creation times. Import data does not overwrite existing plans, and duplicate or invalid content is skipped; imports validate the complete backup first, then extract and write images in batches to reduce browser memory use with large backups.
-- Images are read and validated locally, with WebP preferred and validated originals retained when needed. Images are never uploaded.
-- Single-click outfit plans to select multiple items and show the bottom toolbar. <span style="color: red;">Deleted outfit plans cannot be restored, so check the plan information before confirming.</span>
+## Mobile
 
-## Special Cleanup
+Phones, tablets, and foldable screens adjust their layout to the available width. The screenshots below illustrate the main entries and actions.
 
-Open Special Cleanup from the upper-right Tools menu to open the cleanup window. Using the cleanup features requires authorizing the `X6Game` folder.
+### First use and navigation
 
-The following cleanup items are available:
+- Switch between Outfit codes, Home schemes, Camera parameters, and Nikki Archive using bottom navigation.
+- Search the current module with the header magnifier; View changes display, theme, and language. Header More provides parsers, lucky draw times, full-data backups, and help.
+- “+” adds data, and the page “⋯” menu manages the current module. Use tag or rarity entries to filter. Large previews support swiping, pinch-to-zoom, and panning.
+- Use a computer for album folders, automatically reading in-game outfits, and game-file cleanup.
 
-- Low-quality photos and screenshots (`...\X6Game\ScreenShot` and `NikkiPhotos_LowQuality`): lower-quality images produced by in-game photography; only image files are deleted. When multiple account folders exist, you can choose to clean all accounts or a specific account ID. If the album you are currently managing is itself `ScreenShot` or `NikkiPhotos_LowQuality`, the cleanup skips that album folder and only cleans the other one, with a note in the confirmation prompt; managing the `NikkiPhotos_HighQuality` album is recommended.
-- Crash snapshots (`...\X6Game\Saved\Crashes`): after deletion, historical crash causes can no longer be reported to the official team via local logs.
-- Runtime logs (`...\X6Game\Saved\Logs`): deleting them has no side effects.
-- Built-in browser and login cache (`...\X6Game\Saved\webcache_4430`): clears expired web data, but event pages and announcements load more slowly the first time they are opened afterwards.
+### Outfit codes
 
-## Choose an Album
+Save outfit images and share codes, then copy, edit, or parse them.
 
-Click `Choose / restore album folder`; it is recommended to select:
+<div align="center">
+  <img src="img/page/outfits.webp" alt="Mobile outfit cards and item dye details" width="70%">
+  <p><sub>Outfit list and item details</sub></p>
+</div>
+
+- Tap “+” to add an image, code, note, and tag. The code can be left empty and filled in later.
+- Card actions provide Copy, Edit, Delete, and Parse. Copy and Parse require a code; double-tap a card for the large preview.
+- Use the tag selector to filter or manage tags, and the page “⋯” menu for module ZIP import/export.
+
+### Home schemes and camera parameters
+
+<div align="center">
+  <img src="img/page/home.webp" alt="Mobile home schemes" width="40%">
+  <img src="img/page/camera.webp" alt="Mobile camera favorites" width="40%">
+  <p><sub>Left · Home schemes ｜ Right · Camera favorites</sub></p>
+</div>
+
+**Home schemes**
+
+- Tap “+”, enter a home code or combo code, then edit the parsed name, cover, notes, and tags before saving.
+- Card actions provide Copy, Edit, and Delete. Filter by code type or tag, and double-tap a card for the large preview.
+
+**Camera parameters**
+
+- Tap “+”, parse a parameter code, then enter a name and save. Covers and tags are optional; parameters can also be saved from photo-parsing results.
+- Card actions provide Copy, Edit, Delete, and Details. Copied codes can be imported into the in-game camera.
+
+Both collections use the page “⋯” menu for ZIP import/export. Deleting a tag removes its classification without deleting records.
+
+### Nikki Archive
+
+Open Nikki Archive from the bottom navigation, then switch between Resonance records and Personal wardrobe at the top.
+
+<div align="center">
+  <img src="img/page/resonance.webp" alt="Mobile resonance records and set switching" width="40%">
+  <p><sub>Resonance: statistics, collection progress, and first/second set switching</sub></p>
+</div>
+
+- **Resonance records:** tap “+” to import data, review the preview, then confirm. Use rarity filters to find outfits, and switch between the first and second set on each card.
+- The page “⋯” menu provides export, local-record clearing, and account actions. After signing in, manually upload or download cloud records.
+
+<div align="center">
+  <img src="img/page/wardrobe.webp" alt="Mobile wardrobe outfits, pieces, and details" width="75%">
+  <p><sub>Personal wardrobe: outfits, pieces, and collection details</sub></p>
+</div>
+
+- **Personal wardrobe:** switch between outfits and pieces, search by name or ID, and filter by ownership, rarity, version, and other criteria to inspect collection details.
+- Tap “+” to import wardrobe data; use “⋯” to export or clear records. See [Backup and Migration](#backup-and-migration) for import replacement and cloud-sync rules.
+
+## Desktop
+
+### First use and navigation
+
+Use desktop Chrome, Edge, or a compatible Chromium browser. Switch modules and filter from the sidebar; search the current module from the header. View controls display, theme, and language; Tools opens parsers and utilities; More provides full-data backups and help.
+
+### Albums, photo parameters, and Recently Deleted
+
+Browse game photos by date or action, open large previews, save favorites, and inspect photo parameters.
+
+<div align="center">
+  <img src="img/screenshots/album-timeline.webp" alt="Photo timeline" width="49%">
+  <img src="img/screenshots/photo-lightbox.webp" alt="Large photo preview" width="49%">
+  <p><sub>Left · Browse by date ｜ Right · Large preview and photo actions</sub></p>
+</div>
+
+Click Choose / restore album folder and select the following directory directly. Avoid drive roots, Program Files, and high-level game installation directories:
 
 ```text
 ...\InfinityNikki Launcher\InfinityNikki\X6Game\Saved\GamePlayPhotos\Your ID\NikkiPhotos_HighQuality
 ```
 
-Do not select the C drive, Program Files, the game install root, or other protected or overly broad parent directories.
-
-## Controls
+#### Photo controls
 
 | Action | Result |
 | --- | --- |
@@ -206,40 +161,170 @@ Do not select the C drive, Program Files, the game install root, or other protec
 
 > Normal album deletion moves the original file to the current album's `trash` folder; <span style="color: red;">Permanent deletion in Recently Deleted and Special Cleanup directly delete files from your computer and cannot be restored.</span>
 
-## Recently Deleted and Refresh
+#### Recently Deleted and refresh
 
 - Click Refresh album to sync the folder immediately; the page also syncs when it regains focus and reports newly added or externally removed photos.
 - Recently Deleted is sorted by deletion time, with total photo count and total size shown at the top; it supports single or batch restore, permanent deletion, select all, large preview, and clearing everything.
 - When restoring, if a file with the same name exists in the original album, suffixes like `_restored_1` and `_restored_2` are used automatically without overwriting existing photos.
 - Recently Deleted photos do not expire automatically and remain until restored or manually permanently deleted.
 
+### Outfit codes and automatic updates
+
+<div align="center">
+  <img src="img/screenshots/outfit-library.webp" alt="Outfit plan list" width="49%">
+  <img src="img/screenshots/outfit-editor.webp" alt="Outfit editor" width="49%">
+  <p><sub>Left · Outfit plans ｜ Right · Add or edit an outfit</sub></p>
+</div>
+
+- Click Add outfit to select, drag, or paste an image and enter a code, notes, and a tag. Codes can be empty. Double-click for a large preview; single-click to select multiple plans and use the bottom action bar.
+- Card actions provide Copy, Edit, Delete, and Parse. Manage categories and tag order in the sidebar. Create up to 40 user tags of up to 5 characters each, with one tag per plan.
+- View or edit notes in the editor and find them through header search. Selecting an album migrates an old `clothe` collection; check any files reported as skipped before handling them.
+
+#### Automatically update outfit codes
+
+Authorize the game’s `X6Game` folder from Current album. In the game, tap Share, select the screenshot area, generate an outfit code, then return to the website. Import requires a new code and an updated image; duplicates or unchanged or missing images are skipped with a message.
+
+<div align="center">
+  <img src="img/自动更新步骤.webp" alt="In-game steps for auto-updating outfit codes" width="70%">
+</div>
+
+#### Outfit code parsing
+
+<div align="center">
+  <img src="img/screenshots/outfit-code.webp" alt="Parsed outfit code" width="49%">
+  <img src="img/screenshots/outfit-parts.webp" alt="Outfit item and dye details" width="49%">
+  <p><sub>Left · Outfit pieces and dye overview ｜ Right · Item and dye details</sub></p>
+</div>
+
+Use the card’s Parse action, or enter a code directly in Tools → Parameter / outfit-code parser without creating a plan. Copy and Parse are unavailable for plans without a code.
+
+### Home schemes
+
+<div align="center">
+  <img src="img/screenshots/home-plan.webp" alt="Home scheme list" width="49%">
+  <img src="img/screenshots/home-plan-detail.webp" alt="Home scheme editor" width="49%">
+  <p><sub>Left · Home and combo schemes ｜ Right · Scheme editor</sub></p>
+</div>
+
+- Click Add scheme, enter a home or combo code, then edit its parsed name, cover, notes, and tags before saving.
+- Filter by code type or tag in the sidebar. Card actions provide Copy, Edit, and Delete; double-click for a large preview.
+- Page actions provide module ZIP import/export. Deleting a tag does not delete its schemes.
+
+### Camera parameters and favorites
+
+<div align="center">
+  <img src="img/screenshots/camera-favorites.webp" alt="Camera favorites" width="49%">
+  <img src="img/screenshots/image-parameters.webp" alt="Photo parameter parser" width="49%">
+  <p><sub>Left · Camera favorites ｜ Right · Photo parameter parsing</sub></p>
+</div>
+
+- Open Favorites → Camera parameters, add and parse a parameter code, then enter a name and save. Covers and tags are optional.
+- Parameters can also be saved directly from photo-parsing results. Card actions provide Copy, Edit, Details, and Delete; copied codes can be imported into the in-game camera.
+- Page actions provide module ZIP import/export. The parser in Tools also accepts parameter codes or original game photos.
+
+### Nikki Archive
+
+Open Resonance records or Personal wardrobe from Nikki Archive in the sidebar.
+
+<div align="center">
+  <img src="img/screenshots/resonance.webp" alt="Desktop resonance records" width="98%">
+  <p><sub>Resonance: both sets of piece records and pull statistics</sub></p>
+</div>
+
+- **Resonance records:** add notebook credentials or JSON data, review the preview, then confirm. Sort, filter rarity, or find an outfit from the sidebar.
+- Desktop shows both sets together, with recorded pulls, known-piece averages, and collection progress for each set. The heading shows combined statistics. Manual entries count toward collection progress; unavailable pull statistics show “—”.
+- Page actions provide JSON export, local-record clearing, and account cloud sync.
+
+<div align="center">
+  <img src="img/screenshots/wardrobe.webp" alt="Wardrobe outfits" width="49%">
+  <img src="img/screenshots/wardrobe-items.webp" alt="Wardrobe pieces" width="49%">
+  <p><sub>Left · Outfit collection progress ｜ Right · Pieces and filters</sub></p>
+</div>
+
+- **Personal wardrobe:** browse original, recolor, and evolution versions. Switch between outfits and pieces, search by name or ID, and filter by rarity, version, item category, or ownership to view details.
+- Import a CN Whim-Log notebook or wardrobe JSON, or export a separate JSON backup. Clearing wardrobe records does not affect resonance. Makeup and wardrobe cloud sync are not supported.
+- Check the replacement rules in [Backup and Migration](#backup-and-migration) before importing.
+
+### Cleanup and utilities
+
+<div align="center">
+  <img src="img/screenshots/special-cleanup.webp" alt="Special Cleanup" width="49%">
+  <img src="img/screenshots/lucky-times.webp" alt="Lucky draw times tool" width="49%">
+  <p><sub>Left · Special Cleanup ｜ Right · Lucky draw times</sub></p>
+</div>
+
+#### Special Cleanup
+
+Open Special Cleanup from the upper-right Tools menu to open the cleanup window. Using the cleanup features requires authorizing the `X6Game` folder.
+
+The following cleanup items are available:
+
+- Low-quality photos and screenshots (`...\X6Game\ScreenShot` and `NikkiPhotos_LowQuality`): lower-quality images produced by in-game photography; only image files are deleted. When multiple account folders exist, you can choose to clean all accounts or a specific account ID. If the album you are currently managing is itself `ScreenShot` or `NikkiPhotos_LowQuality`, the cleanup skips that album folder and only cleans the other one, with a note in the confirmation prompt; managing the `NikkiPhotos_HighQuality` album is recommended.
+- Crash snapshots (`...\X6Game\Saved\Crashes`): after deletion, historical crash causes can no longer be reported to the official team via local logs.
+- Runtime logs (`...\X6Game\Saved\Logs`): deleting them has no side effects.
+- Built-in browser and login cache (`...\X6Game\Saved\webcache_4430`): clears expired web data, but event pages and announcements load more slowly the first time they are opened afterwards.
+
+Open other utilities from Tools. More provides usage help, update notes, and feedback.
+
+## Backup and Migration
+
+From More, choose Export all data to download a ZIP containing outfit plans, home schemes, camera favorites, resonance records, and the wardrobe, including saved scheme images and covers. Transfer the ZIP to another device, then choose Import all data there. **Game album originals are not included; back them up separately.**
+
+Different import entries handle existing records differently:
+
+| Entry | Effect on existing records |
+| --- | --- |
+| Nikki Archive → Add data | Review the preview, choose the modules, and confirm to replace all records in those modules. Old records absent from the preview are removed. |
+| More → Import all data | Merges collections according to each module's rules. Camera-parameter conflicts ask which version to retain; this is not a full replacement. |
+| Outfit module → Import data | Adds plans without overwriting existing ones; duplicate or invalid entries are skipped. |
+
+Resonance cloud sync is manual and uses replacement: **upload replaces all cloud records with local records; download replaces all local records with cloud records.** Records unique to the destination are removed. Export a backup before replacing them. Other modules do not use this cloud sync.
+
+Unrecorded wardrobe pieces were absent from the notebook response; this does not mean they are unowned in the game. A resonance-only export cannot be imported as wardrobe data.
+
 ## FAQ
 
-### The launcher does nothing
+### General questions
+
+#### An image cannot be selected or saved
+
+Try selecting the image again. A failed replacement retains the previous image. Common formats such as WebP, PNG, and JPEG are supported; HEIC/HEIF depends on browser support, so convert it to PNG or JPEG if needed.
+
+#### Photo parameter parsing fails
+
+Use the original game photo. Cropping, compression, or saving it through another app may remove the data needed for parsing. If prompted for a UID, enter the UID of the account that took the photo.
+
+#### Catalog images or details fail to load
+
+Use the retry action where available. If loading still fails, check the network and refresh the page.
+
+### Desktop albums and local startup
+
+#### The launcher does nothing
 
 - Make sure the project has been fully extracted, and do not run it inside the ZIP.
 - Make sure Node.js LTS version 22 or newer is installed and the `start` folder is not missing.
 - Check whether security software blocked the EXE or BAT file.
 - You can also run `start\Start-Remote-D1-Website.bat` directly to view error details.
 
-### No photos are displayed
+#### No photos are displayed
 
 - Make sure you selected the actual image folder.
 - Make sure the file extension is supported. Photos whose filenames start with a date use that date; other photos use the file's last modified time.
 - If browser authorization expires, click Choose / restore album folder again.
 
-### The browser refuses to open a folder
+#### The browser refuses to open a folder
 
 Browsers block web pages from accessing system folders. Please select `NikkiPhotos_HighQuality` directly, and <span style="color: red;">do not select the drive root or a high-level game install directory.</span>
 
 ## Privacy and Safety
 
-- Photos are read locally in your browser.
-- Resonance cloud sync contacts this site’s Pages service. Manual upload stores resonance records in cloud D1 without uploading local photos. Other collections remain browser-stored; cloud sync covers resonance only.
-- Photo-tail extraction, account-key derivation, AES decryption, and CameraParams parsing run locally inside WASM; photos and parsed results are not uploaded.
-- Album folder authorization, Favorites, and outfit-code, home-scheme-code, and photo-action parse results are stored locally in the current browser. Clear cache in More clears these three parse caches without affecting other authorizations, settings, saved schemes or tags. After confirmation, Clear data permanently deletes all schemes, images, tags, resonance records, favorites, parse caches, UIDs, saved directory handles, game sources and migration records in this browser. It also clears local and session settings, then automatically reloads back to the initial state for each platform. This cannot be undone; export a backup first. This preserves cloud accounts and saves without actively signing out. Clearing site data through browser settings may also remove local records and login credentials; uploaded cloud saves remain.
-- Browser security policies may require folder authorization again.
-- Delete and Special Cleanup modify real files on your computer; Clear cache and Clear data do not delete files on your computer.
+- Local photo viewing and photo-parameter parsing happen in your browser; photos and photo-parameter results are not uploaded.
+- Outfit-code parsing sends the share code to parsing services, without sending local photos or notebook credentials.
+- Cloud sync covers resonance records only and requires manual upload or download. Other collections remain in the current browser; back them up before changing devices or clearing site data.
+- Clear cache removes parsing caches without deleting saved schemes, tags, or settings. **Clear data permanently removes this browser's saved records, images, favorites, settings, and folder authorizations. Export a backup first.** It does not delete uploaded cloud saves or files on your computer. Clearing data through browser settings may also remove login information.
+- Browser security policies may require you to authorize folders again.
+- Album deletion and Special Cleanup operate on real files on your computer. Permanent deletion and cleanup cannot be undone.
 
 ## Local installation
 
@@ -266,88 +351,26 @@ Both commands should print version numbers, which means installation succeeded. 
 3. On first run, dependencies are installed automatically. The browser opens `http://localhost:5173` only after resource updates finish and the dev server successfully starts listening. It does not open during updates or after a startup failure or port conflict; check the dev server window for errors.
 4. Keep the window open while using it.
 
-Local startup uses remote D1 mode exclusively; the standalone launcher without D1 has been removed. If the launcher is unavailable, double-click `start\Start-Remote-D1-Website.bat`, or use the development commands below to start manually. The root `网站启动器.exe` also uses this remote D1 launcher.
+If the launcher is unavailable, run `start\Start-Remote-D1-Website.bat`, or use the commands below. Resource updates require network access; failed updates keep the existing local resources.
 
-The local site uses online D1 data; double-click `start\Start-Remote-D1-Website.bat`. The local server proxies outfit-code data, home-scheme data, and Gongeo catalog details directly to their upstream services; Likes, resonance accounts and cloud-sync requests go to the deployed Pages API, so the browser never receives D1 credentials. Production deployments expose same-origin data proxies at `functions/api/gongeo/[[path]].ts` and `functions/api/home-build/[key].ts`. Likes, resonance registration, uploads and cloud deletion affect the target site’s real cloud data; check the target address first. The script defaults to `https://infinity-nikki-album-manager.pages.dev`, and accepts another Pages URL as its first argument.
+The local site connects to the online service for Likes, resonance accounts, and cloud sync. These actions affect real online data. The default service is `https://infinity-nikki-album-manager.pages.dev`.
 
 ### Development Commands
 
-Internally, `useOperationCoordinator` tracks module work and `useLatestRequest` invalidates stale reads. `useDirectorySession` and `useOutfitWorkspace` handle directory authorization and outfit operations. Home and Outfit storage share commit/rollback handling in `file-system/transaction.ts`. Pose resource request timeouts cover response body reading.
-
-`App.vue` retains page composition, startup, and coordination across modules. `useAppPreferences`, `useGameCleanup`, and `usePhotoTrashActions` manage display preferences, game-directory cleanup, and trash operations respectively. They reuse the existing operation lock and shared state without adding a global store; module and dialog components load with the page.
-
-Development and local Pages/D1 commands use the exact Wrangler 4.149.0 dev dependency and require Node.js 22 or newer. Use `npm ci` to install from the lockfile. `dev:pages`, `d1:migrate:local`, and `d1:migrate:remote` no longer download latest on each run.
-
-Handwritten Vue, TypeScript, CSS, resource scripts, tests and startup dependency scripts share pinned Prettier. Run `npm run format` to format or `npm run format:check` to check; the old `format:review` commands remain compatibility aliases. Generated catalog JSON, the dependency lockfile and build output are excluded. Shared button, menu and reduced-motion rules live in `src/styles/controls.css`.
-
-Home operations distinguish permission, storage capacity, image, data, and tag conflicts. Console diagnostics contain only the operation and error category, without raw exceptions or credentials. The Resonance submenu follows the selected language.
+Run these commands in the project root:
 
 ```bash
-npm install       # Install dependencies
+npm install                # Install dependencies
 set REMOTE_API_ORIGIN=https://infinity-nikki-album-manager.pages.dev
-npm run dev:remote # Refresh poses, lights/filters, item catalogs, and Gongeo mappings; proxy outfit and home-scheme data to storage and other /api calls to Pages
-npm test          # Run automated tests
-npm run build     # Type-check and build
-npm run build:cloudflare # Refresh normal poses, lights/filters, item catalogs, and Gongeo mappings, then build
-npm run resources:update:light-filters # Check light/filter updates separately
-npm run preview   # Preview the build result
+npm run dev:remote         # Start locally with the online service
+npm test                   # Run automated tests
+npm run build              # Type-check and build
+npm run build:cloudflare   # Update resources and build for Cloudflare
+npm run preview            # Preview the build
 ```
-
-The local EXE launcher, `dev`, `dev:remote`, and Cloudflare builds share the resource update chain. Lights/filters check database and bilingual language-pack versions in Nikki Albums' remote hot-update manifest. Changed versions trigger downloads and validation; only light/filter names, ID mappings, and image templates are replaced, preserving normal poses and Momo data. Matching versions skip resource downloads. Failures print a warning and keep the existing snapshot. Standard `npm run build` only type-checks and builds.
-
-Resource updates first check HTTPS_PROXY/HTTP_PROXY (including lowercase names), then enabled manual Windows system proxies. Only reachable local HTTP/HTTPS proxies are used; common ports are not scanned. With no configured or listening proxy, requests connect directly. A proxy connection failure or timeout triggers one direct attempt and switches subsequent requests in that process to direct access. HTTP errors and validation failures are not retried. Failed updates retain local resources and startup continues; explicit --strict mode still fails. NO_PROXY is respected, with local addresses bypassed by default. Detection applies only to resource-update requests and does not change system proxy settings, npm configuration or website API forwarding. PAC and SOCKS settings are not detected.
-
-The light/filter script accepts `--force` to refresh, `--strict` to fail on errors, and `--manifest <URL>` / `--timeout <milliseconds>`. Environment overrides are `NUAN5_HOT_UPDATE_MANIFEST` for the remote manifest URL and `NUAN5_HOT_UPDATE_TIMEOUT_MS` for the timeout (15000 milliseconds by default). When passing options through npm, put `--` before them.
-
-Local item-catalog generation requires an explicit Gongeo checkout path (or `GONGEO_ROOT`), for example `node scripts/generate-item-catalog.cjs "C:/path/to/gongeo"`. Remote synchronization still uses `npm run resources:update:items`. When rebuilding the launcher, `start/launcher/Build-Launcher.ps1` compiles a temporary file and replaces the launcher only on success; compilation failure preserves the old launcher.
-
-Stack: Vue 3, TypeScript, Vite, File System Access API, IndexedDB.
 
 ---
 
 ## Acknowledgements and License
 
 Some features were inspired by and use the related services of [Nikki Albums](https://github.com/RanAxro/nikki_albums) and [Gongeo.us Nikki Tracker](https://github.com/dastrokes/gongeo.us-nikki-tracker). Please refer to the root [LICENSE](LICENSE) file for this project's license.
-
-Outfit images are copied into memory immediately upon selection; preview and saving use that copy if the original mobile file reference later becomes unreadable. Confirmation waits while “Reading image…” is shown; select the file again if reading fails. Image decoding failures are reported without extra Data URL reads, hashing or diagnostic decoding.
-
-Image memory copies apply only in compact layouts (viewport width ≤899px). Desktop layouts (≥900px) preview and save the original selected file without an eager copy. The layout at selection time determines the path.
-
-Camera favorite cover uploads also copy selected images into memory only in compact layouts. Saving waits for reading; failures ask for reselection, and stale results after replacement or closing are discarded. Desktop layouts continue using the original file.
-
-Home-scheme and camera-parameter card names use a single line with an ellipsis for overflow on desktop and mobile. Mobile cards use tighter spacing between camera names and parameter codes, and between home furniture counts and scheme codes.
-
-Camera favorite cover reading is shown in the top operation notice, followed by completion or failure. The bottom Save favorite button retains its label and remains disabled during reading.
-
-Camera parameter favorites and resonance cloud upload/delete work over LAN HTTP. Concurrent home tag additions preserve tags from other tabs; schemes remain editable after a tag is deleted. Photo and scheme actions wait until the next preview finishes loading. While editing a note, arrow keys, Delete and Escape do not operate the preview underneath, and Tab stays inside the note dialog. Closing or switching the parameter dialog prevents old tasks from overwriting its new state.
-
-Unexpected cloud API failures produce structured logs containing the operation, stage, error category and a server-generated request ID. The error response's `X-Request-Id` correlates with the log. Logs omit accounts, tokens, request bodies and raw exceptions.
-
-Image read recovery: a persistent status near the image explains reading or failure. Saving waits during reading. Failed replacements retain the previous image; camera favorites can save without an optional cover, while new outfits still require an image. Reselecting the same file retries reading.
-On desktop, date, tag and resonance lists scroll independently when they exceed the available sidebar height, while the module navigation stays fixed. On mobile, scrolling remains inside the filter dialog.
-
-### Image selection and storage compatibility
-
-- Outfit, home, and camera favorite pickers accept images the browser can preview. Mobile layouts snapshot file bytes before validation; reading, decoding, size, and pixel checks run before replacing the previous image. Failed selections retain the previous image and can be retried with the same file.
-- Saving prefers WebP. If encoding fails or returns another format, the validated original is retained. WebP, PNG, JPEG, GIF, BMP, and AVIF are supported with MIME types and extensions derived from file signatures. HEIC/HEIF still require browser decoding and successful WebP conversion; selecting a format does not guarantee it can be saved.
-- Outfit and home backups preserve original-format images and still import older WebP backups. Mixed-format backups require the updated app. Camera backups preserve cover bytes and formats.
-- Returning from a system picker does not refresh inactive camera favorites or a module with an open dialog. Outfit selection is independent of background reads, while saving still prevents replacement.
-- Home and camera covers load near the viewport with a visibility fallback and release image URLs offscreen. Images explicitly fill their frames while keeping existing aspect ratios and centered cropping. Ordinary error messages remain; temporary debug panels are removed.
-
-Resonance regression tests check statistic labels and values, sidebar outfit names and rarity separately, and unknown ownership in the detail dialog, without depending on decorative separators or removed elements.
-
-Outfit codes, home codes, camera parameters, and data-import scripts share clipboard compatibility handling. The system API is preferred; when unavailable on LAN HTTP or rejected, text-selection copying is attempted. Temporary elements are removed and focus restored. Browser restrictions can still cause failure, which is reported normally.
-
-Top notifications dismiss after 3 seconds for success, 5.2 seconds for info, and 6 seconds for warnings and errors. Loading notices stay visible; hovering pauses the timer.
-
-The personal wardrobe shows an inline loading state and offers Retry if loading fails or takes longer than 15 seconds. Refresh the page if retries keep failing.
-
-Catalog images in resonance records and the sidebar, wardrobe, outfit/item details and outfit parsing set `no-referrer` before assigning the image URL to prevent the initial request from sending a page referrer that triggers CDN hotlink protection. Temporary image diagnostics and image proxy fallbacks have been removed; Safari device verification is still required.
-
-On mobile (≤899px), item details in the wardrobe and outfit parser fit their content without reserving empty rows. Long content scrolls within the body while the title and close button remain visible. Desktop layouts are unchanged.
-
-On mobile (≤899px), the outfit-code parser also fits its content. Long item lists scroll within the body while the title, close button and item-count footer remain visible. Desktop layouts are unchanged.
-
-In Nikki Archive → Import data, Get preview shows actual stages: fetching notebook data or reading the file, checking its format, parsing available wardrobe/resonance records, and checking local records to prepare the preview. Missing data types skip their parsing step; network waits do not use simulated percentages. Failures retain the failed stage. Closing, changing the method or choosing another file clears stale progress. Saving still requires confirmation after preview. The progress display shares the photo-transfer track and theme colors, with a compact stage/step heading. Network waits use an indeterminate animation; reduced-motion mode stays static, and failures stop animation and identify the stage.
-
-The archive import console script reads the UID from the first div whose text starts with `UID:` and outputs credentials from `momoToken` and `momoNid`. The bookmark method retains its existing UID detection and role lookup.
