@@ -75,7 +75,11 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
             :load-photo="photoLoadQueue.load"
             :failure-text="messages.imageLoadFailed"
           />
-          <div class="photo-overlay outfit-overlay">
+          <!-- 无标签时仅隐藏手机浮层，电脑端保留未分类提示。 -->
+          <div
+            class="photo-overlay outfit-overlay"
+            :class="{ 'outfit-overlay-untagged': !outfit.tags.length }"
+          >
             <span class="outfit-card-tag" :title="outfit.tags.join('、')"
               ><span>{{ outfit.tags[0] || messages.uncategorized }}</span
               ><small v-if="outfit.tags.length > 1" class="mobile-only"
@@ -107,7 +111,6 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
         </div>
 
         <div class="outfit-card-footer">
-          <p v-if="outfit.note" class="outfit-card-note">{{ outfit.note }}</p>
           <button
             v-if="!outfit.code"
             class="outfit-pending-code"

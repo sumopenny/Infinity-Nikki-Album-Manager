@@ -1018,6 +1018,11 @@ function handleAddTag(value: string) {
             <div class="home-scheme-card-details">
               <div class="home-scheme-name-tag">
                 <h3
+                  :title="
+                    (item.schemeType === 'home' ? messages.homeType : messages.comboType) +
+                    '-' +
+                    (item.name || messages.untitled)
+                  "
                   >{{ item.schemeType === 'home' ? messages.homeType : messages.comboType }}-{{
                     item.name || messages.untitled
                   }}</h3
@@ -1032,11 +1037,9 @@ function handleAddTag(value: string) {
                   ></span
                 >
               </div>
-              <div class="home-scheme-card-meta"
-                ><span v-if="item.metadata.furnitureCount !== null"
-                  >{{ item.metadata.furnitureCount }} {{ messages.furnitureCount }}</span
-                ><span v-if="item.note">{{ item.note }}</span></div
-              >
+              <div v-if="item.metadata.furnitureCount !== null" class="home-scheme-card-meta">
+                <span>{{ item.metadata.furnitureCount }} {{ messages.furnitureCount }}</span>
+              </div>
             </div>
             <div class="outfit-card-footer home-scheme-card-footer">
               <!-- 手机标签放在方案码右侧；电脑端仍在标题旁显示标签。 -->
@@ -1360,9 +1363,12 @@ function handleAddTag(value: string) {
   min-width: 0;
 }
 .home-scheme-card-details h3 {
+  flex: 1 1 auto;
   min-width: 0;
   margin: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--heading);
   font-size: 13px;
   line-height: 1.4;
@@ -1482,6 +1488,16 @@ function handleAddTag(value: string) {
   background: color-mix(in srgb, var(--pink-deep) 8%, var(--surface-strong));
   color: var(--pink-deep);
   transform: translateY(-1px);
+}
+/* 手机家具数量不预留额外行高，方案码紧随信息区显示。 */
+@media (max-width: 899px) {
+  .home-scheme-card-meta {
+    min-height: 0;
+    line-height: 1.4;
+  }
+  .home-scheme-card-footer {
+    padding-top: 2px;
+  }
 }
 @media (max-width: 850px) {
   .home-scheme-workspace {

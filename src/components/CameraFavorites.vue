@@ -935,7 +935,7 @@ function handleImportChoices(value: typeof choices.value) {
         </div>
         <div class="camera-card-content">
           <div class="camera-name-tags"
-            ><h3>{{ item.name }}</h3
+            ><h3 :title="item.name">{{ item.name }}</h3
             ><div class="desktop-only"
               ><span v-if="item.tag" :title="item.tag">{{ item.tag }}</span></div
             ></div
@@ -1331,10 +1331,13 @@ function handleImportChoices(value: typeof choices.value) {
   min-height: 28px;
 }
 .camera-name-tags h3 {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   margin: 0;
   font-size: 14px;
   color: var(--heading);
-  overflow-wrap: anywhere;
   min-width: 0;
 }
 .camera-name-tags > div {
@@ -1407,6 +1410,19 @@ button,
 summary {
   cursor: pointer;
 }
+/* 手机取消标题保留高度，缩小名称与参数码的空白。 */
+@media (max-width: 899px) {
+  .camera-name-tags {
+    min-height: 0;
+  }
+  .camera-name-tags h3 {
+    width: 100%;
+  }
+  .camera-code {
+    margin-top: 4px;
+  }
+}
+
 @media (max-width: 560px) {
   .camera-favorite-card {
     max-width: 100%;

@@ -136,6 +136,9 @@ Official site: https://nikki3.pages.dev/. Open https://infinity-nikki-album-mana
 - Enable catalog diagnostics with `sessionStorage.setItem('nikki-catalog-diagnostics', '1')` and inspect `[catalog-timing]`. Disable with `sessionStorage.removeItem('nikki-catalog-diagnostics')`. Logs contain only stages, status and elapsed time.
 
 ## Outfit Code Management
+
+Outfit and home-scheme cards hide note text on desktop and mobile. Notes remain available in the editor and continue to be included in search and backups. On mobile, the black gradient and tag text at the bottom of outfit images appear only for tagged outfits. Desktop cards retain the existing Uncategorized label. Desktop and mobile outfit tags share a softer black gradient; mobile tag text remains fully opaque.
+
 On desktop, entering Outfit codes opens a standalone guide according to your saved preference; the guide button beside the title can also open it. Phones show neither the guide entry nor an automatic guide dialog.
 - You can create up to 40 user tags, and each tag can contain up to 5 characters. Deleting a tag in use only moves related plans to Uncategorized.
 - New tags appear at the top of the tag list; drag the left handle to adjust the order.
@@ -309,6 +312,8 @@ Outfit images are copied into memory immediately upon selection; preview and sav
 Image memory copies apply only in compact layouts (viewport width ≤899px). Desktop layouts (≥900px) preview and save the original selected file without an eager copy. The layout at selection time determines the path.
 
 Camera favorite cover uploads also copy selected images into memory only in compact layouts. Saving waits for reading; failures ask for reselection, and stale results after replacement or closing are discarded. Desktop layouts continue using the original file.
+
+Home-scheme and camera-parameter card names use a single line with an ellipsis for overflow on desktop and mobile. Mobile cards use tighter spacing between camera names and parameter codes, and between home furniture counts and scheme codes.
 
 Camera favorite cover reading is shown in the top operation notice, followed by completion or failure. The bottom Save favorite button retains its label and remains disabled during reading.
 

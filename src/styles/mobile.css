@@ -1081,24 +1081,14 @@
     width: var(--mobile-icon-size);
     height: var(--mobile-icon-size);
   }
-  .outfit-card-note {
-    margin: 0;
-    color: var(--heading);
-    font-size: 13px;
-    font-weight: 700;
-    overflow-wrap: anywhere;
+  .outfit-grid .outfit-overlay-untagged {
+    display: none;
   }
-  /* 手机搭配码渐变向上延伸，完整衬托标签；底部内边距不变，避免移动文字。 */
+  /* 手机复用公共渐变，保留标签位置；不降低整层透明度以免文字变淡。 */
   .outfit-grid .outfit-overlay {
-    opacity: 0.7;
-    min-height: 50px;
+    opacity: 1;
+    min-height: 80px;
     padding: 6px;
-    background: linear-gradient(
-      transparent,
-      rgba(0, 0, 0, 0.22) 40%,
-      rgba(0, 0, 0, 0.62) 75%,
-      rgba(0, 0, 0, 0.78)
-    );
   }
   .outfit-code {
     flex: none;
