@@ -75,7 +75,7 @@
 
 ### Browsing the album
 
-Browse photos by date, with large previews, favorites, searchable notes, and batch import/export.
+Browse photos by date, with large previews, favorites, searchable notes, and batch import/export. In the Chinese desktop interface, the “参数与收藏” entry opens camera parameters and photo favorites.
 
 ### Outfit codes and parameter parsing
 
@@ -121,7 +121,7 @@ Official site: https://nikki3.pages.dev/. Open https://infinity-nikki-album-mana
 - The header provides Search, View settings, and More. Tag or rarity entries filter, + adds, and the ⋯ menu provides actions such as import and export.
 - Large previews support horizontal swipes, pinch-to-zoom, and panning.
 - Resonance records can be manually uploaded to the cloud, then synced by signing in to the same account on another device; sign-in and local edits do not sync automatically.
-- In the mobile layout (≤899px), resonance cards use a small outfit summary above a full-width piece grid: five columns, or four below 360px. The original combined total and average for both sets appear below the banner name and above owned progress; they remain unchanged when switching sets and wrap on narrow screens. First/second set buttons above the grid update the owned progress, recorded pulls, and known-piece average for that set. Manual entries count only toward owned progress; unknown pull statistics show “—”.
+- In the mobile layout (≤899px), resonance cards use a small outfit summary above a full-width piece grid: automatic columns with a 68px minimum and 8px gaps across phones and tablets, instead of fixed four- or five-column layouts. Outfit portraits keep their 448:656 ratio: below 600px they use 20vw clamped to 64–80px; at 600–899px they use 14vw clamped to 88–112px; desktop portraits use 22% of the body width clamped to 140–180px. The original combined total and average for both sets appear below the banner name and above owned progress; they remain unchanged when switching sets and wrap on narrow screens. First/second set buttons above the grid update the owned progress, recorded pulls, and known-piece average for that set. Manual entries count only toward owned progress; unknown pull statistics show “—”.
 - Outfits, home schemes, and camera favorites can be exported as a full-data ZIP on a computer, manually transferred to a phone, and then imported.
 - On phones, each empty module shows a usage screenshot below its description. The empty-state import button is removed; import remains available in the “⋯” menu. Search/filter results with no matches do not show screenshots, and desktop behavior is unchanged. Place the images at `img/page/outfits.webp` (outfit codes), `img/page/home.webp` (home schemes), `img/page/camera.webp` (camera parameters), and `img/page/resonance.webp` (resonance records). Images keep their full aspect ratio and are hidden if missing or unable to load. Rebuild and redeploy after adding or replacing these assets.
 
@@ -136,6 +136,8 @@ Official site: https://nikki3.pages.dev/. Open https://infinity-nikki-album-mana
 - Enable catalog diagnostics with `sessionStorage.setItem('nikki-catalog-diagnostics', '1')` and inspect `[catalog-timing]`. Disable with `sessionStorage.removeItem('nikki-catalog-diagnostics')`. Logs contain only stages, status and elapsed time.
 
 ## Outfit Code Management
+
+At viewport widths up to 540px, parsed outfit pieces use an automatically sized grid with an 88px minimum column width, 10px column gaps, and square images.
 
 Outfit and home-scheme cards hide note text on desktop and mobile. Notes remain available in the editor and continue to be included in search and backups. On mobile, the black gradient and tag text at the bottom of outfit images appear only for tagged outfits. Desktop cards retain the existing Uncategorized label. Desktop and mobile outfit tags share a softer black gradient; mobile tag text remains fully opaque.
 

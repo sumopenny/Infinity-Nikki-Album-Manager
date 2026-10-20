@@ -558,7 +558,8 @@ button.resonance-part:focus-visible {
 .resonance-outfit-image {
   position: relative;
   flex-shrink: 0;
-  width: min(180px, 28%);
+  /* 电脑立绘随正文宽度变化，上下限避免过小或挤占部件区域。 */
+  width: clamp(140px, 22%, 180px);
   aspect-ratio: 448 / 656;
   overflow: hidden;
   border-radius: 8px;
@@ -663,7 +664,7 @@ button.resonance-part:focus-visible {
   .resonance-record {
     position: relative;
     display: grid;
-    grid-template-columns: 76px minmax(0, 1fr);
+    grid-template-columns: clamp(64px, 20vw, 80px) minmax(0, 1fr);
     gap: 14px 12px;
     padding: 14px;
   }
@@ -786,14 +787,16 @@ button.resonance-part:focus-visible {
   .resonance-parts {
     grid-column: 1 / -1;
     min-width: 0;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    /* 手机与平板按可用宽度自动排列，避免固定列数挤压或放大部件。 */
+    grid-template-columns: repeat(auto-fill, minmax(51px, 1fr));
     gap: 8px;
     padding: 0 4px 4px 0;
   }
 }
-@media (max-width: 359px) {
-  .resonance-parts {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+/* 展开屏和平板使用更大的摘要立绘，图片继续填满首列并保持原比例。 */
+@media (min-width: 600px) and (max-width: 899px) {
+  .resonance-record {
+    grid-template-columns: clamp(88px, 14vw, 112px) minmax(0, 1fr);
   }
 }
 </style>

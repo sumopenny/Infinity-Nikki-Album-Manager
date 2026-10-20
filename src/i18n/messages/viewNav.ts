@@ -10,7 +10,7 @@ export const viewNavZh: LocaleMessages['viewNav'] = {
   resonanceRecords: '共鸣记录',
   wardrobe: '个人衣橱',
   comingSoon: '其余模块开发中',
-  favorites: '收藏夹',
+  favorites: '参数与收藏',
   recentlyDeleted: '最近删除',
   count: (count) => `${count} 张`,
   homeSchemesCount: (count) => `${count} 个方案`
