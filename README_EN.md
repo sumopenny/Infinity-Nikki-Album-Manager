@@ -241,6 +241,12 @@ Open Resonance records or Personal wardrobe from Nikki Archive in the sidebar.
   <p><sub>Left · Outfit collection progress ｜ Right · Pieces and filters</sub></p>
 </div>
 
+<div align="center">
+  <img src="img/screenshots/wardrobe-outfit-details.webp" alt="Desktop wardrobe outfit details and collection progress" width="49%">
+  <img src="img/screenshots/wardrobe-item-details.webp" alt="Desktop wardrobe item details and associated outfit" width="49%">
+  <p><sub>Personal wardrobe collection details: left · Outfit overview and owned pieces ｜ Right · Item details and associated outfit</sub></p>
+</div>
+
 - **Personal wardrobe:** browse original, recolor, and evolution versions. Switch between outfits and pieces, search by name or ID, and filter by rarity, version, item category, or ownership to view details.
 - Import a CN Whim-Log notebook or wardrobe JSON, or export a separate JSON backup. Clearing wardrobe records does not affect resonance. Makeup and wardrobe cloud sync are not supported.
 - Check the replacement rules in [Backup and Migration](#backup-and-migration) before importing.

@@ -241,6 +241,12 @@
   <p><sub>左 · 套装收集进度 ｜ 右 · 部件与筛选</sub></p>
 </div>
 
+<div align="center">
+  <img src="img/screenshots/wardrobe-outfit-details.webp" alt="电脑个人衣橱套装详情与收集进度" width="49%">
+  <img src="img/screenshots/wardrobe-item-details.webp" alt="电脑个人衣橱部件详情与所属套装" width="49%">
+  <p><sub>个人衣橱收集详情：左 · 套装信息与部件收集状态 ｜ 右 · 部件详情与所属套装</sub></p>
+</div>
+
 - **个人衣橱**：查看原套、焕新及进化版本；切换套装／单品，搜索名称或 ID，按星级、版本、部位和拥有状态等筛选并查看详情。
 - 支持国服奇想手账或衣橱 JSON 导入，单独导出 JSON；单独清空衣橱不影响共鸣。暂不支持妆容和衣橱云同步。
 - 导入前请查看[备份与迁移](#备份与迁移)中的覆盖规则。
