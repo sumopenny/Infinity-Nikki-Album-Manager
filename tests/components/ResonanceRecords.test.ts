@@ -370,7 +370,10 @@ describe('ResonanceRecords', () => {
       '方法来源'
     )
     expect(panel.querySelector('.resonance-region-chip')).toBeNull()
-    expect(panel.textContent).not.toContain('国服')
+    expect(
+      panel.querySelector('.data-import-region .cleanup-account-select')?.textContent
+    ).toContain('国服')
+    expect(panel.querySelector('.data-import-region select')).toBeNull()
     expect(panel.querySelectorAll('.resonance-choice')).toHaveLength(4)
     expect(panel.querySelector('input[type="file"]')).toBeNull()
     expect(panel.textContent).toContain('从文件导入')

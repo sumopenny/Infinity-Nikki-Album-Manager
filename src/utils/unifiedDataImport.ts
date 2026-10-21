@@ -4,6 +4,7 @@ import { parseResonanceFile } from './resonance/resonanceFile'
 import type { ResonanceRecord } from './resonance/resonanceTypes'
 import { loadWardrobeCatalog } from './wardrobe/wardrobeCatalog'
 import { parseWardrobePearpal } from './wardrobe/wardrobeImport'
+import type { WardrobeRegionScope } from './wardrobe/wardrobeRegion'
 import {
   emptyWardrobe,
   parseWardrobeBackup,
@@ -19,6 +20,7 @@ export interface DataPreview {
 
 export type DataPreviewStage = 'check' | 'wardrobe' | 'resonance'
 export interface DataPreviewOptions {
+  regionScope?: WardrobeRegionScope
   signal?: AbortSignal
   onProgress?: (
     stage: DataPreviewStage,
@@ -64,6 +66,9 @@ export async function parseDataPreview(
   if (raw.format === 'nikki-personal-wardrobe') {
     await report('wardrobe')
     result.wardrobe = parseWardrobeBackup(JSON.stringify(raw))
+    // 备份自身的明确区服优先；旧备份允许用户选择，未提供选择时保持兼容行为。
+    if (result.wardrobe.regionScope === undefined && options.regionScope !== undefined)
+      result.wardrobe.regionScope = options.regionScope
     return result
   }
   if (raw.format || !('info_from_self' in raw || 'info_from_gm' in raw)) {
@@ -78,7 +83,7 @@ export async function parseDataPreview(
     await report('wardrobe')
     const catalog = await loadWardrobeCatalog()
     checkCurrent()
-    result.wardrobe = parseWardrobePearpal(raw, catalog).snapshot
+    result.wardrobe = parseWardrobePearpal(raw, catalog, options.regionScope).snapshot
   }
   if (raw.info_from_self?.gacha_list) {
     await report('resonance')

@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { Check } from 'lucide-vue-next'
 import ResonanceImportDialog from './ResonanceImportDialog.vue'
+import PearpalRegionPicker from './PearpalRegionPicker.vue'
 import { messages } from '../i18n'
 import type { Language } from '../i18n/types'
 import { useLatestRequest } from '../composables/useLatestRequest'
@@ -9,9 +10,12 @@ import { useModuleOperation } from '../composables/useOperationCoordinator'
 import { useModalFocus } from '../composables/useModalFocus'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import { copyTextToClipboard } from '../utils/clipboard'
+import { readLocalStorage, writeLocalStorage } from '../utils/localStorage'
+import { isWardrobeItemAvailable, wardrobeRegionScope } from '../utils/wardrobe/wardrobeRegion'
 import {
   fetchPearpalSnapshot,
   PEARPAL_AUTH_FAILED,
+  PEARPAL_REGION_MISMATCH,
   PEARPAL_UID_MISMATCH
 } from '../utils/resonance/resonanceImport'
 import {
@@ -28,6 +32,11 @@ import {
   type DataPreviewStage
 } from '../utils/unifiedDataImport'
 import { sortResonanceRecords } from '../utils/resonance/resonanceCatalog'
+import {
+  isPearpalRegion,
+  PEARPAL_REGIONS,
+  type PearpalRegion
+} from '../utils/resonance/pearpalRegions'
 
 const props = withDefaults(
   defineProps<{ visible: boolean; language?: Language; disabled?: boolean }>(),
@@ -39,10 +48,19 @@ const emit = defineEmits<{
   notice: [message: string, tone: 'success' | 'error' | 'warning']
 }>()
 const text = (zh: string, en: string) => (props.language === 'zh' ? zh : en)
+const REGION_KEY = 'nikki-pearpal-region'
+// 只记住服务器选择，不保存角色或凭据；存储失败沿用网站统一的会话回退。
+const savedRegion = readLocalStorage(REGION_KEY)
+const region = ref<PearpalRegion>(isPearpalRegion(savedRegion) ? savedRegion : 'cn')
+const regionConfig = computed(() => PEARPAL_REGIONS[region.value])
 const t = computed(() => ({
   ...messages[props.language].resonance,
   addTitle: text('导入数据', 'Import data'),
   importing: text('正在获取数据，请稍候…', 'Loading data, please wait…'),
+  loginPearpalDesc: text(
+    `打开${region.value === 'cn' ? '国服美鸭梨并登录叠纸账号' : '国际服 Pear-Pal 并登录对应账号'}，确认当前角色属于“${regionConfig.value.name.zh}”，再按下方步骤获取凭据。`,
+    `Sign in to ${region.value === 'cn' ? 'Chinese Pear-Pal with your Papergames account' : 'global Pear-Pal with your account'}, confirm your current role is on ${regionConfig.value.name.en}, then follow the steps below to get credentials.`
+  ),
   fileDescription: text(
     '支持原始手账 JSON、共鸣记录 JSON 和衣橱备份（最大 10 MB）。预览后选择要导入的记录；文件未包含的数据类型不可选。',
     'Accepts raw notebook JSON, resonance JSON and wardrobe backups (up to 10 MB). Choose which records to import after previewing; unavailable data types are disabled.'
@@ -108,9 +126,14 @@ const canConfirm = computed(
     ((selectedResonance.value && preview.value.resonance !== null) ||
       (selectedWardrobe.value && preview.value.wardrobe !== null))
 )
-const wardrobeCount = computed(
-  () => Object.values(preview.value?.wardrobe?.entries ?? {}).filter((entry) => entry.owned).length
-)
+const wardrobeCount = computed(() => {
+  const snapshot = preview.value?.wardrobe
+  return snapshot
+    ? Object.entries(snapshot.entries).filter(
+        ([id, entry]) => entry.owned && isWardrobeItemAvailable(id, wardrobeRegionScope(snapshot))
+      ).length
+    : 0
+})
 /** 仅滚动导入正文，把当前阶段带入视口，避免手机长凭据教程遮住进度。 */
 function revealProgress() {
   const body = panel.value?.querySelector<HTMLElement>('.resonance-import-body')
@@ -137,6 +160,16 @@ function reset() {
 }
 watch(visible, () => reset(), { immediate: true })
 watch([roleid, token, openid], invalidate, { flush: 'sync' })
+watch(
+  region,
+  (value) => {
+    // 同步废弃请求和预览，防止旧区服请求完成后重新出现可确认的数据。
+    invalidate()
+    cookieInput.value = roleid.value = token.value = openid.value = ''
+    writeLocalStorage(REGION_KEY, value)
+  },
+  { flush: 'sync' }
+)
 watch(cookieInput, (value) => {
   invalidate()
   if (!value.trim()) return
@@ -184,6 +217,10 @@ function report(cause: unknown) {
     emit('notice', t.value.credentialsRequired, 'error')
     return
   }
+  if (message === PEARPAL_REGION_MISMATCH) {
+    emit('notice', t.value.regionMismatch, 'error')
+    return
+  }
   const errorMessage =
     message === PEARPAL_UID_MISMATCH
       ? t.value.uidMismatch
@@ -196,7 +233,9 @@ function report(cause: unknown) {
             )
           : confirming.value
             ? t.value.saveError
-            : t.value.fileInvalid
+            : method.value === 'file'
+              ? t.value.fileInvalid
+              : t.value.importError
   emit('notice', errorMessage, 'error')
 }
 async function createPreview() {
@@ -236,9 +275,11 @@ async function createPreview() {
       }
       if (!credentials.roleid || !credentials.token || !credentials.id)
         throw new Error('MISSING_CREDENTIALS')
-      raw = await fetchPearpalSnapshot(credentials, current.signal)
+      raw = await fetchPearpalSnapshot(credentials, current.signal, region.value)
     }
     const parsed = await parseDataPreview(raw, {
+      // 原始手账文件也使用明确选择的区服；备份内区服的优先级由解析层统一处理。
+      regionScope: region.value === 'cn' ? 'cn' : 'global',
       signal: current.signal,
       onProgress: (stage, stages) => showProgress(stage, ['source', ...stages, 'preview'])
     })
@@ -321,6 +362,7 @@ async function copyScript(kind: 'bookmark' | 'console') {
     show-mobile-credential-tip
     :file-name="fileName"
     :bookmark-script="bookmark"
+    :pearpal-url="regionConfig.home"
     :importing="importing"
     :confirming="confirming"
     :disabled="disabled"
@@ -339,6 +381,24 @@ async function copyScript(kind: 'bookmark' | 'console') {
     @preview="createPreview"
     @confirm="confirm"
   >
+    <template #import-options>
+      <PearpalRegionPicker
+        v-model="region"
+        :language="language"
+        :disabled="confirming || disabled"
+      />
+      <p class="data-import-region-hint">{{
+        method === 'file'
+          ? text(
+              '原始手账 JSON 使用所选区服；衣橱备份优先使用备份内的区服，旧备份未记录区服时使用此选择。切换后需重新预览。',
+              'Raw notebook JSON uses the selected server. Wardrobe backups use their saved region first; legacy backups without a region use this selection. Preview again after switching.'
+            )
+          : text(
+              '国服与国际服共用一份数据。切换服务器后，需重新获取凭据和预览。',
+              'All servers share one data set. After switching servers, get fresh credentials and preview again.'
+            )
+      }}</p>
+    </template>
     <section
       v-if="progress"
       class="data-import-progress"
@@ -386,6 +446,10 @@ async function copyScript(kind: 'bookmark' | 'console') {
     </section>
     <p v-if="error" class="data-import-error" role="alert">{{ error }}</p>
     <section v-if="preview" class="resonance-preview">
+      <p v-if="method === 'pearpal'" class="data-import-identity">
+        {{ text('服务器：', 'Server: ') }}{{ regionConfig.name[language] }} · UID:
+        {{ roleid.trim() }}
+      </p>
       <h3
         >{{ t.previewTitle
         }}<template v-if="preview.resonance !== null">
@@ -419,6 +483,12 @@ async function copyScript(kind: 'bookmark' | 'console') {
       </div>
       <p v-if="preview.wardrobe !== null">{{
         text(`衣橱：${wardrobeCount} 件已拥有部件`, `Wardrobe: ${wardrobeCount} owned pieces`)
+      }}</p>
+      <p v-if="preview.wardrobe !== null" class="data-import-wardrobe-region">{{
+        text('衣橱区服：', 'Wardrobe region: ') +
+        (wardrobeRegionScope(preview.wardrobe) === 'cn'
+          ? text('国服', 'China')
+          : text('国际服', 'Global'))
       }}</p>
       <div
         class="data-import-targets"
@@ -464,14 +534,17 @@ async function copyScript(kind: 'bookmark' | 'console') {
       }}</p>
       <p class="data-import-warning">{{
         text(
-          '确认后整份覆盖勾选的记录，未勾选的记录保持不变。建议先导出备份。',
-          'Confirmation replaces the selected records entirely. Unselected records stay unchanged. Export a backup first.'
+          '国服与国际服共用一份数据。确认后整份覆盖勾选的记录，包括之前其他服务器或账号的记录；未勾选的记录保持不变。建议先导出备份。',
+          'All servers share one data set. Confirmation entirely replaces selected records, including records from other servers or accounts. Unselected records stay unchanged. Export a backup first.'
         )
       }}</p>
     </section>
   </ResonanceImportDialog>
 </template>
 <style scoped>
+.data-import-identity {
+  overflow-wrap: anywhere;
+}
 .data-import-progress {
   --progress-track-height: 8px;
   margin-top: 16px;
@@ -553,5 +626,14 @@ async function copyScript(kind: 'bookmark' | 'console') {
 }
 .data-import-warning {
   color: var(--notice-warning);
+}
+/* 区服说明作为选择框辅助文字，与下方登录步骤保持清晰间距。 */
+.data-import-region-hint {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
 }
 </style>

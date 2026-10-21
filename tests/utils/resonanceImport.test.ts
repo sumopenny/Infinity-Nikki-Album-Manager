@@ -9,7 +9,9 @@ import {
 } from '../../src/utils/resonance/resonanceCatalog'
 import {
   importFromPearpal,
+  fetchPearpalSnapshot,
   PEARPAL_AUTH_FAILED,
+  PEARPAL_REGION_MISMATCH,
   PEARPAL_NO_RECORDS,
   PEARPAL_UID_MISMATCH
 } from '../../src/utils/resonance/resonanceImport'
@@ -20,6 +22,7 @@ import {
   resonanceConsoleScript
 } from '../../src/utils/resonance/resonanceScripts'
 import { encodeSnappyLiteral } from './resonanceSnappyFixture'
+import type { PearpalRegion } from '../../src/utils/resonance/pearpalRegions'
 
 const HAIR = '1020100347'
 const BANNER_TWO_ITEM = '1020100126'
@@ -236,7 +239,7 @@ describe('Pearpal import', () => {
     expect(record?.sets[1].parts.find((part) => part.id === HAIR)?.pullNumber).toBe(1)
     expect(fetchMock).toHaveBeenCalledTimes(2)
     const verifyBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))
-    expect(verifyBody).toEqual({ client_id: 1106, token: 'test-token', openid: 'test-openid' })
+    expect(verifyBody).toEqual({ region: 'cn', token: 'test-token', openid: 'test-openid' })
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain('action=verify')
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain('action=snapshot')
   })
@@ -343,7 +346,11 @@ describe('Pearpal import', () => {
 })
 
 describe('credential helpers', () => {
-  async function runBookmark(text: string, fetchMock: ReturnType<typeof vi.fn>) {
+  async function runBookmark(
+    text: string,
+    fetchMock: ReturnType<typeof vi.fn>,
+    hostname = 'myl.nuanpaper.com'
+  ) {
     const prompt = vi.fn()
     await new Function(
       'document',
@@ -354,12 +361,12 @@ describe('credential helpers', () => {
       'return ' + resonanceBookmarkScript('Wrong site').slice('javascript:'.length)
     )(
       { body: { innerText: text }, cookie: 'momoToken=t; momoNid=i' },
-      { hostname: 'myl.nuanpaper.com' },
+      { hostname },
       fetchMock,
       prompt,
       vi.fn()
     )
-    return JSON.parse(prompt.mock.calls[0]![1])
+    return prompt.mock.calls.length ? JSON.parse(prompt.mock.calls[0]![1]) : undefined
   }
 
   it.each(['UID: 123456', ' UID：\n123456 ', 'Name\nUID:\n123456\nProfile'])(
@@ -406,7 +413,7 @@ describe('credential helpers', () => {
     const script = resonanceBookmarkScript('请在美鸭梨网站上使用此书签')
     expect(script.startsWith('javascript:')).toBe(true)
     expect(script).toContain('myl.nuanpaper.com')
-    expect(script).not.toContain('pearpal.infoldgames.com')
+    expect(script).toContain('pearpal.infoldgames.com')
     expect(script).toContain('请在美鸭梨网站上使用此书签')
     expect(resonanceConsoleScript).toContain('momoToken')
     expect(resonanceConsoleScript).toContain('momoNid')
@@ -417,5 +424,110 @@ describe('credential helpers', () => {
     })
     expect(parseResonanceCookie("{'roleid':'123','token':'t','id':'i'}").roleid).toBe('123')
     expect(() => parseResonanceCookie('{"token":"t"}')).toThrow()
+  })
+
+  it.each([4, 6, 2, 8])(
+    'gets global UID through the matching official API for zone %s',
+    async (zone) => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ code: 0, data: { role: { uid: 123456, zone_id: zone } } })
+      })
+      expect(await runBookmark('Profile', fetchMock, 'pearpal.infoldgames.com')).toEqual({
+        roleid: '123456',
+        token: 't',
+        id: 'i'
+      })
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://pearpal-api.infoldgames.com/v1/strategy/user/info/get',
+        expect.objectContaining({
+          body: JSON.stringify({ client_id: 1116, token: 't', openid: 'i' })
+        })
+      )
+    }
+  )
+
+  it.each(['pearpal.infoldgames.com.evil.test', 'example.com', '__proto__'])(
+    'does not read or transmit credentials on an unlisted host: %s',
+    async (hostname) => {
+      const fetchMock = vi.fn()
+      expect(await runBookmark('Profile', fetchMock, hostname)).toBeUndefined()
+      expect(fetchMock).not.toHaveBeenCalled()
+    }
+  )
+})
+
+describe('international notebook import', () => {
+  it.each<[PearpalRegion, number]>([
+    ['cn', 1],
+    ['asia', 4],
+    ['america', 6],
+    ['europe', 2],
+    ['tw', 8]
+  ])('verifies %s before decoding the shared notebook format', async (region, zone) => {
+    const notebook = {
+      info_from_self: { suit_list: ['10347'] },
+      info_from_gm: { clothes: [{ item_id: 1020100347 }] }
+    }
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json(
+          { code: 0, data: { role: { uid: 123456, zone_id: zone } } },
+          { headers: { 'cache-control': 'no-store' } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(encodeSnappyLiteral(JSON.stringify(notebook)).buffer as ArrayBuffer, {
+          headers: { 'cache-control': 'no-store' }
+        })
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    expect(await fetchPearpalSnapshot(CREDENTIALS, undefined, region)).toEqual(notebook)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(JSON.parse(String(init?.body))).toEqual({
+        region,
+        token: CREDENTIALS.token,
+        openid: CREDENTIALS.id
+      })
+    }
+  })
+
+  it.each([1, 2, 6, 8, undefined, null, 0])(
+    'rejects an incorrect or missing Asia zone before fetching the notebook: %s',
+    async (zone) => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(
+          Response.json(
+            { code: 0, data: { role: { uid: 123456, zone_id: zone } } },
+            { headers: { 'cache-control': 'no-store' } }
+          )
+        )
+      vi.stubGlobal('fetch', fetchMock)
+      await expect(fetchPearpalSnapshot(CREDENTIALS, undefined, 'asia')).rejects.toThrow(
+        PEARPAL_REGION_MISMATCH
+      )
+      expect(fetchMock).toHaveBeenCalledOnce()
+    }
+  )
+
+  it('handles expired global credentials without attempting Snappy decoding', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(
+          { code: 0, data: { role: { uid: 123456, zone_id: 4 } } },
+          { headers: { 'cache-control': 'no-store' } }
+        )
+      )
+      .mockResolvedValueOnce(
+        Response.json({ code: 1801 }, { headers: { 'cache-control': 'no-store' } })
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(fetchPearpalSnapshot(CREDENTIALS, undefined, 'asia')).rejects.toThrow(
+      PEARPAL_AUTH_FAILED
+    )
   })
 })

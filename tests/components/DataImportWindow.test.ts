@@ -3,12 +3,21 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import DataImportWindow from '../../src/components/DataImportWindow.vue'
 import { clearAllBrowserData } from '../../src/utils/file-system/database'
-import { loadWardrobe } from '../../src/utils/wardrobe/wardrobeStorage'
+import {
+  createWardrobeBackup,
+  emptyWardrobe,
+  loadWardrobe
+} from '../../src/utils/wardrobe/wardrobeStorage'
 import { loadResonanceRecords } from '../../src/utils/resonance/resonanceStorage'
 import * as resonanceImport from '../../src/utils/resonance/resonanceImport'
+import { encodeSnappyLiteral } from '../utils/resonanceSnappyFixture'
+import { saveResonanceRecords } from '../../src/utils/resonance/resonanceStorage'
+import { parseDataPreview } from '../../src/utils/unifiedDataImport'
+import { updateWardrobe } from '../../src/utils/wardrobe/wardrobeStorage'
 
 let wrapper: VueWrapper
 beforeEach(async () => {
+  localStorage.clear()
   await clearAllBrowserData()
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
@@ -54,6 +63,177 @@ const raw = {
     ]
   }
 }
+
+async function selectRegion(value: string) {
+  document.querySelector<HTMLButtonElement>('.data-import-region .cleanup-account-select')!.click()
+  await flushPromises()
+  document.querySelector<HTMLButtonElement>(`[data-region="${value}"]`)!.click()
+  await flushPromises()
+}
+it.each(['cn', 'asia', 'america', 'europe', 'tw'])(
+  'uses the selected %s server for a raw file without exclusive owned items, and requires confirmation',
+  async (region) => {
+    await selectRegion(region)
+    await preview({ info_from_gm: { clothes: [{ item_id: 1020100347 }] } })
+    expect(document.querySelector('.data-import-region .cleanup-account-select')).not.toBeNull()
+    expect(document.querySelector('.data-import-wardrobe-region')?.textContent).toContain(
+      region === 'cn' ? '国服' : '国际服'
+    )
+    expect((await loadWardrobe()).regionScope).toBeUndefined()
+    submit().click()
+    await vi.waitFor(() => expect(wrapper.emitted('imported')).toHaveLength(1))
+    expect((await loadWardrobe()).regionScope).toBe(region === 'cn' ? 'cn' : 'global')
+  }
+)
+it.each([
+  ['cn', 'global'],
+  ['asia', 'cn']
+] as const)(
+  'keeps backup region %s selection overridden by %s through preview and saving',
+  async (selected, saved) => {
+    await selectRegion(selected)
+    await preview(
+      JSON.parse(createWardrobeBackup({ ...emptyWardrobe(), regionScope: saved, imported: true }))
+    )
+    expect(document.querySelector('.data-import-wardrobe-region')?.textContent).toContain(
+      saved === 'cn' ? '国服' : '国际服'
+    )
+    submit().click()
+    await vi.waitFor(() => expect(wrapper.emitted('imported')).toHaveLength(1))
+    expect((await loadWardrobe()).regionScope).toBe(saved)
+  }
+)
+it('invalidates a raw file preview on server change while retaining the chosen file for re-preview', async () => {
+  await preview({ info_from_gm: { clothes: [{ item_id: 1020100347 }] } })
+  await selectRegion('asia')
+  expect(document.querySelector('.resonance-preview')).toBeNull()
+  expect((await loadWardrobe()).regionScope).toBeUndefined()
+  expect(document.querySelector('.resonance-file-name')?.textContent).toContain('sample.json')
+  submit().click()
+  await vi.waitFor(() =>
+    expect(document.querySelector('.data-import-wardrobe-region')?.textContent).toContain('国际服')
+  )
+})
+async function pasteCredentials() {
+  const input = document.querySelector<HTMLTextAreaElement>('.resonance-paste textarea')!
+  input.value = JSON.stringify({ roleid: '123456', token: 'test-token', id: 'test-openid' })
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  await flushPromises()
+}
+
+it('remembers only the server and updates the sole official login link in either language', async () => {
+  expect(document.querySelector('.data-import-region select')).toBeNull()
+  await selectRegion('tw')
+  await pasteCredentials()
+  expect(document.querySelector('a[href="https://pearpal.infoldgames.com/en/home"]')).not.toBeNull()
+  expect(document.querySelector('a[href*="/tools/journal"]')).toBeNull()
+  await wrapper.setProps({ language: 'en' })
+  expect(
+    document.querySelector('.data-import-region .cleanup-account-select')?.textContent
+  ).toContain('Global · Taiwan/Hong Kong/Macao')
+  wrapper.unmount()
+  wrapper = mount(DataImportWindow, { props: { visible: true }, attachTo: document.body })
+  expect(
+    document.querySelector('.data-import-region .cleanup-account-select')!.textContent
+  ).toContain('国际服·台港澳')
+  expect(document.querySelector<HTMLTextAreaElement>('.resonance-paste textarea')!.value).toBe('')
+  expect(localStorage.getItem('nikki-pearpal-region')).toBe('tw')
+  expect(JSON.stringify(localStorage)).not.toContain('test-token')
+})
+
+it('aborts a pending notebook request and discards its late result after a server change', async () => {
+  let finish!: (value: unknown) => void
+  const fetchSnapshot = vi.spyOn(resonanceImport, 'fetchPearpalSnapshot').mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve
+      })
+  )
+  await pasteCredentials()
+  submit().click()
+  await vi.waitFor(() => expect(fetchSnapshot).toHaveBeenCalledOnce())
+  const signal = fetchSnapshot.mock.calls[0]![1]!
+  await selectRegion('asia')
+  expect(signal.aborted).toBe(true)
+  expect(
+    [...document.querySelectorAll<HTMLInputElement>('.resonance-form input')].every(
+      (input) => !input.value
+    )
+  ).toBe(true)
+  finish(raw)
+  await flushPromises()
+  expect(document.querySelector('.resonance-preview')).toBeNull()
+  expect(document.querySelector('.data-import-progress')).toBeNull()
+  expect(await loadResonanceRecords()).toEqual([])
+})
+
+it('clears an existing notebook preview when switching servers', async () => {
+  vi.spyOn(resonanceImport, 'fetchPearpalSnapshot').mockResolvedValue(raw)
+  await pasteCredentials()
+  submit().click()
+  await vi.waitFor(() => expect(document.querySelector('.resonance-preview')).not.toBeNull())
+  await selectRegion('america')
+  expect(document.querySelector('.resonance-preview')).toBeNull()
+  expect(submit().textContent).toContain('获取预览')
+})
+
+it.each([
+  ['asia', 4],
+  ['america', 6],
+  ['europe', 2],
+  ['tw', 8]
+])(
+  'imports both notebook sections for %s and replaces the shared records after confirmation',
+  async (region, zone) => {
+    const old = await parseDataPreview({ 2: [['2026-01-01', '1020100126']] })
+    await saveResonanceRecords(old.resonance!)
+    await updateWardrobe((snapshot) => {
+      snapshot.entries['1020100126'] = { owned: true, source: 'manual' }
+      return snapshot
+    })
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(
+          { code: 0, data: { role: { uid: 123456, zone_id: zone } } },
+          { headers: { 'cache-control': 'no-store' } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          encodeSnappyLiteral(
+            JSON.stringify({
+              ...raw,
+              info_from_gm: { clothes: [{ item_id: 1020100347 }] }
+            })
+          ).buffer as ArrayBuffer,
+          { headers: { 'cache-control': 'no-store' } }
+        )
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    await selectRegion(String(region))
+    await pasteCredentials()
+    submit().click()
+    await vi.waitFor(() => expect(document.querySelector('.resonance-preview')).not.toBeNull())
+    expect(document.querySelector('.data-import-identity')?.textContent).toContain('123456')
+    expect(document.querySelector('.data-import-warning:last-child')?.textContent).toContain(
+      '其他服务器或账号'
+    )
+    expect((await loadResonanceRecords())[0]!.bannerId).toBe('2')
+    expect(
+      [...document.querySelectorAll<HTMLInputElement>('.data-import-targets input')].every(
+        (input) => input.checked && !input.disabled
+      )
+    ).toBe(true)
+    submit().click()
+    await vi.waitFor(() => expect(wrapper.emitted('imported')).toHaveLength(1))
+    expect((await loadResonanceRecords()).map((record) => record.bannerId)).toEqual(['77'])
+    const wardrobe = await loadWardrobe()
+    expect(wardrobe.regionScope).toBe('global')
+    expect(wardrobe.entries['1020100347']?.owned).toBe(true)
+    expect(wardrobe.entries['1020100126']).toBeUndefined()
+  }
+)
 
 async function selectProgressFile(text: () => Promise<string>) {
   document

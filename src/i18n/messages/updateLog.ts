@@ -5,28 +5,41 @@ export const updateLogZh: LocaleMessages['updateLog'] = {
   title: '更新记录',
   helpAbout: '使用帮助',
   currentTitle: '当前版本',
-  currentVersion: 'v2.1.1',
-  currentDate: '2026.10.19 更新',
+  currentVersion: 'v2.1.2',
+  currentDate: '2026.10.21 更新',
   currentItems: [
     {
-      title: '新增共鸣记录/衣橱导入视频教程：',
-      text: '在“获取登录凭据”下方点击“电脑端”“安卓端”“苹果端”，即可前往小红书查看对应教程。'
+      title: '新增国际服共鸣与衣橱导入：',
+      text: '支持国服及国际服亚服、美服、欧服、台港澳，登录入口随所选服务器切换，导入预览显示服务器与 UID。'
     },
     {
-      title: '档案导入新增进度展示：',
-      text: '显示数据获取、格式检查、衣橱与共鸣记录解析、预览生成等处理阶段。'
-    },
-    {
-      title: '修复图片导入与保存问题：',
-      text: '改善多种图片格式的读取、预览及保存兼容性，修复部分图片选择后无法保存的问题。'
-    },
-    {
-      title: '优化共鸣记录图片展示：',
-      text: '调整套装与部件图片的边框及背景填充，减少边缘留白。'
+      title: '国际服使用反馈：',
+      text: '开发者本人暂无国际服账号，无法进行全面的实测验证。国际服用户如遇到导入异常、数据展示错误或其他问题，请及时通过小红书向开发者反馈，帮助完善国际服支持。'
     }
   ],
   historyTitle: '历史版本记录',
   history: [
+    {
+      version: 'v2.1.1',
+      items: [
+        {
+          title: '新增共鸣记录/衣橱导入视频教程：',
+          text: '在“获取登录凭据”下方点击“电脑端”“安卓端”“苹果端”，即可前往小红书查看对应教程。'
+        },
+        {
+          title: '档案导入新增进度展示：',
+          text: '显示数据获取、格式检查、衣橱与共鸣记录解析、预览生成等处理阶段。'
+        },
+        {
+          title: '修复图片导入与保存问题：',
+          text: '改善多种图片格式的读取、预览及保存兼容性，修复部分图片选择后无法保存的问题。'
+        },
+        {
+          title: '优化共鸣记录图片展示：',
+          text: '调整套装与部件图片的边框及背景填充，减少边缘留白。'
+        }
+      ]
+    },
     {
       version: 'v2.1',
       items: [
@@ -535,28 +548,41 @@ export const updateLogEn: LocaleMessages['updateLog'] = {
   title: 'Release history',
   helpAbout: 'Help',
   currentTitle: 'Current version',
-  currentVersion: 'v2.1.1',
-  currentDate: 'Updated 2026.10.19',
+  currentVersion: 'v2.1.2',
+  currentDate: 'Updated 2026.10.21',
   currentItems: [
     {
-      title: 'Video tutorials for importing resonance records and wardrobe data: ',
-      text: 'Under “Get sign-in credentials”, click Desktop, Android, or iOS to view the corresponding tutorial on Xiaohongshu.'
+      title: 'Global server resonance and wardrobe imports:',
+      text: 'Choose the China server or the Global Asia, America, Europe, or Taiwan/Hong Kong/Macao server. The sign-in link follows the selected server, and the import preview shows the server and UID.'
     },
     {
-      title: 'Archive import progress: ',
-      text: 'See the current stage, including fetching data, checking its format, parsing wardrobe and resonance records, and preparing the preview.'
-    },
-    {
-      title: 'Fixed image import and saving: ',
-      text: 'Improved compatibility when reading, previewing, and saving various image formats, fixing cases where selected images could not be saved.'
-    },
-    {
-      title: 'Improved resonance images: ',
-      text: 'Adjusted outfit and piece image borders and background fill to reduce gaps around the edges.'
+      title: 'Feedback from Global server players:',
+      text: 'The developer does not currently have a Global server account and cannot conduct comprehensive hands-on testing. If you encounter import failures, incorrect data displays, or other issues on a Global server, please report them to the developer on Xiaohongshu to help improve Global server support.'
     }
   ],
   historyTitle: 'Previous releases',
   history: [
+    {
+      version: 'v2.1.1',
+      items: [
+        {
+          title: 'Video tutorials for importing resonance records and wardrobe data: ',
+          text: 'Under “Get sign-in credentials”, click Desktop, Android, or iOS to view the corresponding tutorial on Xiaohongshu.'
+        },
+        {
+          title: 'Archive import progress: ',
+          text: 'See the current stage, including fetching data, checking its format, parsing wardrobe and resonance records, and preparing the preview.'
+        },
+        {
+          title: 'Fixed image import and saving: ',
+          text: 'Improved compatibility when reading, previewing, and saving various image formats, fixing cases where selected images could not be saved.'
+        },
+        {
+          title: 'Improved resonance images: ',
+          text: 'Adjusted outfit and piece image borders and background fill to reduce gaps around the edges.'
+        }
+      ]
+    },
     {
       version: 'v2.1',
       items: [

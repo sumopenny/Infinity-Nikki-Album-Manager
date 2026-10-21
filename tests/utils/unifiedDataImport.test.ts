@@ -35,6 +35,35 @@ const baseline = async () => ({
 })
 
 describe('unified import', () => {
+  it.each(['cn', 'global'] as const)(
+    'preserves explicit %s backup scope over the opposite selection',
+    async (scope) => {
+      const backup = JSON.parse(createWardrobeBackup({ ...emptyWardrobe(), regionScope: scope }))
+      const preview = await parseDataPreview(backup, {
+        regionScope: scope === 'cn' ? 'global' : 'cn'
+      })
+      expect(preview.wardrobe?.regionScope).toBe(scope)
+      expect(backup.data.regionScope).toBe(scope)
+    }
+  )
+  it('uses the selected scope for legacy backups without metadata and leaves unselected legacy parsing unchanged', async () => {
+    const backup = JSON.parse(createWardrobeBackup(emptyWardrobe()))
+    expect((await parseDataPreview(backup, { regionScope: 'global' })).wardrobe?.regionScope).toBe(
+      'global'
+    )
+    expect((await parseDataPreview(backup)).wardrobe?.regionScope).toBeUndefined()
+    expect(backup.data.regionScope).toBeUndefined()
+  })
+  it('imports direct wardrobe pieces without requiring suits or resonance records', async () => {
+    const preview = await parseDataPreview({
+      info_from_gm: { clothes: [{ item_id: 1020100347 }, { item_id: '1020100347' }] }
+    })
+    expect(preview.resonance).toBeNull()
+    expect(preview.wardrobe?.entries).toEqual({
+      '1020100347': { owned: true, source: 'pearpal' }
+    })
+    expect(preview.wardrobe?.unknownSuitIds).toEqual([])
+  })
   it('reports only actual parsing stages for each data type', async () => {
     const report = vi.fn()
     const result = await parseDataPreview(notebook, { onProgress: report })

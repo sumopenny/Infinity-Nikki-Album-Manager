@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import CameraImportConflictDialog from './CameraImportConflictDialog.vue'
+import WardrobeRestoreRegionDialog from './WardrobeRestoreRegionDialog.vue'
 import { hasAllBackupData } from '../utils/backup/backupAvailability'
-import type { BackupModule, CameraChoices, ModuleImportResult } from '../utils/backup/allDataBackup'
+import type {
+  BackupModule,
+  CameraChoices,
+  ModuleImportResult,
+  WardrobeRegionConflict
+} from '../utils/backup/allDataBackup'
+import type { WardrobeRegionScope } from '../utils/wardrobe/wardrobeRegion'
 import type { ImportPlan } from '../utils/photo-params/favorites'
 const props = defineProps<{ language: 'zh' | 'en'; disabled: boolean }>()
 const emit = defineEmits<{
@@ -15,6 +22,13 @@ const picker = ref<HTMLInputElement | null>(null),
   busy = ref(false)
 const conflict = ref<ImportPlan | null>(null)
 let resolveChoices: ((choices: CameraChoices | null) => void) | null = null
+const regionConflict = ref<WardrobeRegionConflict | null>(null)
+let resolveRegion: ((region: WardrobeRegionScope | null) => void) | null = null
+function finishRegion(value: WardrobeRegionScope | null) {
+  regionConflict.value = null
+  resolveRegion?.(value)
+  resolveRegion = null
+}
 let disposed = false,
   availabilityGeneration = 0
 const t = (zh: string, en: string) => (props.language === 'zh' ? zh : en)
@@ -40,10 +54,16 @@ function setBusy(value: boolean) {
   emit('busy', value)
 }
 function report(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
   emit(
     'status',
     t('全部数据备份操作失败：', 'Backup operation failed: ') +
-      (error instanceof Error ? error.message : String(error)),
+      (message === 'WARDROBE_CHANGED'
+        ? t(
+            '衣橱已在其他页面变更，请重新选择备份并确认区服。',
+            'The wardrobe changed in another tab. Select the backup again and confirm the region.'
+          )
+        : message),
     'error'
   )
 }
@@ -127,6 +147,18 @@ async function importData(event: Event) {
       (module) => {
         started = true
         emit('status', t('正在导入', 'Importing ') + moduleName(module) + '…', 'info', true)
+      },
+      (value) => {
+        if (disposed) return Promise.resolve(null)
+        emit(
+          'status',
+          t('请选择恢复后的衣橱展示区服', 'Choose the wardrobe display region after restoring'),
+          'info'
+        )
+        regionConflict.value = value
+        return new Promise((resolve) => {
+          resolveRegion = resolve
+        })
       }
     )
     if (!results) {
@@ -155,6 +187,7 @@ onBeforeUnmount(() => {
   disposed = true
   availabilityGeneration++
   finishChoices(null)
+  finishRegion(null)
 })
 defineExpose({ exportData, chooseImport, refreshAvailability })
 </script>
@@ -165,5 +198,11 @@ defineExpose({ exportData, chooseImport, refreshAvailability })
     :language="language"
     @confirm="finishChoices"
     @cancel="finishChoices(null)"
+  />
+  <WardrobeRestoreRegionDialog
+    :conflict="regionConflict"
+    :language="language"
+    @confirm="finishRegion"
+    @cancel="finishRegion(null)"
   />
 </template>

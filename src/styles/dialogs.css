@@ -1787,6 +1787,7 @@
 }
 
 .resonance-paste label,
+.data-import-region,
 .resonance-form label {
   display: grid;
   gap: 6px;
@@ -1824,7 +1825,7 @@
   color: var(--text);
 }
 
-/* 云端账号表单复用共鸣输入框，聚焦使用主题边框光晕，避免原生深色外框。 */
+/* 云端账号表单复用共鸣输入框；服务器菜单复用 cleanup-account-select。 */
 .resonance-form input,
 .resonance-cloud-body input {
   box-sizing: border-box;

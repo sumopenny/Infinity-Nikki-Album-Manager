@@ -338,6 +338,156 @@ it('detects wardrobe-only data and merges ownership without revoking local piece
   })
 })
 
+it.each([
+  ['cn', 'global', 'cn'],
+  ['cn', 'global', 'global'],
+  ['global', 'cn', 'cn'],
+  ['global', 'cn', 'global']
+] as const)(
+  'restores %s wardrobe over %s with explicitly chosen %s display region',
+  async (incoming, local, chosen) => {
+    const id = (scope: string) => (scope === 'cn' ? '1021720039' : '1021720040')
+    await updateWardrobe(() => ({
+      ...emptyWardrobe(),
+      imported: true,
+      regionScope: incoming,
+      entries: { [id(incoming)]: { owned: true, source: 'pearpal' } }
+    }))
+    const plan = await prepareAllDataBackup(await exported())
+    await resetOutfitDatabase()
+    await updateWardrobe(() => ({
+      ...emptyWardrobe(),
+      imported: true,
+      regionScope: local,
+      entries: { [id(local)]: { owned: true, source: 'pearpal' } }
+    }))
+    const choose = vi.fn(async () => chosen)
+    const results = await applyAllDataBackup(plan, async () => ({}), undefined, choose)
+    expect(choose).toHaveBeenCalledTimes(1)
+    expect(choose).toHaveBeenCalledWith({ local, incoming })
+    expect(results?.every((result) => !result.error && !result.failed)).toBe(true)
+    const saved = await loadWardrobe()
+    expect(saved.regionScope).toBe(chosen)
+    expect(saved.entries[id(local)]?.owned).toBe(true)
+    expect(saved.entries[id(incoming)]?.owned).toBe(true)
+    // 最终展示和导出的备份元数据都使用用户确认的区服。
+    const { wardrobeCatalogForRegion } = await import('../../src/utils/wardrobe/wardrobeRegion')
+    const { loadWardrobeCatalog } = await import('../../src/utils/wardrobe/wardrobeCatalog')
+    const view = wardrobeCatalogForRegion(await loadWardrobeCatalog(), saved.regionScope!)
+    expect(view.byId.has(id(chosen))).toBe(true)
+    expect(view.byId.has(id(chosen === 'cn' ? 'global' : 'cn'))).toBe(false)
+    expect((await prepareAllDataBackup(await exported())).wardrobe?.regionScope).toBe(chosen)
+  }
+)
+
+it.each(['cn', 'global'] as const)(
+  'does not prompt for same-region %s restore or empty-store restore',
+  async (scope) => {
+    await updateWardrobe(() => ({ ...emptyWardrobe(), imported: true, regionScope: scope }))
+    const plan = await prepareAllDataBackup(await exported())
+    const choose = vi.fn(async () => null)
+    await applyAllDataBackup(plan, async () => ({}), undefined, choose)
+    expect(choose).not.toHaveBeenCalled()
+    await resetOutfitDatabase()
+    await applyAllDataBackup(plan, async () => ({}), undefined, choose)
+    expect(choose).not.toHaveBeenCalled()
+    expect((await loadWardrobe()).regionScope).toBe(scope)
+  }
+)
+
+it('cancels a region conflict before writing any module, and rejects conflict without a resolver', async () => {
+  await seed()
+  await updateWardrobe((latest) => ({ ...latest, regionScope: 'global' }))
+  const plan = await prepareAllDataBackup(await exported())
+  await resetOutfitDatabase()
+  await updateWardrobe(() => ({ ...emptyWardrobe(), imported: true, regionScope: 'cn' }))
+  const before = await loadWardrobe()
+  const put = vi.spyOn(IDBObjectStore.prototype, 'put')
+  const onModule = vi.fn()
+  try {
+    expect(
+      await applyAllDataBackup(
+        plan,
+        async () => ({}),
+        onModule,
+        async () => null
+      )
+    ).toBeNull()
+    await expect(applyAllDataBackup(plan, async () => ({}), onModule)).rejects.toThrow(
+      'WARDROBE_REGION_CONFIRMATION_REQUIRED'
+    )
+    expect(onModule).not.toHaveBeenCalled()
+    expect(put).not.toHaveBeenCalled()
+    expect(await loadWardrobe()).toEqual(before)
+    expect((await readOutfitSnapshot()).records).toHaveLength(0)
+    expect((await readCameraFavorites()).records).toHaveLength(0)
+    expect(await loadResonanceRecords()).toEqual([])
+  } finally {
+    put.mockRestore()
+  }
+})
+
+it('rejects a stale region decision before restoring any module', async () => {
+  await updateWardrobe(() => ({ ...emptyWardrobe(), imported: true, regionScope: 'global' }))
+  const plan = await prepareAllDataBackup(await exported())
+  await updateWardrobe((latest) => ({ ...latest, regionScope: 'cn' }))
+  const onModule = vi.fn()
+  await expect(
+    applyAllDataBackup(
+      plan,
+      async () => ({}),
+      onModule,
+      async () => {
+        await updateWardrobe((latest) => ({ ...latest, regionScope: 'global' }))
+        return 'cn'
+      }
+    )
+  ).rejects.toThrow('WARDROBE_CHANGED')
+  expect(onModule).not.toHaveBeenCalled()
+  expect((await loadWardrobe()).regionScope).toBe('global')
+})
+
+it('keeps the local scope when the backup has no wardrobe data', async () => {
+  const plan = await prepareAllDataBackup(await exported())
+  await updateWardrobe(() => ({ ...emptyWardrobe(), imported: true, regionScope: 'global' }))
+  const choose = vi.fn(async () => null)
+  await applyAllDataBackup(plan, async () => ({}), undefined, choose)
+  expect(choose).not.toHaveBeenCalled()
+  expect((await loadWardrobe()).regionScope).toBe('global')
+})
+
+it('does not write accepted camera choices if the later wardrobe confirmation is cancelled', async () => {
+  await seed()
+  await updateWardrobe((latest) => ({ ...latest, regionScope: 'global' }))
+  const plan = await prepareAllDataBackup(await exported())
+  await resetOutfitDatabase()
+  await updateWardrobe(() => ({ ...emptyWardrobe(), imported: true, regionScope: 'cn' }))
+  await saveCameraFavorite({ ...camera(), name: 'LOCAL' }, null)
+  const before = await readCameraFavorites()
+  const chooseCamera = vi.fn(async () => ({ 'camera-one': 'incoming' as const }))
+  const onModule = vi.fn()
+  expect(await applyAllDataBackup(plan, chooseCamera, onModule, async () => null)).toBeNull()
+  expect(chooseCamera).toHaveBeenCalledTimes(1)
+  expect(onModule).not.toHaveBeenCalled()
+  expect(await readCameraFavorites()).toEqual(before)
+  expect((await loadWardrobe()).regionScope).toBe('cn')
+})
+
+it('uses legacy backup scope inference in the conflict dialog', async () => {
+  await updateWardrobe(() => ({
+    ...emptyWardrobe(),
+    imported: true,
+    entries: { '1021720039': { owned: true, source: 'pearpal' } }
+  }))
+  const plan = await prepareAllDataBackup(await exported())
+  expect(plan.wardrobe?.regionScope).toBeUndefined()
+  await updateWardrobe((latest) => ({ ...latest, regionScope: 'global' }))
+  const choose = vi.fn(async () => 'cn' as const)
+  await applyAllDataBackup(plan, async () => ({}), undefined, choose)
+  expect(choose).toHaveBeenCalledWith({ local: 'global', incoming: 'cn' })
+  expect((await loadWardrobe()).regionScope).toBe('cn')
+})
+
 it('accepts legacy full backups without wardrobe and rejects invalid wardrobe before restoring', async () => {
   await seed()
   const file = await exported()

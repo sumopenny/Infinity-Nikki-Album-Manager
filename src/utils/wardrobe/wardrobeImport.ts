@@ -1,6 +1,7 @@
 import type { WardrobeCatalog } from './wardrobeCatalog'
 import { inferWardrobeFromPulls } from './wardrobeInference'
 import { emptyWardrobe, type WardrobeSnapshot } from './wardrobeStorage'
+import { wardrobeRegionScope, type WardrobeRegionScope } from './wardrobeRegion'
 
 export interface WardrobeImportPreview {
   snapshot: WardrobeSnapshot
@@ -15,10 +16,11 @@ const object = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {}
 
-/** 国服套装直接展开对应版本；没有返回的散件保持未记录，不用总数补齐。 */
+/** 手账套装展开对应版本，并读取直接返回的部件；缺失数据不以总数补齐。 */
 export function parseWardrobePearpal(
   value: unknown,
-  catalog: WardrobeCatalog
+  catalog: WardrobeCatalog,
+  regionScope?: WardrobeRegionScope
 ): WardrobeImportPreview {
   const raw = object(value),
     self = object(raw.info_from_self),
@@ -59,5 +61,6 @@ export function parseWardrobePearpal(
   }
   inferWardrobeFromPulls(rows, catalog).forEach(add)
   snapshot.unknownSuitIds = [...new Set(snapshot.unknownSuitIds)]
+  snapshot.regionScope = regionScope ?? wardrobeRegionScope(snapshot)
   return { snapshot }
 }

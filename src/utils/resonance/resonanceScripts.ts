@@ -1,4 +1,5 @@
 // 共鸣导入用的取 Cookie 脚本：书签脚本（拖到书签栏）与控制台脚本，内容参照上游共鸣录。
+import { PEARPAL_REGIONS } from './pearpalRegions'
 
 /** 手机页面可能拆分标签、使用全角冒号或换行；只提取明确标注为 UID 的数字。 */
 const UID_SNIPPET =
@@ -17,8 +18,23 @@ export const resonanceConsoleScript =
  * 非美鸭梨站点会弹窗提示，避免在别的网站误用。
  */
 export function resonanceBookmarkScript(invalidSiteMessage: string): string {
+  // 书签可跨区服复用，只向当前官方站点对应的接口发送凭据。
+  const sites = Object.fromEntries(
+    Object.values(PEARPAL_REGIONS).map((config) => [
+      new URL(config.site).hostname,
+      {
+        api: config.api,
+        clientId: config.clientId,
+        zones: Object.values(PEARPAL_REGIONS)
+          .filter((entry) => entry.site === config.site)
+          .map((entry) => entry.zoneId)
+      }
+    ])
+  )
   return (
-    'javascript:(async function(){if(location.hostname!=="myl.nuanpaper.com"){alert(' +
+    'javascript:(async function(){const sites=' +
+    JSON.stringify(sites) +
+    ';const config=Object.hasOwn(sites,location.hostname)?sites[location.hostname]:null;if(!config){alert(' +
     JSON.stringify(invalidSiteMessage) +
     ');return}const credentials={roleid:' +
     UID_SNIPPET +
@@ -27,11 +43,11 @@ export function resonanceBookmarkScript(invalidSiteMessage: string): string {
     ',id:' +
     ID_SNIPPET +
     '};if(!credentials.roleid&&credentials.token&&credentials.id){try{' +
-    'const response=await fetch("https://myl-api.nuanpaper.com/v1/strategy/user/info/get",{' +
+    'const response=await fetch(config.api+"/v1/strategy/user/info/get",{' +
     'method:"POST",headers:{"content-type":"application/json"},cache:"no-store",' +
-    'body:JSON.stringify({client_id:1106,token:credentials.token,openid:credentials.id})});' +
+    'body:JSON.stringify({client_id:config.clientId,token:credentials.token,openid:credentials.id})});' +
     'if(response.ok){const payload=await response.json();const role=payload.data?.role;' +
-    'if(payload.code===0&&role&&(role.zone_id===undefined||role.zone_id===1)&&/^\\d+$/.test(String(role.uid??"")))' +
+    'if(payload.code===0&&role&&((role.zone_id===undefined&&config.clientId===1106)||config.zones.includes(Number(role.zone_id)))&&/^\\d+$/.test(String(role.uid??"")))' +
     'credentials.roleid=String(role.uid);}}catch{}}' +
     'prompt("Cookie:",JSON.stringify(credentials));})();'
   )

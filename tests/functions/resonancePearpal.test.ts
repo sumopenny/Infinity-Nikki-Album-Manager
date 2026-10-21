@@ -18,6 +18,47 @@ function request(
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Pearpal Pages Function', () => {
+  it.each(['cn', 'asia', 'america', 'europe', 'tw'])(
+    'routes both %s actions using only server-owned configuration',
+    async (region) => {
+      const upstream = vi.fn<typeof fetch>(async () => new Response(new Uint8Array([1, 2, 3])))
+      vi.stubGlobal('fetch', upstream)
+      for (const action of ['verify', 'snapshot']) {
+        const response = await onRequestPost({
+          request: request(action, {
+            ...credentials,
+            region,
+            client_id: 9999,
+            api: 'https://untrusted.test'
+          })
+        })
+        expect(response.status).toBe(200)
+        expect(response.headers.get('cache-control')).toContain('no-store')
+        const [target, init] = upstream.mock.calls.at(-1)!
+        expect(String(target)).toBe(
+          `${region === 'cn' ? 'https://myl-api.nuanpaper.com' : 'https://pearpal-api.infoldgames.com'}/v1/strategy/user/${action === 'verify' ? 'info/get' : 'note/book/info'}`
+        )
+        expect(JSON.parse(String(init?.body))).toEqual({
+          ...credentials,
+          client_id: region === 'cn' ? 1106 : 1116
+        })
+      }
+    }
+  )
+
+  it.each(['invalid', '__proto__', 'constructor', '', null, {}, 1])(
+    'rejects an invalid region without forwarding credentials: %j',
+    async (region) => {
+      const upstream = vi.fn()
+      vi.stubGlobal('fetch', upstream)
+      const response = await onRequestPost({
+        request: request('verify', { ...credentials, region })
+      })
+      expect(response.status).toBe(400)
+      expect(await response.json()).toEqual({ error: 'invalid_region' })
+      expect(upstream).not.toHaveBeenCalled()
+    }
+  )
   it.each([null, [], 'text', 1, true])(
     'rejects non-object JSON before contacting upstream: %s',
     async (body) => {

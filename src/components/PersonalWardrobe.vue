@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import CatalogImage from './CatalogImage.vue'
+import { wardrobeCatalogForRegion, wardrobeRegionScope } from '../utils/wardrobe/wardrobeRegion'
 import { useWardrobeFilters, type FilterKey } from '../composables/useWardrobeFilters'
 import {
   wardrobeVariantLabels,
@@ -94,8 +95,13 @@ async function showOwnershipNotice() {
 }
 
 const track = useModuleOperation('wardrobe')
-const catalog = shallowRef<WardrobeCatalog | null>(null)
+const fullCatalog = shallowRef<WardrobeCatalog | null>(null)
 const snapshot = ref<WardrobeSnapshot>(emptyWardrobe())
+const catalog = computed(() =>
+  fullCatalog.value
+    ? wardrobeCatalogForRegion(fullCatalog.value, wardrobeRegionScope(snapshot.value))
+    : null
+)
 const loaded = ref(false),
   busy = ref(false)
 const loadFailed = ref(false)
@@ -322,7 +328,7 @@ async function reload() {
       deadline
     ])
     if (version !== loadVersion) return
-    catalog.value = data
+    fullCatalog.value = data
     snapshot.value = saved
     loaded.value = true
   } catch {

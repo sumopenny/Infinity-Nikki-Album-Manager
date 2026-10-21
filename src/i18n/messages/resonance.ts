@@ -78,6 +78,7 @@ export interface ResonanceMessages {
   openId: string
   credentialsRequired: string
   uidMismatch: string
+  regionMismatch: string
   authFailed: string
   processBanner: (current: number, total: number) => string
   import: string
@@ -189,6 +190,7 @@ export const resonanceZh: ResonanceMessages = {
   openId: 'Momo ID',
   credentialsRequired: '请填写完整的凭据信息。',
   uidMismatch: '美鸭梨账号 UID 与输入的 UID 不一致。',
+  regionMismatch: '无法确认角色属于所选服务器。请在美鸭梨切换到正确角色，再重新获取凭据。',
   authFailed:
     '请重新登录美鸭梨并获取新凭据。若仍然报错，请在浏览器无痕窗口中登录美鸭梨，重新获取凭据后重试。',
   processBanner: (current, total) => `正在处理第 ${current} 个卡池，共 ${total} 个`,
@@ -310,6 +312,8 @@ export const resonanceEn: ResonanceMessages = {
   openId: 'Momo ID',
   credentialsRequired: 'Please fill in all required credential fields.',
   uidMismatch: 'The UID from Pear-Pal does not match the entered UID.',
+  regionMismatch:
+    'The role could not be verified for the selected server. Select the correct role on Pear-Pal and get fresh credentials.',
   authFailed:
     'Sign in to Pear-Pal again and get fresh credentials. If the error persists, sign in to Pear-Pal in a private browser window, get new credentials, and try again.',
   processBanner: (current, total) => `Processing banner ${current} of ${total}`,

@@ -514,9 +514,9 @@ describe('personal wardrobe interactions', () => {
     button('获取预览').click()
     await vi.waitFor(() => expect(document.querySelector('.resonance-preview')).not.toBeNull())
     expect((await loadWardrobe()).entries['1020100399']?.source).toBe('manual')
-    expect(document.querySelector('.data-import-warning')?.textContent).toContain(
-      '整份覆盖勾选的记录'
-    )
+    expect(
+      [...document.querySelectorAll('.data-import-warning')].map((el) => el.textContent).join(' ')
+    ).toContain('整份覆盖勾选的记录')
     button('确认导入').click()
     await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull())
     const saved = await loadWardrobe()

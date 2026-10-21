@@ -1,5 +1,6 @@
 import { openDb, runStoreRequest } from '../file-system/database'
 import { loadWardrobeCatalog, type WardrobeCatalog } from './wardrobeCatalog'
+import { wardrobeRegionScope, type WardrobeRegionScope } from './wardrobeRegion'
 
 // 保留旧版备份的来源字段兼容性；界面不再提供手动修改入口。
 export type OwnershipSource = 'manual' | 'pearpal'
@@ -12,6 +13,8 @@ export interface WardrobeSnapshot {
   unknownSuitIds: string[]
   updatedAt: string
   imported?: boolean
+  /** 可选字段兼容旧存档；只随确认后的衣橱数据及备份保存。 */
+  regionScope?: WardrobeRegionScope
 }
 export const emptyWardrobe = (): WardrobeSnapshot => ({
   entries: {},
@@ -32,6 +35,7 @@ export function validateWardrobe(value: unknown): WardrobeSnapshot {
     !Array.isArray(raw.unknownSuitIds) ||
     raw.unknownSuitIds.some((id) => typeof id !== 'string' || !validId(id)) ||
     (raw.imported !== undefined && typeof raw.imported !== 'boolean') ||
+    (raw.regionScope !== undefined && raw.regionScope !== 'cn' && raw.regionScope !== 'global') ||
     typeof raw.updatedAt !== 'string' ||
     (raw.updatedAt !== '' && !Number.isFinite(Date.parse(raw.updatedAt)))
   )
@@ -48,6 +52,7 @@ export function validateWardrobe(value: unknown): WardrobeSnapshot {
     entries[id] = { owned: entry.owned, source: entry.source }
   }
   return {
+    ...(raw.regionScope === undefined ? {} : { regionScope: raw.regionScope }),
     entries,
     unknownSuitIds: [...new Set(raw.unknownSuitIds)],
     updatedAt: raw.updatedAt,
@@ -143,15 +148,21 @@ export function resolveUnknownWardrobeSuits(
   }
 }
 
-/** Merge positive ownership without allowing an older backup to revoke local ownership. */
+/** 合并已拥有记录；总备份可传入明确确认的展示区服，并校验恢复期间区服未变化。 */
 export async function mergeWardrobe(
-  incoming: WardrobeSnapshot
+  incoming: WardrobeSnapshot,
+  options: { regionScope?: WardrobeRegionScope; expectedRegionScope?: WardrobeRegionScope } = {}
 ): Promise<{ saved: number; skipped: number }> {
   const data = validateWardrobe(incoming)
   const catalog = data.unknownSuitIds.length ? await loadWardrobeCatalog() : null
   let saved = 0,
     skipped = 0
   await updateWardrobe((latest) => {
+    if (
+      options.expectedRegionScope !== undefined &&
+      wardrobeRegionScope(latest) !== options.expectedRegionScope
+    )
+      throw new Error('WARDROBE_CHANGED')
     const entries = { ...latest.entries }
     for (const [id, entry] of Object.entries(data.entries)) {
       const existing = entries[id]
@@ -170,6 +181,12 @@ export async function mergeWardrobe(
     }
     const result = {
       ...latest,
+      // 总备份使用确认后的展示区服；普通合并默认保持已有区服，空库继承备份。
+      ...(options.regionScope !== undefined
+        ? { regionScope: options.regionScope }
+        : !latest.imported && !Object.keys(latest.entries).length && data.regionScope
+          ? { regionScope: data.regionScope }
+          : {}),
       entries,
       unknownSuitIds: [...unknown],
       imported: !!latest.imported || !!data.imported

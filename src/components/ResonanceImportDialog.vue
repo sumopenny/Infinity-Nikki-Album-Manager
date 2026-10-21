@@ -12,6 +12,7 @@ defineProps<{
   showMobileCredentialTip?: boolean
   fileName?: string
   bookmarkScript: string
+  pearpalUrl: string
   importing: boolean
   confirming: boolean
   hasPreview: boolean
@@ -39,7 +40,6 @@ const panel = ref<HTMLElement | null>(null),
   fileInput = ref<HTMLInputElement | null>(null)
 watch(panel, (value) => emit('panel', value), { flush: 'sync' })
 watch(fileInput, (value) => emit('fileInput', value), { flush: 'sync' })
-const PEARPAL_URL = 'https://myl.nuanpaper.com/home'
 const VIDEO_TUTORIALS = [
   {
     label: 'desktopVideoTutorial',
@@ -98,6 +98,7 @@ const VIDEO_TUTORIALS = [
                 >{{ t.fromFile }}</button
               >
             </div>
+            <div><slot name="import-options" /></div>
             <section
               v-if="importMethod === 'file'"
               class="parse-tools-section resonance-info-card resonance-file-card"
@@ -130,7 +131,7 @@ const VIDEO_TUTORIALS = [
               <div class="parse-tools-section resonance-info-card">
                 <p
                   >{{ t.loginPearpalDesc }}
-                  <a :href="PEARPAL_URL" target="_blank" rel="noreferrer noopener"
+                  <a :href="pearpalUrl" target="_blank" rel="noreferrer noopener"
                     >{{ t.pearpalSite }}<ExternalLink :size="12" aria-hidden="true" /></a
                 ></p>
               </div>

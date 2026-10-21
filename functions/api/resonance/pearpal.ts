@@ -1,3 +1,5 @@
+import { isPearpalRegion, PEARPAL_REGIONS } from '../../../src/utils/resonance/pearpalRegions'
+
 interface Context {
   request: Request
 }
@@ -7,7 +9,6 @@ const CACHE_HEADERS = {
   pragma: 'no-cache',
   expires: '0'
 }
-const PEARPAL_API = 'https://myl-api.nuanpaper.com'
 const ACTION_PATHS = {
   verify: '/v1/strategy/user/info/get',
   snapshot: '/v1/strategy/user/note/book/info'
@@ -23,7 +24,7 @@ export async function onRequestPost({ request }: Context): Promise<Response> {
   if (contentLength > 8192)
     return Response.json({ error: 'request_too_large' }, { status: 413, headers: CACHE_HEADERS })
 
-  let body: { token?: unknown; openid?: unknown }
+  let body: { token?: unknown; openid?: unknown; region?: unknown }
   try {
     const rawBody = await request.text()
     if (rawBody.length > 8192)
@@ -48,7 +49,13 @@ export async function onRequestPost({ request }: Context): Promise<Response> {
     return Response.json({ error: 'invalid_credentials' }, { status: 400, headers: CACHE_HEADERS })
   }
 
-  const target = new URL(ACTION_PATHS[action], PEARPAL_API)
+  // 旧客户端没有 region 时保持国服；显式传入的非法区服不能降级到国服。
+  const region = body.region === undefined ? 'cn' : body.region
+  if (!isPearpalRegion(region)) {
+    return Response.json({ error: 'invalid_region' }, { status: 400, headers: CACHE_HEADERS })
+  }
+  const config = PEARPAL_REGIONS[region]
+  const target = new URL(ACTION_PATHS[action], config.api)
   try {
     const upstream = await fetch(target, {
       method: 'POST',
@@ -58,7 +65,7 @@ export async function onRequestPost({ request }: Context): Promise<Response> {
         'content-type': 'application/json',
         accept: action === 'snapshot' ? 'application/octet-stream' : 'application/json'
       },
-      body: JSON.stringify({ client_id: 1106, token: body.token, openid: body.openid })
+      body: JSON.stringify({ client_id: config.clientId, token: body.token, openid: body.openid })
     })
     if (!upstream.ok) {
       return Response.json({ error: 'upstream_rejected' }, { status: 502, headers: CACHE_HEADERS })

@@ -5,8 +5,13 @@ import {
   loadWardrobe,
   mergeWardrobe,
   parseWardrobeBackup,
+  emptyWardrobe,
+  validateWardrobe,
   type WardrobeSnapshot
 } from '../wardrobe/wardrobeStorage'
+import { wardrobeRegionScope, type WardrobeRegionScope } from '../wardrobe/wardrobeRegion'
+import { hasWardrobeSnapshot } from '../wardrobe/wardrobeOwnership'
+import { runStoreRequest } from '../file-system/database'
 import { strToU8, unzip } from 'fflate'
 import { backupPartBlob, downloadBackupBlob, type BackupDownload } from './zipBackup'
 import { exportOutfitBackup, importOutfitBackup, inspectOutfitBackup } from '../outfit/outfitBackup'
@@ -63,6 +68,19 @@ export interface ModuleImportResult {
 }
 export type CameraChoices = Record<string, 'local' | 'incoming'>
 export type ResolveCameraConflict = (plan: ImportPlan) => Promise<CameraChoices | null>
+export interface WardrobeRegionConflict {
+  local: WardrobeRegionScope
+  incoming: WardrobeRegionScope
+}
+export type ResolveWardrobeRegion = (
+  conflict: WardrobeRegionConflict
+) => Promise<WardrobeRegionScope | null>
+
+/** 确认前只读原始快照，不触发旧套装映射迁移，取消时任何模块均不写入。 */
+async function readRestoreWardrobe(): Promise<WardrobeSnapshot> {
+  const raw = await runStoreRequest('wardrobe', 'readonly', (store) => store.get('current'))
+  return raw === undefined ? emptyWardrobe() : validateWardrobe(raw)
+}
 
 /** Keep the original module archives intact so they can also be restored separately. */
 export async function exportAllDataBackup(
@@ -238,12 +256,30 @@ export async function prepareAllDataBackup(file: File): Promise<AllDataPlan> {
 export async function applyAllDataBackup(
   plan: AllDataPlan,
   resolveConflict: ResolveCameraConflict,
-  onModule?: (module: BackupModule) => void
+  onModule?: (module: BackupModule) => void,
+  resolveWardrobeRegion?: ResolveWardrobeRegion
 ): Promise<ModuleImportResult[] | null> {
   // Resolve interactive choices before saving any module; cancel leaves all data unchanged.
   const cameraPlan = planCameraImport(await readCameraFavorites(), plan.camera)
   const choices = cameraPlan.conflicts.length ? await resolveConflict(cameraPlan) : {}
   if (choices === null) return null
+  const localWardrobe = plan.wardrobe ? await readRestoreWardrobe() : null
+  let finalRegion: WardrobeRegionScope | undefined
+  if (plan.wardrobe && hasWardrobeSnapshot(plan.wardrobe)) {
+    const incoming = wardrobeRegionScope(plan.wardrobe)
+    const local = wardrobeRegionScope(localWardrobe!)
+    finalRegion = hasWardrobeSnapshot(localWardrobe!) ? local : incoming
+    if (hasWardrobeSnapshot(localWardrobe!) && local !== incoming) {
+      if (!resolveWardrobeRegion) throw new Error('WARDROBE_REGION_CONFIRMATION_REQUIRED')
+      const selected = await resolveWardrobeRegion({ local, incoming })
+      if (selected === null) return null
+      if (selected !== 'cn' && selected !== 'global') throw new Error('INVALID_WARDROBE_REGION')
+      finalRegion = selected
+    }
+    // 等待选择期间其他标签页可能导入新衣橱；在任何模块写入前拒绝过期确认。
+    if (JSON.stringify(await readRestoreWardrobe()) !== JSON.stringify(localWardrobe))
+      throw new Error('WARDROBE_CHANGED')
+  }
   const results: ModuleImportResult[] = []
   for (const module of MODULES) {
     if (module === 'wardrobe' && !plan.wardrobe) continue
@@ -271,7 +307,18 @@ export async function applyAllDataBackup(
         result.saved = await applyCameraImport(cameraPlan, choices)
         result.skipped = cameraPlan.incoming.records.length + cameraPlan.skipped - result.saved
       } else if (module === 'wardrobe') {
-        Object.assign(result, await mergeWardrobe(plan.wardrobe!))
+        Object.assign(
+          result,
+          await mergeWardrobe(
+            plan.wardrobe!,
+            finalRegion === undefined
+              ? undefined
+              : {
+                  regionScope: finalRegion,
+                  expectedRegionScope: wardrobeRegionScope(localWardrobe!)
+                }
+          )
+        )
       } else {
         // 与普通导入共用事务合并，保留恢复期间其他窗口新增的共鸣记录。
         if (plan.resonance.length) await mergeResonanceRecords(plan.resonance)

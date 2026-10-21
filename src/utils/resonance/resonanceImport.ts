@@ -1,4 +1,4 @@
-// 奇想手账导入固定使用国服美鸭梨接口；凭据只随当前请求发送，不进入持久化层。
+// 奇想手账按所选区服验证角色；凭据只随当前请求发送，不进入持久化层。
 import {
   buildResonanceRecords,
   loadResonanceBanners,
@@ -6,6 +6,7 @@ import {
 } from './resonanceCatalog'
 import { decodePearpal } from './resonancePearpalData'
 import type { ResonanceRecord } from './resonanceTypes'
+import { PEARPAL_REGIONS, type PearpalRegion } from './pearpalRegions'
 
 export interface ResonanceCredentials {
   token: string
@@ -25,6 +26,7 @@ export interface ResonanceImportResult {
 }
 
 export const PEARPAL_UID_MISMATCH = 'Pearpal UID mismatch'
+export const PEARPAL_REGION_MISMATCH = 'Pearpal region mismatch'
 export const PEARPAL_AUTH_FAILED = 'Pearpal credentials could not be verified'
 export const PEARPAL_NO_RECORDS = 'No supported banner pull records were found'
 
@@ -48,6 +50,7 @@ async function request(url: string, init?: RequestInit): Promise<Response> {
 async function postPearpal(
   action: 'verify' | 'snapshot',
   credentials: ResonanceCredentials,
+  region: PearpalRegion,
   signal?: AbortSignal
 ): Promise<Response> {
   const response = await request(`/api/resonance/pearpal?action=${action}`, {
@@ -55,7 +58,7 @@ async function postPearpal(
     signal,
     cache: 'no-store',
     headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
-    body: JSON.stringify({ client_id: 1106, token: credentials.token, openid: credentials.id })
+    body: JSON.stringify({ region, token: credentials.token, openid: credentials.id })
   })
   if (response.headers.get('cache-control')?.includes('no-store') !== true) {
     // The proxy also sets this header; reject unexpected cached responses at the client boundary.
@@ -67,9 +70,10 @@ async function postPearpal(
 /** 验证必须包含角色 UID；缺少角色时统一提示重新登录，不能把上游 OK 当成错误原因。 */
 async function verifyPearpalUid(
   credentials: ResonanceCredentials,
+  region: PearpalRegion,
   signal?: AbortSignal
 ): Promise<void> {
-  const response = await postPearpal('verify', credentials, signal)
+  const response = await postPearpal('verify', credentials, region, signal)
   const payload = (await response.json()) as {
     code?: number
     info?: string
@@ -79,11 +83,13 @@ async function verifyPearpalUid(
   if (payload.code !== 0 || !role || role.uid === undefined || role.uid === null) {
     throw new Error(PEARPAL_AUTH_FAILED)
   }
-  if (
-    String(role.uid) !== credentials.roleid.trim() ||
-    (role.zone_id !== undefined && role.zone_id !== 1)
-  ) {
+  if (String(role.uid) !== credentials.roleid.trim()) {
     throw new Error(PEARPAL_UID_MISMATCH)
+  }
+  // 国服兼容旧接口缺少区服字段；国际服必须明确匹配，不能仅凭 UID 猜测区服。
+  if (role.zone_id === undefined && region === 'cn') return
+  if (Number(role.zone_id) !== PEARPAL_REGIONS[region].zoneId) {
+    throw new Error(PEARPAL_REGION_MISMATCH)
   }
 }
 
@@ -121,15 +127,16 @@ function toPullRow(row: PearpalRow) {
   }
 }
 
-/** 先核对国服角色 UID，再解压完整手账快照，供共鸣与衣橱各自解析。 */
+/** 先核对所选区服的角色 UID，再解压完整手账快照，供共鸣与衣橱各自解析。 */
 export async function fetchPearpalSnapshot(
   credentials: ResonanceCredentials,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  region: PearpalRegion = 'cn'
 ): Promise<unknown> {
   signal?.throwIfAborted()
-  await verifyPearpalUid(credentials, signal)
+  await verifyPearpalUid(credentials, region, signal)
   signal?.throwIfAborted()
-  const response = await postPearpal('snapshot', credentials, signal)
+  const response = await postPearpal('snapshot', credentials, region, signal)
   // 登录失效时快照返回 JSON 而非 Snappy，先识别登录错误，避免显示解压异常。
   if (response.headers.get('content-type')?.includes('application/json')) {
     const payload = (await response.clone().json()) as { code?: number }
@@ -144,9 +151,10 @@ export async function fetchPearpalSnapshot(
 export async function importFromPearpal(
   credentials: ResonanceCredentials,
   onProgress?: (value: ResonanceImportProgress) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  region: PearpalRegion = 'cn'
 ): Promise<ResonanceImportResult> {
-  const decoded = (await fetchPearpalSnapshot(credentials, signal)) as {
+  const decoded = (await fetchPearpalSnapshot(credentials, signal, region)) as {
     info_from_self?: { gacha_list?: unknown }
   }
   return parsePearpalResonance(decoded, onProgress, signal)
