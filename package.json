@@ -12,7 +12,7 @@
     "resources:update:startup": "npm run resources:update:poses && npm run resources:update:light-filters && npm run resources:update:items && npm run resources:update:gongeo",
     "predev": "npm run resources:update:startup",
     "build": "vue-tsc --noEmit && vite build",
-    "build:cloudflare": "npm run resources:update:startup && npm run build",
+    "build:cloudflare": "npm run resources:update:startup && npm run build && npm run errors:archive -- --upload-if-configured",
     "test": "vitest run && node --test tests/startupDependencies.test.mjs tests/resourceNetwork.test.cjs",
     "preview": "vite preview --host 0.0.0.0",
     "predev:remote": "npm run resources:update:startup",
@@ -23,7 +23,13 @@
     "format:review": "npm run format",
     "format:review:check": "npm run format:check",
     "format": "prettier --write \"src/**/*.{ts,vue,css}\" \"functions/**/*.ts\" \"scripts/*.{mjs,cjs,ts}\" \"tests/**/*.{ts,mjs,cjs}\" \"start/*.mjs\" \"*.{ts,json,html}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,vue,css}\" \"functions/**/*.ts\" \"scripts/*.{mjs,cjs,ts}\" \"tests/**/*.{ts,mjs,cjs}\" \"start/*.mjs\" \"*.{ts,json,html}\""
+    "format:check": "prettier --check \"src/**/*.{ts,vue,css}\" \"functions/**/*.ts\" \"scripts/*.{mjs,cjs,ts}\" \"tests/**/*.{ts,mjs,cjs}\" \"start/*.mjs\" \"*.{ts,json,html}\"",
+    "d1:errors:migrate": "wrangler d1 migrations apply wxnn-errors --remote",
+    "errors:list": "node scripts/error-report.mjs list",
+    "errors:report": "node scripts/error-report.mjs event",
+    "errors:prune": "node scripts/error-report.mjs prune",
+    "errors:archive": "node scripts/archive-error-artifacts.mjs",
+    "test:errors": "vitest run tests/utils/errorReporting tests/functions/errors.test.ts && node --test tests/errorSourceMaps.test.mjs"
   },
   "dependencies": {
     "@assemblyscript/loader": "0.28.20",

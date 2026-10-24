@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import { validateSelectedImage } from '../utils/imageSelection'
 import { createUuid } from '../utils/uuid'
 import { useModuleOperation } from '../composables/useOperationCoordinator'
@@ -168,7 +169,7 @@ async function addTag(raw: string, select = false) {
     closeTagInput()
     sidebar.value?.closeTagInput()
   } catch (caught) {
-    report(caught)
+    report(caught, 'addTag')
   }
 }
 function toggleTag(tag: string) {
@@ -180,7 +181,7 @@ async function reorderTags(next: string[]) {
     try {
       await persistTags([...new Set([...next, ...allTags.value])])
     } catch (caught) {
-      report(caught)
+      report(caught, 'reorderTags')
     }
   })
 }
@@ -207,7 +208,7 @@ async function removeTag(tag: string) {
       await reload()
       channel?.postMessage('changed')
     } catch (caught) {
-      report(caught)
+      report(caught, 'removeTag')
     } finally {
       busy.value = false
     }
@@ -361,13 +362,15 @@ async function removeSelected() {
       notifyChanged()
       emit('status', t('已删除选中的收藏', 'Selected favorites deleted'), 'success')
     } catch (caught) {
-      report(caught)
+      report(caught, 'removeSelected')
     } finally {
       busy.value = false
     }
   })
 }
-function report(caught: unknown) {
+function report(caught: unknown, action = 'operation') {
+  if (!(caught instanceof DuplicateCameraCodeError))
+    captureDiagnosticError(caught, { module: 'camera-favorites', action })
   const message =
     caught instanceof DuplicateCameraCodeError
       ? t('该参数已收藏', 'These parameters are already saved')
@@ -392,6 +395,8 @@ async function reload() {
         next.records.map((r) => r.code)
       )
     } catch (caught) {
+      if (!disposed && run === loadGeneration)
+        captureDiagnosticError(caught, { module: 'camera-favorites', action: 'reload' })
       if (!disposed && run === loadGeneration)
         loadError.value = caught instanceof Error ? caught.message : String(caught)
     }
@@ -428,7 +433,7 @@ async function openEditor(
     try {
       existingCover = await trackOperation(() => readCameraFavoriteCover(item.id))
     } catch (caught) {
-      report(caught)
+      report(caught, 'openEditor')
       return
     } finally {
       busy.value = false
@@ -468,7 +473,7 @@ async function openFromResult(
       busy.value = false
       await openEditor(null, result, isAlbum ? 'album' : photo ? 'tool' : 'manual', file)
     } catch (caught) {
-      report(caught)
+      report(caught, 'openFromResult')
     } finally {
       busy.value = false
     }
@@ -528,6 +533,11 @@ async function selectCover(event: Event) {
     emit('status', t('图片读取完成', 'Image loaded'), 'success')
   } catch (caught) {
     if (disposed || !editor.value || run !== coverReadGeneration) return
+    captureDiagnosticError(caught, {
+      module: 'camera-favorites',
+      action: 'select-cover',
+      stage: 'preview'
+    })
     coverReadFailed.value = true
     error.value =
       t(
@@ -577,6 +587,11 @@ async function save() {
           const filename = (coverName.value.replace(/\.[^.]+$/, '') || 'cover') + '.' + extension
           setCover(image, filename)
         } catch (caught) {
+          captureDiagnosticError(caught, {
+            module: 'camera-favorites',
+            action: 'save',
+            stage: 'cover-processing'
+          })
           const reason = caught instanceof Error ? caught.message : String(caught)
           emit('status', t('封面处理失败：', 'Cover processing failed: ') + reason, 'error')
           return
@@ -601,7 +616,7 @@ async function save() {
       notifyChanged()
       emit('status', t('已保存相机参数', 'Camera parameters saved'), 'success')
     } catch (caught) {
-      report(caught)
+      report(caught, 'save')
     } finally {
       busy.value = false
     }
@@ -626,7 +641,7 @@ async function remove(item: CameraFavorite) {
       notifyChanged()
       emit('status', t('已删除收藏', 'Favorite deleted'), 'success')
     } catch (caught) {
-      report(caught)
+      report(caught, 'remove')
     } finally {
       busy.value = false
     }
@@ -660,7 +675,7 @@ async function exportBackup() {
         'success'
       )
     } catch (caught) {
-      report(caught)
+      report(caught, 'exportBackup')
     } finally {
       busy.value = false
     }
@@ -683,7 +698,7 @@ async function importBackup(event: Event) {
       importPlan.value = plan
       if (!plan.conflicts.length) await finishImport()
     } catch (caught) {
-      report(caught)
+      report(caught, 'importBackup')
     } finally {
       busy.value = false
     }
@@ -715,7 +730,7 @@ async function finishImport() {
         'success'
       )
     } catch (caught) {
-      report(caught)
+      report(caught, 'finishImport')
     } finally {
       busy.value = false
     }

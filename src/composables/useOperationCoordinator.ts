@@ -1,3 +1,4 @@
+import { annotateDiagnosticError, trackDiagnostic } from '../utils/errorReporting/errorReporter'
 import { computed, getCurrentInstance, inject, ref, watch, type InjectionKey } from 'vue'
 import type { ActiveOperation } from './useOperationNotice'
 
@@ -9,8 +10,16 @@ export function createOperationCoordinator() {
   async function run<T>(module: string, action: () => Promise<T>): Promise<T> {
     const token = Symbol(module)
     pending.value.add(token)
+    trackDiagnostic('operation', 'begin', { module })
     try {
-      return await action()
+      const result = await action()
+      trackDiagnostic('operation', 'settled', { module })
+      return result
+    } catch (error) {
+      throw annotateDiagnosticError(error, {
+        module,
+        context: { operation: action.name || 'module-operation' }
+      })
     } finally {
       pending.value.delete(token)
     }

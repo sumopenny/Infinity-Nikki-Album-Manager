@@ -221,7 +221,12 @@ const VIDEO_TUTORIALS = [
                     >
                   </li>
                   <li>{{ t.bookmarkStep2 }}</li>
-                  <li>{{ t.bookmarkStep3 }}</li>
+                  <li>
+                    <template v-if="t.bookmarkStep3.includes('书签务必选择')">
+                      {{ t.bookmarkStep3.split('书签务必选择')[0] }}<strong class="resonance-bookmark-emphasis">{{ '书签务必选择' + t.bookmarkStep3.split('书签务必选择')[1] }}</strong>
+                    </template>
+                    <template v-else>{{ t.bookmarkStep3 }}</template>
+                  </li>
                   <li>{{ t.bookmarkStep4 }}</li>
                   <li>{{ t.bookmarkStep5 }}</li>
                 </ol>
@@ -245,7 +250,12 @@ const VIDEO_TUTORIALS = [
                     <li>{{ t.consoleStep6 }}</li>
                   </ol>
                 </template>
-                <p v-if="cookieMethod === 'bookmark'" class="resonance-hint">{{ t.bookmarkTip }}</p>
+                <p v-if="cookieMethod === 'bookmark'" class="resonance-hint resonance-bookmark-tip">
+                  <template v-if="t.bookmarkTip.includes('电脑版 QQ 浏览器')">
+                    {{ t.bookmarkTip.split('电脑版 QQ 浏览器')[0] }}<strong class="resonance-bookmark-emphasis">{{ '电脑版 QQ 浏览器' + t.bookmarkTip.split('电脑版 QQ 浏览器')[1] }}</strong>
+                  </template>
+                  <template v-else>{{ t.bookmarkTip }}</template>
+                </p>
                 <p class="resonance-security-note">{{ t.securityNote }}</p>
 
                 <label class="photo-params-paste resonance-paste">
@@ -413,6 +423,16 @@ const VIDEO_TUTORIALS = [
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+.resonance-bookmark-emphasis {
+  color: var(--pink-deep);
+  font-weight: 800;
+}
+.resonance-bookmark-tip {
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--surface-soft);
 }
 .resonance-security-note {
   color: var(--muted);

@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import {
+  reportError as captureDiagnosticError,
+  setDiagnosticModule
+} from './utils/errorReporting/errorReporter'
 import { useAppPreferences } from './composables/useAppPreferences'
 import { readLocalStorage, writeLocalStorage, removeLocalStorage } from './utils/localStorage'
 import { useGameCleanup } from './composables/useGameCleanup'
@@ -518,6 +522,7 @@ function changeMobileFilter(key: string) {
     resonanceRarityFilter.value = key === 'all' ? 'all' : (Number(key) as ResonanceRarityFilter)
   else sidebarMode.value = key as 'date' | 'action'
 }
+watch(activeView, (view) => setDiagnosticModule(view), { immediate: true })
 watch(activeView, () => {
   mobileFiltersOpen.value = false
   topBarRef.value?.closeMenus()
@@ -1146,6 +1151,7 @@ async function refreshOutfitLibrary(promptSharedAccess = false): Promise<OutfitL
   return result
 }
 function showOutfitStorageError(error: unknown) {
+  captureDiagnosticError(error, { module: 'outfits', action: activeOperation.value ?? 'storage' })
   const message =
     error instanceof DuplicateOutfitCodeError
       ? outfitLocale.value.duplicateCode

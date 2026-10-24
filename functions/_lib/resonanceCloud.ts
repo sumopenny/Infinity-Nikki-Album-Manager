@@ -278,7 +278,11 @@ async function replace(
 }
 
 /** 共鸣账户与单存档 API；所有记录归属来自已验证会话，不接受客户端指定用户。 */
-export async function handleCloud(request: Request, env: CloudEnv): Promise<Response> {
+export async function handleCloud(
+  request: Request,
+  env: CloudEnv,
+  onFailure?: (error: unknown, detail: { stage: string; operation: string }) => void
+): Promise<Response> {
   // 诊断字段只取服务端生成值和固定枚举，不记录账号、令牌、SQL 或异常原文。
   const requestId = crypto.randomUUID()
   let stage: CloudStage = 'origin'
@@ -410,6 +414,7 @@ export async function handleCloud(request: Request, env: CloudEnv): Promise<Resp
     const known =
       error instanceof ApiError ||
       (error instanceof Error && ['INVALID_DATA', 'TOO_LARGE'].includes(error.message))
+    if (!known) onFailure?.(error, { stage, operation })
     if (!known)
       console.error('resonance-cloud', {
         operation,

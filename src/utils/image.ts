@@ -1,3 +1,4 @@
+import { annotateDiagnosticError, trackDiagnostic } from './errorReporting/errorReporter'
 // 通用图片处理：负责图片格式识别、WebP 转换、尺寸校验。
 const SUPPORTED_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
 export const MAX_IMAGE_BYTES = 64 * 1024 * 1024
@@ -68,7 +69,10 @@ export function imageDiagnosticError(stage: string, blob: Blob, error: unknown):
   const environment = typeof navigator === 'undefined' ? '' : navigator.userAgent
   const detail = `[${stage}] ${reason}; type=${blob.type || 'unknown'}; bytes=${blob.size}; browser=${environment}`
   const diagnostic = new Error(detail, { cause: error })
-  return diagnostic
+  return annotateDiagnosticError(diagnostic, {
+    stage,
+    context: { mimeType: blob.type, sizeBytes: blob.size }
+  })
 }
 
 function validateImageDimensions(width: number, height: number): void {
@@ -87,6 +91,11 @@ async function decodeImage(blob: Blob): Promise<{
   if (typeof createImageBitmap === 'function') {
     try {
       // 默认使用图片自身方向，避免旧浏览器拒绝显式的 from-image 参数。
+      trackDiagnostic('image', 'decode', {
+        decoder: 'createImageBitmap',
+        mimeType: blob.type,
+        sizeBytes: blob.size
+      })
       const bitmap = await createImageBitmap(blob)
       return {
         source: bitmap,
@@ -100,6 +109,12 @@ async function decodeImage(blob: Blob): Promise<{
     }
   }
 
+  trackDiagnostic('image', 'decode-fallback', {
+    decoder: 'HTMLImageElement',
+    bitmapFailure,
+    mimeType: blob.type,
+    sizeBytes: blob.size
+  })
   const url = URL.createObjectURL(blob)
   const image = new Image()
   try {

@@ -1,3 +1,4 @@
+import { annotateDiagnosticError } from '../errorReporting/errorReporter'
 import { openDb } from './database'
 
 export function databaseRequest<T>(request: IDBRequest<T>): Promise<T> {
@@ -13,7 +14,10 @@ export async function runDatabaseTransaction<T>(
   mode: IDBTransactionMode,
   action: (tx: IDBTransaction) => Promise<T>
 ): Promise<T> {
-  const db = await openDb()
+  const detail = { stage: 'indexeddb-transaction', context: { stores, mode } }
+  const db = await openDb().catch((error) => {
+    throw annotateDiagnosticError(error, detail)
+  })
   return new Promise((resolve, reject) => {
     let tx: IDBTransaction | undefined
     let result: T
@@ -26,7 +30,12 @@ export async function runDatabaseTransaction<T>(
       }
       tx.onabort = () => {
         db.close()
-        reject(failure ?? tx!.error ?? new Error('IndexedDB transaction aborted'))
+        reject(
+          annotateDiagnosticError(
+            failure ?? tx!.error ?? new Error('IndexedDB transaction aborted'),
+            detail
+          )
+        )
       }
       tx.onerror = () => {
         /* onabort reports the final failure */
@@ -41,7 +50,7 @@ export async function runDatabaseTransaction<T>(
             tx!.abort()
           } catch {
             db.close()
-            reject(error)
+            reject(annotateDiagnosticError(error, detail))
           }
         })
     } catch (error) {
@@ -51,7 +60,7 @@ export async function runDatabaseTransaction<T>(
         /* already inactive */
       }
       db.close()
-      reject(error)
+      reject(annotateDiagnosticError(error, detail))
     }
   })
 }

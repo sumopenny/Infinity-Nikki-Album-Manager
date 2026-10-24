@@ -1,3 +1,4 @@
+import { diagnosticFetch } from '../errorReporting/diagnosticFetch'
 import type { ResonanceRecord } from './resonanceTypes'
 
 export interface CloudUser {
@@ -20,7 +21,7 @@ export async function cloudRequest<T>(
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 90000)
   try {
-    const response = await fetch(`/api/resonance/cloud?action=${action}`, {
+    const response = await diagnosticFetch(`/api/resonance/cloud?action=${action}`, {
       method: body === undefined ? 'GET' : 'POST',
       credentials: 'same-origin',
       cache: 'no-store',
@@ -39,7 +40,7 @@ export async function cloudRequest<T>(
     return result as T
   } catch (error) {
     if (error instanceof TypeError || (error instanceof Error && error.name === 'AbortError'))
-      throw new Error('NETWORK')
+      throw new Error('NETWORK', { cause: error })
     throw error
   } finally {
     clearTimeout(timer)

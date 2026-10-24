@@ -1,3 +1,4 @@
+import { diagnosticFetch } from '../errorReporting/diagnosticFetch'
 import { cacheGeneration, persistCacheIfCurrent } from '../cacheLifecycle'
 import {
   decodeHomeBuildShareCode,
@@ -73,10 +74,13 @@ export async function parseHomeScheme(
     // Cache failure must not prevent parsing the share code.
   }
 
-  const response = await fetch(`/api/home-build/${encodeURIComponent(route.value.resourceKey)}`, {
-    signal,
-    headers: { Accept: 'application/octet-stream' }
-  })
+  const response = await diagnosticFetch(
+    `/api/home-build/${encodeURIComponent(route.value.resourceKey)}`,
+    {
+      signal,
+      headers: { Accept: 'application/octet-stream' }
+    }
+  )
   if (!response.ok) {
     let code = `home_build_http_${response.status}`
     try {

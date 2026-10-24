@@ -1,3 +1,4 @@
+import { reportError } from '../utils/errorReporting/errorReporter'
 import { createOperationCoordinator, type OperationCoordinator } from './useOperationCoordinator'
 // 操作通知状态机：统一管理操作忙碌状态、提示文案、错误映射和通知生命周期。
 import { computed, ref, watch, type ComputedRef } from 'vue'
@@ -206,6 +207,7 @@ export function useOperationNotice(
     if (error instanceof DirectoryAccessError && error.code === 'cancelled') {
       return { type: 'custom', message: locale.value.fileSystem.abortSelection, tone: 'info' }
     }
+    reportError(error, { action: activeOperation.value ?? fallback.type })
     if (!(error instanceof Error)) return fallback
     if (isUserCancelledFilePicker(error))
       return { type: 'custom', message: locale.value.fileSystem.abortSelection, tone: 'info' }

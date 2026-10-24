@@ -16,3 +16,11 @@ binding = "RESONANCE_DB"
 database_name = "wxnn-resonance"
 database_id = "ddf3454b-71e3-4b96-8e67-3554cc386fce"
 migrations_dir = "migrations-resonance"
+
+# 错误诊断仅使用云端 D1。自行创建后填入真实 ID 并取消以下注释；不执行本地迁移。
+[[d1_databases]]
+binding = "ERROR_DB"
+database_name = "wxnn-errors"
+database_id = "578e261f-9503-4812-815c-b96d0bd507fc"
+migrations_dir = "migrations-errors"
+# 开启步骤及密钥见 docs/error-diagnostics.md。

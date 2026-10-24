@@ -503,6 +503,10 @@ const mobileEn: HelpAboutDeviceContent = {
 }
 
 export const helpAboutZh: LocaleMessages['helpAbout'] = {
+  diagnosticsTitle: '故障诊断',
+  diagnosticsNote:
+    '开启后，发生故障时会向本站上传浏览器可提供的设备、系统、浏览器版本、错误堆栈和最近关键操作，用于定位问题。不会上传登录凭据、照片或原始导入文件。明细保留 30 天；可在此关闭浏览器自动上报。',
+  diagnosticsToggle: '允许自动上传故障诊断信息',
   title: '使用帮助与介绍',
   eyebrow: '暖立方 · 无限暖暖工具集',
   introTitle: '网站介绍',
@@ -519,6 +523,10 @@ export const helpAboutZh: LocaleMessages['helpAbout'] = {
   closeAria: '关闭使用帮助与介绍窗口'
 }
 export const helpAboutEn: LocaleMessages['helpAbout'] = {
+  diagnosticsTitle: 'Error diagnostics',
+  diagnosticsNote:
+    'When enabled, failures send available device, OS and browser details, error stacks and recent technical steps to this site. Sign-in credentials, photos and raw import files are excluded. Details are retained for 30 days. You can turn off browser reports here.',
+  diagnosticsToggle: 'Allow automatic error diagnostics',
   title: 'Help and introduction',
   eyebrow: 'NikkiCube · Infinity Nikki Toolkit',
   introTitle: 'About this site',

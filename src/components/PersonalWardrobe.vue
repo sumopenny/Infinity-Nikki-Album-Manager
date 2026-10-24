@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import CatalogImage from './CatalogImage.vue'
 import { wardrobeCatalogForRegion, wardrobeRegionScope } from '../utils/wardrobe/wardrobeRegion'
 import { useWardrobeFilters, type FilterKey } from '../composables/useWardrobeFilters'
@@ -296,6 +297,7 @@ function resetFilters() {
   openFilter.value = ''
 }
 function reportError(cause: unknown) {
+  captureDiagnosticError(cause, { module: 'wardrobe', action: 'storage' })
   const message =
     cause instanceof Error && cause.message === 'WARDROBE_CHANGED'
       ? text(
@@ -331,8 +333,9 @@ async function reload() {
     fullCatalog.value = data
     snapshot.value = saved
     loaded.value = true
-  } catch {
+  } catch (cause) {
     if (version !== loadVersion) return
+    captureDiagnosticError(cause, { module: 'wardrobe', action: 'load' })
     loadFailed.value = true
   } finally {
     clearTimeout(timeout)

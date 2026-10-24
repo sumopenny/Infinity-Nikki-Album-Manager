@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import {
+  reportError as captureDiagnosticError,
+  trackDiagnostic
+} from '../utils/errorReporting/errorReporter'
 import { computed, nextTick, ref, watch } from 'vue'
 import { Check } from 'lucide-vue-next'
 import ResonanceImportDialog from './ResonanceImportDialog.vue'
@@ -212,6 +216,22 @@ function selectFile(event: Event) {
         )
 }
 function report(cause: unknown) {
+  if (!(
+    cause instanceof SyntaxError &&
+    method.value === 'file' &&
+    progress.value?.stage === 'check'
+  ))
+    captureDiagnosticError(cause, {
+      module: 'data-import',
+      action: confirming.value ? 'save' : 'preview',
+      stage: progress.value?.stage ?? (confirming.value ? 'storage' : 'unknown'),
+      context: {
+        method: method.value,
+        region: region.value,
+        resonance: selectedResonance.value,
+        wardrobe: selectedWardrobe.value
+      }
+    })
   const message = cause instanceof Error ? cause.message : ''
   if (message === 'MISSING_CREDENTIALS') {
     emit('notice', t.value.credentialsRequired, 'error')
@@ -253,6 +273,7 @@ async function createPreview() {
   // 阶段切换先让页面绘制；所有回调都绑定当前任务，旧读取不能覆盖新进度。
   const showProgress = async (stage: ImportStage, stages: ImportStage[] | null = null) => {
     if (!current.isCurrent()) throw new DOMException('Import cancelled', 'AbortError')
+    trackDiagnostic('import', 'stage', { stage, method: method.value, region: region.value })
     progress.value = { stage, stages, failed: false }
     await nextTick()
     revealProgress()

@@ -1,3 +1,4 @@
+import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import { formatCameraParams } from '../utils/photo-params/formatCameraParams'
 import { nextTick, onScopeDispose, ref, type ComputedRef, type Ref } from 'vue'
 import type { Language } from '../i18n'
@@ -126,6 +127,7 @@ export function usePhotoParams(options: {
       setStage('ready', 100)
     } catch (caught) {
       if (run !== runId) return
+      captureDiagnosticError(caught, { module: 'photo-params', action: 'parse' })
       error.value = caught instanceof Error ? caught.message : String(caught)
       setStage('error', 100)
     }
@@ -161,6 +163,7 @@ export function usePhotoParams(options: {
       setStage('ready', 100)
     } catch (caught) {
       if (run !== runId) return
+      captureDiagnosticError(caught, { module: 'photo-params', action: 'parse' })
       error.value = caught instanceof Error ? caught.message : String(caught)
       setStage('error', 100)
     }
@@ -196,6 +199,7 @@ export function usePhotoParams(options: {
       setStage('ready', 100)
     } catch (caught) {
       if (run !== runId) return
+      captureDiagnosticError(caught, { module: 'photo-params', action: 'parse' })
       error.value = caught instanceof Error ? caught.message : String(caught)
       setStage('error', 100)
     }
@@ -227,6 +231,7 @@ export function usePhotoParams(options: {
       setStage('ready', 100)
     } catch (caught) {
       if (run !== runId) return
+      captureDiagnosticError(caught, { module: 'photo-params', action: 'parse' })
       error.value = caught instanceof Error ? caught.message : String(caught)
       setStage('error', 100)
     }

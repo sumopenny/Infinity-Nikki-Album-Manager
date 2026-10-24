@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import { validateSelectedImage } from '../utils/imageSelection'
 import { snapshotImageFile } from '../utils/image'
 import { useCompactLayout } from '../composables/useCompactLayout'
@@ -183,6 +184,7 @@ onBeforeUnmount(() => {
 
 /** 统一映射操作错误并仅记录安全的诊断类别。 */
 function operationError(error: unknown, operation: string): string {
+  captureDiagnosticError(error, { module: 'home-schemes', action: operation })
   return describeHomeSchemeError(error, props.messages, operation)
 }
 
@@ -268,6 +270,7 @@ async function runParse(requestCode: string) {
     emit('status', props.messages.parseSucceeded, 'success')
   } catch (error) {
     if (controller.signal.aborted || generation !== parseGeneration) return
+    captureDiagnosticError(error, { module: 'home-schemes', action: 'parse', stage: 'decode' })
     parsedCode.value = ''
     const message =
       error instanceof Error && error.message === 'home_build_server_unsupported'
@@ -393,6 +396,11 @@ async function setImageFile(file: File) {
     removeLocalImage.value = false
   } catch (error) {
     if (!editorVisible.value || run !== editorImageGeneration) return
+    captureDiagnosticError(error, {
+      module: 'home-schemes',
+      action: 'select-image',
+      stage: 'preview'
+    })
     imageSelectionError.value =
       (props.language === 'en'
         ? 'Unable to read or preview image: '

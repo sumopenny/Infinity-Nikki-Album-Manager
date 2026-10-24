@@ -1,3 +1,4 @@
+import { diagnosticFetch } from '../errorReporting/diagnosticFetch'
 // 奇想手账按所选区服验证角色；凭据只随当前请求发送，不进入持久化层。
 import {
   buildResonanceRecords,
@@ -31,7 +32,7 @@ export const PEARPAL_AUTH_FAILED = 'Pearpal credentials could not be verified'
 export const PEARPAL_NO_RECORDS = 'No supported banner pull records were found'
 
 async function request(url: string, init?: RequestInit): Promise<Response> {
-  const response = await fetch(url, init)
+  const response = await diagnosticFetch(url, init)
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
     try {

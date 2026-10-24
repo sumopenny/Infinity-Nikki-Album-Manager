@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { errorBuildInfo, privateErrorMaps } from './scripts/error-build'
 import { resonanceCloudProxy } from './scripts/resonance-cloud-proxy'
 import { onRequestPost as forwardPearpalRequest } from './functions/api/resonance/pearpal'
 
@@ -8,6 +9,10 @@ function localPearpalApi(): Plugin {
   return {
     name: 'local-pearpal-api',
     configureServer(server) {
+      server.middlewares.use('/api/errors', (_req, res) => {
+        res.statusCode = 204
+        res.end()
+      })
       server.middlewares.use('/api/resonance/pearpal', async (req, res) => {
         res.setHeader('cache-control', 'no-store, no-cache, must-revalidate')
         if (req.method !== 'POST') {
@@ -69,6 +74,7 @@ function getRemoteApiOrigin(mode: string): string | undefined {
 }
 
 export default defineConfig(({ mode }) => {
+  const diagnosticBuild = errorBuildInfo()
   const remoteApiOrigin = getRemoteApiOrigin(mode)
   const outfitCodeProxy = {
     target: 'https://x6cn-clothdiydata.nuanpaper.com',
@@ -118,7 +124,9 @@ export default defineConfig(({ mode }) => {
       }
 
   return {
-    plugins: [vue(), localPearpalApi()],
+    plugins: [vue(), localPearpalApi(), privateErrorMaps(diagnosticBuild)],
+    define: { __ERROR_BUILD__: JSON.stringify(diagnosticBuild) },
+    build: { sourcemap: 'hidden' },
     server: {
       host: '0.0.0.0',
       port: 5173,

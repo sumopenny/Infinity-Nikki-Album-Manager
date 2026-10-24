@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import { createUuid } from '../utils/uuid'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { CloudUpload, CloudDownload, LogIn, LogOut, UserPlus, Trash2, X } from 'lucide-vue-next'
@@ -90,6 +91,7 @@ async function run(task: () => Promise<void>) {
   try {
     await track(task)
   } catch (cause) {
+    captureDiagnosticError(cause, { module: 'resonance-cloud', action: 'cloud-operation' })
     error.value = cause instanceof Error ? cause.message : 'SERVER_ERROR'
     // 登录注册失败保留表单，通过统一顶部提示报告，不在弹窗内重复显示。
     if (auth.value) emit('notice', message.value, 'error')
@@ -120,8 +122,8 @@ async function prepare() {
     pending = null
     try {
       local.value = await loadResonanceRecords()
-    } catch {
-      throw new Error('LOCAL_READ_FAILED')
+    } catch (cause) {
+      throw new Error('LOCAL_READ_FAILED', { cause })
     }
     localJSON.value = JSON.stringify(local.value)
     const remote = await cloudRequest<CloudSnapshot>('snapshot', user.value)
@@ -175,7 +177,7 @@ async function submit() {
         await replaceResonanceRecordsIfUnchanged(localJSON.value, remote.records)
       } catch (cause) {
         if (cause instanceof Error && cause.message === 'LOCAL_CHANGED') throw cause
-        throw new Error('LOCAL_SAVE_FAILED')
+        throw new Error('LOCAL_SAVE_FAILED', { cause })
       }
       emit('restored', remote.records)
     } else {

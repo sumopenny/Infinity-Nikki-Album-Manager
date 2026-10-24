@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import CameraImportConflictDialog from './CameraImportConflictDialog.vue'
 import WardrobeRestoreRegionDialog from './WardrobeRestoreRegionDialog.vue'
@@ -53,7 +54,8 @@ function setBusy(value: boolean) {
   busy.value = value
   emit('busy', value)
 }
-function report(error: unknown) {
+function report(error: unknown, action: string) {
+  captureDiagnosticError(error, { module: 'backup', action })
   const message = error instanceof Error ? error.message : String(error)
   emit(
     'status',
@@ -81,7 +83,7 @@ async function exportData() {
     const name = await exportAllDataBackup()
     emit('status', t('已生成全部数据备份：', 'All-data backup created: ') + name, 'success')
   } catch (error) {
-    report(error)
+    report(error, 'exportData')
   } finally {
     setBusy(false)
     void refreshAvailability()
@@ -165,6 +167,14 @@ async function importData(event: Event) {
       emit('status', t('已取消导入，数据未修改', 'Import cancelled; data unchanged'), 'info')
       return
     }
+    for (const result of results) {
+      if (result.failed || result.error)
+        captureDiagnosticError(new Error(result.error || 'Partial backup import failure'), {
+          module: 'backup',
+          action: 'import-partial',
+          context: { module: result.module, failed: result.failed, saved: result.saved }
+        })
+    }
     emit(
       'status',
       resultSummary(results),
@@ -173,7 +183,7 @@ async function importData(event: Event) {
         : 'success'
     )
   } catch (error) {
-    report(error)
+    report(error, 'importData')
   } finally {
     if (started) emit('changed')
     setBusy(false)
