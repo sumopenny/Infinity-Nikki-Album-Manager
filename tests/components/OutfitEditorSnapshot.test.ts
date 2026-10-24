@@ -1,3 +1,4 @@
+import * as diagnosticReporter from '../../src/utils/errorReporting/errorReporter'
 vi.mock('../../src/utils/imageSelection', () => ({
   validateSelectedImage: vi.fn().mockResolvedValue(undefined)
 }))
@@ -227,4 +228,40 @@ it('accepts picker results during unrelated background work but blocks selection
   expect(create).not.toHaveBeenCalled()
   expect(wrapper.get('.outfit-image-dropzone').attributes('disabled')).toBeDefined()
   wrapper.unmount()
+})
+
+it('reports a displayed outfit preview failure without changing the draft', async () => {
+  const capture = vi.spyOn(diagnosticReporter, 'reportError').mockReturnValue('test-event')
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn()
+  }))
+  vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:fixture'), revokeObjectURL: vi.fn() })
+  const wrapper = mount(OutfitEditor, {
+    props: { visible: false, outfit: null, tags: [], busy: false, messages: outfitMessages.zh },
+    global: { stubs: { teleport: true } }
+  })
+  try {
+    await wrapper.setProps({ visible: true })
+    const file = new File(['fixture'], 'private-fixture.png', { type: 'image/png' })
+    const input = wrapper.get('input[type="file"]')
+    Object.defineProperty(input.element, 'files', { value: [file] })
+    await input.trigger('change')
+    await flushPromises()
+    await wrapper.get('img').trigger('error')
+    expect(capture).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        module: 'outfits',
+        code: 'IMAGE_PREVIEW_FAILED',
+        stage: 'preview-element'
+      })
+    )
+    expect(wrapper.get('img').attributes('src')).toBe('blob:fixture')
+    expect(wrapper.emitted('save')).toBeUndefined()
+  } finally {
+    wrapper.unmount()
+    capture.mockRestore()
+  }
 })

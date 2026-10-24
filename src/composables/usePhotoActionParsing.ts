@@ -1,3 +1,4 @@
+import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import {
   cacheGeneration,
   isCurrentCacheGeneration,
@@ -181,6 +182,11 @@ export function usePhotoActionParsing(options: {
     } catch (error) {
       // 旧任务失败不得覆盖新任务；准备阶段失败也应结束 pending，而不是悬挂进度。
       if (run !== runId || signal.aborted || !isCurrentCacheGeneration(generation)) return
+      captureDiagnosticError(error, {
+        module: 'photo-params',
+        action: 'auto-parse',
+        context: { photoCount: photos.length }
+      })
       controller?.abort()
       const updated = new Map(actionInfo.value)
       for (const photo of photos) {

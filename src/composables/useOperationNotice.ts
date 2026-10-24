@@ -207,10 +207,10 @@ export function useOperationNotice(
     if (error instanceof DirectoryAccessError && error.code === 'cancelled') {
       return { type: 'custom', message: locale.value.fileSystem.abortSelection, tone: 'info' }
     }
-    reportError(error, { action: activeOperation.value ?? fallback.type })
-    if (!(error instanceof Error)) return fallback
     if (isUserCancelledFilePicker(error))
       return { type: 'custom', message: locale.value.fileSystem.abortSelection, tone: 'info' }
+    reportError(error, { action: activeOperation.value ?? fallback.type })
+    if (!(error instanceof Error)) return fallback
     return { type: 'custom', message: error.message, tone: 'error' }
   }
 

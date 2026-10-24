@@ -9,7 +9,13 @@ function setup(statuses = [201], enabled = true) {
   const payloads: ErrorEventPayload[] = []
   const transport = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
     payloads.push(JSON.parse(String(init?.body)))
-    return new Response('{}', { status: statuses.shift() ?? 201 })
+    const status = statuses.shift() ?? 201
+    return Response.json(
+      status < 300
+        ? { accepted: true, eventId: payloads.at(-1)!.eventId }
+        : { error: 'STORAGE_UNAVAILABLE' },
+      { status }
+    )
   })
   let time = 1000
   const reporter = createErrorReporter({
@@ -148,5 +154,125 @@ describe('in-memory error reporter', () => {
     reporter.report(new Error('failure'), { module: 'test', action: 'save' })
     await reporter.flush()
     expect(transport).not.toHaveBeenCalled()
+  })
+})
+
+describe('diagnostic state and acknowledgement regression coverage', () => {
+  it.each([
+    'Pearpal UID mismatch',
+    'Pearpal region mismatch',
+    'Pearpal credentials could not be verified'
+  ])('does not silently filter Pearpal warning: %s', async (message) => {
+    const { reporter, payloads } = setup()
+    reporter.report(new Error(message), { module: 'data-import', action: 'preview' })
+    await reporter.flush()
+    expect(payloads).toHaveLength(1)
+    expect(payloads[0].severity).toBe('warning')
+    expect(reporter.snapshot().lastDelivery).toMatchObject({ outcome: 'accepted', httpStatus: 201 })
+  })
+  it('exposes a read-only state without original error messages or payloads', async () => {
+    const { reporter } = setup()
+    const eventId = reporter.report(new Error('private diagnostic message'), {
+      module: 'test',
+      action: 'save'
+    })
+    await reporter.flush()
+    const state = reporter.snapshot()
+    expect(state.counters).toMatchObject({ queued: 1, attempts: 1, accepted: 1 })
+    expect(state.lastDelivery?.eventId).toBe(eventId)
+    expect(Object.isFrozen(state)).toBe(true)
+    expect(Object.isFrozen(state.counters)).toBe(true)
+    expect(JSON.stringify(state)).not.toContain('private diagnostic message')
+  })
+  it('does not mistake an HTTP 200 HTML/fallback response for a database acknowledgement', async () => {
+    const { reporter, transport } = setup()
+    transport.mockImplementation(async () => new Response('<html>fallback</html>'))
+    reporter.report(new Error('failure'), { module: 'test', action: 'save' })
+    await reporter.flush()
+    expect(transport).toHaveBeenCalledTimes(2)
+    expect(reporter.snapshot().counters.accepted).toBe(0)
+    expect(reporter.snapshot().lastDelivery).toMatchObject({
+      outcome: 'rejected',
+      reason: 'invalid-acknowledgement',
+      httpStatus: 200
+    })
+  })
+  it('does not accept a receipt for another event', async () => {
+    const { reporter, transport } = setup()
+    transport.mockImplementation(async () =>
+      Response.json({ accepted: true, eventId: 'other-event' }, { status: 201 })
+    )
+    reporter.report(new Error('failure'), { module: 'test', action: 'save' })
+    await reporter.flush()
+    expect(reporter.snapshot().counters.accepted).toBe(0)
+    expect(reporter.snapshot().lastDelivery?.reason).toBe('invalid-acknowledgement')
+  })
+  it('retains lower-level annotations through cause wrappers and outer import-stage metadata', async () => {
+    const { reporter, payloads } = setup()
+    const root = annotateDiagnosticError(new Error('failed'), {
+      stage: 'verify',
+      code: 'VERIFY_FAILED',
+      context: { requestId: 'request-fixture', httpStatus: 502 }
+    })
+    reporter.report(new Error('outer', { cause: root }), {
+      module: 'data-import',
+      action: 'preview',
+      stage: 'source',
+      context: { region: 'cn' }
+    })
+    await reporter.flush()
+    expect(payloads[0]).toMatchObject({
+      stage: 'verify',
+      code: 'VERIFY_FAILED',
+      context: { requestId: 'request-fixture', httpStatus: 502, region: 'cn' }
+    })
+  })
+  it('distinguishes deliberate filtering from a failed upload', async () => {
+    const { reporter, transport } = setup()
+    reporter.report(new DOMException('cancel', 'AbortError'))
+    expect(reporter.snapshot().lastCapture?.reason).toBe('expected-error')
+    reporter.setEnabled(false)
+    reporter.report(new Error('hidden'))
+    expect(reporter.snapshot().lastCapture?.reason).toBe('disabled')
+    await reporter.flush()
+    expect(transport).not.toHaveBeenCalled()
+  })
+  it('marks serialization failures instead of silently returning null', () => {
+    const { reporter } = setup()
+    reporter.report({
+      get name() {
+        throw new Error('unreadable')
+      }
+    })
+    expect(reporter.snapshot().lastCapture?.reason).toBe('serialization-or-validation')
+  })
+  it('records rejection status and respects the backend cooldown', async () => {
+    const { reporter, transport } = setup()
+    transport.mockImplementation(async () =>
+      Response.json({ error: 'NOT_CONFIGURED' }, { status: 503 })
+    )
+    reporter.report(new Error('failure'), { module: 'test', action: 'save' })
+    await reporter.flush()
+    expect(reporter.snapshot().lastDelivery).toMatchObject({
+      outcome: 'rejected',
+      httpStatus: 503,
+      responseCode: 'NOT_CONFIGURED'
+    })
+    expect(reporter.report(new Error('next'))).toBeNull()
+    expect(reporter.snapshot().lastCapture?.reason).toBe('backoff')
+  })
+  it('times out a response body that never finishes, with no recursive upload', async () => {
+    vi.useFakeTimers()
+    const { reporter, transport } = setup()
+    transport.mockImplementation(
+      async () => ({ ok: true, status: 201, json: () => new Promise(() => {}) }) as Response
+    )
+    reporter.report(new Error('failure'), { module: 'test', action: 'save' })
+    const settled = reporter.flush()
+    await vi.advanceTimersByTimeAsync(10010)
+    await settled
+    expect(transport).toHaveBeenCalledTimes(2)
+    expect(reporter.snapshot().lastDelivery?.reason).toBe('timeout')
+    expect(reporter.snapshot().counters.accepted).toBe(0)
   })
 })

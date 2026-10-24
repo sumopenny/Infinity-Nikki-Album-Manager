@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import CatalogImage from './CatalogImage.vue'
 import { backupBaseName } from '../utils/backup/backupName'
 import MobileEmptyScreenshot from './MobileEmptyScreenshot.vue'
@@ -75,7 +76,9 @@ async function openPreview(id: string, kind: 'outfit' | 'item') {
     previewSnapshot.value = snapshot
     if (kind === 'outfit') outfitPreview.value = entry
     else itemPreview.value = entry
-  } catch {
+  } catch (error) {
+    if (request.isCurrent())
+      captureDiagnosticError(error, { module: 'resonance', action: 'load-detail' })
     if (request.isCurrent())
       notify(
         'detail-error',
@@ -162,7 +165,8 @@ function exportRecords() {
     link.click()
     setTimeout(() => URL.revokeObjectURL(url), 0)
     notify('export-success', t.value.exportSuccess, 'success')
-  } catch {
+  } catch (error) {
+    captureDiagnosticError(error, { module: 'resonance', action: 'export' })
     notify('export-error', t.value.exportError, 'error')
   }
 }
@@ -190,7 +194,8 @@ async function clearRecords() {
       selectedSet.value = {}
       showClearConfirm.value = false
       notify('clear-success', t.value.clearSuccess, 'success')
-    } catch {
+    } catch (error) {
+      captureDiagnosticError(error, { module: 'resonance', action: 'clear' })
       notify('clear-error', t.value.clearError, 'error')
     } finally {
       clearing.value = false
@@ -203,7 +208,8 @@ async function reload() {
     try {
       records.value = await loadResonanceRecords()
       recordsLoaded.value = true
-    } catch {
+    } catch (error) {
+      captureDiagnosticError(error, { module: 'resonance', action: 'load' })
       notify(
         'load-error',
         props.language === 'zh'

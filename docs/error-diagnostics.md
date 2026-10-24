@@ -235,3 +235,73 @@ npm run build
 - Vite hidden sourcemap 行为：https://vite.dev/config/build-options
 
 SQL 文件和部署配置还需云端验收；本实现不将纯模拟测试包装成实际 D1 测试结论。
+
+## 2026-10-24：自动部署采集开关与业务漏报修复
+
+### 构建配置与防回退
+
+`VITE_ERROR_REPORTING_ENABLED=true` 必须存在于 **Cloudflare Pages 生产构建环境**；仅开启 `ERROR_REPORTING_ENABLED` 不能让浏览器安装监听器。可使用 Pages 控制台配置，或通过 `wrangler pages secret put VITE_ERROR_REPORTING_ENABLED --project-name infinity-nikki-album-manager` 写入生产配置。该开关不是密钥，使用 secret 命令仅是管理配置的一种方式，实际会编译到浏览器代码中。
+
+`vite.config.ts` 使用 `scripts/error-build-policy.mjs` 检查 `CF_PAGES=1 + CF_PAGES_BRANCH=main` 或 `ERROR_DEPLOYMENT_ENV=production`。这些生产构建缺少精确字符串 `true` 时立即失败；普通本地开发和未标记生产的本地构建不强制开启，也不自动写入生产日志。
+
+### 只读诊断状态
+
+在网站自身的控制台执行：
+
+```javascript
+window.__NIKKI_DIAGNOSTICS__.snapshot()
+```
+
+返回构建编号、`configured`（构建启用）、`allowed`（当前用户允许）、`enabled`（实际开关）、`listenersInstalled`（全局监听安装）、队列长度、计数器、最后采集与发送结果。对象只提供读取，不提供修改用户偏好或任意日志上传的接口；不返回凭据、原始错误载荷或设备快照。
+
+`lastCapture.reason` 可以区分 `disabled`、`expected-error`、`duplicate-error-object`、`fingerprint-window`、`page-rate-or-queue-limit`、`backoff`、`serialization-or-validation` 等。`lastDelivery` 区分 `sending`、`accepted`、`rejected`、`failed`，带本次事件 ID、HTTP 状态和可识别的接口错误代码。
+
+**只有响应明确返回 `accepted: true` 且事件 ID 一致，才标记为已入库。** HTTP 200 的 HTML 回退页面、空响应、其他事件的回执不视为成功。上报超时覆盖响应正文，重试次数仍受限，不递归上报、不增加顶部通知。
+
+### 美鸭梨失败分类
+
+界面保留原有重新登录、UID 或区服不匹配提示；诊断补充所选区服、验证/手账阶段、HTTP 状态、请求关联 ID、上游业务码和字段存在性，不保存实际 UID、Token 或原始手账。
+
+| 错误代码                         | 诊断含义                           |
+| -------------------------------- | ---------------------------------- |
+| `PEARPAL_SESSION_EXPIRED`        | 验证或手账阶段返回登录失效码 1801  |
+| `PEARPAL_RESPONSE_CODE_INVALID`  | 上游返回其他非 0 业务码            |
+| `PEARPAL_ROLE_MISSING`           | 返回结构缺少角色对象               |
+| `PEARPAL_UID_MISSING`            | 角色缺少 UID                       |
+| `PEARPAL_UID_MISMATCH`           | 与输入 UID 不一致（不保存 UID 值） |
+| `PEARPAL_REGION_MISMATCH`        | 角色区服与所选区服不匹配           |
+| `PEARPAL_RESPONSE_INVALID`       | 非预期结构或无法解析 JSON          |
+| `PEARPAL_HTTP_ERROR`             | 请求返回非成功 HTTP 状态           |
+| `PEARPAL_NETWORK_FAILED`         | 请求未能完成                       |
+| `PEARPAL_NOTEBOOK_DECODE_FAILED` | 手账解压或解码阶段失败             |
+
+前三类验证问题及 UID/区服不匹配默认记为 warning；结构、网络、HTTP 和解码等故障记为 error。凭据未填写、用户主动取消、已识别的重复或正常冲突仍跳过。
+
+### 此次补齐的业务入口
+
+相机收藏、家园方案和搭配码编辑器的图片元素预览失败；搭配码选图和旧封面读取失败、非预期解析失败、最终详情读取失败；共鸣记录读取、导出、清空、详情读取失败；相册逐文件传输失败、备注读写失败；自动参数解析最终失败；家园迁移及集合读取失败；家园/搭配码/最近删除/档案解析等批量部分失败。保留已成功的降级和缓存回退，不将普通图鉴缩略图占位行为全量记为故障。
+
+### 测试与验收（不创建本地 D1）
+
+```powershell
+npm run test:errors
+npm run test:without-d1
+```
+
+后者排除 Miniflare D1 云同步集成测试及两个不相关的运行时测试；单元测试使用纯对象模拟和内存 fake-indexeddb，不初始化 Wrangler 本地 D1。线上验收必须额外在真实浏览器触发异常，并将 `/api/errors` 回执 ID 与远程 D1 行对应，不能仅通过手动 POST 判定自动采集成功。
+
+推荐受控运行时测试（页面加载完成后执行，测试消息不包含私人数据）：
+
+```javascript
+setTimeout(() => {
+  void Promise.reject(new Error('NIKKI_D1_PROMISE_TEST_' + Date.now()))
+}, 0)
+```
+
+共鸣验证场景使用测试浏览器隔离上下文和固定模拟接口响应，不使用真实用户 Token，不修改原有衣橱或共鸣数据。生产数据库中的受控测试应有明确测试标记；不得把测试记录当作真实用户故障。
+
+### 回退与 Source Map
+
+生产上线失败时优先使用 Cloudflare Pages 的上一部署回滚，并保留数据库及原有记录。紧急关闭接收可把生产 `ERROR_REPORTING_ENABLED` 改为 `false` 并发布相应运行时配置；不要通过删除数据库或清除业务数据回退。修复后的 Git 提交和持久构建变量应共同保留，不能仅重复上传旧工作区。
+
+每次实际发布的 Source Map 必须对应同一 buildId 与 JS 哈希。Cloudflare Git 自动构建产生的临时归档不等于已保存到本机；在没有私有云归档时，以经过测试的同一提交在受控电脑构建并发布，保留该次实际发布的 `.error-artifacts/<buildId>`。不要将源映射上传公共 Pages、公共 GitHub Release 或公开仓库。

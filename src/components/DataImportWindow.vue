@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import {
   reportError as captureDiagnosticError,
-  trackDiagnostic
+  trackDiagnostic,
+  reportPartialFailure
 } from '../utils/errorReporting/errorReporter'
 import { computed, nextTick, ref, watch } from 'vue'
 import { Check } from 'lucide-vue-next'
@@ -228,6 +229,7 @@ function report(cause: unknown) {
       context: {
         method: method.value,
         region: region.value,
+        importStage: progress.value?.stage ?? null,
         resonance: selectedResonance.value,
         wardrobe: selectedWardrobe.value
       }
@@ -310,6 +312,10 @@ async function createPreview() {
       parsed.wardrobe === null ? null : loadWardrobe()
     ])
     if (!current.isCurrent()) return
+    reportPartialFailure('data-import', 'parse-resonance-pools', parsed.skippedPools, {
+      region: region.value,
+      method: method.value
+    })
     base.value = { resonance: JSON.stringify(resonance), wardrobe: JSON.stringify(wardrobe) }
     preview.value = parsed
     progress.value = null

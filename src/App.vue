@@ -727,6 +727,7 @@ async function migrateHomeSchemes(
     }
     return { type: 'custom', message, tone: result.failedCount ? 'warning' : 'success' }
   } catch (error) {
+    captureDiagnosticError(error, { module: 'home-schemes', action: 'migration' })
     return {
       type: 'custom',
       message:
@@ -1396,6 +1397,8 @@ async function editPhotoNote(photo: PhotoDisplayItem | null) {
     isNoteDialogVisible.value = true
   } catch (error) {
     if (error instanceof PhotoMetadataError)
+      captureDiagnosticError(error, { module: 'album', action: 'photo-note', stage: 'metadata' })
+    if (error instanceof PhotoMetadataError)
       showStatus({ message: locale.value.grid.noteSaveErrors[error.code], tone: 'error' })
     else statusState.value = createErrorStatus(error, { type: 'readFailed' })
   }
@@ -1446,6 +1449,8 @@ async function saveNoteDialog(value: string) {
     noteDialogPhoto.value = null
     showOutfitStatus(locale.value.grid.noteSaved)
   } catch (error) {
+    if (error instanceof PhotoMetadataError)
+      captureDiagnosticError(error, { module: 'album', action: 'photo-note', stage: 'metadata' })
     if (error instanceof PhotoMetadataError)
       showStatus({ message: locale.value.grid.noteSaveErrors[error.code], tone: 'error' })
     else statusState.value = createErrorStatus(error, { type: 'readFailed' })
@@ -1770,7 +1775,9 @@ watch(activeView, (view) => {
 onMounted(() => {
   activeOperation.value = 'loading'
   // 计数独立读取；本地集合与目录迁移仍保持顺序，防止较旧读取覆盖迁移结果。
-  void updateHomeSchemeCount().catch(() => {
+  void updateHomeSchemeCount().catch((error) => {
+    if (!appDisposed)
+      captureDiagnosticError(error, { module: 'home-schemes', action: 'load-count' })
     if (!appDisposed)
       statusState.value = {
         type: 'custom',

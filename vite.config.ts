@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { assertDiagnosticsBuild } from './scripts/error-build-policy.mjs'
 import { errorBuildInfo, privateErrorMaps } from './scripts/error-build'
 import { resonanceCloudProxy } from './scripts/resonance-cloud-proxy'
 import { onRequestPost as forwardPearpalRequest } from './functions/api/resonance/pearpal'
@@ -73,7 +74,8 @@ function getRemoteApiOrigin(mode: string): string | undefined {
   return origin.origin
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
+  assertDiagnosticsBuild({ ...process.env, ...loadEnv(mode, process.cwd(), '') }, command)
   const diagnosticBuild = errorBuildInfo()
   const remoteApiOrigin = getRemoteApiOrigin(mode)
   const outfitCodeProxy = {

@@ -1,3 +1,10 @@
+import { annotateDiagnosticError } from '../errorReporting/errorReporter'
+import {
+  pearpalObject,
+  pearpalResponseShape,
+  pearpalDiagnosticFailure,
+  readPearpalJSON
+} from './pearpalDiagnostics'
 import { diagnosticFetch } from '../errorReporting/diagnosticFetch'
 // 奇想手账按所选区服验证角色；凭据只随当前请求发送，不进入持久化层。
 import {
@@ -31,67 +38,94 @@ export const PEARPAL_REGION_MISMATCH = 'Pearpal region mismatch'
 export const PEARPAL_AUTH_FAILED = 'Pearpal credentials could not be verified'
 export const PEARPAL_NO_RECORDS = 'No supported banner pull records were found'
 
-async function request(url: string, init?: RequestInit): Promise<Response> {
-  const response = await diagnosticFetch(url, init)
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '')
-    try {
-      const payload = JSON.parse(detail) as { info?: unknown; error?: unknown }
-      const message =
-        typeof payload.info === 'string' && payload.info ? payload.info : payload.error
-      if (typeof message === 'string' && message) throw new Error(message)
-    } catch (error) {
-      if (error instanceof Error && error.message !== 'Unexpected end of JSON input') throw error
-    }
-    throw new Error(`Pearpal request failed (${response.status})`)
-  }
-  return response
-}
-
 async function postPearpal(
   action: 'verify' | 'snapshot',
   credentials: ResonanceCredentials,
   region: PearpalRegion,
   signal?: AbortSignal
 ): Promise<Response> {
-  const response = await request(`/api/resonance/pearpal?action=${action}`, {
-    method: 'POST',
-    signal,
-    cache: 'no-store',
-    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
-    body: JSON.stringify({ region, token: credentials.token, openid: credentials.id })
-  })
+  let response: Response
+  try {
+    response = await diagnosticFetch(`/api/resonance/pearpal?action=${action}`, {
+      method: 'POST',
+      signal,
+      cache: 'no-store',
+      headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+      body: JSON.stringify({ region, token: credentials.token, openid: credentials.id })
+    })
+  } catch (error) {
+    throw annotateDiagnosticError(error, {
+      code: 'PEARPAL_NETWORK_FAILED',
+      stage: action,
+      type: 'network',
+      context: { region, upstreamAction: action }
+    })
+  }
+  if (!response.ok) {
+    throw pearpalDiagnosticFailure(
+      `Pearpal request failed (${response.status})`,
+      'PEARPAL_HTTP_ERROR',
+      action,
+      region,
+      response,
+      {},
+      'error'
+    )
+  }
   if (response.headers.get('cache-control')?.includes('no-store') !== true) {
-    // The proxy also sets this header; reject unexpected cached responses at the client boundary.
-    throw new Error('Pearpal response caching is not allowed')
+    throw pearpalDiagnosticFailure(
+      'Pearpal response caching is not allowed',
+      'PEARPAL_UNEXPECTED_CACHE',
+      action,
+      region,
+      response,
+      {},
+      'error'
+    )
   }
   return response
 }
 
-/** 验证必须包含角色 UID；缺少角色时统一提示重新登录，不能把上游 OK 当成错误原因。 */
+/** Retain existing user-facing messages, but distinguish the actual verification failure for diagnostics. */
 async function verifyPearpalUid(
   credentials: ResonanceCredentials,
   region: PearpalRegion,
   signal?: AbortSignal
 ): Promise<void> {
   const response = await postPearpal('verify', credentials, region, signal)
-  const payload = (await response.json()) as {
-    code?: number
-    info?: string
-    data?: { role?: { uid?: string | number; zone_id?: number } }
+  const raw = await readPearpalJSON(response, 'verify', region, PEARPAL_AUTH_FAILED)
+  const payload = pearpalObject(raw)
+  const shape = pearpalResponseShape(raw)
+  function fail(
+    code: string,
+    message = PEARPAL_AUTH_FAILED,
+    severity: 'warning' | 'error' = 'warning'
+  ): never {
+    throw pearpalDiagnosticFailure(
+      message,
+      code,
+      'verify',
+      region,
+      response,
+      { ...shape, expectedZoneId: PEARPAL_REGIONS[region].zoneId },
+      severity
+    )
   }
-  const role = payload.data?.role
-  if (payload.code !== 0 || !role || role.uid === undefined || role.uid === null) {
-    throw new Error(PEARPAL_AUTH_FAILED)
-  }
-  if (String(role.uid) !== credentials.roleid.trim()) {
-    throw new Error(PEARPAL_UID_MISMATCH)
-  }
-  // 国服兼容旧接口缺少区服字段；国际服必须明确匹配，不能仅凭 UID 猜测区服。
+  if (!payload || typeof payload.code !== 'number')
+    fail('PEARPAL_RESPONSE_INVALID', PEARPAL_AUTH_FAILED, 'error')
+  if (payload.code !== 0)
+    fail(payload.code === 1801 ? 'PEARPAL_SESSION_EXPIRED' : 'PEARPAL_RESPONSE_CODE_INVALID')
+  const role = pearpalObject(pearpalObject(payload.data)?.role)
+  if (!role) fail('PEARPAL_ROLE_MISSING')
+  if (role.uid === undefined || role.uid === null || role.uid === '') fail('PEARPAL_UID_MISSING')
+  if (typeof role.uid !== 'string' && typeof role.uid !== 'number')
+    fail('PEARPAL_RESPONSE_INVALID', PEARPAL_AUTH_FAILED, 'error')
+  if (String(role.uid) !== credentials.roleid.trim())
+    fail('PEARPAL_UID_MISMATCH', PEARPAL_UID_MISMATCH)
+  // Keep compatibility with the legacy CN endpoint without a zone field.
   if (role.zone_id === undefined && region === 'cn') return
-  if (Number(role.zone_id) !== PEARPAL_REGIONS[region].zoneId) {
-    throw new Error(PEARPAL_REGION_MISMATCH)
-  }
+  if (Number(role.zone_id) !== PEARPAL_REGIONS[region].zoneId)
+    fail('PEARPAL_REGION_MISMATCH', PEARPAL_REGION_MISMATCH)
 }
 
 interface PearpalRow {
@@ -140,10 +174,43 @@ export async function fetchPearpalSnapshot(
   const response = await postPearpal('snapshot', credentials, region, signal)
   // 登录失效时快照返回 JSON 而非 Snappy，先识别登录错误，避免显示解压异常。
   if (response.headers.get('content-type')?.includes('application/json')) {
-    const payload = (await response.clone().json()) as { code?: number }
-    if (payload.code === 1801) throw new Error(PEARPAL_AUTH_FAILED)
+    const raw = await readPearpalJSON(response.clone(), 'snapshot', region, PEARPAL_AUTH_FAILED)
+    const payload = pearpalObject(raw)
+    if (!payload || typeof payload.code !== 'number')
+      throw pearpalDiagnosticFailure(
+        PEARPAL_AUTH_FAILED,
+        'PEARPAL_RESPONSE_INVALID',
+        'snapshot',
+        region,
+        response,
+        pearpalResponseShape(raw),
+        'error'
+      )
+    if (payload.code !== 0)
+      throw pearpalDiagnosticFailure(
+        PEARPAL_AUTH_FAILED,
+        payload.code === 1801 ? 'PEARPAL_SESSION_EXPIRED' : 'PEARPAL_RESPONSE_CODE_INVALID',
+        'snapshot',
+        region,
+        response,
+        pearpalResponseShape(raw)
+      )
   }
-  const decoded = decodePearpal(await response.arrayBuffer())
+  let decoded: unknown
+  try {
+    decoded = decodePearpal(await response.arrayBuffer())
+  } catch (error) {
+    throw annotateDiagnosticError(error, {
+      code: 'PEARPAL_NOTEBOOK_DECODE_FAILED',
+      stage: 'snapshot-decode',
+      severity: 'error',
+      context: {
+        region,
+        httpStatus: response.status,
+        requestId: response.headers.get('X-Request-Id')
+      }
+    })
+  }
   signal?.throwIfAborted()
   return decoded
 }

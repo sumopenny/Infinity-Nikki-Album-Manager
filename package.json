@@ -13,7 +13,7 @@
     "predev": "npm run resources:update:startup",
     "build": "vue-tsc --noEmit && vite build",
     "build:cloudflare": "npm run resources:update:startup && npm run build && npm run errors:archive -- --upload-if-configured",
-    "test": "vitest run && node --test tests/startupDependencies.test.mjs tests/resourceNetwork.test.cjs",
+    "test": "vitest run && node --test tests/startupDependencies.test.mjs tests/resourceNetwork.test.cjs tests/errorSourceMaps.test.mjs tests/errorBuildPolicy.test.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "predev:remote": "npm run resources:update:startup",
     "dev:remote": "vite --host 0.0.0.0 --mode remote",
@@ -29,7 +29,8 @@
     "errors:report": "node scripts/error-report.mjs event",
     "errors:prune": "node scripts/error-report.mjs prune",
     "errors:archive": "node scripts/archive-error-artifacts.mjs",
-    "test:errors": "vitest run tests/utils/errorReporting tests/functions/errors.test.ts && node --test tests/errorSourceMaps.test.mjs"
+    "test:errors": "vitest run tests/utils/errorReporting tests/functions/errors.test.ts && node --test tests/errorSourceMaps.test.mjs tests/errorBuildPolicy.test.mjs",
+    "test:without-d1": "vitest run --exclude tests/resonanceCloud.test.ts --exclude tests/functions/gongeoRuntime.test.ts --exclude tests/functions/outfitCodeRuntime.test.ts && node --test tests/startupDependencies.test.mjs tests/resourceNetwork.test.cjs tests/errorSourceMaps.test.mjs tests/errorBuildPolicy.test.mjs"
   },
   "dependencies": {
     "@assemblyscript/loader": "0.28.20",

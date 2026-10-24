@@ -1,3 +1,4 @@
+import * as diagnosticReporter from '../../src/utils/errorReporting/errorReporter'
 vi.mock('../../src/utils/imageSelection', () => ({
   validateSelectedImage: vi.fn().mockResolvedValue(undefined)
 }))
@@ -782,4 +783,39 @@ it('skips focus refresh for an inactive module and while its editor is open', as
   window.dispatchEvent(new Event('focus'))
   await flushPromises()
   expect(mocks.read).not.toHaveBeenCalled()
+})
+
+it('reports an editor preview element failure with file metadata but no filename', async () => {
+  const capture = vi.spyOn(diagnosticReporter, 'reportError').mockReturnValue('test-event')
+  try {
+    const view = create()
+    await flushPromises()
+    const file = new File(['original'], 'private-file.png', { type: 'image/png' })
+    await (
+      view.vm as unknown as {
+        openFromResult: (value: PhotoParamsResult, photo: unknown) => Promise<void>
+      }
+    ).openFromResult(result, {
+      name: file.name,
+      fileHandle: { getFile: async () => file }
+    })
+    await flushPromises()
+    const image = document.querySelector<HTMLImageElement>('.camera-editor-preview')!
+    expect(image).not.toBeNull()
+    image.dispatchEvent(new Event('error'))
+    await flushPromises()
+    expect(capture).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        module: 'camera-favorites',
+        code: 'IMAGE_PREVIEW_FAILED',
+        stage: 'preview-element',
+        context: { mimeType: 'image/png', sizeBytes: file.size }
+      })
+    )
+    expect(JSON.stringify(capture.mock.calls)).not.toContain(file.name)
+    expect(view.emitted('status')?.at(-1)?.[1]).toBe('error')
+  } finally {
+    capture.mockRestore()
+  }
 })

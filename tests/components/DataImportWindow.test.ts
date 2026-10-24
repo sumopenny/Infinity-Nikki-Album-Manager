@@ -1,3 +1,4 @@
+import * as diagnosticReporter from '../../src/utils/errorReporting/errorReporter'
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
@@ -398,4 +399,20 @@ it('resets selection to both enabled after reopening and previewing again', asyn
   await wrapper.setProps({ visible: false })
   await wrapper.setProps({ visible: true })
   expect((await preview(raw)).every((input) => input.checked)).toBe(true)
+})
+
+it('reports a Pearpal credential failure at the UI boundary without changing its user message', async () => {
+  const capture = vi.spyOn(diagnosticReporter, 'reportError').mockReturnValue('test-event')
+  const error = new Error(resonanceImport.PEARPAL_AUTH_FAILED)
+  vi.spyOn(resonanceImport, 'fetchPearpalSnapshot').mockRejectedValue(error)
+  await pasteCredentials()
+  submit().click()
+  await vi.waitFor(() =>
+    expect(capture).toHaveBeenCalledWith(
+      error,
+      expect.objectContaining({ module: 'data-import', action: 'preview' })
+    )
+  )
+  expect(wrapper.emitted('notice')?.at(-1)?.[0]).toContain('请重新登录美鸭梨')
+  expect(wrapper.emitted('imported')).toBeUndefined()
 })

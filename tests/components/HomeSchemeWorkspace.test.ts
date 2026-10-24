@@ -1,3 +1,4 @@
+import * as diagnosticReporter from '../../src/utils/errorReporting/errorReporter'
 vi.mock('../../src/utils/imageSelection', () => ({
   validateSelectedImage: vi.fn().mockResolvedValue(undefined)
 }))
@@ -334,4 +335,46 @@ it('does not release an in-flight deletion merely because the component unmounts
   finish()
   await flushPromises()
   expect(coordinator.isBusy.value).toBe(false)
+})
+
+it('reports the displayed home cover failure while preserving the editor', async () => {
+  const capture = vi.spyOn(diagnosticReporter, 'reportError').mockReturnValue('test-event')
+  vi.mocked(parseHomeScheme).mockResolvedValue({
+    code: 'CODE1',
+    name: 'fixture',
+    templateType: 0,
+    coverImage: 'https://example.invalid/fixture.png',
+    lastModifyTime: 0,
+    version: '2.10',
+    furnitureCount: 7,
+    server: 49
+  })
+  const wrapper = mount(HomeSchemeWorkspace, { props, attachTo: document.body })
+  try {
+    await vi.waitFor(() => expect(wrapper.emitted('countChange')?.at(-1)).toEqual([0]))
+    await wrapper.get('.home-scheme-header-actions .primary-button').trigger('click')
+    const code = document.querySelector<HTMLInputElement>('#home-scheme-code')!
+    code.value = 'CODE1'
+    code.dispatchEvent(new Event('input', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+    await vi.advanceTimersByTimeAsync(450)
+    await flushPromises()
+    const image = document.querySelector<HTMLImageElement>('.home-scheme-editor img')!
+    expect(image).not.toBeNull()
+    image.dispatchEvent(new Event('error'))
+    await flushPromises()
+    expect(capture).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        module: 'home-schemes',
+        code: 'IMAGE_PREVIEW_FAILED',
+        stage: 'preview-element'
+      })
+    )
+    expect(document.querySelector('.home-scheme-editor')).not.toBeNull()
+    expect(wrapper.emitted('status')?.at(-1)?.[1]).toBe('error')
+  } finally {
+    wrapper.unmount()
+    capture.mockRestore()
+  }
 })

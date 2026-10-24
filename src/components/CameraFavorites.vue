@@ -500,6 +500,14 @@ async function parse() {
 }
 // 捕获验证通过后仍可能出现的预览失效，避免无提示空白。
 function handleCoverPreviewError() {
+  if (!editor.value || disposed) return
+  captureDiagnosticError(new Error('Image preview failed'), {
+    module: 'camera-favorites',
+    action: 'preview-cover',
+    stage: 'preview-element',
+    code: 'IMAGE_PREVIEW_FAILED',
+    context: { mimeType: cover.value?.type ?? null, sizeBytes: cover.value?.size ?? null }
+  })
   error.value = t(
     '图片预览失败，请重新选择；浏览器可能不支持该格式。',
     'Image preview failed. Please select again; this format may be unsupported.'

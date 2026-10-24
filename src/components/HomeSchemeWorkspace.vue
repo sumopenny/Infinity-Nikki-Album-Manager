@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
+import {
+  reportError as captureDiagnosticError,
+  reportPartialFailure
+} from '../utils/errorReporting/errorReporter'
 import { validateSelectedImage } from '../utils/imageSelection'
 import { snapshotImageFile } from '../utils/image'
 import { useCompactLayout } from '../composables/useCompactLayout'
@@ -360,6 +363,14 @@ function onCodeInput(event: Event) {
 
 // 预览元素本身加载失败也必须反馈，涵盖已失效的文件引用。
 function handleEditorPreviewError() {
+  if (!editorVisible.value) return
+  captureDiagnosticError(new Error('Image preview failed'), {
+    module: 'home-schemes',
+    action: 'preview-image',
+    stage: 'preview-element',
+    code: 'IMAGE_PREVIEW_FAILED',
+    context: { mimeType: imageFile.value?.type ?? null, sizeBytes: imageFile.value?.size ?? null }
+  })
   imageSelectionError.value =
     props.language === 'en'
       ? 'Image preview failed. Please select again; this format may be unsupported.'
@@ -765,6 +776,9 @@ async function importBackup(event: Event) {
     busy.value = true
     try {
       const result = await importHomeSchemeBackup(file)
+      reportPartialFailure('home-schemes', 'import-backup', result.failedCount, {
+        savedCount: result.addedCount
+      })
       releaseHomeSchemeUrls(schemes.value)
       schemes.value = result.schemes
       tags.value = result.tags

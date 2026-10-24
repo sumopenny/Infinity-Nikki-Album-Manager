@@ -151,9 +151,8 @@ const expected = new Set([
   'home_scheme_record_changed',
   'home_scheme_record_missing',
   'FILE_TOO_LARGE',
-  'Pearpal UID mismatch',
-  'Pearpal region mismatch',
-  'Pearpal credentials could not be verified'
+  'outfit_record_changed',
+  'home_build_server_unsupported'
 ])
 export function isExpectedError(value: unknown): boolean {
   if (!value || typeof value !== 'object') return typeof value === 'string' && expected.has(value)
@@ -163,6 +162,23 @@ export function isExpectedError(value: unknown): boolean {
     error.name === 'DuplicateOutfitCodeError' ||
     expected.has(error.message ?? '') ||
     (typeof error.code === 'string' && expected.has(error.code))
+  )
+}
+/** Authentication/region validation can expose upstream regressions: record as warnings, not cancellations. */
+export function isDiagnosticWarning(value: unknown): boolean {
+  const message =
+    typeof value === 'string'
+      ? value
+      : value && typeof value === 'object'
+        ? (value as { message?: unknown }).message
+        : undefined
+  return (
+    typeof message === 'string' &&
+    [
+      'Pearpal UID mismatch',
+      'Pearpal region mismatch',
+      'Pearpal credentials could not be verified'
+    ].includes(message)
   )
 }
 export function fingerprintInput(event: ErrorEventPayload): string {

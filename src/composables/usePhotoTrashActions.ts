@@ -1,3 +1,4 @@
+import { reportPartialFailure } from '../utils/errorReporting/errorReporter'
 import type { Ref, ComputedRef } from 'vue'
 import type { LocaleMessages } from '../i18n'
 import type { PhotoItem, PhotoDisplayItem, RecentlyDeletedPhoto } from '../utils/photoGrouping'
@@ -121,6 +122,12 @@ export function usePhotoTrashActions(options: PhotoTrashActionsOptions) {
         message: locale.value.trash.movedStatus(result.succeeded.length, result.failedNames),
         tone: result.failedNames.length ? 'warning' : 'success'
       }
+      reportPartialFailure(
+        'album-trash',
+        activeOperation.value ?? 'operation',
+        result.failedNames.length,
+        { succeededCount: result.succeeded.length }
+      )
     } catch (error) {
       statusState.value = createErrorStatus(error, { type: 'readFailed' })
     } finally {
@@ -171,6 +178,12 @@ export function usePhotoTrashActions(options: PhotoTrashActionsOptions) {
         message: locale.value.trash.restoredStatus(result.succeeded.length, result.failedNames),
         tone: result.failedNames.length ? 'warning' : 'success'
       }
+      reportPartialFailure(
+        'album-trash',
+        activeOperation.value ?? 'operation',
+        result.failedNames.length,
+        { succeededCount: result.succeeded.length }
+      )
     } catch (error) {
       statusState.value = createErrorStatus(error, { type: 'readFailed' })
     } finally {
@@ -235,6 +248,12 @@ export function usePhotoTrashActions(options: PhotoTrashActionsOptions) {
         ),
         tone: result.failedNames.length ? 'warning' : 'success'
       }
+      reportPartialFailure(
+        'album-trash',
+        activeOperation.value ?? 'operation',
+        result.failedNames.length,
+        { succeededCount: result.succeeded.length }
+      )
     } catch (error) {
       statusState.value = createErrorStatus(error, { type: 'readFailed' })
     } finally {

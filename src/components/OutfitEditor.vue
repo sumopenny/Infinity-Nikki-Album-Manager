@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import { validateSelectedImage } from '../utils/imageSelection'
 import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from 'vue'
 import { ImagePlus, Plus, Upload, X } from 'lucide-vue-next'
@@ -83,8 +84,13 @@ async function resetForm() {
       const file = await readPhotoBlob(outfit)
       if (requestId !== previewRequestId || !props.visible || props.outfit !== outfit) return
       previewUrl.value = URL.createObjectURL(file)
-    } catch {
+    } catch (error) {
       if (requestId !== previewRequestId || !props.visible || props.outfit !== outfit) return
+      captureDiagnosticError(error, {
+        module: 'outfits',
+        action: 'load-editor-image',
+        stage: 'preview'
+      })
       errorMessage.value = props.messages.imageLoadFailed
     }
   }
@@ -114,6 +120,12 @@ async function selectFile(file: File | undefined) {
     previewUrl.value = URL.createObjectURL(snapshot)
   } catch (error) {
     if (requestId !== previewRequestId || !props.visible) return
+    captureDiagnosticError(error, {
+      module: 'outfits',
+      action: 'select-image',
+      stage: 'preview',
+      context: { mimeType: file.type, sizeBytes: file.size }
+    })
     imageReadFailed.value = true
     errorMessage.value = `${props.messages.imageLoadFailed}. ${error instanceof Error ? error.message : String(error)}`
   } finally {
@@ -131,6 +143,14 @@ function handleImageSelection(event: Event) {
 
 // 预览失败显示普通错误提示，保留当前草稿供用户重新选择。
 function handlePreviewError() {
+  if (!props.visible) return
+  captureDiagnosticError(new Error('Image preview failed'), {
+    module: 'outfits',
+    action: 'preview-image',
+    stage: 'preview-element',
+    code: 'IMAGE_PREVIEW_FAILED',
+    context: { mimeType: imageFile.value?.type ?? null, sizeBytes: imageFile.value?.size ?? null }
+  })
   errorMessage.value = props.messages.imageLoadFailed
 }
 

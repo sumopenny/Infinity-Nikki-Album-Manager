@@ -1,3 +1,4 @@
+import { reportError as captureDiagnosticError } from '../errorReporting/errorReporter'
 // 相册图片传输：负责批量导入、并发导出、重名分配和可取消进度。
 import type { PhotoItem } from '../photoGrouping'
 import { runWithConcurrency } from '../concurrency'
@@ -166,7 +167,13 @@ async function runPhotoImport(
         await writeFile(directory, name, file)
         state.succeeded += 1
         state.importedNames.push(name)
-      } catch {
+      } catch (error) {
+        captureDiagnosticError(error, {
+          module: 'album',
+          action: 'import-photo',
+          stage: 'file-write',
+          context: { mimeType: file.type, sizeBytes: file.size }
+        })
         state.failedNames.push(file.name)
       } finally {
         state.completed += 1
@@ -216,7 +223,12 @@ async function runPhotoExport(
         await copyPhoto(directory, name, photo)
         state.succeeded += 1
         state.succeededPhotos.push(photo)
-      } catch {
+      } catch (error) {
+        captureDiagnosticError(error, {
+          module: 'album',
+          action: 'export-photo',
+          stage: 'file-write'
+        })
         state.failedNames.push(photo.name)
       } finally {
         state.completed += 1

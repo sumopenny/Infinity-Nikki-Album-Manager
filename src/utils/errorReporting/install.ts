@@ -1,6 +1,7 @@
 import type { App } from 'vue'
 import {
   diagnosticsConfigured,
+  getDiagnosticsStatus,
   initializeDiagnosticEnvironment,
   reportError,
   setDiagnosticsAllowed
@@ -8,7 +9,21 @@ import {
 
 /** 保留已有 Vue handler 与浏览器默认错误行为；卸载/HMR 时释放监听。 */
 export function installErrorReporting(app: App): () => void {
-  if (!diagnosticsConfigured) return () => {}
+  let listenersInstalled = false
+  const api = Object.freeze({
+    snapshot: () => Object.freeze({ ...getDiagnosticsStatus(), listenersInstalled })
+  })
+  // Available even when the build gate is off, so missing configuration can be diagnosed.
+  try {
+    Object.defineProperty(window, '__NIKKI_DIAGNOSTICS__', { value: api, configurable: true })
+  } catch {
+    /* Optional debug API. */
+  }
+  const removeDebugApi = () => {
+    if (Object.getOwnPropertyDescriptor(window, '__NIKKI_DIAGNOSTICS__')?.value === api)
+      Reflect.deleteProperty(window, '__NIKKI_DIAGNOSTICS__')
+  }
+  if (!diagnosticsConfigured) return removeDebugApi
   initializeDiagnosticEnvironment()
   const previous = app.config.errorHandler
   const vueHandler: NonNullable<App['config']['errorHandler']> = (error, instance, info) => {
@@ -59,12 +74,16 @@ export function installErrorReporting(app: App): () => void {
   const promise = (event: PromiseRejectionEvent) =>
     reportError(event.reason, { type: 'promise', action: 'unhandled-rejection', handled: false })
   const preference = (event: StorageEvent) => {
-    if (event.key === 'nikki-diagnostics-disabled') setDiagnosticsAllowed(event.newValue !== '1')
+    if (event.key === 'nikki-diagnostics-disabled' || event.key === null)
+      setDiagnosticsAllowed(event.newValue !== '1')
   }
   window.addEventListener('error', runtime, true)
   window.addEventListener('unhandledrejection', promise)
   window.addEventListener('storage', preference)
+  listenersInstalled = true
   return () => {
+    listenersInstalled = false
+    removeDebugApi()
     if (app.config.errorHandler === vueHandler) app.config.errorHandler = previous
     window.removeEventListener('error', runtime, true)
     window.removeEventListener('unhandledrejection', promise)

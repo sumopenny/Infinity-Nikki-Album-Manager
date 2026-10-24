@@ -1,3 +1,4 @@
+import { reportPartialFailure } from '../utils/errorReporting/errorReporter'
 import type { Ref, ComputedRef } from 'vue'
 import type { LocaleMessages, OutfitMessages } from '../i18n'
 import type { PhotoDisplayItem } from '../utils/photoGrouping'
@@ -226,6 +227,9 @@ export function useOutfitWorkspace(options: OutfitWorkspaceOptions) {
       selectedOutfitIds.value = new Set(
         [...selectedOutfitIds.value].filter((id) => !deletedIds.has(id))
       )
+      reportPartialFailure('outfits', 'delete-selected', result.failedNames.length, {
+        succeededCount: deletedIds.size
+      })
       outfits.value = outfits.value.filter((item) => !deletedIds.has(item.id))
       showOutfitStatus(
         outfitLocale.value.operations.deletedSelected(deletedIds.size, result.failedNames.length),
@@ -286,6 +290,9 @@ export function useOutfitWorkspace(options: OutfitWorkspaceOptions) {
         ),
         result.failedCount || result.rejectedTagCount ? 'warning' : 'success'
       )
+      reportPartialFailure('outfits', 'import-backup', result.failedCount, {
+        savedCount: result.addedCount
+      })
     } catch (error) {
       showOutfitStorageError(error)
     } finally {

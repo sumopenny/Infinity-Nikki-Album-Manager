@@ -8,6 +8,7 @@ import {
   diagnosticText,
   fingerprintInput,
   isExpectedError,
+  isDiagnosticWarning,
   serializeError,
   validateErrorPayload,
   type Breadcrumb,
@@ -33,6 +34,26 @@ export function annotateDiagnosticError<T>(error: T, metadata: Partial<ErrorMeta
   }
   return error
 }
+/** Retain lower-level network/storage annotations through Error.cause wrappers. */
+function diagnosticMetadata(error: unknown): Partial<ErrorMetadata> {
+  const chain: Partial<ErrorMetadata>[] = [],
+    visited = new Set<object>()
+  let current = error
+  for (let i = 0; i < 6 && current && typeof current === 'object' && !visited.has(current); i++) {
+    visited.add(current)
+    const annotation = annotations.get(current)
+    if (annotation) chain.unshift(annotation)
+    current = (current as { cause?: unknown }).cause
+  }
+  return chain.reduce<Partial<ErrorMetadata>>(
+    (value, next) => ({
+      ...value,
+      ...next,
+      context: { ...value.context, ...next.context }
+    }),
+    {}
+  )
+}
 export function diagnosticId(): string {
   if (typeof globalThis.crypto?.randomUUID === 'function') return crypto.randomUUID()
   const bytes = new Uint8Array(16)
@@ -48,6 +69,14 @@ export interface ReporterOptions {
   now?: () => number
   pagePath?: () => string
 }
+interface DiagnosticStep {
+  at: number
+  outcome: string
+  reason: string
+  eventId: string | null
+  httpStatus: number | null
+  responseCode: string | null
+}
 export function createErrorReporter(options: ReporterOptions) {
   let enabled = options.enabled
   const now = options.now ?? Date.now
@@ -61,6 +90,31 @@ export function createErrorReporter(options: ReporterOptions) {
   let pending: Promise<void> | undefined
   let controller: AbortController | undefined
   let currentModule = 'application'
+  const counts = {
+    captured: 0,
+    queued: 0,
+    filtered: 0,
+    deduplicated: 0,
+    limited: 0,
+    invalid: 0,
+    attempts: 0,
+    accepted: 0,
+    rejected: 0,
+    failed: 0
+  }
+  let lastCapture: DiagnosticStep | null = null,
+    lastDelivery: DiagnosticStep | null = null
+  const step = (
+    outcome: string,
+    reason: string,
+    eventId: string | null = null,
+    httpStatus: number | null = null,
+    responseCode: string | null = null
+  ): DiagnosticStep => ({ at: now(), outcome, reason, eventId, httpStatus, responseCode })
+  const skip = (reason: string): null => {
+    lastCapture = step('skipped', reason)
+    return null
+  }
   function breadcrumb(category: string, name: string, data: Record<string, unknown> = {}) {
     if (!enabled) return
     try {
@@ -77,38 +131,86 @@ export function createErrorReporter(options: ReporterOptions) {
   }
   async function transmit(event: ErrorEventPayload) {
     for (let attempt = 0; attempt < 2 && enabled; attempt++) {
-      controller = new AbortController()
+      const currentController = new AbortController()
+      controller = currentController
       let timer: ReturnType<typeof setTimeout> | undefined
+      counts.attempts++
+      lastDelivery = step('sending', 'request-started', event.eventId)
       try {
         const transport = options.transport ?? globalThis.fetch
-        const response = await Promise.race([
-          transport('/api/errors', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json', 'X-Error-Report': '1' },
-            body: JSON.stringify(event),
-            credentials: 'omit',
-            cache: 'no-store',
-            referrerPolicy: 'no-referrer',
-            signal: controller.signal
-          }),
+        // The deadline includes the response body, not just receipt of headers.
+        const result = await Promise.race([
+          (async () => {
+            const response = await transport('/api/errors', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', 'X-Error-Report': '1' },
+              body: JSON.stringify(event),
+              credentials: 'omit',
+              cache: 'no-store',
+              referrerPolicy: 'no-referrer',
+              signal: currentController.signal
+            })
+            const body: unknown = await response.json().catch(() => null)
+            return { response, body }
+          })(),
           new Promise<never>((_, reject) => {
             timer = setTimeout(() => {
-              controller?.abort()
+              currentController.abort()
               reject(new Error('REPORT_TIMEOUT'))
             }, 5000)
           })
         ])
-        if (response.ok) return
+        if (!enabled) {
+          lastDelivery = step('stopped', 'user-disabled', event.eventId)
+          return
+        }
+        const { response, body } = result
+        const receipt = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}
+        const code =
+          typeof receipt.error === 'string' && /^[A-Z_]{1,64}$/.test(receipt.error)
+            ? receipt.error
+            : null
+        if (response.ok && receipt.accepted === true && receipt.eventId === event.eventId) {
+          counts.accepted++
+          lastDelivery = step(
+            'accepted',
+            receipt.replayed === true ? 'replayed' : 'stored',
+            event.eventId,
+            response.status
+          )
+          return
+        }
+        counts.rejected++
+        lastDelivery = step(
+          'rejected',
+          response.ok ? 'invalid-acknowledgement' : 'http-error',
+          event.eventId,
+          response.status,
+          code
+        )
         if (response.status === 429 || response.status === 503) {
           pauseUntil = now() + 60000
           queue.length = 0
           return
         }
-        if (response.status < 500) return
-      } catch {
-        /* 不递归上报，不显示第二条错误通知。 */
+        if (!response.ok && response.status < 500) return
+      } catch (error) {
+        if (!enabled) {
+          lastDelivery = step('stopped', 'user-disabled', event.eventId)
+          return
+        }
+        counts.failed++
+        lastDelivery = step(
+          'failed',
+          error instanceof Error && error.message === 'REPORT_TIMEOUT'
+            ? 'timeout'
+            : 'network-failed',
+          event.eventId
+        )
+        // Never recursively report the reporter's own failures.
       } finally {
         clearTimeout(timer)
+        if (controller === currentController) controller = undefined
       }
     }
   }
@@ -128,21 +230,30 @@ export function createErrorReporter(options: ReporterOptions) {
     return pending
   }
   function report(error: unknown, metadata: Partial<ErrorMetadata> = {}): string | null {
-    if (!enabled || now() < pauseUntil) return null
+    if (!enabled) return skip('disabled')
+    if (now() < pauseUntil) return skip('backoff')
+    counts.captured++
     try {
-      if (isExpectedError(error)) return null
+      if (isExpectedError(error)) {
+        counts.filtered++
+        return skip('expected-error')
+      }
       let prior: unknown = error
       for (let i = 0; i < 6 && prior && typeof prior === 'object'; i++) {
-        if (seen.has(prior)) return null
+        if (seen.has(prior)) {
+          counts.deduplicated++
+          return skip('duplicate-error-object')
+        }
         prior = (prior as { cause?: unknown }).cause
       }
-      const annotation = error && typeof error === 'object' ? annotations.get(error) : undefined
-      const info = { ...annotation, ...metadata }
+      const annotation = diagnosticMetadata(error)
+      const info = { ...annotation, ...metadata, stage: annotation.stage ?? metadata.stage }
       const stamp = now()
       sent = sent.filter((at) => stamp - at < 60000)
       if (sent.length >= 20 || queue.length >= 10) {
         suppressed++
-        return null
+        counts.limited++
+        return skip('page-rate-or-queue-limit')
       }
       const environment = (options.environment ?? collectDiagnosticEnvironment)()
       const event: ErrorEventPayload = {
@@ -154,7 +265,7 @@ export function createErrorReporter(options: ReporterOptions) {
         stage: info.stage ?? '',
         code: info.code ?? '',
         type: info.type ?? 'business',
-        severity: info.severity ?? 'error',
+        severity: info.severity ?? (isDiagnosticWarning(error) ? 'warning' : 'error'),
         handled: info.handled ?? true,
         build: options.build,
         error: serializeError(error),
@@ -184,7 +295,8 @@ export function createErrorReporter(options: ReporterOptions) {
       const fingerprint = fingerprintInput(event)
       if (stamp - (recent.get(fingerprint) ?? -Infinity) < 10000) {
         suppressed++
-        return null
+        counts.deduplicated++
+        return skip('fingerprint-window')
       }
       while (byteLength(JSON.stringify(event)) > MAX_ERROR_BYTES && event.breadcrumbs.length) {
         event.breadcrumbs.shift()
@@ -194,7 +306,10 @@ export function createErrorReporter(options: ReporterOptions) {
         event.context = { stage: event.stage }
         event.truncated.push('context')
       }
-      if (byteLength(JSON.stringify(event)) > MAX_ERROR_BYTES) return null
+      if (byteLength(JSON.stringify(event)) > MAX_ERROR_BYTES) {
+        counts.invalid++
+        return skip('payload-too-large')
+      }
       const clean = validateErrorPayload(event)
       recent.set(fingerprint, stamp)
       if (recent.size > 100) recent.delete(recent.keys().next().value!)
@@ -208,16 +323,29 @@ export function createErrorReporter(options: ReporterOptions) {
       sent.push(stamp)
       suppressed = 0
       queue.push(clean)
+      counts.queued++
+      lastCapture = step('queued', 'captured', clean.eventId)
       void flush()
       return clean.eventId
     } catch {
-      return null
+      counts.invalid++
+      return skip('serialization-or-validation')
     }
   }
   return {
     report,
     breadcrumb,
     flush,
+    snapshot() {
+      return Object.freeze({
+        enabled,
+        queueLength: queue.length,
+        pauseUntil,
+        counters: Object.freeze({ ...counts }),
+        lastCapture: lastCapture ? Object.freeze({ ...lastCapture }) : null,
+        lastDelivery: lastDelivery ? Object.freeze({ ...lastDelivery }) : null
+      })
+    },
     setModule(value: string) {
       currentModule = value
       breadcrumb('navigation', 'module-enter', { module: value })
@@ -250,11 +378,13 @@ export function diagnosticsAllowed(): boolean {
     return true
   }
 }
+let sessionAllowed = diagnosticsAllowed()
 const reporter = createErrorReporter({
-  enabled: diagnosticsConfigured && diagnosticsAllowed(),
+  enabled: diagnosticsConfigured && sessionAllowed,
   build: typeof __ERROR_BUILD__ === 'undefined' ? fallbackBuild : __ERROR_BUILD__
 })
 export function setDiagnosticsAllowed(value: boolean) {
+  sessionAllowed = value
   try {
     localStorage.setItem(preferenceKey, value ? '0' : '1')
   } catch {
@@ -263,7 +393,34 @@ export function setDiagnosticsAllowed(value: boolean) {
   reporter.setEnabled(diagnosticsConfigured && value)
   if (diagnosticsConfigured && value) prepareDiagnosticEnvironment()
 }
+/** Read-only technical state; never returns error payloads, credentials or device fingerprints. */
+export function getDiagnosticsStatus() {
+  return Object.freeze({
+    configured: diagnosticsConfigured,
+    allowed: sessionAllowed,
+    build: Object.freeze({
+      ...(typeof __ERROR_BUILD__ === 'undefined' ? fallbackBuild : __ERROR_BUILD__)
+    }),
+    ...reporter.snapshot()
+  })
+}
 export const reportError = reporter.report
+/** Aggregate partial failures without recording user filenames or record contents. */
+export function reportPartialFailure(
+  module: string,
+  action: string,
+  failedCount: number,
+  context: Record<string, unknown> = {}
+) {
+  if (!Number.isFinite(failedCount) || failedCount <= 0) return null
+  return reportError(new Error('Operation partially failed'), {
+    module,
+    action,
+    code: 'PARTIAL_OPERATION_FAILED',
+    severity: 'warning',
+    context: { ...context, failedCount }
+  })
+}
 export const trackDiagnostic = reporter.breadcrumb
 export const setDiagnosticModule = reporter.setModule
 export const flushDiagnostics = reporter.flush

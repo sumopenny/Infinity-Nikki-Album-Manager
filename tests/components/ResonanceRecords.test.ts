@@ -1,3 +1,4 @@
+import * as diagnosticReporter from '../../src/utils/errorReporting/errorReporter'
 import * as unifiedImport from '../../src/utils/unifiedDataImport'
 import * as resonanceImport from '../../src/utils/resonance/resonanceImport'
 import * as resonanceStorage from '../../src/utils/resonance/resonanceStorage'
@@ -860,3 +861,14 @@ it.each(['bookmark', 'console'] as const)(
     }
   }
 )
+
+it('reports failed resonance storage reads instead of only showing a notice', async () => {
+  const error = new Error('read-fixture-failure')
+  const capture = vi.spyOn(diagnosticReporter, 'reportError').mockReturnValue('test-event')
+  vi.spyOn(resonanceStorage, 'loadResonanceRecords').mockRejectedValueOnce(error)
+  const wrapper = mount(ResonanceRecords)
+  wrappers.push(wrapper)
+  await flushPromises()
+  expect(capture).toHaveBeenCalledWith(error, { module: 'resonance', action: 'load' })
+  expect(latestNotice(wrapper)?.tone).toBe('error')
+})

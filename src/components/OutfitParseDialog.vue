@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import CatalogImage from './CatalogImage.vue'
 // 搭配码解析窗口：调用解析 API 清洗出部件 ID 与染色数据，再叠加本地图鉴展示部件图标与名称。
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, toRef, watch } from 'vue'
@@ -157,13 +158,17 @@ async function openItemDetail(item: ParseItemView, event?: Event) {
       .then((value) => {
         if (request.isCurrent()) wardrobeCatalog.value = value
       })
-      .catch(() => {
+      .catch((error) => {
+        if (request.isCurrent())
+          captureDiagnosticError(error, { module: 'outfits', action: 'load-wardrobe-catalog' })
         if (request.isCurrent() && selectedDetail.value) selectedDetail.value.loadError = true
       })
     void nextTick(() => {
       if (request.isCurrent()) detailPanelRef.value?.querySelector('button')?.focus()
     })
-  } catch {
+  } catch (error) {
+    if (request.isCurrent())
+      captureDiagnosticError(error, { module: 'outfits', action: 'load-item-detail' })
     if (request.isCurrent() && selectedDetail.value) selectedDetail.value.loadError = true
   } finally {
     if (request.isCurrent()) detailLoading.value = false
@@ -179,8 +184,11 @@ async function openAssociatedOutfit() {
     if (!detailVisible.value || selectedDetail.value !== currentDetail) return
     wardrobeSnapshot.value = snapshot
     outfitPreview.value = entry
-  } catch {
-    if (selectedDetail.value === currentDetail && currentDetail) currentDetail.loadError = true
+  } catch (error) {
+    if (selectedDetail.value === currentDetail && currentDetail) {
+      captureDiagnosticError(error, { module: 'outfits', action: 'load-associated-outfit' })
+      currentDetail.loadError = true
+    }
   }
 }
 
@@ -242,6 +250,8 @@ async function startParse() {
     status.value = 'success'
   } catch (error) {
     if (currentRequest !== requestId) return
+    if (!(error instanceof OutfitCodeParseError && error.kind === 'invalid'))
+      captureDiagnosticError(error, { module: 'outfits', action: 'parse', stage: 'decode' })
     errorKind.value = error instanceof OutfitCodeParseError ? error.kind : 'unavailable'
     status.value = 'error'
   }
