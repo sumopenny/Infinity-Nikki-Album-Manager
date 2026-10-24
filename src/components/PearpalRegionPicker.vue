@@ -27,7 +27,7 @@ async function toggle() {
     menu.value?.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus()
   }
 }
-/** 菜单留在弹窗焦点范围内；Esc 只收起菜单，方向键在选项之间移动。 */
+/** 菜单留在弹窗内；Esc 只收起菜单，方向键在选项之间移动。 */
 async function keydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && open.value) {
     event.preventDefault()
@@ -54,9 +54,6 @@ async function keydown(event: KeyboardEvent) {
 function outside(event: MouseEvent) {
   if (!root.value?.contains(event.target as Node)) open.value = false
 }
-function leave(event: FocusEvent) {
-  if (!root.value?.contains(event.relatedTarget as Node)) open.value = false
-}
 watch(
   () => props.disabled,
   (disabled) => {
@@ -68,7 +65,7 @@ onBeforeUnmount(() => document.removeEventListener('click', outside))
 </script>
 
 <template>
-  <div ref="root" class="data-import-region" @keydown="keydown" @focusout="leave">
+  <div ref="root" class="data-import-region" @keydown="keydown">
     <span :id="`${id}-label`">{{ label() }}</span>
     <div class="cleanup-account-select-wrap">
       <button

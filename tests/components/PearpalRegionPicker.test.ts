@@ -33,3 +33,26 @@ it('uses the shared menu, supports keyboard selection and consumes Escape before
     wrapper.unmount()
   }
 })
+
+it('keeps iOS touch selection alive when focus is lost before click', async () => {
+  const wrapper = mount(PearpalRegionPicker, {
+    props: { modelValue: 'cn', language: 'zh' },
+    attachTo: document.body
+  })
+  try {
+    const trigger = wrapper.get('.cleanup-account-select')
+    await trigger.trigger('click')
+    await flushPromises()
+    const option = wrapper.get('[data-region="asia"]')
+    option.element.dispatchEvent(new Event('touchstart', { bubbles: true }))
+    option.element.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }))
+    await flushPromises()
+    expect(wrapper.find('[data-region="asia"]').exists()).toBe(true)
+    option.element.dispatchEvent(new Event('touchend', { bubbles: true }))
+    await option.trigger('click')
+    expect(wrapper.emitted('update:modelValue')).toEqual([['asia']])
+    expect(wrapper.find('[role="menu"]').exists()).toBe(false)
+  } finally {
+    wrapper.unmount()
+  }
+})
