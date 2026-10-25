@@ -1,3 +1,5 @@
+import { fileSystemEn, fileSystemZh } from '../../i18n/messages/fileSystem'
+
 /** 浏览器和 Pages 共用诊断协议。只保存技术上下文，不序列化任意业务对象。 */
 export const MAX_ERROR_BYTES = 64 * 1024
 export const MAX_BREADCRUMBS = 30
@@ -139,6 +141,8 @@ export function serializeError(error: unknown): ErrorDetail {
 const expected = new Set([
   'cancelled',
   'MISSING_CREDENTIALS',
+  'EMPTY_CLOUD',
+  'EMPTY_LOCAL',
   'LOCAL_CHANGED',
   'WARDROBE_CHANGED',
   'CREDENTIAL_FORMAT',
@@ -154,14 +158,48 @@ const expected = new Set([
   'outfit_record_changed',
   'home_build_server_unsupported'
 ])
+/** 兼容浏览器提示、相册重新授权和 X6Game 目录选择属于预期状态，不进入 D1。 */
+const expectedDirectoryMessages = new Set([
+  fileSystemZh.unsupportedBrowser,
+  fileSystemZh.mobileBrowserUnsupported,
+  fileSystemZh.permissionRequired,
+  fileSystemZh.invalidX6GameDirectory,
+  fileSystemEn.unsupportedBrowser,
+  fileSystemEn.mobileBrowserUnsupported,
+  fileSystemEn.permissionRequired,
+  fileSystemEn.invalidX6GameDirectory,
+  '请先授权 X6Game 文件夹。',
+  'Please authorize the X6Game folder first.'
+])
+// 保留旧版本和短提示文案的兼容；只匹配明确的开头，避免吞掉其他文件系统故障。
+const expectedDirectoryPrefixes = [
+  '当前浏览器不支持选择文件夹',
+  '手机浏览器不支持目录授权',
+  '已记住相册路径，但需要重新授权',
+  '已记住上次相册路径，但浏览器需要重新授权',
+  '未授权 X6Game 文件夹',
+  '请先授权 X6Game 文件夹',
+  '选择的目录不是正确的 X6Game 文件夹',
+  '所选目录不是当前相册对应的 X6Game 文件夹'
+]
+function isExpectedMessage(message: string): boolean {
+  return (
+    expected.has(message) ||
+    expectedDirectoryMessages.has(message) ||
+    expectedDirectoryPrefixes.some((prefix) => message.startsWith(prefix))
+  )
+}
 export function isExpectedError(value: unknown): boolean {
-  if (!value || typeof value !== 'object') return typeof value === 'string' && expected.has(value)
+  if (!value || typeof value !== 'object')
+    return typeof value === 'string' && isExpectedMessage(value)
   const error = value as { name?: string; message?: string; code?: unknown }
   return (
     error.name === 'AbortError' ||
     error.name === 'DuplicateOutfitCodeError' ||
-    expected.has(error.message ?? '') ||
-    (typeof error.code === 'string' && expected.has(error.code))
+    (typeof error.message === 'string' && isExpectedMessage(error.message)) ||
+    (typeof error.code === 'string' && expected.has(error.code)) ||
+    (error.name === 'DirectoryAccessError' &&
+      (error.code === 'permission-denied' || error.code === 'invalid-directory'))
   )
 }
 /** Authentication/region validation can expose upstream regressions: record as warnings, not cancellations. */

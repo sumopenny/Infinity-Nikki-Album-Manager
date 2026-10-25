@@ -4,6 +4,8 @@ import {
   createErrorReporter
 } from '../../../src/utils/errorReporting/errorReporter'
 import type { ErrorEventPayload } from '../../../src/utils/errorReporting/schema'
+import { DirectoryAccessError } from '../../../src/utils/file-system/directoryErrors'
+import { fileSystemEn, fileSystemZh } from '../../../src/i18n/messages/fileSystem'
 
 function setup(statuses = [201], enabled = true) {
   const payloads: ErrorEventPayload[] = []
@@ -129,6 +131,35 @@ describe('in-memory error reporter', () => {
     reporter.report(new Error('MISSING_CREDENTIALS'), { module: 'test', action: 'save' })
     await reporter.flush()
     expect(transport).not.toHaveBeenCalled()
+  })
+  it.each([
+    ['cloud save is empty', new Error('EMPTY_CLOUD')],
+    ['local resonance is empty', new Error('EMPTY_LOCAL')],
+    ['desktop folder picker unsupported', new Error(fileSystemZh.unsupportedBrowser)],
+    ['mobile folder picker unsupported', new Error(fileSystemZh.mobileBrowserUnsupported)],
+    ['album path requires permission again', new Error(fileSystemZh.permissionRequired)],
+    ['X6Game is not authorized', new Error('请先授权 X6Game 文件夹。')],
+    ['wrong X6Game folder', new Error(fileSystemZh.invalidX6GameDirectory)],
+    ['English folder picker notice', new Error(fileSystemEn.unsupportedBrowser)],
+    ['legacy folder notice', new Error('选择的目录不是正确的 X6Game 文件夹')],
+    [
+      'directory-access code',
+      new DirectoryAccessError('permission-denied', 'The folder authorization has expired')
+    ]
+  ])('does not send expected business state: %s', async (_name, error) => {
+    const { reporter, transport } = setup()
+    expect(reporter.report(error)).toBeNull()
+    expect(reporter.snapshot().lastCapture?.reason).toBe('expected-error')
+    await reporter.flush()
+    expect(transport).not.toHaveBeenCalled()
+  })
+  it('filters expected metadata codes but keeps genuine permission failures', async () => {
+    const { reporter, payloads } = setup()
+    expect(reporter.report(new Error('unknown status'), { code: 'EMPTY_LOCAL' })).toBeNull()
+    reporter.report(new Error('Failed to read granted directory'), { module: 'album' })
+    await reporter.flush()
+    expect(payloads).toHaveLength(1)
+    expect(payloads[0].error.message).toBe('Failed to read granted directory')
   })
   it('limits a page to 20 reports per minute', async () => {
     const { reporter, transport } = setup()

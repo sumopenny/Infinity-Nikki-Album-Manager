@@ -234,7 +234,7 @@ export function createErrorReporter(options: ReporterOptions) {
     if (now() < pauseUntil) return skip('backoff')
     counts.captured++
     try {
-      if (isExpectedError(error)) {
+      if (isExpectedError(error) || (metadata.code && isExpectedError(metadata.code))) {
         counts.filtered++
         return skip('expected-error')
       }
