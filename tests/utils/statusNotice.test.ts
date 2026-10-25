@@ -21,6 +21,26 @@ describe('useOperationNotice', () => {
     expect(notice.isVisible.value).toBe(false)
   })
 
+  it('updates an auto-parse progress notice in place and preserves unrelated notices', async () => {
+    const notice = useOperationNotice(computed(() => messages.zh))
+    notice.updateLoadingNotice('photo-action-auto-parse', '正在解析 0/5')
+    const progressId = notice.notices.value[0].id
+    notice.updateLoadingNotice('photo-action-auto-parse', '正在解析 3/5')
+    expect(notice.notices.value).toHaveLength(1)
+    expect(notice.notices.value[0]).toMatchObject({
+      id: progressId,
+      message: '正在解析 3/5',
+      loading: true
+    })
+    notice.showStatus({ message: 'Other result', tone: 'success', source: 'other' })
+    await nextTick()
+    expect(notice.notices.value).toHaveLength(2)
+    notice.updateLoadingNotice('photo-action-auto-parse', null)
+    expect(notice.notices.value).toHaveLength(1)
+    expect(notice.notices.value[0].message).toBe('Other result')
+    notice.dispose()
+  })
+
   it('keeps loading notices visible until explicitly closed', () => {
     vi.useFakeTimers()
     const notice = useOperationNotice(computed(() => messages.zh))

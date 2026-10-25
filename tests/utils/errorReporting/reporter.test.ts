@@ -161,6 +161,31 @@ describe('in-memory error reporter', () => {
     expect(payloads).toHaveLength(1)
     expect(payloads[0].error.message).toBe('Failed to read granted directory')
   })
+  it.each([
+    '错误码：jpeg_second_end_marker_missing；含义：缺少第二个 JPEG 结束标记',
+    '错误码：photo_structure_invalid；含义：未找到有效 UID 账号',
+    '错误码：base64_invalid；含义：照片尾部不是有效的 Base64 数据',
+    '错误码：photo_structure_invalid；含义：未找到有效 UID 账号；错误码：base64_invalid；含义：无效数据'
+  ])('filters known photo parse input failures: %s', async (message) => {
+    const { reporter, transport } = setup()
+    expect(
+      reporter.report(new Error(message), { module: 'photo-params', action: 'parse' })
+    ).toBeNull()
+    expect(reporter.snapshot().lastCapture?.reason).toBe('expected-error')
+    await reporter.flush()
+    expect(transport).not.toHaveBeenCalled()
+  })
+  it.each([
+    ['other module', '错误码：base64_invalid；含义：无效数据', 'camera'],
+    ['WASM runtime', 'unreachable', 'photo-params'],
+    ['different parse code', '错误码：camera_base64_invalid；含义：无效数据', 'photo-params'],
+    ['file read failure', 'NotReadableError', 'photo-params']
+  ])('preserves genuine failures: %s', async (_name, message, module) => {
+    const { reporter, transport } = setup()
+    expect(reporter.report(new Error(message), { module, action: 'parse' })).not.toBeNull()
+    await reporter.flush()
+    expect(transport).toHaveBeenCalledTimes(1)
+  })
   it('limits a page to 20 reports per minute', async () => {
     const { reporter, transport } = setup()
     for (let i = 0; i < 25; i++) {

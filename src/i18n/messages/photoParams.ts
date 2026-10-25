@@ -32,6 +32,7 @@ export interface PhotoParamsMessages {
   upload: string
   uploadHint: string
   authorizationRequired: string
+  nonOriginalPhotoHint: string
   stages: Record<PhotoParamsStage, string>
   labels: {
     gameTime: string
@@ -69,6 +70,7 @@ export const photoParamsZh: PhotoParamsMessages = {
   upload: '上传图片解析',
   uploadHint: '选择本地游戏原图进行解析',
   authorizationRequired: '请先授权 X6Game 文件夹。',
+  nonOriginalPhotoHint: '该照片不是游戏拍摄原图哦~请检查照片是否经过二次传输或压缩等处理',
   stages: {
     idle: '',
     resolvingUid: '正在识别照片账号…',
@@ -136,6 +138,8 @@ export const photoParamsEn: PhotoParamsMessages = {
   upload: 'Parse local image',
   uploadHint: 'Choose an original game photo from this device',
   authorizationRequired: 'Authorize the X6Game folder first.',
+  nonOriginalPhotoHint:
+    'This may not be an original in-game photo. Check whether it has been transferred or compressed.',
   stages: {
     idle: '',
     resolvingUid: 'Resolving photo account...',

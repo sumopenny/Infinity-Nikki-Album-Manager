@@ -11,7 +11,6 @@ const props = defineProps<{
   actionGroups: ActionGroup[]
   mode: 'date' | 'action'
   actionSort: ActionSort
-  parseProgress?: { running: boolean; completed: number; total: number }
   language: Language
   messages: LocaleMessages['sidebar']
 }>()
@@ -176,9 +175,6 @@ onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick)
 
     <template v-else>
       <div class="action-sidebar-toolbar">
-        <span v-if="parseProgress?.running" class="action-parse-progress">{{
-          messages.parseProgress(parseProgress.completed, parseProgress.total)
-        }}</span>
         <div ref="sortMenuWrapRef" class="action-sort-select-wrap" @keydown="handleSortKeydown">
           <button
             ref="sortButtonRef"

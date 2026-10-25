@@ -675,7 +675,7 @@
 }
 
 .auto-parse-actions-toggle:hover::after,
-.auto-parse-actions-toggle:focus-within::after {
+.auto-parse-actions-toggle:has(input:focus-visible)::after {
   opacity: 1;
   transform: translateY(0);
 }

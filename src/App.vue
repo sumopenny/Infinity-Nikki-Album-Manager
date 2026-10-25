@@ -431,6 +431,7 @@ const {
   isExportingPhotos,
   isAnyFileOperationBusy,
   showStatus,
+  updateLoadingNotice,
   clearStatus: clearOperationStatus,
   closeNotice: closeStatusNotice,
   pauseNotice: pauseStatusNoticeTimer,
@@ -439,6 +440,19 @@ const {
   isUserCancelledFilePicker,
   dispose: disposeStatusNotice
 } = useOperationNotice(locale, operations)
+// 自动解析进度固定占用一条顶部通知；关闭或结束后只撤下进度，不影响其他通知。
+watch(
+  [actionParseProgress, autoParseActionsEnabled],
+  ([progress, enabled]) => {
+    updateLoadingNotice(
+      'photo-action-auto-parse',
+      enabled && progress.running
+        ? locale.value.sidebar.parseProgress(progress.completed, progress.total)
+        : null
+    )
+  },
+  { immediate: true, deep: true, flush: 'sync' }
+)
 const {
   outfitLocale,
   visiblePhotos,
@@ -665,7 +679,7 @@ async function resolveActionCandidateUids(): Promise<string[]> {
 
 watch(
   [autoParseActionsEnabled, photos, albumDirectoryHandle],
-  ([enabled, currentPhotos, directory]) => {
+  ([enabled, currentPhotos, directory], previous) => {
     if (!directory || !currentPhotos.length) {
       photoActionParsing.cancel()
       return
@@ -674,7 +688,8 @@ watch(
       currentPhotos,
       directory.name,
       resolveActionCandidateUids,
-      enabled
+      enabled,
+      enabled && previous?.[0] === false
     )
   },
   { immediate: true }
@@ -1999,7 +2014,6 @@ function importAllDataFromMenu() {
               :action-groups="actionGroups"
               :mode="sidebarMode"
               :action-sort="actionSort"
-              :parse-progress="actionParseProgress"
               :language="language"
               :messages="locale.sidebar"
               @jump-to-date="scrollToDate"

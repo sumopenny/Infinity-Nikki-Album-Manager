@@ -19,6 +19,7 @@ export interface PhotoActionCacheEntry {
   actionName?: string
   actionImageUrl?: string
   errorCode?: string
+  uidSignature?: string
   parsedAt: number
 }
 

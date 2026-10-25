@@ -229,12 +229,24 @@ export function createErrorReporter(options: ReporterOptions) {
       })
     return pending
   }
+  /** 仅照片参数解析的预期格式/UID 错误不上报；WASM 和其他运行异常继续采集。 */
+  function isExpectedPhotoParseError(error: unknown, metadata: Partial<ErrorMetadata>): boolean {
+    if (metadata.module !== 'photo-params' || metadata.action !== 'parse') return false
+    const message = error instanceof Error ? error.message : typeof error === 'string' ? error : ''
+    return /(?:^|[；;\\s])(?:错误码：)?(?:jpeg_second_end_marker_missing|photo_structure_invalid|base64_invalid)(?=；|;|$)/.test(
+      message
+    )
+  }
   function report(error: unknown, metadata: Partial<ErrorMetadata> = {}): string | null {
     if (!enabled) return skip('disabled')
     if (now() < pauseUntil) return skip('backoff')
     counts.captured++
     try {
-      if (isExpectedError(error) || (metadata.code && isExpectedError(metadata.code))) {
+      if (
+        isExpectedError(error) ||
+        (metadata.code && isExpectedError(metadata.code)) ||
+        isExpectedPhotoParseError(error, metadata)
+      ) {
         counts.filtered++
         return skip('expected-error')
       }

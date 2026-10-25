@@ -154,6 +154,19 @@ export function useOperationNotice(
     timers.set(id, { deadline: 0, remaining: 0, paused: false })
     if (!options.loading && options.duration !== undefined) hideAfter(id, options.duration)
   }
+  /** 更新同一条顶部进度通知，不随每张照片产生新通知；结束时仅移除该任务通知。 */
+  const updateLoadingNotice = (source: string, message: string | null) => {
+    const existing = notices.value.find((notice) => notice.source === source && notice.loading)
+    if (!message) {
+      if (existing) closeNotice(existing.id)
+      return
+    }
+    if (existing) {
+      if (existing.message !== message) existing.message = message
+      return
+    }
+    notices.value.push({ id: ++nextId, message, tone: 'info', loading: true, source })
+  }
   const pauseNotice = (id = notices.value.at(-1)?.id) => {
     const notice = notices.value.find((notice) => notice.id === id)
     const clock = id === undefined ? undefined : timers.get(id)
@@ -250,6 +263,7 @@ export function useOperationNotice(
     isAnyFileOperationBusy,
     isVisible,
     showStatus,
+    updateLoadingNotice,
     clearStatus,
     showNotice,
     closeNotice,

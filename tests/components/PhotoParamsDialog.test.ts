@@ -206,3 +206,30 @@ it('locks scrolling, cycles focus, closes with Escape and returns focus to its t
   trigger.remove()
   document.body.style.overflow = ''
 })
+
+describe('original photo warning', () => {
+  it.each([
+    ['jpeg_second_end_marker_missing', true],
+    ['base64_invalid', true],
+    ['photo_structure_invalid', false],
+    ['camera_base64_invalid', false],
+    ['unreachable', false]
+  ])('only shows hint for supported photo format errors: %s', (code, expected) => {
+    const wrapper = mount(PhotoParamsDialog, {
+      props: {
+        visible: true,
+        photo: null,
+        uidRequired: false,
+        progress: { stage: 'error', percent: 100, message: '' },
+        result: null,
+        error: `错误码：${code}；含义：解析失败`,
+        messages
+      },
+      global: { stubs: { Teleport: true } }
+    })
+    const hint = wrapper.find('.photo-params-original-hint')
+    expect(hint.exists()).toBe(expected)
+    if (expected) expect(hint.text()).toBe('该照片不是游戏拍摄原图哦~请检查照片是否经过二次传输或压缩等处理')
+    wrapper.unmount()
+  })
+})

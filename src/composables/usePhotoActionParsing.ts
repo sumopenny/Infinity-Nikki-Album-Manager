@@ -50,6 +50,32 @@ export function usePhotoActionParsing(options: {
     total: 0,
     failed: 0
   })
+  // Only deterministic photo/UID failures are reusable; transient I/O and WASM failures retry normally.
+  const cacheableFailures = new Set([
+    'jpeg_tail_not_found',
+    'jpeg_second_end_marker_missing',
+    'base64_invalid',
+    'photo_structure_invalid',
+    'camera_params_missing',
+    'camera_base64_invalid',
+    'camera_decrypt_failed',
+    'camera_params_invalid_length',
+    'uid_missing'
+  ])
+  const uidDependentFailures = new Set([
+    'photo_structure_invalid',
+    'camera_decrypt_failed',
+    'uid_missing'
+  ])
+  // No raw account identifiers enter the cache. Used only for comparing the candidate UID set.
+  function uidSignature(uids: string[]): string {
+    let hash = 2166136261
+    for (const char of [...new Set(uids)].sort().join('|')) {
+      hash ^= char.charCodeAt(0)
+      hash = Math.imul(hash, 16777619)
+    }
+    return (hash >>> 0).toString(36)
+  }
   let runId = 0
   let controller: AbortController | null = null
 
@@ -64,7 +90,8 @@ export function usePhotoActionParsing(options: {
     photos: PhotoItem[],
     albumKey: string,
     resolveCandidateUids: () => Promise<string[]>,
-    parseMissing = true
+    parseMissing = true,
+    retryFailed = false
   ) {
     cancel()
     controller = new AbortController()
@@ -75,6 +102,8 @@ export function usePhotoActionParsing(options: {
     actionInfo.value = new Map()
     const next = new Map<string, PhotoActionInfo>()
     const pending: PhotoItem[] = []
+    let candidateUids: string[] | undefined
+    const getUids = async () => (candidateUids ??= await resolveCandidateUids())
 
     try {
       const caches = await getSavedPhotoActionCaches(albumKey)
@@ -88,11 +117,21 @@ export function usePhotoActionParsing(options: {
           cache.parserVersion === PHOTO_ACTION_PARSER_VERSION &&
           cache.catalogVersion === PHOTO_ACTION_CATALOG_VERSION
         ) {
-          next.set(photo.id, { ...toInfo(cache), fingerprint })
-        } else {
-          next.set(photo.id, { status: parseMissing ? 'pending' : 'unparsed', fingerprint })
-          pending.push(photo)
+          // Explicit off -> on retries failures. UID-dependent cached results are invalidated
+          // if the candidate accounts change, even when the file itself is unchanged.
+          const retry =
+            cache.status === 'unparsed' &&
+            parseMissing &&
+            (retryFailed ||
+              (uidDependentFailures.has(cache.errorCode ?? '') &&
+                cache.uidSignature !== uidSignature(await getUids())))
+          if (!retry) {
+            next.set(photo.id, { ...toInfo(cache), fingerprint })
+            continue
+          }
         }
+        next.set(photo.id, { status: parseMissing ? 'pending' : 'unparsed', fingerprint })
+        pending.push(photo)
       }
       if (run !== runId || signal.aborted || !isCurrentCacheGeneration(generation)) return
       actionInfo.value = next
@@ -114,12 +153,12 @@ export function usePhotoActionParsing(options: {
         return
       }
 
-      const candidateUids = await resolveCandidateUids()
+      candidateUids = await getUids()
       if (run !== runId || signal.aborted || !isCurrentCacheGeneration(generation)) return
       const parsed = candidateUids.length
         ? await runWithConcurrency(
             pending,
-            (photo) => parsePhotoAction(photo, candidateUids, options.language.value),
+            (photo) => parsePhotoAction(photo, candidateUids ?? [], options.language.value),
             {
               concurrency: 15,
               signal,
@@ -133,7 +172,7 @@ export function usePhotoActionParsing(options: {
                   completed: progress.value.completed + 1,
                   failed: progress.value.failed + (result.status === 'unparsed' ? 1 : 0)
                 }
-                if (result.status !== 'unparsed') {
+                if (result.status !== 'unparsed' || cacheableFailures.has(result.errorCode ?? '')) {
                   void persistCacheIfCurrent(generation, () =>
                     savePhotoActionCache(albumKey, photo.name, {
                       fingerprint,
@@ -143,7 +182,12 @@ export function usePhotoActionParsing(options: {
                       actionId: result.actionId,
                       actionName: result.actionName,
                       actionImageUrl: result.actionImageUrl,
-                      parsedAt: result.parsedAt ?? Date.now()
+                      errorCode: result.errorCode,
+                      parsedAt: result.parsedAt ?? Date.now(),
+                      ...(result.status === 'unparsed' &&
+                      uidDependentFailures.has(result.errorCode ?? '')
+                        ? { uidSignature: uidSignature(candidateUids ?? []) }
+                        : {})
                     })
                   ).catch(() => undefined)
                 }
@@ -165,6 +209,21 @@ export function usePhotoActionParsing(options: {
           updated.set(photo.id, info)
         }
         actionInfo.value = updated
+        // Missing UID is a stable result until credentials change or the user retries.
+        for (const photo of pending) {
+          const fingerprint = photoActionFingerprint(albumKey, photo)
+          void persistCacheIfCurrent(generation, () =>
+            savePhotoActionCache(albumKey, photo.name, {
+              fingerprint,
+              parserVersion: PHOTO_ACTION_PARSER_VERSION,
+              catalogVersion: PHOTO_ACTION_CATALOG_VERSION,
+              status: 'unparsed',
+              errorCode: 'uid_missing',
+              uidSignature: uidSignature([]),
+              parsedAt: Date.now()
+            })
+          ).catch(() => undefined)
+        }
         progress.value = {
           running: false,
           completed: photos.length,

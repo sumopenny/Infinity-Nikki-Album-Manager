@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, toRef, watch } from 'vue'
+import { computed, ref, toRef, watch } from 'vue'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import { useModalFocus } from '../composables/useModalFocus'
 import { Bookmark, Copy, ScanSearch, X } from 'lucide-vue-next'
@@ -24,6 +24,11 @@ const panel = ref<HTMLElement | null>(null)
 // 参数窗口可从照片卡片独立打开，需自行管理滚动锁和焦点生命周期。
 useBodyScrollLock(toRef(props, 'visible'))
 useModalFocus(toRef(props, 'visible'), panel, () => emit('close'))
+const showNonOriginalPhotoHint = computed(() =>
+  /(?:^|[；;\s])(?:错误码：)?(?:jpeg_second_end_marker_missing|base64_invalid)(?=；|;|$)/.test(
+    props.error ?? ''
+  )
+)
 const uidInput = ref('')
 const failedImages = ref<Set<string>>(new Set())
 watch(
@@ -95,6 +100,9 @@ function markImageFailed(title: string, name: string) {
 
           <div v-if="error" class="photo-params-error">
             <p>{{ error }}</p>
+            <p v-if="showNonOriginalPhotoHint" class="photo-params-original-hint">{{
+              messages.nonOriginalPhotoHint
+            }}</p>
             <!-- uid 表单收进报错模块内部，跟随整体垂直居中，避免与报错区堆叠导致窗口出现滚动条。 -->
             <form
               v-if="!result && uidRequired"
@@ -211,6 +219,10 @@ function markImageFailed(title: string, name: string) {
 </template>
 
 <style scoped>
+.photo-params-original-hint {
+  margin-top: 8px;
+  color: var(--muted);
+}
 /* 2026-10-11：仅动作图片使用项目内银色卡片背景，加载失败时保留默认占位背景。 */
 .photo-params-resource-row--pose img {
   background: var(--surface-soft) url('../../img/silverCardBg.png') center / cover no-repeat;
@@ -231,15 +243,28 @@ function markImageFailed(title: string, name: string) {
   width: auto;
   height: auto;
   padding: 9px 12px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  color: var(--pink-deep);
+  border: 1px solid var(--favorite-button-border);
+  border-radius: var(--radius-sm);
+  background: var(--favorite-button-bg);
+  color: var(--favorite-button-text);
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
+  transition:
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+.photo-params-header .photo-params-favorite-button:hover:not(:disabled) {
+  background: var(--soft-accent);
+  border-color: var(--pink-deep);
+}
+.photo-params-header .photo-params-favorite-button:focus-visible {
+  outline: 2px solid var(--pink-deep);
+  outline-offset: 2px;
 }
 .photo-params-header .photo-params-favorite-button:disabled {
-  opacity: 0.65;
+  background: var(--favorite-button-active-bg);
+  opacity: 0.75;
   cursor: default;
 }
 @media (max-width: 520px) {

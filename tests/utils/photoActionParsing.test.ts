@@ -198,3 +198,69 @@ it('ignores another worker finishing after the current parse batch fails', async
   expect(parser.progress.value).toMatchObject({ running: false, completed: 2, failed: 2 })
   expect(savePhotoActionCache).not.toHaveBeenCalled()
 })
+
+describe('persistent failed action results and explicit retry', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    const entries = new Map<string, any>()
+    vi.mocked(getSavedPhotoActionCaches).mockImplementation(async () => new Map(entries))
+    vi.mocked(savePhotoActionCache).mockImplementation(async (_album, name, entry) => {
+      entries.set(name, entry)
+    })
+  })
+
+  it('reuses deterministic failure on focus and retries when explicitly toggled', async () => {
+    vi.mocked(parsePhotoAction).mockResolvedValue({
+      status: 'unparsed',
+      errorCode: 'base64_invalid'
+    })
+    const parser = usePhotoActionParsing({ language: ref('zh') })
+    const uid = vi.fn().mockResolvedValue(['123'])
+    await parser.start([missing], 'album', uid)
+    await vi.waitFor(() => expect(savePhotoActionCache).toHaveBeenCalled())
+    await parser.start([missing], 'album', uid)
+    expect(parsePhotoAction).toHaveBeenCalledTimes(1)
+    await parser.start([missing], 'album', uid, false)
+    expect(parsePhotoAction).toHaveBeenCalledTimes(1)
+    await parser.start([missing], 'album', uid, true, true)
+    expect(parsePhotoAction).toHaveBeenCalledTimes(2)
+  })
+
+  it('invalidates failure cache when photo fingerprint changes', async () => {
+    vi.mocked(parsePhotoAction).mockResolvedValue({
+      status: 'unparsed',
+      errorCode: 'jpeg_second_end_marker_missing'
+    })
+    const parser = usePhotoActionParsing({ language: ref('zh') })
+    await parser.start([missing], 'album', async () => ['123'])
+    await vi.waitFor(() => expect(savePhotoActionCache).toHaveBeenCalled())
+    await parser.start([{ ...missing, fileSize: 101 }], 'album', async () => ['123'])
+    expect(parsePhotoAction).toHaveBeenCalledTimes(2)
+  })
+
+  it('retries UID-dependent cached failures when candidate UID set changes', async () => {
+    vi.mocked(parsePhotoAction).mockResolvedValue({
+      status: 'unparsed',
+      errorCode: 'photo_structure_invalid'
+    })
+    const parser = usePhotoActionParsing({ language: ref('zh') })
+    await parser.start([missing], 'album', async () => ['123'])
+    await vi.waitFor(() => expect(savePhotoActionCache).toHaveBeenCalled())
+    await parser.start([missing], 'album', async () => ['123'])
+    expect(parsePhotoAction).toHaveBeenCalledTimes(1)
+    await parser.start([missing], 'album', async () => ['456'])
+    expect(parsePhotoAction).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not cache transient parser failures', async () => {
+    vi.mocked(parsePhotoAction).mockResolvedValue({
+      status: 'unparsed',
+      errorCode: 'NotReadableError'
+    })
+    const parser = usePhotoActionParsing({ language: ref('zh') })
+    await parser.start([missing], 'album', async () => ['123'])
+    await parser.start([missing], 'album', async () => ['123'])
+    expect(parsePhotoAction).toHaveBeenCalledTimes(2)
+    expect(savePhotoActionCache).not.toHaveBeenCalled()
+  })
+})

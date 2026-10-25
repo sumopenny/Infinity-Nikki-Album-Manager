@@ -32,7 +32,8 @@ export const gridZh: LocaleMessages['grid'] = {
   noteClose: '关闭备注编辑',
   parsePhoto: '解析照片参数',
   autoParseActions: '自动解析动作',
-  autoParseActionsHint: '若要使用按拍照动作分类的功能，需打开此开关，但照片多时网页会卡顿。',
+  autoParseActionsHint:
+    '使用按拍照动作分类的功能需打开此开关，关闭后重新开启可手动重试失败照片，注意照片多时解析网页会卡顿。',
   actionCount: (count) => `${count} 张照片`,
   photoCount: (count) => `${count} 张照片`
 }
@@ -72,7 +73,7 @@ export const gridEn: LocaleMessages['grid'] = {
   parsePhoto: 'Parse photo parameters',
   autoParseActions: 'Auto-parse actions',
   autoParseActionsHint:
-    'To classify photos by capture action, turn on this switch. The page may become slow when there are many photos.',
+    'Enable this switch to classify photos by capture action. Turn it off and on again to retry failed photos. Note that parsing many photos may slow down the page.',
   actionCount: (count) => `${count} photos`,
   photoCount: (count) => `${count} photos`
 }
