@@ -1,4 +1,5 @@
 import { diagnosticFetch } from '../errorReporting/diagnosticFetch'
+import { annotateDiagnosticError } from '../errorReporting/errorReporter'
 import { cacheGeneration, persistCacheIfCurrent } from '../cacheLifecycle'
 import {
   decodeHomeBuildShareCode,
@@ -89,7 +90,14 @@ export async function parseHomeScheme(
     } catch {
       /* 非 JSON 响应使用 HTTP 状态码。 */
     }
-    throw new Error(code)
+    throw annotateDiagnosticError(new Error(code), {
+      stage: 'fetch',
+      context: {
+        endpoint: '/api/home-build/:key',
+        status: response.status,
+        requestId: response.headers.get('X-Request-Id')
+      }
+    })
   }
 
   const parsed = await parseHomeBuildResponse(new Uint8Array(await response.arrayBuffer()))

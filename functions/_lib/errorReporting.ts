@@ -220,6 +220,11 @@ export async function recordServerError(
     durationMs: number
     stage?: string
     operation?: string
+    upstreamStatus?: number
+    upstreamDurationMs?: number
+    attempts?: number
+    timedOut?: boolean
+    upstreamErrorName?: string
   }
 ): Promise<void> {
   if (env.ERROR_REPORTING_ENABLED !== 'true') return

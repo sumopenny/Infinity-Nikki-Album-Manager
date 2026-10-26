@@ -48,6 +48,9 @@ export interface HomeSchemeMessages {
   copyFailed: (code: string) => string
   parsePending: string
   parseFailed: string
+  parseNotFound: string
+  parseUnavailable: string
+  parseTimeout: string
   parseSucceeded: string
   parseUnsupportedServer: string
   saveSucceeded: string
@@ -134,6 +137,9 @@ export const homeSchemeMessages = {
     copyFailed: (code) => `复制失败，请手动复制：${code}`,
     parsePending: '正在获取并解析方案…',
     parseFailed: '方案码解析失败',
+    parseNotFound: '未找到该方案，可能已失效，请确认方案码。',
+    parseUnavailable: '暂时无法获取方案，请稍后重试。',
+    parseTimeout: '获取方案超时，请稍后重试。',
     parseSucceeded: '方案码解析成功',
     parseUnsupportedServer: '暂不支持此服务器的方案码',
     saveSucceeded: '方案已保存',
@@ -216,6 +222,9 @@ export const homeSchemeMessages = {
     copyFailed: (code) => `Copy failed. Copy manually: ${code}`,
     parsePending: 'Fetching and parsing scheme…',
     parseFailed: 'Unable to parse this code',
+    parseNotFound: 'This scheme was not found or may have expired. Please check the code.',
+    parseUnavailable: 'Unable to fetch the scheme right now. Please try again later.',
+    parseTimeout: 'Fetching the scheme timed out. Please try again later.',
     parseSucceeded: 'Scheme code parsed successfully',
     parseUnsupportedServer: 'This server is not supported yet',
     saveSucceeded: 'Scheme saved',

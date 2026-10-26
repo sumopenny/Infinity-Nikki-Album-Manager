@@ -69,6 +69,21 @@ describe('home scheme parser service', () => {
     await expect(parseHomeScheme('17TLJ1EW')).rejects.toThrow('home_build_server_unsupported')
     expect(fetch).not.toHaveBeenCalled()
   })
+  it.each([
+    [404, 'home_build_not_found'],
+    [504, 'upstream_timeout'],
+    [502, 'upstream_response_invalid']
+  ])('preserves proxy failure %s without decoding or caching', async (status, errorCode) => {
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json(
+        { ok: false, errorCode },
+        { status: Number(status), headers: { 'X-Request-Id': 'home-test-request' } }
+      )
+    )
+    await expect(parseHomeScheme('1UDB66QH')).rejects.toThrow(String(errorCode))
+    expect(parseResponse).not.toHaveBeenCalled()
+    expect(saveCache).not.toHaveBeenCalled()
+  })
 
   it('maps parsed fields and stores a cache entry for a fresh response', async () => {
     const result = await parseHomeScheme('1UDB66QH')

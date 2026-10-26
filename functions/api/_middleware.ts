@@ -28,7 +28,17 @@ export async function onRequest(context: Context): Promise<Response> {
   }
   if (response.status >= 500) {
     const detail = context.data.diagnosticFailure as
-      { error?: unknown; stage?: string; operation?: string } | undefined
+      | {
+          error?: unknown
+          stage?: string
+          operation?: string
+          upstreamStatus?: number
+          upstreamDurationMs?: number
+          attempts?: number
+          timedOut?: boolean
+          upstreamErrorName?: string
+        }
+      | undefined
     context.waitUntil(
       recordServerError(
         context.env,
@@ -40,7 +50,12 @@ export async function onRequest(context: Context): Promise<Response> {
           requestId,
           durationMs: Date.now() - started,
           stage: detail?.stage,
-          operation: detail?.operation
+          operation: detail?.operation,
+          upstreamStatus: detail?.upstreamStatus,
+          upstreamDurationMs: detail?.upstreamDurationMs,
+          attempts: detail?.attempts,
+          timedOut: detail?.timedOut,
+          upstreamErrorName: detail?.upstreamErrorName
         }
       )
     )

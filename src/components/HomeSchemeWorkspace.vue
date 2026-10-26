@@ -36,6 +36,7 @@ import {
   addHomeSchemeTag
 } from '../utils/homeBuild/homeSchemeStorage'
 import { parseHomeScheme, type HomeSchemeParseResult } from '../utils/homeBuild/homeSchemeParser'
+import { describeHomeSchemeParseError } from '../utils/homeBuild/homeSchemeErrors'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import { datePartsFromTimestamp, type PhotoItem } from '../utils/photoGrouping'
 import {
@@ -276,10 +277,7 @@ async function runParse(requestCode: string) {
     if (controller.signal.aborted || generation !== parseGeneration) return
     captureDiagnosticError(error, { module: 'home-schemes', action: 'parse', stage: 'decode' })
     parsedCode.value = ''
-    const message =
-      error instanceof Error && error.message === 'home_build_server_unsupported'
-        ? props.messages.parseUnsupportedServer
-        : props.messages.parseFailed
+    const message = describeHomeSchemeParseError(error, props.messages)
     emit('status', message, 'warning')
   } finally {
     if (generation === parseGeneration) parsing.value = false

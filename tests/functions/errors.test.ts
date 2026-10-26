@@ -6,6 +6,7 @@ import {
   type ErrorEnv
 } from '../../functions/_lib/errorReporting'
 import { onRequest as middleware } from '../../functions/api/_middleware'
+import { onRequestGet as homeBuildEndpoint } from '../../functions/api/home-build/[key]'
 import { sampleEvent } from '../utils/errorReporting/fixture'
 import { onRequest as wardrobeEndpoint } from '../../functions/api/wardrobe/cloud'
 import type { CloudDB } from '../../functions/_lib/cloudShared'
@@ -184,6 +185,38 @@ describe('error intake contract without a database', () => {
     expect(await response.json()).toEqual({ count: 123 })
     expect(response.headers.get('X-Request-Id')).toBeTruthy()
     expect(tasks).toHaveLength(0)
+  })
+  it('stores final home proxy diagnostics once with the response request ID', async () => {
+    const state = fakeDatabase(),
+      tasks: Promise<unknown>[] = [],
+      data = {}
+    const request = new Request('https://example.test/api/home-build/UDB66QH')
+    const fetcher = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () => new Response('private upstream body', { status: 503 }))
+    try {
+      const response = await middleware({
+        request,
+        env: state.env,
+        data,
+        next: () => homeBuildEndpoint({ request, params: { key: 'UDB66QH' }, data }),
+        waitUntil: (task) => tasks.push(task)
+      })
+      await Promise.all(tasks)
+      expect(response.status).toBe(502)
+      expect(state.writes()).toBe(1)
+      const serialized = JSON.stringify(state.calls)
+      expect(serialized).toContain('upstream_response_invalid')
+      expect(serialized).toContain('upstreamStatus')
+      expect(serialized).toContain('503')
+      expect(serialized).toContain('home-build-fetch')
+      expect(serialized).toContain(response.headers.get('X-Request-Id'))
+      expect(serialized).not.toContain('private upstream body')
+      expect(serialized).not.toContain('UDB66QH')
+      expect(fetcher).toHaveBeenCalledTimes(2)
+    } finally {
+      fetcher.mockRestore()
+    }
   })
   it('records original server failures without leaking them to the response', async () => {
     const state = fakeDatabase(),

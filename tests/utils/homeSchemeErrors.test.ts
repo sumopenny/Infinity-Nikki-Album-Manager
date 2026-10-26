@@ -1,8 +1,29 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { describeHomeSchemeError } from '../../src/utils/homeBuild/homeSchemeErrors'
+import {
+  describeHomeSchemeError,
+  describeHomeSchemeParseError
+} from '../../src/utils/homeBuild/homeSchemeErrors'
 import { homeSchemeMessages } from '../../src/i18n/messages/homeScheme'
 
 afterEach(() => vi.restoreAllMocks())
+it.each(['zh', 'en'] as const)(
+  'explains proxy failures without exposing raw responses (%s)',
+  (language) => {
+    const messages = homeSchemeMessages[language]
+    expect(describeHomeSchemeParseError(new Error('home_build_not_found'), messages)).toBe(
+      messages.parseNotFound
+    )
+    expect(describeHomeSchemeParseError(new Error('upstream_timeout'), messages)).toBe(
+      messages.parseTimeout
+    )
+    expect(describeHomeSchemeParseError(new Error('upstream_response_invalid'), messages)).toBe(
+      messages.parseUnavailable
+    )
+    expect(describeHomeSchemeParseError(new Error('private body'), messages)).toBe(
+      messages.parseFailed
+    )
+  }
+)
 it.each(['zh', 'en'] as const)(
   'classifies safe errors and hides raw diagnostic data (%s)',
   (language) => {
