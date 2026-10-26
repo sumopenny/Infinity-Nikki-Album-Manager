@@ -487,6 +487,7 @@ async function clearRecords() {
         :key="compact && loaded ? 'toolbar' : 'header'"
         :t="importText"
         :label="text('衣橱操作', 'Wardrobe actions')"
+        :cloud-label="text('云端', 'Cloud')"
         :mobile-target="compact && loaded ? '#wardrobe-filter-actions' : undefined"
         :add-disabled="blocked || showClearConfirm || cloudOpen"
         :clear-disabled="blocked || !hasRecords || anyDialogOpen"
@@ -495,13 +496,14 @@ async function clearRecords() {
         @clear="requestClear"
         @export="exportBackup"
       >
-        <WardrobeCloudActions
-          :language="language"
-          :disabled="blocked || showClearConfirm || dialog !== null"
-          @lock="cloudOpen = $event"
-          @restored="applyCloudWardrobe"
-          @notice="(message, tone) => emit('notice', { message, tone })"
-        />
+        <template #cloud
+          ><WardrobeCloudActions
+            :language="language"
+            :disabled="blocked || showClearConfirm || dialog !== null"
+            @lock="cloudOpen = $event"
+            @restored="applyCloudWardrobe"
+            @notice="(message, tone) => emit('notice', { message, tone })"
+        /></template>
         <button v-if="loaded && hasRecords" type="button" @click="showOwnershipNotice"
           ><Info :size="16" aria-hidden="true" />{{ ownershipNoticeText.title }}</button
         >

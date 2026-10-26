@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>网站启动器</AssemblyName>
     <RootNamespace>StartProjectLauncher</RootNamespace>
-    <ApplicationIcon>..\..\img\wxnn.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\img\favicon.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>

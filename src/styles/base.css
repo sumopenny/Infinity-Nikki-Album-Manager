@@ -187,7 +187,12 @@ h1 {
       transform 140ms ease-in;
     pointer-events: none;
   }
-  .desktop-menu-leave-to:is(.header-dropdown, .cleanup-account-menu, .resonance-nav-menu) {
+  .desktop-menu-leave-to:is(
+    .header-dropdown,
+    .cleanup-account-menu,
+    .resonance-nav-menu,
+    .cloud-actions-options
+  ) {
     opacity: 0;
     transform: var(--menu-rest-transform, translateY(0)) translateY(-4px) scale(0.98);
   }

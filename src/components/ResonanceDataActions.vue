@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { Plus, Trash2, Upload } from 'lucide-vue-next'
 import CollectionActions from './CollectionActions.vue'
+import CloudActionsMenu from './CloudActionsMenu.vue'
 import type { ResonanceMessages } from '../i18n/messages/resonance'
 
 // 共鸣和衣橱使用相同按钮顺序、图标、移动端菜单；各自通过插槽提供云端操作。
 defineProps<{
   t: Pick<ResonanceMessages, 'addData' | 'clearRecords' | 'exportData'>
   label: string
+  cloudLabel: string
   mobileTarget?: string
   addDisabled?: boolean
   clearDisabled?: boolean
@@ -35,6 +37,7 @@ defineEmits<{ add: []; clear: []; export: [] }>()
       }}</span>
     </button>
     <template #secondary>
+      <CloudActionsMenu :label="cloudLabel"><slot name="cloud" /></CloudActionsMenu>
       <slot />
       <button type="button" :disabled="clearDisabled" @click="$emit('clear')"
         ><Trash2 :size="16" aria-hidden="true" />{{ t.clearRecords }}</button

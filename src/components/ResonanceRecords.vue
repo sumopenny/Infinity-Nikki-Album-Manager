@@ -240,6 +240,7 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
         :t="t"
         :mobile-target="mobileActionsTarget"
         :label="language === 'zh' ? '共鸣操作' : 'Resonance actions'"
+        :cloud-label="language === 'zh' ? '云端' : 'Cloud'"
         :add-disabled="disabled || cloudOpen"
         :clear-disabled="disabled || cloudOpen || !records.length || clearing"
         :export-disabled="disabled || cloudOpen || !records.length"
@@ -247,13 +248,14 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
         @clear="requestClearRecords"
         @export="exportRecords"
       >
-        <ResonanceCloudActions
-          :language="language"
-          :disabled="disabled || showAddDialog || showClearConfirm"
-          @lock="cloudOpen = $event"
-          @restored="applyCloudRecords"
-          @notice="(message, tone) => notify('cloud-' + tone, message, tone)"
-        />
+        <template #cloud
+          ><ResonanceCloudActions
+            :language="language"
+            :disabled="disabled || showAddDialog || showClearConfirm"
+            @lock="cloudOpen = $event"
+            @restored="applyCloudRecords"
+            @notice="(message, tone) => notify('cloud-' + tone, message, tone)"
+        /></template>
       </ResonanceDataActions>
     </header>
 

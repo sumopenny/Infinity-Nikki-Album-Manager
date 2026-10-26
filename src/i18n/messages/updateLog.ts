@@ -5,20 +5,53 @@ export const updateLogZh: LocaleMessages['updateLog'] = {
   title: '更新记录',
   helpAbout: '使用帮助',
   currentTitle: '当前版本',
-  currentVersion: 'v2.1.2',
-  currentDate: '2026.10.21 更新',
+  currentVersion: 'v2.2',
+  currentDate: '2026.10.26 更新',
   currentItems: [
     {
-      title: '新增国际服共鸣与衣橱导入：',
-      text: '支持国服及国际服亚服、美服、欧服、台港澳，登录入口随所选服务器切换，导入预览显示服务器与 UID。'
+      title: '全新网站图标：',
+      text: '粉色透明礼盒里装着精致裙装与星光，周围环绕着丝带。寓意把暖暖世界中的每一份心动，都珍藏进小小的魔法盒里。同步更新网站顶栏、浏览器标签页与启动器图标。'
     },
     {
-      title: '国际服使用反馈：',
-      text: '开发者本人暂无国际服账号，无法进行全面的实测验证。国际服用户如遇到导入异常、数据展示错误或其他问题，请及时通过小红书向开发者反馈，帮助完善国际服支持。'
+      title: '新增衣橱云同步：',
+      text: '与共鸣共用账号，独立管理云端存档。'
+    },
+    {
+      title: '缩略图大小独立设置：',
+      text: '相册、搭配码、家园和相机参数新增小／中／大三档，图片比例与大小独立设置。'
+    },
+    {
+      title: '优化照片解析：',
+      text: '顶部统一显示自动解析进度，减少失败照片重复解析，支持重新尝试；补充原图提示，改善错误显示。'
+    },
+    {
+      title: '优化菜单与动画：',
+      text: '电脑端的共鸣、衣橱新增“云端”菜单，新增日期树展开收起动画，改善 iOS 区服选择与键盘操作。'
+    },
+    {
+      title: '新增故障诊断：',
+      text: '完善各模块及云端错误追踪，帮助定位异常。'
+    },
+    {
+      title: '修复与维护：',
+      text: '修复家园保存后窗口关闭、长标签换行等问题，优化相机小图与收藏按钮样式。'
     }
   ],
   historyTitle: '历史版本记录',
   history: [
+    {
+      version: 'v2.1.2',
+      items: [
+        {
+          title: '新增国际服共鸣与衣橱导入：',
+          text: '支持国服及国际服亚服、美服、欧服、台港澳，登录入口随所选服务器切换，导入预览显示服务器与 UID。'
+        },
+        {
+          title: '国际服使用反馈：',
+          text: '开发者本人暂无国际服账号，无法进行全面的实测验证。国际服用户如遇到导入异常、数据展示错误或其他问题，请及时通过小红书向开发者反馈，帮助完善国际服支持。'
+        }
+      ]
+    },
     {
       version: 'v2.1.1',
       items: [
@@ -548,20 +581,53 @@ export const updateLogEn: LocaleMessages['updateLog'] = {
   title: 'Release history',
   helpAbout: 'Help',
   currentTitle: 'Current version',
-  currentVersion: 'v2.1.2',
-  currentDate: 'Updated 2026.10.21',
+  currentVersion: 'v2.2',
+  currentDate: 'Updated 2026.10.26',
   currentItems: [
     {
-      title: 'Global server resonance and wardrobe imports:',
-      text: 'Choose the China server or the Global Asia, America, Europe, or Taiwan/Hong Kong/Macao server. The sign-in link follows the selected server, and the import preview shows the server and UID.'
+      title: 'New website icon: ',
+      text: 'A transparent pink gift box holds an exquisite dress and starlight, surrounded by ribbons. It symbolizes treasuring every heartwarming moment in Nikki’s world inside a little magic box. Updated the website header, browser tab, and launcher icons.'
     },
     {
-      title: 'Feedback from Global server players:',
-      text: 'The developer does not currently have a Global server account and cannot conduct comprehensive hands-on testing. If you encounter import failures, incorrect data displays, or other issues on a Global server, please report them to the developer on Xiaohongshu to help improve Global server support.'
+      title: 'Wardrobe cloud sync: ',
+      text: 'Share an account with resonance records while managing separate cloud saves.'
+    },
+    {
+      title: 'Independent thumbnail sizes: ',
+      text: 'Small, medium, and large sizes are now available for albums, outfit codes, home schemes, and camera parameters. Set image ratio and size independently.'
+    },
+    {
+      title: 'Improved photo parsing: ',
+      text: 'Automatic parsing progress now appears at the top. Reduced repeated parsing of failed photos and added retries, original-photo guidance, and clearer errors.'
+    },
+    {
+      title: 'Improved menus and animations: ',
+      text: 'Added a Cloud menu for resonance records and wardrobe on desktop, expand and collapse animations for the date tree, and improvements to iOS server selection and keyboard controls.'
+    },
+    {
+      title: 'Error diagnostics: ',
+      text: 'Improved error tracking across modules and cloud services to help identify problems.'
+    },
+    {
+      title: 'Fixes and maintenance: ',
+      text: 'Fixed the home scheme editor closing after saving and long tags wrapping. Improved small camera thumbnails and favorite button styling.'
     }
   ],
   historyTitle: 'Previous releases',
   history: [
+    {
+      version: 'v2.1.2',
+      items: [
+        {
+          title: 'Global server resonance and wardrobe imports:',
+          text: 'Choose the China server or the Global Asia, America, Europe, or Taiwan/Hong Kong/Macao server. The sign-in link follows the selected server, and the import preview shows the server and UID.'
+        },
+        {
+          title: 'Feedback from Global server players:',
+          text: 'The developer does not currently have a Global server account and cannot conduct comprehensive hands-on testing. If you encounter import failures, incorrect data displays, or other issues on a Global server, please report them to the developer on Xiaohongshu to help improve Global server support.'
+        }
+      ]
+    },
     {
       version: 'v2.1.1',
       items: [
