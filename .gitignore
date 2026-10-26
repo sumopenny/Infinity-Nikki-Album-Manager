@@ -66,6 +66,6 @@ coverage/
 # WorkBuddy project memory / local assistant data
 .workbuddy/
 
-# Private diagnostic source maps and exported reports
+# Legacy private build artifacts (keep ignored) and exported diagnostic reports
 .error-artifacts/
 .error-reports/

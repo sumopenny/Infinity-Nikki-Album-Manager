@@ -1,16 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { createHash, randomUUID } from 'node:crypto'
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync
-} from 'node:fs'
-import { join, relative, resolve } from 'node:path'
-import type { Plugin } from 'vite'
+import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import type { BuildInfo } from '../src/utils/errorReporting/schema'
 
 function git(...args: string[]): string {
@@ -44,50 +34,5 @@ export function errorBuildInfo(): BuildInfo {
     builtAt,
     environment,
     dirty: !!git('status', '--porcelain', '--untracked-files=normal')
-  }
-}
-/** hidden 不等于私有：保存映射后移出 dist；发布目录残留 .map 会使构建失败。 */
-export function privateErrorMaps(build: BuildInfo): Plugin {
-  let output = '',
-    artifact = ''
-  return {
-    name: 'private-error-source-maps',
-    apply: 'build',
-    configResolved(config) {
-      output = resolve(config.root, config.build.outDir)
-      artifact = resolve(config.root, '.error-artifacts', build.buildId)
-    },
-    closeBundle() {
-      if (!existsSync(output)) return
-      function walk(directory: string): string[] {
-        return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-          const path = join(directory, entry.name)
-          return entry.isDirectory() ? walk(path) : path.endsWith('.map') ? [path] : []
-        })
-      }
-      mkdirSync(artifact, { recursive: true })
-      const files = walk(output).map((path) => {
-        const map = relative(output, path).replace(/\\/g, '/')
-        const destination = join(artifact, map)
-        mkdirSync(resolve(destination, '..'), { recursive: true })
-        copyFileSync(path, destination)
-        const source = path.slice(0, -4)
-        const sha256 = existsSync(source)
-          ? createHash('sha256').update(readFileSync(source)).digest('hex')
-          : null
-        // 先完成私有副本，再移除公开文件；失败直接使构建失败。
-        rmSync(path)
-        return { asset: map.slice(0, -4), map, sha256 }
-      })
-      writeFileSync(
-        join(artifact, 'manifest.json'),
-        JSON.stringify({ schemaVersion: 1, build, files }, null, 2) + '\n'
-      )
-      writeFileSync(
-        resolve('.error-artifacts', 'latest.json'),
-        JSON.stringify({ buildId: build.buildId }) + '\n'
-      )
-      if (walk(output).length) throw new Error('Public source maps remain in dist')
-    }
   }
 }

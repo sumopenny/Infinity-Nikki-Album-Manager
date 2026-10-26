@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { assertDiagnosticsBuild } from './scripts/error-build-policy.mjs'
-import { errorBuildInfo, privateErrorMaps } from './scripts/error-build'
+import { errorBuildInfo } from './scripts/error-build'
 import { resonanceCloudProxy } from './scripts/resonance-cloud-proxy'
 import { onRequestPost as forwardPearpalRequest } from './functions/api/resonance/pearpal'
 
@@ -127,9 +127,9 @@ export default defineConfig(({ mode, command }) => {
       }
 
   return {
-    plugins: [vue(), localPearpalApi(), privateErrorMaps(diagnosticBuild)],
+    plugins: [vue(), localPearpalApi()],
     define: { __ERROR_BUILD__: JSON.stringify(diagnosticBuild) },
-    build: { sourcemap: 'hidden' },
+    build: { sourcemap: false },
     server: {
       host: '0.0.0.0',
       port: 5173,
