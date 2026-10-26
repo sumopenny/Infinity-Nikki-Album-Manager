@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { nextTick, ref, toRef, watch } from 'vue'
+import { computed, ref, toRef } from 'vue'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
+import { useModalFocus } from '../composables/useModalFocus'
 
 export type ConfirmDialogTone = 'info' | 'warning' | 'danger'
 
@@ -20,25 +21,16 @@ const emit = defineEmits<{
 }>()
 
 const confirmButtonRef = ref<HTMLButtonElement | null>(null)
-useBodyScrollLock(toRef(props, 'visible'))
-
-// 聚焦主按钮。参数：无。弹窗打开后让键盘用户可以直接确认或取消。
-function focusConfirmButton() {
-  nextTick(() => confirmButtonRef.value?.focus())
-}
-
-// 处理弹窗键盘操作。参数：event 为键盘事件，按 Escape 时取消弹窗。
-function handleDialogKeydown(event: KeyboardEvent) {
-  if (event.key !== 'Escape') return
-  emit('cancel')
-}
-
-watch(
-  () => props.visible,
-  (isVisible) => {
-    if (isVisible) focusConfirmButton()
-  }
+const cancelButtonRef = ref<HTMLButtonElement | null>(null)
+const closeButtonRef = ref<HTMLButtonElement | null>(null)
+const panelRef = ref<HTMLElement | null>(null)
+const visible = toRef(props, 'visible')
+// 危险操作优先聚焦取消；没有取消按钮时，仍以关闭按钮作为安全入口。
+const initialFocus = computed(() =>
+  props.tone === 'danger' ? (cancelButtonRef.value ?? closeButtonRef.value) : confirmButtonRef.value
 )
+useBodyScrollLock(visible)
+useModalFocus(visible, panelRef, () => emit('cancel'), undefined, initialFocus)
 </script>
 
 <template>
@@ -51,9 +43,8 @@ watch(
         aria-modal="true"
         :aria-label="title"
         @click.self="emit('cancel')"
-        @keydown="handleDialogKeydown"
       >
-        <section class="confirm-dialog-panel" :class="`is-${tone}`">
+        <section ref="panelRef" class="confirm-dialog-panel" :class="`is-${tone}`" tabindex="-1">
           <div class="confirm-dialog-icon" aria-hidden="true">
             <svg v-if="tone === 'danger'" viewBox="0 0 24 24">
               <path d="M7 7h10" />
@@ -82,6 +73,7 @@ watch(
           </div>
 
           <button
+            ref="closeButtonRef"
             class="confirm-dialog-close"
             type="button"
             :aria-label="closeLabel"
@@ -95,6 +87,7 @@ watch(
           <div class="confirm-dialog-actions">
             <button
               v-if="cancelLabel"
+              ref="cancelButtonRef"
               class="confirm-dialog-button ghost"
               type="button"
               @click="emit('cancel')"

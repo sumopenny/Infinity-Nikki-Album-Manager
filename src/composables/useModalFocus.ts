@@ -1,11 +1,12 @@
 import { nextTick, onBeforeUnmount, watch, type Ref } from 'vue'
 
-/** 小型操作浮层的焦点循环与还原；其他模态层获得焦点时不抢占其键盘事件。 */
+/** 模态浮层的初始焦点、循环与还原；其他模态层获得焦点时不抢占其键盘事件。 */
 export function useModalFocus(
   active: Ref<boolean>,
   panel: Ref<HTMLElement | null>,
   close: () => void,
-  trigger?: Ref<HTMLElement | null>
+  trigger?: Ref<HTMLElement | null>,
+  initialFocus?: Readonly<Ref<HTMLElement | null>>
 ) {
   let previous: HTMLElement | null = null
   const keydown = (event: KeyboardEvent) => {
@@ -50,7 +51,9 @@ export function useModalFocus(
         await nextTick()
         if (!active.value) return
         // 打开浮层只转移键盘焦点，不改变被锁定页面的滚动位置。
-        panel.value?.focus({ preventScroll: true })
+        const target = initialFocus?.value
+        const focusTarget = target && panel.value?.contains(target) ? target : panel.value
+        focusTarget?.focus({ preventScroll: true })
         document.addEventListener('keydown', keydown)
       } else {
         document.removeEventListener('keydown', keydown)

@@ -107,7 +107,6 @@ export interface OutfitMessages {
     importCompleted: (added: number, duplicates: number, failed: number, tagNote: string) => string
   }
   guideTitle: string
-  guideIntro: string
   guideFeaturedSection: { title: string; items: string[] }
   guideSections: Array<{ title: string; items: string[] }>
   guideDontShowAgain: string
@@ -233,7 +232,6 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
         `导入完成：新增 ${added} 个方案，跳过 ${duplicates} 个重复方案，${failed} 个方案导入失败。${tagNote}`
     },
     guideTitle: '搭配码使用指南',
-    guideIntro: '搭配图片、搭配码和标签保存在当前浏览器，所有相册共用，不会上传到网站服务器。',
     guideFeaturedSection: {
       title: '自动更新游戏搭配码',
       items: [
@@ -245,29 +243,9 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       {
         title: '搭配码解析',
         items: [
-          '可在搭配页顶部输入搭配码并点击“解析搭配码”，无需先创建搭配方案。',
-          '已填写搭配码的方案可点击卡片右上角的解析按钮，查看搭配部件与染色信息。'
-        ]
-      },
-      {
-        title: '标签与整理',
-        items: [
-          '左侧可按全部、待填写、未分类和用户标签筛选。最多创建 40 个标签，每个标签不超过 5 个字符。',
-          '删除正在使用的标签只会让相关方案归入“未分类”，不会删除图片或方案。'
-        ]
-      },
-      {
-        title: '添加与编辑方案',
-        items: [
-          '点击“添加方案”，可以选择、拖拽或粘贴图片（点击窗口空白处 Ctrl+V 粘贴）。',
-          '搭配码可以留空稍后填写；每个方案最多选择一个标签，双击图片可打开预览。'
-        ]
-      },
-      {
-        title: '导入与导出',
-        items: [
-          '选择相册后，旧 clothe 搭配数据会自动迁入浏览器。全部迁移成功且源文件未变化后删除旧文件夹；有失败或未迁移内容时保留并提示。',
-          '“导出数据”备份所有相册共用的搭配和标签；“导入数据”会跳过已有搭配码。请定期导出备份。删除方案后该码不会再次自动导入，手动添加或备份恢复仍可使用。'
+          '已填写搭配码的方案可点击卡片右上角的解析按钮，查看搭配部件与染色信息。',
+          '在解析结果中点击部件图片，可打开部件详情，查看具体信息；有染色数据时，还可查看染色区域、染色盘、色号与颜色。',
+          '也可在右上工具栏解析入口输入搭配码并点击“解析搭配码”，无需先创建搭配方案。'
         ]
       }
     ],
@@ -401,8 +379,6 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
         `Import complete: ${added} added, ${duplicates} duplicate(s) skipped, ${failed} failed.${tagNote}`
     },
     guideTitle: 'Outfit Code Guide',
-    guideIntro:
-      'Outfit images, codes and tags are stored in this browser and shared across albums. Collections are not uploaded.',
     guideFeaturedSection: {
       title: 'Auto update in-game codes',
       items: [
@@ -414,29 +390,9 @@ export const outfitMessages: Record<Language, OutfitMessages> = {
       {
         title: 'Decode outfit codes',
         items: [
-          'Enter a code at the top of the Outfit Code page and click Decode outfit code without creating a plan first.',
-          'For a plan with a code, click the decode button in the upper-right corner of its card to view outfit items and dye information.'
-        ]
-      },
-      {
-        title: 'Tags and filters',
-        items: [
-          'Filter by All, Pending, Uncategorized, or user tags. You can create up to 40 tags with no more than 5 characters each.',
-          'Deleting a tag in use only moves matching plans to Uncategorized; it does not delete their images or plans.'
-        ]
-      },
-      {
-        title: 'Add and edit',
-        items: [
-          'Click Add outfit to select, drag and drop, or paste an image (click an empty area in the dialog and press Ctrl+V).',
-          'The outfit code can be left blank and filled in later. Each plan can use at most one tag, and double-clicking the image opens the preview.'
-        ]
-      },
-      {
-        title: 'Import and export',
-        items: [
-          'Selecting an album automatically migrates its old clothe collection into the browser. The old folder is removed after successful migration and source verification; failures or unmigrated content leave it intact.',
-          'Export backs up the global collection. Import skips existing codes. Deleted codes stay excluded from automatic import, but can be restored manually or from a backup. Export backups regularly.'
+          'For a plan with a code, click the decode button in the upper-right corner of its card to view outfit items and dye information.',
+          'Click an item image in the decoded results to open its details. When dye data is available, you can also view dye regions, palettes, color codes, and colors.',
+          'You can also open the decoder from the top-right toolbar, enter an outfit code, and click Decode outfit code without creating a plan first.'
         ]
       }
     ],

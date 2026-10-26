@@ -239,8 +239,10 @@ function closeMenus() {
   openMenu.value = null
 }
 
-/** 执行菜单动作后收起菜单。参数：action 为父组件提供的动作。 */
+/** 收起菜单后从稳定入口交接焦点，后续确认框关闭时才能返回原菜单按钮。 */
 function runMenuAction(action: () => void) {
+  if (dropdownRef.value?.contains(document.activeElement))
+    menuTrigger.value?.focus({ preventScroll: true })
   closeMenus()
   action()
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref, toRef, watch } from 'vue'
-import { Archive, ImagePlus, ScanSearch, Sparkles, Tags, X } from 'lucide-vue-next'
+import { ScanSearch, Sparkles, X } from 'lucide-vue-next'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { OutfitMessages } from '../i18n'
 
@@ -17,7 +17,6 @@ const emit = defineEmits<{
 const dontShowAgain = ref(false)
 const closeButtonRef = ref<HTMLButtonElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
-const sectionIcons = [ScanSearch, Tags, ImagePlus, Archive]
 const featuredIcon = Sparkles
 let previousActiveElement: HTMLElement | null = null
 useBodyScrollLock(toRef(props, 'visible'))
@@ -100,8 +99,6 @@ watch(
             </button>
           </header>
 
-          <p class="outfit-guide-intro">{{ messages.guideIntro }}</p>
-
           <section class="outfit-guide-featured">
             <div class="outfit-guide-section-icon" aria-hidden="true">
               <component :is="featuredIcon" :size="18" />
@@ -113,9 +110,9 @@ watch(
           </section>
 
           <div class="outfit-guide-sections">
-            <section v-for="(section, index) in messages.guideSections" :key="section.title">
+            <section v-for="section in messages.guideSections" :key="section.title">
               <div class="outfit-guide-section-icon" aria-hidden="true">
-                <component :is="sectionIcons[index]" :size="18" />
+                <ScanSearch :size="18" />
               </div>
               <div>
                 <h3>{{ section.title }}</h3>

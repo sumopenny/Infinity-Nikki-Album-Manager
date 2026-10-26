@@ -28,7 +28,7 @@
 }
 
 .outfit-guide-panel {
-  width: min(1080px, 100%);
+  width: min(680px, 100%);
   max-height: calc(100dvh - 28px);
   overflow: auto;
   border: 1px solid var(--line);
@@ -135,18 +135,9 @@
   background: color-mix(in srgb, var(--heading) 16%, transparent);
 }
 
-.outfit-guide-intro {
-  margin: 0;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--line-soft);
-  color: var(--text);
-  font-size: 15px;
-  line-height: 1.75;
-}
-
 .outfit-guide-sections {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
 }
 
 .outfit-guide-featured,
@@ -159,11 +150,7 @@
 }
 
 .outfit-guide-featured {
-  background: color-mix(in srgb, var(--pink-deep) 7%, var(--surface));
-}
-
-.outfit-guide-sections > section:nth-child(odd) {
-  border-right: 1px solid var(--line-soft);
+  background: var(--soft-accent);
 }
 
 .outfit-guide-section-icon {
@@ -1064,14 +1051,6 @@
     grid-template-columns: 1fr;
   }
 
-  .outfit-guide-sections {
-    grid-template-columns: 1fr;
-  }
-
-  .outfit-guide-sections > section:nth-child(odd) {
-    border-right: 0;
-  }
-
   .outfit-image-dropzone {
     max-height: 48dvh;
   }
@@ -1113,7 +1092,6 @@
     padding-inline: 14px;
   }
 
-  .outfit-guide-intro,
   .outfit-guide-featured,
   .outfit-guide-sections > section {
     padding-inline: 14px;
