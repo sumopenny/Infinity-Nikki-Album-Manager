@@ -36,15 +36,17 @@
 }
 
 .brand-icon {
+  box-sizing: border-box;
   display: block;
   width: 38px;
   height: 38px;
   flex: 0 0 38px;
   object-fit: contain;
-  border-radius: 8px;
-  border-color: var(--pink-deep);
-  background: var(--surface-strong);
-  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 24%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pink-deep) 24%, #fff);
+  border-radius: 10px;
+  /* 原始 PNG 自带白底，固定白色底牌以便在深浅主题下保持一致。 */
+  background: #fff;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--pink-deep) 14%, transparent);
 }
 
 .brand-copy {
@@ -313,7 +315,8 @@
   background: color-mix(in srgb, var(--surface-strong) 84%, transparent);
   box-shadow: 0 18px 44px rgba(45, 39, 35, 0.18);
   backdrop-filter: blur(13px) saturate(1.5);
-  transform: translateX(calc(-50% + var(--menu-shift, 0px)));
+  --menu-rest-transform: translateX(calc(-50% + var(--menu-shift, 0px)));
+  transform: var(--menu-rest-transform);
   animation: header-dropdown-in 0.18s var(--ease-spring);
   transform-origin: top center;
 }
@@ -385,7 +388,7 @@
   padding: 2px;
   border: 1px solid var(--line-soft);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--line-soft) 62%, transparent);
+  background: var(--surface-soft);
 }
 
 /* 选择器需要写得比 .header-dropdown button 更具体，才能盖掉它的整行按钮样式 */
@@ -399,8 +402,9 @@
   border: 1px solid transparent;
   border-radius: 999px;
   background: transparent;
-  color: var(--muted);
+  color: var(--text);
   font-size: 12px;
+  font-weight: 600;
   line-height: 1.2;
   text-align: center;
   white-space: nowrap;
@@ -416,15 +420,16 @@
 }
 
 .view-dropdown .view-toggle-option.active {
-  border-color: color-mix(in srgb, var(--pink-deep) 46%, transparent);
-  background: color-mix(in srgb, var(--pink-deep) 18%, var(--surface-strong));
-  color: var(--heading);
-  font-weight: 500;
+  border-color: color-mix(in srgb, var(--pink-deep) 35%, var(--line-soft));
+  background: var(--surface-strong);
+  color: var(--pink-deep);
+  font-weight: 800;
+  box-shadow: 0 2px 7px color-mix(in srgb, var(--pink-deep) 12%, transparent);
 }
 
 .view-dropdown .view-toggle-option.active:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--pink-deep) 24%, var(--surface-strong));
-  color: var(--heading);
+  background: var(--surface-strong);
+  color: var(--pink-deep);
 }
 
 .brand-lockup .brand-logo {
@@ -445,13 +450,19 @@
   transform: rotate(-90deg);
 }
 
-.thumbnail-options {
+.thumbnail-options,
+.thumbnail-size-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2px 4px;
 }
 
-.thumbnail-options .menu-radio {
+.thumbnail-size-options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.thumbnail-options .menu-radio,
+.thumbnail-size-options .menu-radio {
   min-width: 0;
   margin-block: 2px;
 }

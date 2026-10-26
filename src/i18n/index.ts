@@ -11,7 +11,6 @@ export { en } from './en'
 export const DEFAULT_LANGUAGE: Language = 'zh'
 const thumbnailModeValues: ThumbnailMode[] = [
   'default',
-  'half',
   'wide',
   'standard',
   'portrait-wide',
@@ -21,7 +20,6 @@ const thumbnailModeValues: ThumbnailMode[] = [
 const thumbnailModeLabels: Record<Language, Record<ThumbnailMode, string>> = {
   zh: {
     default: '1:1',
-    half: '半尺寸 1:1',
     wide: '16:9',
     standard: '4:3',
     'portrait-wide': '9:16',
@@ -29,7 +27,6 @@ const thumbnailModeLabels: Record<Language, Record<ThumbnailMode, string>> = {
   },
   en: {
     default: '1:1',
-    half: 'Half 1:1',
     wide: '16:9',
     standard: '4:3',
     'portrait-wide': '9:16',

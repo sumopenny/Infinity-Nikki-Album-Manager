@@ -6,6 +6,7 @@ import { Bookmark, Copy, ScanSearch, X } from 'lucide-vue-next'
 import type { PhotoItem } from '../utils/photoGrouping'
 import type { PhotoParamsProgress, PhotoParamsResult } from '../utils/photo-params/types'
 import type { PhotoParamsMessages } from '../i18n/messages/photoParams'
+import { needsOriginalPhotoHint } from '../utils/photo-params/parseError'
 
 const props = defineProps<{
   visible: boolean
@@ -15,6 +16,7 @@ const props = defineProps<{
   progress: PhotoParamsProgress
   result: PhotoParamsResult | null
   error: string | null
+  errorCodes?: readonly string[]
   uidRequired: boolean
   messages: PhotoParamsMessages
 }>()
@@ -24,11 +26,7 @@ const panel = ref<HTMLElement | null>(null)
 // 参数窗口可从照片卡片独立打开，需自行管理滚动锁和焦点生命周期。
 useBodyScrollLock(toRef(props, 'visible'))
 useModalFocus(toRef(props, 'visible'), panel, () => emit('close'))
-const showNonOriginalPhotoHint = computed(() =>
-  /(?:^|[；;\s])(?:错误码：)?(?:jpeg_second_end_marker_missing|base64_invalid)(?=；|;|$)/.test(
-    props.error ?? ''
-  )
-)
+const showNonOriginalPhotoHint = computed(() => needsOriginalPhotoHint(props.errorCodes ?? []))
 const uidInput = ref('')
 const failedImages = ref<Set<string>>(new Set())
 watch(

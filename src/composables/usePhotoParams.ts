@@ -1,6 +1,15 @@
 import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import { formatCameraParams } from '../utils/photo-params/formatCameraParams'
-import { nextTick, onScopeDispose, ref, type ComputedRef, type Ref } from 'vue'
+import {
+  computed,
+  nextTick,
+  onScopeDispose,
+  ref,
+  shallowRef,
+  type ComputedRef,
+  type Ref
+} from 'vue'
+import { PhotoParseError } from '../utils/photo-params/parseError'
 import type { Language } from '../i18n'
 import type { PhotoParamsMessages } from '../i18n/messages/photoParams'
 import type { PhotoItem } from '../utils/photoGrouping'
@@ -32,7 +41,16 @@ export function usePhotoParams(options: {
   const uploadFile = ref<File | null>(null)
   const isVisible = ref(false)
   const result = ref<PhotoParamsResult | null>(null)
-  const error = ref<string | null>(null)
+  const failure = shallowRef<unknown>(null)
+  const errorCodes = computed(() =>
+    failure.value instanceof PhotoParseError ? failure.value.codes : []
+  )
+  const error = computed(() => {
+    if (failure.value === null) return null
+    if (failure.value instanceof PhotoParseError)
+      return failure.value.codes.map(describeError).join('；')
+    return failure.value instanceof Error ? failure.value.message : String(failure.value)
+  })
   const uidRequired = ref(false)
   const progress = ref<PhotoParamsProgress>({ stage: 'idle', percent: 0, message: '' })
   let runId = 0
@@ -87,10 +105,7 @@ export function usePhotoParams(options: {
     if (!decoded?.value) {
       // 只有“未找到有效 UID 账号”才需要用户输入 UID；其它照片结构或参数错误直接展示错误信息。
       uidRequired.value = errors.length > 0 && errors.every((code) => requiresUid(code))
-      const errorDetails = errors.length
-        ? errors.map(describeError).join('；')
-        : describeError('photo_parse_failed')
-      throw new Error(errorDetails)
+      throw new PhotoParseError(errors)
     }
     return decoded.value
   }
@@ -101,7 +116,7 @@ export function usePhotoParams(options: {
     photo.value = selectedPhoto
     uploadFile.value = null
     result.value = null
-    error.value = null
+    failure.value = null
     uidRequired.value = false
     try {
       setStage('resolvingUid', 10)
@@ -128,7 +143,7 @@ export function usePhotoParams(options: {
     } catch (caught) {
       if (run !== runId) return
       captureDiagnosticError(caught, { module: 'photo-params', action: 'parse' })
-      error.value = caught instanceof Error ? caught.message : String(caught)
+      failure.value = caught
       setStage('error', 100)
     }
   }
@@ -139,7 +154,7 @@ export function usePhotoParams(options: {
     photo.value = { name: file.name } as PhotoItem
     uploadFile.value = file
     result.value = null
-    error.value = null
+    failure.value = null
     uidRequired.value = false
     try {
       setStage('readingPhoto', 30)
@@ -154,7 +169,7 @@ export function usePhotoParams(options: {
       const candidateUids = [...new Set([...directoryUids, ...savedUids])]
       if (!candidateUids.length) {
         uidRequired.value = true
-        throw new Error(describeError('photo_structure_invalid'))
+        throw new PhotoParseError(['photo_structure_invalid'])
       }
       const decoded = await parsePhotoBytes(bytes, candidateUids, run)
       if (!decoded || run !== runId) return
@@ -164,7 +179,7 @@ export function usePhotoParams(options: {
     } catch (caught) {
       if (run !== runId) return
       captureDiagnosticError(caught, { module: 'photo-params', action: 'parse' })
-      error.value = caught instanceof Error ? caught.message : String(caught)
+      failure.value = caught
       setStage('error', 100)
     }
   }
@@ -175,7 +190,7 @@ export function usePhotoParams(options: {
     if (!selectedPhoto || !normalized) return
     const run = ++runId
     result.value = null
-    error.value = null
+    failure.value = null
     // UID 输入只在解析器明确报告 UID 无效时显示；其它异常不能留下旧的输入表单状态。
     uidRequired.value = false
     setStage('readingPhoto', 30)
@@ -190,7 +205,7 @@ export function usePhotoParams(options: {
       if (run !== runId) return
       if (!decoded.ok || !decoded.value) {
         uidRequired.value = requiresUid(decoded.errorCode)
-        throw new Error(describeError(decoded.errorCode ?? 'photo_parse_failed'))
+        throw new PhotoParseError([decoded.errorCode ?? 'photo_parse_failed'])
       }
       await addSavedCameraParamUid(normalized)
       // 保存 UID 期间也可能切换或关闭窗口，旧结果不能再写入界面。
@@ -200,7 +215,7 @@ export function usePhotoParams(options: {
     } catch (caught) {
       if (run !== runId) return
       captureDiagnosticError(caught, { module: 'photo-params', action: 'parse' })
-      error.value = caught instanceof Error ? caught.message : String(caught)
+      failure.value = caught
       setStage('error', 100)
     }
   }
@@ -211,7 +226,7 @@ export function usePhotoParams(options: {
     photo.value = null
     uploadFile.value = null
     result.value = null
-    error.value = null
+    failure.value = null
     uidRequired.value = false
     progress.value = { stage: 'idle', percent: 0, message: '' }
   }
@@ -219,20 +234,20 @@ export function usePhotoParams(options: {
   async function parseRawCameraParams(raw: string) {
     const run = ++runId
     result.value = null
-    error.value = null
+    failure.value = null
     uidRequired.value = false
     setStage('loadingWasm', 40)
     try {
       const decoded = await decodeCameraParams<Record<string, unknown>>(raw)
       if (run !== runId) return
       if (!decoded.ok || !decoded.value)
-        throw new Error(describeError(decoded.errorCode ?? 'camera_decrypt_failed'))
+        throw new PhotoParseError([decoded.errorCode ?? 'camera_decrypt_failed'])
       presentCameraParams(decoded.value, raw)
       setStage('ready', 100)
     } catch (caught) {
       if (run !== runId) return
       captureDiagnosticError(caught, { module: 'photo-params', action: 'parse' })
-      error.value = caught instanceof Error ? caught.message : String(caught)
+      failure.value = caught
       setStage('error', 100)
     }
   }
@@ -243,7 +258,7 @@ export function usePhotoParams(options: {
     photo.value = null
     uploadFile.value = null
     result.value = null
-    error.value = null
+    failure.value = null
     uidRequired.value = false
     progress.value = { stage: 'idle', percent: 0, message: '' }
   }
@@ -257,6 +272,7 @@ export function usePhotoParams(options: {
     isVisible,
     result,
     error,
+    errorCodes,
     uidRequired,
     progress,
     openForPhoto,

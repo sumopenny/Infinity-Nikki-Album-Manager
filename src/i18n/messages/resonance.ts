@@ -57,10 +57,10 @@ export interface ResonanceMessages {
   cookieStepsTitle: string
   bookmarkStep1: string
   bookmarkStep2: string
-  bookmarkStep3: string
+  bookmarkStep3: { text: string; emphasis: string }
   bookmarkStep4: string
   bookmarkStep5: string
-  bookmarkTip: string
+  bookmarkTip: { text: string; emphasis: string }
   consoleStep2: string
   consoleStep3: string
   consoleStep4: string
@@ -169,10 +169,17 @@ export const resonanceZh: ResonanceMessages = {
   cookieStepsTitle: '获取凭据后粘贴到下方：',
   bookmarkStep1: '将「美鸭梨 Cookie」书签拖到书签栏（仅需设置一次）：',
   bookmarkStep2: '切换到已登录的美鸭梨页面。',
-  bookmarkStep3: '在已登录的美鸭梨页面点击「美鸭梨 Cookie」书签，书签务必选择“在当前页面打开”，不要在新标签页打开。',
+  bookmarkStep3: {
+    text: '在已登录的美鸭梨页面点击「美鸭梨 Cookie」书签，',
+    emphasis: '书签务必选择“在当前页面打开”，不要在新标签页打开。'
+  },
   bookmarkStep4: '复制弹窗中输出的凭据数据。',
   bookmarkStep5: '返回本页，将凭据粘贴到下方输入框。',
-  bookmarkTip: '可以保留此书签，之后同步时继续使用。电脑版 QQ 浏览器等部分浏览器可能默认在新标签页打开书签，请将打开方式改为“当前页面打开”，否则可能提示“请在美鸭梨网站使用此书签”。',
+  bookmarkTip: {
+    text: '可以保留此书签，之后同步时继续使用。',
+    emphasis:
+      '电脑版 QQ 浏览器等部分浏览器可能默认在新标签页打开书签，请将打开方式改为“当前页面打开”，否则可能提示“请在美鸭梨网站使用此书签”。'
+  },
   consoleStep2: '在已登录的美鸭梨页面打开开发者工具（按 F12 或右键选择“检查”）。',
   consoleStep3: '切换到“控制台”标签。',
   consoleStep4: '复制下方代码，粘贴到控制台并按回车：',
@@ -289,10 +296,17 @@ export const resonanceEn: ResonanceMessages = {
   cookieStepsTitle: 'Paste the copied credentials below:',
   bookmarkStep1: 'Drag the "Pear-Pal Cookie" bookmark to your bookmarks bar (once only):',
   bookmarkStep2: 'Switch to a signed-in Pear-Pal page.',
-  bookmarkStep3: 'On the signed-in Pear-Pal page, click the "Pear-Pal Cookie" bookmark. Open it in the current tab, not a new tab.',
+  bookmarkStep3: {
+    text: 'On the signed-in Pear-Pal page, click the "Pear-Pal Cookie" bookmark. ',
+    emphasis: 'Open it in the current tab, not a new tab.'
+  },
   bookmarkStep4: 'Copy the credentials shown in the popup.',
   bookmarkStep5: 'Return here and paste the credentials below.',
-  bookmarkTip: 'Keep this bookmark for future syncs. Some desktop browsers, including QQ Browser, may open bookmarks in new tabs by default. Change the opening behavior to the current tab; otherwise you may see “Use this bookmark on the Pear-Pal website.”',
+  bookmarkTip: {
+    text: 'Keep this bookmark for future syncs. ',
+    emphasis:
+      'Some desktop browsers, including QQ Browser, may open bookmarks in new tabs by default. Change the opening behavior to the current tab; otherwise you may see “Use this bookmark on the Pear-Pal website.”'
+  },
   consoleStep2:
     'Open developer tools on a signed-in Pear-Pal page (press F12 or right-click and choose Inspect).',
   consoleStep3: 'Switch to the Console tab.',

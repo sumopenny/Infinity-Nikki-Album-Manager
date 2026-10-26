@@ -25,7 +25,8 @@ it('keeps action sorting functional with a detached desktop menu and ignores inn
     } as DOMRect)
     await trigger.trigger('click')
     const menu = document.querySelector<HTMLElement>('[role="listbox"]')!
-    expect(menu.parentElement).toBe(document.body)
+    expect(document.body.contains(menu)).toBe(true)
+    expect(wrapper.element.contains(menu)).toBe(false)
     expect(menu.style.position).toBe('fixed')
     expect(menu.style.bottom).not.toBe('auto')
     menu.dispatchEvent(new Event('scroll'))

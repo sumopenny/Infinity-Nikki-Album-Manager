@@ -862,6 +862,19 @@ it.each(['bookmark', 'console'] as const)(
   }
 )
 
+it.each(['zh', 'en'] as const)(
+  'uses explicit emphasis segments in the %s import tutorial',
+  async (language) => {
+    const { panel } = await openDialog(language)
+    const emphasis = [...panel.querySelectorAll('.resonance-bookmark-emphasis')].map(
+      (node) => node.textContent
+    )
+    expect(emphasis).toHaveLength(2)
+    expect(emphasis[0]).toContain(language === 'zh' ? '在当前页面打开' : 'current tab')
+    expect(emphasis[1]).toContain(language === 'zh' ? '电脑版 QQ 浏览器' : 'QQ Browser')
+  }
+)
+
 it('reports failed resonance storage reads instead of only showing a notice', async () => {
   const error = new Error('read-fixture-failure')
   const capture = vi.spyOn(diagnosticReporter, 'reportError').mockReturnValue('test-event')

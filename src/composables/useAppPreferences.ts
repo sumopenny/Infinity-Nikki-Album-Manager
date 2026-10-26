@@ -1,7 +1,14 @@
 import { readLocalStorage, writeLocalStorage } from '../utils/localStorage'
 import { computed, ref, watch, nextTick, onBeforeUnmount, type Ref } from 'vue'
 import { DEFAULT_LANGUAGE, messages, type Language } from '../i18n'
-import { isThumbnailMode, type ThumbnailMode } from '../types/thumbnail'
+import {
+  isThumbnailMode,
+  isThumbnailSize,
+  type ThumbnailMode,
+  type ThumbnailSize,
+  type ThumbnailRatioKind,
+  type ThumbnailKind
+} from '../types/thumbnail'
 import { isThemeMode, type ThemeMode } from '../types/theme'
 import type { StatusState } from './useOperationNotice'
 const THUMBNAIL_STORAGE_KEY = 'infinity-nikki-thumbnail-mode'
@@ -20,7 +27,7 @@ interface AppPreferencesOptions {
   canPersist: () => boolean
   onStatus: (status: StatusState) => void
 }
-/** 管理显示偏好及其持久化；移动端回退仅用于显示，不覆盖桌面保存值。 */
+/** 管理显示偏好及其持久化；比例独立于大小，两端分别记忆大小。 */
 export function useAppPreferences({ compactLayout, canPersist, onStatus }: AppPreferencesOptions) {
   const storedThumbnailMode = readLocalStorage(THUMBNAIL_STORAGE_KEY)
   const storedOutfitThumbnailMode = readLocalStorage(OUTFIT_THUMBNAIL_STORAGE_KEY)
@@ -43,18 +50,57 @@ export function useAppPreferences({ compactLayout, canPersist, onStatus }: AppPr
   const homeThumbnailMode = ref<ThumbnailMode>(
     isThumbnailMode(storedHomeThumbnailMode) ? storedHomeThumbnailMode : 'wide'
   )
-  // 手机半尺寸不可用：显示时回退普通 1:1，保留电脑端已保存的比例偏好。
-  const effectivePhotoThumbnailMode = computed(() =>
-    compactLayout.value && thumbnailMode.value === 'half' ? 'default' : thumbnailMode.value
+  const legacyModes = {
+    photo: storedThumbnailMode,
+    outfit: storedOutfitThumbnailMode,
+    home: storedHomeThumbnailMode
+  }
+  const modeStates = { photo: thumbnailMode, outfit: outfitThumbnailMode, home: homeThumbnailMode }
+  const modeKeys = {
+    photo: THUMBNAIL_STORAGE_KEY,
+    outfit: OUTFIT_THUMBNAIL_STORAGE_KEY,
+    home: HOME_THUMBNAIL_STORAGE_KEY
+  }
+
+  function sizeKey(kind: ThumbnailKind, compact: boolean) {
+    return `infinity-nikki-${kind}-thumbnail-size-${compact ? 'mobile' : 'desktop'}`
+  }
+
+  // 旧 half 只影响桌面大小；优先保留已保存的新设置，迁移后比例统一为 1:1。
+  function readSizes(compact: boolean): Record<ThumbnailKind, ThumbnailSize> {
+    return Object.fromEntries(
+      (['photo', 'outfit', 'home', 'camera'] as const).map((kind) => {
+        const stored = readLocalStorage(sizeKey(kind, compact))
+        const size = isThumbnailSize(stored)
+          ? stored
+          : !compact && kind !== 'camera' && legacyModes[kind] === 'half'
+            ? 'small'
+            : 'medium'
+        return [kind, size]
+      })
+    ) as Record<ThumbnailKind, ThumbnailSize>
+  }
+  const desktopSizes = ref(readSizes(false))
+  const mobileSizes = ref(readSizes(true))
+  for (const kind of ['photo', 'outfit', 'home'] as const) {
+    if (legacyModes[kind] !== 'half') continue
+    modeStates[kind].value = 'default'
+    if (canPersist()) {
+      writeLocalStorage(sizeKey(kind, false), desktopSizes.value[kind])
+      writeLocalStorage(modeKeys[kind], 'default')
+    }
+  }
+  const thumbnailSizes = computed(() =>
+    compactLayout.value ? mobileSizes.value : desktopSizes.value
   )
-  const effectiveOutfitThumbnailMode = computed(() =>
-    compactLayout.value && outfitThumbnailMode.value === 'half'
-      ? 'default'
-      : outfitThumbnailMode.value
-  )
-  const effectiveHomeThumbnailMode = computed(() =>
-    compactLayout.value && homeThumbnailMode.value === 'half' ? 'default' : homeThumbnailMode.value
-  )
+
+  function saveThumbnailSize(kind: ThumbnailKind, size: ThumbnailSize) {
+    if (!isThumbnailSize(size)) return
+    const compact = compactLayout.value
+    const sizes = compact ? mobileSizes : desktopSizes
+    sizes.value[kind] = size
+    if (canPersist()) writeLocalStorage(sizeKey(kind, compact), size)
+  }
   const themeMode = ref<ThemeMode>(isThemeMode(storedThemeMode) ? storedThemeMode : 'light')
 
   watch(
@@ -132,15 +178,10 @@ export function useAppPreferences({ compactLayout, canPersist, onStatus }: AppPr
     return applyPreference('theme')
   }
 
-  function saveThumbnailMode(kind: 'photo' | 'outfit' | 'home', mode: ThumbnailMode) {
-    const [state, key] =
-      kind === 'home'
-        ? ([homeThumbnailMode, HOME_THUMBNAIL_STORAGE_KEY] as const)
-        : kind === 'outfit'
-          ? ([outfitThumbnailMode, OUTFIT_THUMBNAIL_STORAGE_KEY] as const)
-          : ([thumbnailMode, THUMBNAIL_STORAGE_KEY] as const)
-    state.value = mode
-    if (canPersist()) writeLocalStorage(key, mode)
+  function saveThumbnailMode(kind: ThumbnailRatioKind, mode: ThumbnailMode) {
+    if (!isThumbnailMode(mode)) return
+    modeStates[kind].value = mode
+    if (canPersist()) writeLocalStorage(modeKeys[kind], mode)
   }
   onBeforeUnmount(() => {
     if (themeSwitchFrame !== undefined) window.cancelAnimationFrame(themeSwitchFrame)
@@ -154,9 +195,8 @@ export function useAppPreferences({ compactLayout, canPersist, onStatus }: AppPr
     thumbnailMode,
     outfitThumbnailMode,
     homeThumbnailMode,
-    effectivePhotoThumbnailMode,
-    effectiveOutfitThumbnailMode,
-    effectiveHomeThumbnailMode,
+    thumbnailSizes,
+    saveThumbnailSize,
     toggleLanguage,
     toggleTheme,
     saveThumbnailMode

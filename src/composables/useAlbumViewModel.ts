@@ -15,6 +15,7 @@ import {
 import { formatFileSize } from '../utils/file-system/photoUrl'
 import type { OutfitItem } from '../utils/outfit/outfitTypes'
 import type { OutfitFilter } from '../components/OutfitSidebar.vue'
+import type { ThumbnailMode } from '../types/thumbnail'
 import { resourceName } from '../utils/photo-params/resourceManifest'
 
 export function useAlbumViewModel(options: {
@@ -26,15 +27,9 @@ export function useAlbumViewModel(options: {
   activeOutfitFilter: Ref<OutfitFilter>
   searchQuery: Ref<string>
   currentPreview: Ref<PhotoDisplayItem | null>
-  thumbnailMode: Ref<
-    'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'
-  >
-  outfitThumbnailMode: Ref<
-    'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'
-  >
-  homeThumbnailMode: Ref<
-    'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'
-  >
+  thumbnailMode: Ref<ThumbnailMode>
+  outfitThumbnailMode: Ref<ThumbnailMode>
+  homeThumbnailMode: Ref<ThumbnailMode>
   directoryState: Ref<
     { type: 'none' } | { type: 'remembered'; name: string } | { type: 'selected'; name: string }
   >
@@ -122,8 +117,7 @@ export function useAlbumViewModel(options: {
   )
   const trashTotalSizeText = computed(() => formatFileSize(trashTotalSize.value))
   const thumbnailModeOptions = computed(() => getThumbnailModeOptions(language.value))
-  // Home scheme covers use their own fixed 16:9 layout and do not participate
-  // in photo/outfit thumbnail preferences.
+  // 相册、搭配与家园分别记忆比例，切换模块时恢复对应设置。
   const displayedThumbnailMode = computed(() => {
     if (activeView.value === 'home') return homeThumbnailMode.value
     return activeView.value === 'outfits' ? outfitThumbnailMode.value : thumbnailMode.value

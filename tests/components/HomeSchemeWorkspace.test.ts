@@ -9,6 +9,7 @@ import {
 import 'fake-indexeddb/auto'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { defineComponent, h } from 'vue'
 import { messages } from '../../src/i18n'
 import HomeSchemeWorkspace from '../../src/components/HomeSchemeWorkspace.vue'
 import MobileEmptyScreenshot from '../../src/components/MobileEmptyScreenshot.vue'
@@ -218,7 +219,14 @@ it('adds and persists a parsed scheme without any album directory', async () => 
     furnitureCount: 7,
     server: 49
   })
-  const wrapper = mount(HomeSchemeWorkspace, { props, attachTo: document.body })
+  const coordinator = createOperationCoordinator()
+  const parent = defineComponent({
+    setup: () => () => h(HomeSchemeWorkspace, { ...props, disabled: coordinator.hasPending.value })
+  })
+  const wrapper = mount(parent, {
+    attachTo: document.body,
+    global: { provide: { [operationCoordinatorKey as symbol]: coordinator } }
+  })
   try {
     await vi.waitFor(() =>
       expect(
@@ -239,13 +247,32 @@ it('adds and persists a parsed scheme without any album directory', async () => 
       ...document.querySelectorAll<HTMLButtonElement>('.home-scheme-editor button')
     ].find((button) => button.textContent?.trim() === '确定')!
     expect(save).toBeTruthy()
+    const originalSave = homeStorage.saveHomeScheme
+    let finishSave!: () => void
+    const gate = new Promise<void>((resolve) => {
+      finishSave = resolve
+    })
+    vi.spyOn(homeStorage, 'saveHomeScheme').mockImplementationOnce(async (input) => {
+      await gate
+      return originalSave(input)
+    })
     save.click()
+    await flushPromises()
+    expect(coordinator.hasPending.value).toBe(true)
+    const cancel = document.querySelector<HTMLButtonElement>(
+      '.home-scheme-editor .confirm-dialog-button.ghost'
+    )!
+    expect(cancel.disabled).toBe(true)
+    cancel.click()
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    expect(document.querySelector('.home-scheme-editor')).not.toBeNull()
+    finishSave()
     await vi.waitFor(() => expect(document.querySelector('.home-scheme-editor')).toBeNull())
     expect((await readHomeSchemeSnapshot()).records[0]).toMatchObject({
       code: 'CODE1',
       name: '新方案'
     })
-    expect(wrapper.emitted('countChange')?.at(-1)).toEqual([1])
+    expect(wrapper.findComponent(HomeSchemeWorkspace).emitted('countChange')?.at(-1)).toEqual([1])
     expect(
       (wrapper.findAll('.home-scheme-header-actions button')[1].element as HTMLButtonElement)
         .disabled

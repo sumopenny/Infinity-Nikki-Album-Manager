@@ -50,7 +50,7 @@ import {
 } from '../utils/homeBuild/homeSchemeTypes'
 import Lightbox from './Lightbox.vue'
 import SelectionBar from './SelectionBar.vue'
-import type { ThumbnailMode } from '../types/thumbnail'
+import type { ThumbnailMode, ThumbnailSize } from '../types/thumbnail'
 
 const props = defineProps<{
   language?: 'zh' | 'en'
@@ -64,6 +64,7 @@ const props = defineProps<{
   lightboxMessages: LocaleMessages['lightbox']
   dateMessages: LocaleMessages['date']
   thumbnailMode: ThumbnailMode
+  thumbnailSize?: ThumbnailSize
   filtersOpen?: boolean
 }>()
 const emit = defineEmits<{
@@ -334,9 +335,13 @@ function resetEditor(item: HomeSchemeItem | null) {
   if (!item) queueParse('')
 }
 
-/** 关闭时使未完成的封面读取失效，并释放编辑器临时地址。 */
 function closeEditor() {
   if (isBusy.value) return
+  finishEditorClose()
+}
+
+/** 用户关闭通过忙碌检查后或保存成功后执行，避免保存任务自身阻止关闭。 */
+function finishEditorClose() {
   editorImageGeneration++
   cancelParse()
   closeTagInput()
@@ -529,8 +534,7 @@ async function save() {
         right.createdAt.localeCompare(left.createdAt)
       )
       emit('countChange', schemes.value.length)
-      busy.value = false
-      closeEditor()
+      finishEditorClose()
       emit('status', props.messages.saveSucceeded, 'success')
     } catch (error) {
       const duplicate = error instanceof Error && error.message === 'home_scheme_code_duplicate'
@@ -999,7 +1003,7 @@ function handleAddTag(value: string) {
       <div
         v-else
         class="photo-grid-wrap outfit-grid-wrap home-scheme-grid-wrap"
-        :class="`mode-${thumbnailMode}`"
+        :class="[`mode-${thumbnailMode}`, `thumbnail-size-${thumbnailSize ?? 'medium'}`]"
       >
         <div class="photo-grid outfit-grid">
           <article
@@ -1414,13 +1418,22 @@ function handleAddTag(value: string) {
 }
 .home-scheme-card-tag {
   flex-shrink: 0;
+  min-width: 0;
+  box-sizing: border-box;
   max-width: 50%;
   padding: 3px 7px;
   border-radius: 7px;
   background: color-mix(in srgb, var(--pink-deep) 10%, var(--surface-strong));
   color: var(--pink-deep);
   font-size: 10px;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+}
+/* 标签在双端都限制一行，桌面也允许内部文本收缩并显示省略号。 */
+.home-scheme-card-tag > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .home-scheme-editor {
   width: min(820px, 100%);

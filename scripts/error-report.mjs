@@ -17,6 +17,8 @@ export function mapErrorStack(payload, artifactRoot = join(root, '.error-artifac
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
   if (manifest.build?.buildId !== buildId) return { status: 'build-mismatch', frames: [] }
   const frames = []
+  // 同一事件的主堆栈和 cause 共用解析结果；每次调用结束即释放。
+  const sourceMaps = new Map()
   const stacks = [
     payload.error?.stack,
     ...(payload.error?.causes ?? []).map((cause) => cause.stack)
@@ -33,7 +35,11 @@ export function mapErrorStack(payload, artifactRoot = join(root, '.error-artifac
         !existsSync(mapPath)
       )
         continue
-      const sourceMap = new SourceMap(JSON.parse(readFileSync(mapPath, 'utf8')))
+      let sourceMap = sourceMaps.get(mapPath)
+      if (!sourceMap) {
+        sourceMap = new SourceMap(JSON.parse(readFileSync(mapPath, 'utf8')))
+        sourceMaps.set(mapPath, sourceMap)
+      }
       const found = sourceMap.findEntry(Number(match[2]) - 1, Number(match[3]) - 1)
       if (found?.originalSource)
         frames.push({

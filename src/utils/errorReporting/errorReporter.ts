@@ -1,4 +1,5 @@
 import { collectDiagnosticEnvironment, prepareDiagnosticEnvironment } from './environment'
+import { isExpectedPhotoInputError } from '../photo-params/parseError'
 import {
   MAX_ERROR_BYTES,
   MAX_BREADCRUMBS,
@@ -232,10 +233,7 @@ export function createErrorReporter(options: ReporterOptions) {
   /** 仅照片参数解析的预期格式/UID 错误不上报；WASM 和其他运行异常继续采集。 */
   function isExpectedPhotoParseError(error: unknown, metadata: Partial<ErrorMetadata>): boolean {
     if (metadata.module !== 'photo-params' || metadata.action !== 'parse') return false
-    const message = error instanceof Error ? error.message : typeof error === 'string' ? error : ''
-    return /(?:^|[；;\\s])(?:错误码：)?(?:jpeg_second_end_marker_missing|photo_structure_invalid|base64_invalid)(?=；|;|$)/.test(
-      message
-    )
+    return isExpectedPhotoInputError(error)
   }
   function report(error: unknown, metadata: Partial<ErrorMetadata> = {}): string | null {
     if (!enabled) return skip('disabled')

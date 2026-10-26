@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
+import DesktopMenuTransition from './DesktopMenuTransition.vue'
 import CatalogImage from './CatalogImage.vue'
 import { wardrobeCatalogForRegion, wardrobeRegionScope } from '../utils/wardrobe/wardrobeRegion'
 import { useWardrobeFilters, type FilterKey } from '../composables/useWardrobeFilters'
@@ -12,6 +13,7 @@ import { backupBaseName } from '../utils/backup/backupName'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRef, watch } from 'vue'
 import { ArrowLeftRight, ChevronDown, RotateCcw, Shirt, Info, X } from 'lucide-vue-next'
 import ResonanceDataActions from './ResonanceDataActions.vue'
+import WardrobeCloudActions from './WardrobeCloudActions.vue'
 import CollectionFilterBar from './CollectionFilterBar.vue'
 import AdaptiveFilterPanel from './AdaptiveFilterPanel.vue'
 import DataImportWindow from './DataImportWindow.vue'
@@ -346,9 +348,22 @@ onMounted(reload)
 defineExpose({ reload })
 
 const dialog = ref<'import' | 'detail' | null>(null)
+const cloudOpen = ref(false)
 const dialogOpen = computed(() => dialog.value === 'detail')
 const importOpen = computed(() => dialog.value === 'import')
-const anyDialogOpen = computed(() => dialog.value !== null)
+const anyDialogOpen = computed(() => dialog.value !== null || cloudOpen.value)
+async function applyCloudWardrobe(restored: WardrobeSnapshot) {
+  snapshot.value = restored
+  await reload()
+  if (loadFailed.value)
+    emit('notice', {
+      message: text(
+        '衣橱数据已保存，但页面加载失败，请重新加载。',
+        'Wardrobe saved, but the view failed to load. Please reload.'
+      ),
+      tone: 'warning'
+    })
+}
 const detail = shallowRef<WardrobeEntry | null>(null)
 function closeDialog() {
   if (!busy.value) {
@@ -473,13 +488,20 @@ async function clearRecords() {
         :t="importText"
         :label="text('衣橱操作', 'Wardrobe actions')"
         :mobile-target="compact && loaded ? '#wardrobe-filter-actions' : undefined"
-        :add-disabled="blocked || showClearConfirm"
+        :add-disabled="blocked || showClearConfirm || cloudOpen"
         :clear-disabled="blocked || !hasRecords || anyDialogOpen"
-        :export-disabled="blocked || !hasRecords"
+        :export-disabled="blocked || !hasRecords || cloudOpen"
         @add="openImport"
         @clear="requestClear"
         @export="exportBackup"
       >
+        <WardrobeCloudActions
+          :language="language"
+          :disabled="blocked || showClearConfirm || dialog !== null"
+          @lock="cloudOpen = $event"
+          @restored="applyCloudWardrobe"
+          @notice="(message, tone) => emit('notice', { message, tone })"
+        />
         <button v-if="loaded && hasRecords" type="button" @click="showOwnershipNotice"
           ><Info :size="16" aria-hidden="true" />{{ ownershipNoticeText.title }}</button
         >
@@ -627,32 +649,34 @@ async function clearRecords() {
                   ><ChevronDown :size="14" aria-hidden="true" />
                 </button>
                 <Teleport to="body">
-                  <div
-                    v-if="openFilter === filter.key"
-                    class="cleanup-account-menu wardrobe-filter-menu"
-                    :id="'wardrobe-menu-' + filter.key"
-                    :style="filterMenuStyle"
-                    @focusout="leaveFilter"
-                    @keydown.esc.stop.prevent="dismissFilter(filter.key)"
-                    role="menu"
-                    :aria-label="filter.label"
-                  >
-                    <div class="wardrobe-filter-menu-scroll">
-                      <button
-                        v-for="option in filter.options"
-                        :key="option.value"
-                        type="button"
-                        role="menuitemradio"
-                        :aria-checked="filterValues[filter.key].value === option.value"
-                        :class="{
-                          active: filterValues[filter.key].value === option.value,
-                          'has-group-separator': option.separatorBefore
-                        }"
-                        @click="selectFilter(filter.key, option.value)"
-                        >{{ option.label }}</button
-                      >
+                  <DesktopMenuTransition>
+                    <div
+                      v-if="openFilter === filter.key"
+                      class="cleanup-account-menu wardrobe-filter-menu"
+                      :id="'wardrobe-menu-' + filter.key"
+                      :style="filterMenuStyle"
+                      @focusout="leaveFilter"
+                      @keydown.esc.stop.prevent="dismissFilter(filter.key)"
+                      role="menu"
+                      :aria-label="filter.label"
+                    >
+                      <div class="wardrobe-filter-menu-scroll">
+                        <button
+                          v-for="option in filter.options"
+                          :key="option.value"
+                          type="button"
+                          role="menuitemradio"
+                          :aria-checked="filterValues[filter.key].value === option.value"
+                          :class="{
+                            active: filterValues[filter.key].value === option.value,
+                            'has-group-separator': option.separatorBefore
+                          }"
+                          @click="selectFilter(filter.key, option.value)"
+                          >{{ option.label }}</button
+                        >
+                      </div>
                     </div>
-                  </div>
+                  </DesktopMenuTransition>
                 </Teleport>
               </div>
             </div>

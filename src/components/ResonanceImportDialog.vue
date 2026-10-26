@@ -222,10 +222,10 @@ const VIDEO_TUTORIALS = [
                   </li>
                   <li>{{ t.bookmarkStep2 }}</li>
                   <li>
-                    <template v-if="t.bookmarkStep3.includes('书签务必选择')">
-                      {{ t.bookmarkStep3.split('书签务必选择')[0] }}<strong class="resonance-bookmark-emphasis">{{ '书签务必选择' + t.bookmarkStep3.split('书签务必选择')[1] }}</strong>
-                    </template>
-                    <template v-else>{{ t.bookmarkStep3 }}</template>
+                    {{ t.bookmarkStep3.text
+                    }}<strong class="resonance-bookmark-emphasis">{{
+                      t.bookmarkStep3.emphasis
+                    }}</strong>
                   </li>
                   <li>{{ t.bookmarkStep4 }}</li>
                   <li>{{ t.bookmarkStep5 }}</li>
@@ -251,10 +251,10 @@ const VIDEO_TUTORIALS = [
                   </ol>
                 </template>
                 <p v-if="cookieMethod === 'bookmark'" class="resonance-hint resonance-bookmark-tip">
-                  <template v-if="t.bookmarkTip.includes('电脑版 QQ 浏览器')">
-                    {{ t.bookmarkTip.split('电脑版 QQ 浏览器')[0] }}<strong class="resonance-bookmark-emphasis">{{ '电脑版 QQ 浏览器' + t.bookmarkTip.split('电脑版 QQ 浏览器')[1] }}</strong>
-                  </template>
-                  <template v-else>{{ t.bookmarkTip }}</template>
+                  {{ t.bookmarkTip.text
+                  }}<strong class="resonance-bookmark-emphasis">{{
+                    t.bookmarkTip.emphasis
+                  }}</strong>
                 </p>
                 <p class="resonance-security-note">{{ t.securityNote }}</p>
 

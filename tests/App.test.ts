@@ -128,7 +128,7 @@ describe('App lifecycle coordination', () => {
     document.body.innerHTML = ''
   })
 
-  it('falls back from half thumbnails on mobile without changing desktop preferences', async () => {
+  it('migrates half thumbnails and connects independent sizes across mobile and desktop', async () => {
     const listeners = new Set<() => void>()
     const query = {
       matches: true,
@@ -155,9 +155,11 @@ describe('App lifecycle coordination', () => {
       const topBar = wrapper.getComponent({ name: 'TopBar' })
       const navigation = wrapper.getComponent({ name: 'AlbumViewSwitcher' })
       for (const view of ['all', 'outfits', 'home']) {
+        await vi.waitFor(() => expect(navigation.props('disabled')).toBe(false))
         navigation.vm.$emit('changeView', view)
         await flushPromises()
         expect(topBar.props('thumbnailMode')).toBe('default')
+        expect(topBar.props('thumbnailSize')).toBe('medium')
         if (view === 'outfits')
           expect(wrapper.getComponent({ name: 'OutfitGrid' }).props('thumbnailMode')).toBe(
             'default'
@@ -166,14 +168,25 @@ describe('App lifecycle coordination', () => {
         await flushPromises()
         expect(topBar.props('thumbnailMode')).toBe('default')
       }
-      keys.forEach((key) => expect(localStorage.getItem(key)).toBe('half'))
+      keys.forEach((key) => expect(localStorage.getItem(key)).toBe('default'))
       query.matches = false
       listeners.forEach((fn) => fn())
       await flushPromises()
       for (const view of ['all', 'outfits', 'home']) {
+        await vi.waitFor(() => expect(navigation.props('disabled')).toBe(false))
         navigation.vm.$emit('changeView', view)
         await flushPromises()
-        expect(topBar.props('thumbnailMode')).toBe('half')
+        expect(topBar.props('thumbnailMode')).toBe('default')
+        expect(topBar.props('activeView')).toBe(view)
+        expect(topBar.props('thumbnailSize')).toBe('small')
+        topBar.vm.$emit('changeThumbnailSize', 'large')
+        await flushPromises()
+        expect(topBar.props('thumbnailSize')).toBe('large')
+        expect(
+          localStorage.getItem(
+            `infinity-nikki-${view === 'all' ? 'photo' : view === 'outfits' ? 'outfit' : 'home'}-thumbnail-size-desktop`
+          )
+        ).toBe('large')
       }
     } finally {
       wrapper.unmount()
@@ -212,9 +225,16 @@ describe('App lifecycle coordination', () => {
         ]
         expect(options.length).toBeGreaterThan(0)
         expect(options.every((button) => button.disabled)).toBe(true)
+        expect(topBar.props('thumbnailSizeDisabled')).toBe(true)
+        topBar.vm.$emit('changeThumbnailSize', 'large')
         topBar.vm.$emit('changeThumbnailMode', 'portrait-standard')
         await flushPromises()
         expect(localStorage.getItem('infinity-nikki-thumbnail-mode')).toBe('wide')
+        expect(
+          localStorage.getItem(
+            `infinity-nikki-photo-thumbnail-size-${compact ? 'mobile' : 'desktop'}`
+          )
+        ).toBeNull()
         navigation.vm.$emit('changeView', 'all')
         await flushPromises()
         expect(topBar.props('thumbnailModeDisabled')).toBe(false)
@@ -242,8 +262,19 @@ describe('App lifecycle coordination', () => {
     try {
       await flushPromises()
       await wrapper.findAll('.mobile-navigation button')[2]!.trigger('click')
-      expect(wrapper.getComponent({ name: 'TopBar' }).props('thumbnailModeDisabled')).toBe(true)
+      const topBar = wrapper.getComponent({ name: 'TopBar' })
+      expect(topBar.props('thumbnailModeDisabled')).toBe(true)
+      expect(topBar.props('thumbnailSizeDisabled')).toBe(false)
+      topBar.vm.$emit('changeThumbnailSize', 'large')
+      await flushPromises()
+      expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('thumbnailSize')).toBe(
+        'large'
+      )
+      expect(localStorage.getItem('infinity-nikki-camera-thumbnail-size-desktop')).toBe('large')
+      topBar.vm.$emit('changeThumbnailMode', 'portrait-standard')
+      expect(localStorage.getItem('infinity-nikki-thumbnail-mode')).toBeNull()
       await wrapper.findAll('.favorites-tabs button')[1]!.trigger('click')
+      expect(topBar.props('thumbnailSize')).toBe('medium')
       expect(wrapper.getComponent({ name: 'TopBar' }).props('thumbnailModeDisabled')).toBe(false)
       expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('active')).toBe(false)
       query.matches = true
@@ -252,11 +283,21 @@ describe('App lifecycle coordination', () => {
       expect(wrapper.findAll('.mobile-navigation button')[2]!.text()).toBe('相机参数')
       expect(wrapper.find('.favorites-tabs').exists()).toBe(false)
       expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('active')).toBe(true)
+      expect(topBar.props('thumbnailSize')).toBe('medium')
+      topBar.vm.$emit('changeThumbnailSize', 'small')
+      await flushPromises()
+      expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('thumbnailSize')).toBe(
+        'small'
+      )
+      expect(localStorage.getItem('infinity-nikki-camera-thumbnail-size-mobile')).toBe('small')
       expect(wrapper.find('.empty-album-start').exists()).toBe(false)
       expect(wrapper.get('.favorites-toolbar').isVisible()).toBe(false)
       query.matches = false
       listeners.forEach((fn) => fn())
       await flushPromises()
+      expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('thumbnailSize')).toBe(
+        'large'
+      )
       expect(wrapper.findAll('.favorites-tabs button')).toHaveLength(2)
       expect(wrapper.findAll('.favorites-tabs button')[1]!.attributes('aria-pressed')).toBe('true')
       expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('active')).toBe(false)

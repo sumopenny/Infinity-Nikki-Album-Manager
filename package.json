@@ -30,7 +30,7 @@
     "errors:prune": "node scripts/error-report.mjs prune",
     "errors:archive": "node scripts/archive-error-artifacts.mjs",
     "test:errors": "vitest run tests/utils/errorReporting tests/functions/errors.test.ts && node --test tests/errorSourceMaps.test.mjs tests/errorBuildPolicy.test.mjs",
-    "test:without-d1": "vitest run --exclude tests/resonanceCloud.test.ts --exclude tests/functions/gongeoRuntime.test.ts --exclude tests/functions/outfitCodeRuntime.test.ts && node --test tests/startupDependencies.test.mjs tests/resourceNetwork.test.cjs tests/errorSourceMaps.test.mjs tests/errorBuildPolicy.test.mjs"
+    "test:without-d1": "vitest run --exclude tests/resonanceCloud.test.ts --exclude tests/wardrobeCloud.test.ts --exclude tests/functions/gongeoRuntime.test.ts --exclude tests/functions/outfitCodeRuntime.test.ts && node --test tests/startupDependencies.test.mjs tests/resourceNetwork.test.cjs tests/errorSourceMaps.test.mjs tests/errorBuildPolicy.test.mjs"
   },
   "dependencies": {
     "@assemblyscript/loader": "0.28.20",

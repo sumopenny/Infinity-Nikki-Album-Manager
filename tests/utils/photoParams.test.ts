@@ -2,13 +2,16 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { computed, effectScope, ref } from 'vue'
 import { flushPromises } from '@vue/test-utils'
 import { usePhotoParams } from '../../src/composables/usePhotoParams'
-import { photoParamsZh } from '../../src/i18n/messages/photoParams'
+import { photoParamsZh, photoParamsEn } from '../../src/i18n/messages/photoParams'
 import {
   getSavedX6GameDirectoryHandle,
   getSavedCameraParamUids,
   addSavedCameraParamUid
 } from '../../src/utils/file-system/directoryStorage'
-import { decodePhoto } from '../../src/utils/photo-params/wasmClient'
+import { decodePhoto, decodeCameraParams } from '../../src/utils/photo-params/wasmClient'
+import { PhotoParseError } from '../../src/utils/photo-params/parseError'
+import { reportError } from '../../src/utils/errorReporting/errorReporter'
+vi.mock('../../src/utils/errorReporting/errorReporter', () => ({ reportError: vi.fn() }))
 vi.mock('../../src/utils/file-system/directoryStorage', () => ({
   getSavedX6GameDirectoryHandle: vi.fn(),
   getSavedCameraParamUids: vi.fn(),
@@ -35,6 +38,46 @@ beforeEach(() => {
   vi.mocked(getSavedCameraParamUids).mockResolvedValue([])
 })
 afterEach(() => scope.stop())
+it('retains structured codes while translating the same failure after a language switch', async () => {
+  const language = ref<'zh' | 'en'>('zh')
+  scope = effectScope()
+  const state = scope.run(() =>
+    usePhotoParams({
+      language,
+      messages: computed(() => (language.value === 'zh' ? photoParamsZh : photoParamsEn))
+    })
+  )!
+  vi.mocked(getSavedCameraParamUids).mockResolvedValue(['123456'])
+  vi.mocked(decodePhoto).mockResolvedValue({ ok: false, errorCode: 'base64_invalid' })
+  await state.openForFile(file())
+  expect(state.errorCodes.value).toEqual(['base64_invalid'])
+  expect(state.error.value).toContain('错误码：base64_invalid')
+  expect(reportError).toHaveBeenCalledWith(expect.any(PhotoParseError), {
+    module: 'photo-params',
+    action: 'parse'
+  })
+  language.value = 'en'
+  expect(state.error.value).toContain('Error code: base64_invalid')
+  expect(state.errorCodes.value).toEqual(['base64_invalid'])
+  state.close()
+  expect(state.errorCodes.value).toEqual([])
+  expect(state.error.value).toBeNull()
+})
+it('uses structured errors for manual UID retry and raw camera parsing', async () => {
+  const state = setup()
+  await state.openForFile(file())
+  expect(state.errorCodes.value).toEqual(['photo_structure_invalid'])
+  vi.mocked(decodePhoto).mockResolvedValue({
+    ok: false,
+    errorCode: 'jpeg_second_end_marker_missing'
+  })
+  await state.submitUid('123456')
+  expect(state.errorCodes.value).toEqual(['jpeg_second_end_marker_missing'])
+  state.openCameraParamsTool()
+  vi.mocked(decodeCameraParams).mockResolvedValue({ ok: false, errorCode: 'camera_base64_invalid' })
+  await state.parseRawCameraParams('invalid')
+  expect(state.errorCodes.value).toEqual(['camera_base64_invalid'])
+})
 it('does not request UID or change progress after an old directory lookup completes', async () => {
   let finish!: (value: null) => void
   vi.mocked(getSavedX6GameDirectoryHandle).mockReturnValueOnce(

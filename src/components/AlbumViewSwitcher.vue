@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DesktopMenuTransition from './DesktopMenuTransition.vue'
 import { ChevronLeft } from 'lucide-vue-next'
 import { onBeforeUnmount, ref } from 'vue'
 import { useCompactLayout } from '../composables/useCompactLayout'
@@ -117,29 +118,31 @@ function selectView(view: AlbumView) {
           aria-hidden="true"
         />
       </button>
-      <div
-        v-if="item.view === 'resonance' && resonanceMenuOpen && !disabled"
-        class="resonance-nav-menu"
-        role="menu"
-        @keydown.esc.stop="resonanceMenuOpen = false"
-        @pointerenter="handlePointerEnter"
-        @pointerleave="$event.pointerType === 'mouse' && closeResonanceMenu()"
-      >
-        <button
-          type="button"
-          role="menuitem"
-          :class="{ active: activeView === 'resonance' }"
-          @click.stop="selectView('resonance')"
-          >{{ messages.resonanceRecords }}</button
+      <DesktopMenuTransition>
+        <div
+          v-if="item.view === 'resonance' && resonanceMenuOpen && !disabled"
+          class="resonance-nav-menu"
+          role="menu"
+          @keydown.esc.stop="resonanceMenuOpen = false"
+          @pointerenter="handlePointerEnter"
+          @pointerleave="$event.pointerType === 'mouse' && closeResonanceMenu()"
         >
-        <button
-          type="button"
-          role="menuitem"
-          :class="{ active: activeView === 'wardrobe' }"
-          @click.stop="selectView('wardrobe')"
-          >{{ messages.wardrobe }}</button
-        >
-      </div>
+          <button
+            type="button"
+            role="menuitem"
+            :class="{ active: activeView === 'resonance' }"
+            @click.stop="selectView('resonance')"
+            >{{ messages.resonanceRecords }}</button
+          >
+          <button
+            type="button"
+            role="menuitem"
+            :class="{ active: activeView === 'wardrobe' }"
+            @click.stop="selectView('wardrobe')"
+            >{{ messages.wardrobe }}</button
+          >
+        </div>
+      </DesktopMenuTransition>
     </div>
   </nav>
 </template>

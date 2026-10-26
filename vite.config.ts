@@ -103,8 +103,9 @@ export default defineConfig(({ mode, command }) => {
           secure: true,
           rewrite: (path: string) => path.replace(/^\/api\/gongeo/, '/v1')
         },
-        // 共鸣与点赞都访问线上 Pages/D1；共鸣额外适配本地同源认证和 Cookie。
+        // 共鸣、衣橱与点赞都访问线上 Pages/D1；云同步额外适配本地同源认证和 Cookie。
         '^/api/resonance/cloud(?:\\?|$)': resonanceCloudProxy(remoteApiOrigin),
+        '^/api/wardrobe/cloud(?:\\?|$)': resonanceCloudProxy(remoteApiOrigin),
         // 远程 D1 点赞接口仍转发到 Pages 服务。
         '/api': {
           target: remoteApiOrigin,

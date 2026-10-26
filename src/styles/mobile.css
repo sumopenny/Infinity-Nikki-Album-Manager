@@ -1254,6 +1254,38 @@
   .photo-grid {
     grid-template-columns: var(--mobile-collection-columns);
   }
+  /* 小图以最小列宽保护超窄屏；中图沿用手机两列、平板三列。 */
+  .thumbnail-size-small .photo-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(110px, 100%), 1fr));
+  }
+  .thumbnail-size-large .photo-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  }
+  /* 小图沿用公共单行操作区：搭配与相机四列，家园三列。 */
+  /* 照片横图高度较小，常显按钮移至图片下方，避免遮挡和重叠。 */
+  .thumbnail-size-small .photo-frame:has(.favorite-heart) {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    aspect-ratio: auto;
+    gap: 0;
+  }
+  .thumbnail-size-small .photo-frame:has(.favorite-heart) .lazy-photo-image {
+    grid-column: 1 / -1;
+    height: auto;
+    aspect-ratio: var(--thumbnail-ratio, 1 / 1);
+    overflow: hidden;
+  }
+  .thumbnail-size-small :is(.photo-note-edit, .photo-params-parse, .favorite-heart) {
+    position: static;
+    width: 100%;
+    min-width: 0;
+    height: var(--mobile-card-action-size);
+    transform: none;
+  }
+  .thumbnail-size-small .photo-frame:has(.favorite-heart) .photo-overlay {
+    display: none;
+  }
+
   .lightbox {
     padding: max(8px, env(safe-area-inset-top, 0px)) 8px max(8px, env(safe-area-inset-bottom, 0px));
   }

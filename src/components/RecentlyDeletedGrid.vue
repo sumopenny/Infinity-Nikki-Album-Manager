@@ -2,7 +2,7 @@
 import { onBeforeUnmount } from 'vue'
 import { Check, Trash2 } from 'lucide-vue-next'
 import type { Language, LocaleMessages } from '../i18n'
-import type { ThumbnailMode } from '../types/thumbnail'
+import type { ThumbnailMode, ThumbnailSize } from '../types/thumbnail'
 import type { RecentlyDeletedPhoto } from '../utils/photoGrouping'
 import { createPhotoLoadQueue } from '../utils/photoLoader'
 import LazyPhotoImage from './LazyPhotoImage.vue'
@@ -11,6 +11,7 @@ const props = defineProps<{
   photos: RecentlyDeletedPhoto[]
   selectedIds: Set<string>
   thumbnailMode: ThumbnailMode
+  thumbnailSize?: ThumbnailSize
   language: Language
   messages: LocaleMessages['trash']
 }>()
@@ -37,7 +38,10 @@ onBeforeUnmount(() => photoLoadQueue.cancel())
 </script>
 
 <template>
-  <div class="trash-grid-wrap" :class="`mode-${thumbnailMode}`">
+  <div
+    class="trash-grid-wrap"
+    :class="[`mode-${thumbnailMode}`, `thumbnail-size-${thumbnailSize ?? 'medium'}`]"
+  >
     <div v-if="!photos.length" class="empty-album inline-empty">
       <Trash2 :size="30" aria-hidden="true" />
       <h2>{{ messages.emptyTitle }}</h2>

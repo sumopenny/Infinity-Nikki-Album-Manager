@@ -271,6 +271,52 @@ describe('camera favorite UI', () => {
 })
 
 describe('camera favorite selection and resources', () => {
+  it('uses only light and filter images for mobile small covers and restores full resources elsewhere', async () => {
+    const listeners = new Set<() => void>()
+    const query = {
+      matches: false,
+      addEventListener: (_: string, fn: () => void) => listeners.add(fn),
+      removeEventListener: (_: string, fn: () => void) => listeners.delete(fn)
+    }
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => query)
+    )
+    const withImages = {
+      ...item,
+      result: {
+        ...result,
+        resourceGroups: [
+          { kind: 'pose', title: '动作', name: '回眸', imageUrl: '/pose.webp' },
+          { kind: 'light', title: '灯光', name: '柔光', imageUrl: '/light.webp' },
+          { kind: 'filter', title: '滤镜', name: '暖光', imageUrl: '/filter.webp' }
+        ]
+      }
+    }
+    mocks.read.mockResolvedValue({ records: [withImages], covers: new Map() })
+    const view = create()
+    await view.setProps({ thumbnailSize: 'small' })
+    await flushPromises()
+    expect(view.findAll('.camera-resources img')).toHaveLength(3)
+    expect(view.findAll('.camera-resources strong')).toHaveLength(3)
+    query.matches = true
+    listeners.forEach((fn) => fn())
+    await flushPromises()
+    expect(view.findAll('.camera-resources img').map((image) => image.attributes('src'))).toEqual([
+      '/light.webp',
+      '/filter.webp'
+    ])
+    expect(view.get('.camera-resources').text()).toBe('')
+    expect(view.get('.camera-name-tags h3').text()).toBe(item.name)
+    await view.setProps({ thumbnailSize: 'medium' })
+    expect(view.findAll('.camera-resources strong')).toHaveLength(3)
+    await view.setProps({ thumbnailSize: 'small' })
+    mocks.read.mockResolvedValue({ records: [item], covers: new Map() })
+    await (view.vm as unknown as { reload: () => Promise<void> }).reload()
+    expect(view.find('.camera-resources').exists()).toBe(false)
+    expect(view.find('.camera-placeholder').exists()).toBe(true)
+  })
+
   it('displays typed action resources in cards and details and filters empty resources', async () => {
     const typed = {
       ...item,

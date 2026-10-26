@@ -3,7 +3,7 @@ import { Plus, Trash2, Upload } from 'lucide-vue-next'
 import CollectionActions from './CollectionActions.vue'
 import type { ResonanceMessages } from '../i18n/messages/resonance'
 
-// 共鸣和衣橱使用相同按钮顺序、图标、移动端菜单；云账户由共鸣通过插槽提供。
+// 共鸣和衣橱使用相同按钮顺序、图标、移动端菜单；各自通过插槽提供云端操作。
 defineProps<{
   t: Pick<ResonanceMessages, 'addData' | 'clearRecords' | 'exportData'>
   label: string

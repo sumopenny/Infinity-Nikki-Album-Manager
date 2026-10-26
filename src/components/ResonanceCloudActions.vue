@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
+import CloudDialog from './CloudDialog.vue'
+import CloudAuthFields from './CloudAuthFields.vue'
+import { useCloudSession } from '../composables/useCloudSession'
 import { createUuid } from '../utils/uuid'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { CloudUpload, CloudDownload, LogIn, LogOut, UserPlus, Trash2, X } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+import { CloudUpload, CloudDownload, LogIn, LogOut, UserPlus, Trash2 } from 'lucide-vue-next'
 import { useModuleOperation } from '../composables/useOperationCoordinator'
-import { useBodyScrollLock } from '../utils/bodyScrollLock'
-import { useModalPresence } from '../composables/useModalPresence'
 import { resonanceCloudMessages } from '../i18n/messages/resonanceCloud'
 import { cloudRequest, type CloudUser, type CloudSnapshot } from '../utils/resonance/cloudClient'
 import { validateCloudRecords } from '../utils/resonance/cloudSchema'
@@ -22,7 +23,9 @@ const emit = defineEmits<{
   notice: [message: string, tone: 'success' | 'error']
 }>()
 type Action = 'login' | 'register' | 'upload' | 'download' | 'delete'
-const user = ref<CloudUser | null>(null)
+const session = useCloudSession()
+const user = session.user
+const operationUser = ref<CloudUser | null>(null)
 const action = ref<Action>('login')
 const visible = ref(false)
 const busy = ref(false)
@@ -34,8 +37,6 @@ const error = ref('')
 const snapshot = ref<CloudSnapshot | null>(null)
 const local = ref<ResonanceRecord[]>([])
 const localJSON = ref('')
-const dialog = ref<HTMLDialogElement | null>(null)
-let opener: HTMLElement | null = null
 let pending: { requestId: string; revision: number; records?: ResonanceRecord[] } | null = null
 const t = computed(() => resonanceCloudMessages[props.language])
 const auth = computed(() => action.value === 'login' || action.value === 'register')
@@ -51,27 +52,9 @@ const canSubmit = computed(
       (!!snapshot.value &&
         !['EMPTY_LOCAL', 'EMPTY_CLOUD', 'ACCOUNT_CHANGED', 'LOGIN_REQUIRED'].includes(error.value)))
 )
-// 原生 dialog 保留焦点约束；共用过渡在退场结束后才释放滚动锁和模态层。
-const modal = useModalPresence(visible, ref(true))
-useBodyScrollLock(modal.present)
-watch(visible, async (value) => {
-  if (value) {
-    await nextTick()
-    dialog.value?.showModal()
-  }
-})
-watch(modal.present, (value) => {
-  emit('lock', value)
-  if (!value) {
-    dialog.value?.close()
-    opener?.focus()
-  }
-})
-
 /** 菜单恢复登录只读取同源 HttpOnly 会话，不触碰本地记录。 */
 async function refreshSession() {
-  const result = await cloudRequest<{ user: CloudUser | null }>('session')
-  user.value = result.user
+  await session.refresh()
 }
 onMounted(async () => {
   try {
@@ -95,7 +78,7 @@ async function run(task: () => Promise<void>) {
     error.value = cause instanceof Error ? cause.message : 'SERVER_ERROR'
     // 登录注册失败保留表单，通过统一顶部提示报告，不在弹窗内重复显示。
     if (auth.value) emit('notice', message.value, 'error')
-    if (['LOGIN_REQUIRED', 'ACCOUNT_CHANGED'].includes(error.value)) user.value = null
+    if (['LOGIN_REQUIRED', 'ACCOUNT_CHANGED'].includes(error.value)) session.invalidate()
   } finally {
     busy.value = false
   }
@@ -104,7 +87,7 @@ async function run(task: () => Promise<void>) {
 /** 每次打开固定预览；注册与登录不自动上传或下载。 */
 async function open(next: Action) {
   if (props.disabled || checking.value || busy.value) return
-  opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  operationUser.value = user.value ? { ...user.value } : null
   action.value = next
   password.value = ''
   confirmation.value = ''
@@ -126,7 +109,7 @@ async function prepare() {
       throw new Error('LOCAL_READ_FAILED', { cause })
     }
     localJSON.value = JSON.stringify(local.value)
-    const remote = await cloudRequest<CloudSnapshot>('snapshot', user.value)
+    const remote = await cloudRequest<CloudSnapshot>('snapshot', operationUser.value)
     if (remote.active_snapshot) validateCloudRecords(remote.records)
     snapshot.value = remote
     if (action.value === 'upload') {
@@ -154,22 +137,15 @@ async function submit() {
   }
   await run(async () => {
     if (auth.value) {
-      if (
-        !/^[a-zA-Z0-9_]{4,32}$/.test(username.value.trim()) ||
-        [...password.value].length < 6 ||
-        [...password.value].length > 128
+      await session.authenticate(
+        action.value as 'login' | 'register',
+        username.value,
+        password.value,
+        confirmation.value
       )
-        throw new Error('CREDENTIAL_FORMAT')
-      if (action.value === 'register' && password.value !== confirmation.value)
-        throw new Error('PASSWORD_MISMATCH')
-      const result = await cloudRequest<{ user: CloudUser }>(action.value, null, {
-        username: username.value,
-        password: password.value
-      })
-      user.value = result.user
     } else if (action.value === 'download') {
       // 确认后复查云端；本地比较与写入在同一个 IndexedDB 事务内完成。
-      const remote = await cloudRequest<CloudSnapshot>('snapshot', user.value)
+      const remote = await cloudRequest<CloudSnapshot>('snapshot', operationUser.value)
       if (remote.revision !== snapshot.value?.revision) throw new Error('CONFLICT')
       if (!remote.active_snapshot) throw new Error('EMPTY_CLOUD')
       validateCloudRecords(remote.records)
@@ -195,7 +171,7 @@ async function submit() {
         }
       }
       // 超时重试使用同一请求 ID 和数据，服务端先查询提交回执再决定是否写入。
-      await cloudRequest(action.value, user.value, pending)
+      await cloudRequest(action.value, operationUser.value, pending)
     }
     pending = null
     password.value = ''
@@ -217,13 +193,7 @@ async function submit() {
 async function logout() {
   if (props.disabled || busy.value) return
   await run(async () => {
-    try {
-      await cloudRequest('logout', user.value, {})
-      user.value = null
-    } catch (cause) {
-      await refreshSession()
-      if (user.value) throw cause
-    }
+    await session.logout()
     emit('notice', t.value.success, 'success')
   })
   if (error.value) {
@@ -259,122 +229,67 @@ async function logout() {
       ><LogOut :size="16" aria-hidden="true" />{{ t.logout }}</button
     >
   </template>
-  <Teleport to="body">
-    <dialog
-      ref="dialog"
-      class="resonance-cloud-dialog"
-      :aria-label="t[action]"
-      @cancel.prevent="close"
-    >
-      <Transition
-        name="confirm-dialog"
-        @before-enter="modal.beforeEnter"
-        @before-leave="modal.beforeLeave"
-        @after-leave="modal.afterLeave"
+  <CloudDialog
+    :visible="visible"
+    :busy="busy"
+    :title="t[action]"
+    :cancel-label="t.cancel"
+    @close="close"
+    @submit="submit"
+    @lock="emit('lock', $event)"
+  >
+    <CloudAuthFields
+      v-if="auth"
+      :language="language"
+      :registering="action === 'register'"
+      :busy="busy"
+      v-model:username="username"
+      v-model:password="password"
+      v-model:confirmation="confirmation"
+    />
+    <template v-else>
+      <p
+        ><strong>{{ t.account }}: {{ operationUser?.username }}</strong></p
       >
-        <div v-if="visible" class="dialog-overlay resonance-import-dialog" @click.self="close">
-          <form
-            class="dialog-panel resonance-import-panel resonance-cloud-panel"
-            :novalidate="auth"
-            @submit.prevent="submit"
-          >
-            <header
-              ><h2>{{ t[action] }}</h2
-              ><button type="button" :disabled="busy" :aria-label="t.cancel" @click="close"
-                ><X :size="20" /></button
-            ></header>
-            <div class="resonance-import-body resonance-cloud-body">
-              <template v-if="auth">
-                <p>{{ t.credentials }}</p>
-                <label
-                  >{{ t.username
-                  }}<input
-                    v-model="username"
-                    name="username"
-                    autocomplete="username"
-                    minlength="4"
-                    maxlength="32"
-                    pattern="[A-Za-z0-9_]{4,32}"
-                    required
-                    :disabled="busy"
-                /></label>
-                <label
-                  >{{ t.password
-                  }}<input
-                    v-model="password"
-                    name="password"
-                    type="password"
-                    :autocomplete="action === 'register' ? 'new-password' : 'current-password'"
-                    required
-                    :disabled="busy"
-                /></label>
-                <label v-if="action === 'register'"
-                  >{{ t.confirmPassword
-                  }}<input
-                    v-model="confirmation"
-                    name="confirmation"
-                    type="password"
-                    autocomplete="new-password"
-                    required
-                    :disabled="busy"
-                /></label>
-                <p>{{ t.persistent }}</p>
-              </template>
-              <template v-else>
-                <p
-                  ><strong>{{ t.account }}: {{ user?.username }}</strong></p
-                >
-                <p>{{
-                  action === 'upload'
-                    ? t.uploadWarning
-                    : action === 'download'
-                      ? t.downloadWarning
-                      : t.deleteWarning
-                }}</p>
-                <p v-if="snapshot"
-                  >{{ t.local }}: {{ local.length }} {{ t.count }} · {{ t.remote }}:
-                  {{ snapshot.records.length }} {{ t.count }}</p
-                >
-                <p v-if="snapshot">{{ t.ready }}</p>
-              </template>
-              <p v-if="error && !auth" class="resonance-cloud-error" role="alert">{{ message }}</p>
-            </div>
-            <footer class="resonance-import-footer">
-              <button
-                type="button"
-                class="confirm-dialog-button ghost"
-                :disabled="busy"
-                @click="close"
-                >{{ t.cancel }}</button
-              >
-              <button
-                v-if="!auth && !snapshot && !busy"
-                type="button"
-                class="confirm-dialog-button ghost"
-                @click="prepare"
-                >{{ t.refresh }}</button
-              >
-              <button
-                v-if="needsRefresh"
-                type="button"
-                class="confirm-dialog-button ghost"
-                :disabled="busy"
-                @click="prepare"
-                >{{ t.refresh }}</button
-              >
-              <button
-                v-else
-                type="submit"
-                class="confirm-dialog-button primary"
-                :disabled="!canSubmit"
-                >{{ busy ? t.working : pending ? t.retry : auth ? t[action] : t.confirm }}</button
-              >
-            </footer>
-          </form>
-        </div>
-      </Transition>
-    </dialog>
-  </Teleport>
+      <p>{{
+        action === 'upload'
+          ? t.uploadWarning
+          : action === 'download'
+            ? t.downloadWarning
+            : t.deleteWarning
+      }}</p>
+      <p v-if="snapshot"
+        >{{ t.local }}: {{ local.length }} {{ t.count }} · {{ t.remote }}:
+        {{ snapshot.records.length }} {{ t.count }}</p
+      >
+      <p v-if="snapshot">{{ t.ready }}</p>
+    </template>
+    <p v-if="error && !auth" class="resonance-cloud-error" role="alert">{{ message }}</p>
+
+    <template #footer>
+      <button type="button" class="confirm-dialog-button ghost" :disabled="busy" @click="close">{{
+        t.cancel
+      }}</button>
+      <button
+        v-if="!auth && !snapshot && !busy"
+        type="button"
+        class="confirm-dialog-button ghost"
+        @click="prepare"
+        >{{ t.refresh }}</button
+      >
+      <button
+        v-if="needsRefresh"
+        type="button"
+        class="confirm-dialog-button ghost"
+        :disabled="busy"
+        @click="prepare"
+        >{{ t.refresh }}</button
+      >
+      <button v-else type="submit" class="confirm-dialog-button primary" :disabled="!canSubmit">{{
+        busy ? t.working : pending ? t.retry : auth ? t[action] : t.confirm
+      }}</button>
+    </template>
+  </CloudDialog>
 </template>
 
 <style scoped>
@@ -386,51 +301,5 @@ async function logout() {
   font-size: 12px;
   color: var(--muted);
   padding: 8px;
-}
-/* 原生模态层只负责焦点和 Escape，外观复用共鸣导入窗口及手机可视区域规则。 */
-.resonance-cloud-dialog {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  max-height: none;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  overflow: hidden;
-}
-.resonance-cloud-dialog::backdrop {
-  background: transparent;
-}
-.resonance-cloud-panel {
-  --dialog-accent: var(--pink-deep);
-  width: min(680px, 100%);
-  height: auto;
-}
-.resonance-cloud-body {
-  flex: 0 1 auto;
-  gap: 16px;
-}
-.resonance-cloud-panel p {
-  font-size: 13px;
-}
-.resonance-cloud-panel label {
-  display: grid;
-  gap: 8px;
-  font-size: 14px;
-}
-.resonance-cloud-panel button:focus-visible {
-  outline: 2px solid var(--heading);
-  outline-offset: 2px;
-}
-.resonance-cloud-error {
-  color: var(--notice-error);
-}
-.resonance-cloud-panel footer {
-  justify-content: flex-end;
-  flex-wrap: wrap;
 }
 </style>

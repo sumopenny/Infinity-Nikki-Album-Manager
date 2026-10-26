@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { PhotoParseError } from '../../../src/utils/photo-params/parseError'
+import { CloudRequestError } from '../../../src/utils/cloud/cloudClient'
 import {
   annotateDiagnosticError,
   createErrorReporter
@@ -135,6 +137,8 @@ describe('in-memory error reporter', () => {
   it.each([
     ['cloud save is empty', new Error('EMPTY_CLOUD')],
     ['local resonance is empty', new Error('EMPTY_LOCAL')],
+    ['cloud revision conflict', new CloudRequestError('CONFLICT', 'test-request')],
+    ['password confirmation mismatch', new Error('PASSWORD_MISMATCH')],
     ['desktop folder picker unsupported', new Error(fileSystemZh.unsupportedBrowser)],
     ['mobile folder picker unsupported', new Error(fileSystemZh.mobileBrowserUnsupported)],
     ['album path requires permission again', new Error(fileSystemZh.permissionRequired)],
@@ -162,18 +166,40 @@ describe('in-memory error reporter', () => {
     expect(payloads[0].error.message).toBe('Failed to read granted directory')
   })
   it.each([
-    '错误码：jpeg_second_end_marker_missing；含义：缺少第二个 JPEG 结束标记',
-    '错误码：photo_structure_invalid；含义：未找到有效 UID 账号',
-    '错误码：base64_invalid；含义：照片尾部不是有效的 Base64 数据',
-    '错误码：photo_structure_invalid；含义：未找到有效 UID 账号；错误码：base64_invalid；含义：无效数据'
-  ])('filters known photo parse input failures: %s', async (message) => {
+    ['jpeg_second_end_marker_missing'],
+    ['photo_structure_invalid'],
+    ['base64_invalid'],
+    ['photo_structure_invalid', 'base64_invalid']
+  ])('filters structured photo input errors: %s', async (...codes) => {
     const { reporter, transport } = setup()
     expect(
-      reporter.report(new Error(message), { module: 'photo-params', action: 'parse' })
+      reporter.report(new PhotoParseError(codes), { module: 'photo-params', action: 'parse' })
     ).toBeNull()
     expect(reporter.snapshot().lastCapture?.reason).toBe('expected-error')
     await reporter.flush()
     expect(transport).not.toHaveBeenCalled()
+  })
+  it('does not suppress an unexpected error bundled with an expected parse code', async () => {
+    const { reporter, transport } = setup()
+    expect(
+      reporter.report(new PhotoParseError(['base64_invalid', 'unreachable']), {
+        module: 'photo-params',
+        action: 'parse'
+      })
+    ).not.toBeNull()
+    await reporter.flush()
+    expect(transport).toHaveBeenCalledTimes(1)
+  })
+  it('only filters structured errors inside photo parameter parsing', async () => {
+    const { reporter, transport } = setup()
+    expect(
+      reporter.report(new PhotoParseError(['base64_invalid']), {
+        module: 'camera',
+        action: 'parse'
+      })
+    ).not.toBeNull()
+    await reporter.flush()
+    expect(transport).toHaveBeenCalledTimes(1)
   })
   it.each([
     ['other module', '错误码：base64_invalid；含义：无效数据', 'camera'],
@@ -214,6 +240,24 @@ describe('in-memory error reporter', () => {
 })
 
 describe('diagnostic state and acknowledgement regression coverage', () => {
+  it('retains cloud request correlation and the original network cause', async () => {
+    const { reporter, payloads } = setup()
+    const cause = new TypeError('Failed to fetch')
+    reporter.report(new CloudRequestError('NETWORK', 'wardrobe-request', { cause }), {
+      module: 'wardrobe-cloud',
+      action: 'upload',
+      stage: 'submit'
+    })
+    await reporter.flush()
+    expect(payloads[0]).toMatchObject({
+      code: 'NETWORK',
+      module: 'wardrobe-cloud',
+      action: 'upload',
+      stage: 'submit',
+      context: { requestId: 'wardrobe-request' },
+      error: { causes: [{ name: 'TypeError', message: 'Failed to fetch' }] }
+    })
+  })
   it.each([
     'Pearpal UID mismatch',
     'Pearpal region mismatch',

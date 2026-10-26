@@ -25,33 +25,33 @@
   overflow-wrap: anywhere;
 }
 
-.mode-half .photo-grid {
-  grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+/* 比例仅控制取景框，大小仅控制列宽，两者可以自由组合。 */
+.thumbnail-size-small {
+  --thumbnail-min-width: 144px;
 }
 
-.mode-half .photo-card {
-  padding: 5px;
-  border-radius: 12px;
-}
-
-.mode-half .photo-frame {
-  border-radius: 9px;
+.thumbnail-size-large {
+  --thumbnail-min-width: 280px;
 }
 
 .mode-wide .photo-frame {
-  aspect-ratio: 16 / 9;
+  --thumbnail-ratio: 16 / 9;
+  aspect-ratio: var(--thumbnail-ratio);
 }
 
 .mode-standard .photo-frame {
-  aspect-ratio: 4 / 3;
+  --thumbnail-ratio: 4 / 3;
+  aspect-ratio: var(--thumbnail-ratio);
 }
 
 .mode-portrait-wide .photo-frame {
-  aspect-ratio: 9 / 16;
+  --thumbnail-ratio: 9 / 16;
+  aspect-ratio: var(--thumbnail-ratio);
 }
 
 .mode-portrait-standard .photo-frame {
-  aspect-ratio: 3 / 4;
+  --thumbnail-ratio: 3 / 4;
+  aspect-ratio: var(--thumbnail-ratio);
 }
 
 .trash-grid-wrap {

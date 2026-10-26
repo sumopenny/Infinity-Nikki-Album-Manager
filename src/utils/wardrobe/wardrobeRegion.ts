@@ -1,7 +1,7 @@
 import type { WardrobeCatalog } from './wardrobeCatalog'
-import type { WardrobeSnapshot } from './wardrobeStorage'
+import type { WardrobeSnapshot, WardrobeRegionScope } from './wardrobeSchema'
+export type { WardrobeRegionScope } from './wardrobeSchema'
 
-export type WardrobeRegionScope = 'cn' | 'global'
 // 与共鸣录 catalogAvailability 的服装区服规则一致；同名部件不能互换 ID。
 const EXCLUSIVE_ITEMS: Record<string, WardrobeRegionScope> = {
   '1021720039': 'cn',

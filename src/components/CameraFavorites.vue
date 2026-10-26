@@ -34,6 +34,7 @@ import {
 import { favoriteResources } from '../utils/photo-params/favoriteResources'
 import type { PhotoParamsMessages } from '../i18n/messages/photoParams'
 import type { PhotoParamsResult } from '../utils/photo-params/types'
+import type { ThumbnailSize } from '../types/thumbnail'
 import type { PhotoItem } from '../utils/photoGrouping'
 import { usePhotoParams } from '../composables/usePhotoParams'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
@@ -64,6 +65,7 @@ import CameraImportConflictDialog from './CameraImportConflictDialog.vue'
 
 const props = defineProps<{
   active: boolean
+  thumbnailSize?: ThumbnailSize
   disabled?: boolean
   sidebarTarget?: string
   actionsTarget?: string
@@ -305,6 +307,17 @@ const visibleRecords = computed(() => {
 })
 watch(visibleRecords, (value) => emit('visibleCountChange', value.length), { immediate: true })
 const resources = favoriteResources
+const compactResourceCover = computed(() => compact.value && props.thumbnailSize === 'small')
+
+/** 手机小图的无封面卡片仅展示有图片的灯光和滤镜，详情仍保留完整资源信息。 */
+function cardResources(result: PhotoParamsResult) {
+  const groups = resources(result)
+  return compactResourceCover.value
+    ? groups.filter(
+        (group) => (group.kind === 'light' || group.kind === 'filter') && group.imageUrl
+      )
+    : groups
+}
 const selectedRecords = computed(() =>
   visibleRecords.value.filter((item) => selectedIds.value.has(item.id))
 )
@@ -828,7 +841,11 @@ function handleImportChoices(value: typeof choices.value) {
       @reorder-tags="reorderTags"
     />
   </Teleport>
-  <section v-show="active" class="camera-favorites">
+  <section
+    v-show="active"
+    class="camera-favorites"
+    :class="`thumbnail-size-${thumbnailSize ?? 'medium'}`"
+  >
     <div v-if="backupDownloads.length > 1" class="camera-backup-downloads">
       <p>{{
         t(
@@ -929,8 +946,12 @@ function handleImportChoices(value: typeof choices.value) {
             :load="() => readCameraFavoriteCover(item.id)"
             :alt="item.name"
           />
-          <div v-else-if="resources(item.result).length" class="camera-resources">
-            <div v-for="group in resources(item.result)" :key="group.kind">
+          <div
+            v-else-if="cardResources(item.result).length"
+            class="camera-resources"
+            :class="{ 'is-image-only': compactResourceCover }"
+          >
+            <div v-for="group in cardResources(item.result)" :key="group.kind">
               <img
                 v-if="group.imageUrl"
                 :src="group.imageUrl"
@@ -939,8 +960,10 @@ function handleImportChoices(value: typeof choices.value) {
                 @error="($event.target as HTMLImageElement).style.visibility = 'hidden'"
               />
               <ScanSearch v-else :size="24" aria-hidden="true" />
-              <small>{{ group.title }}</small
-              ><strong>{{ group.name }}</strong>
+              <template v-if="!compactResourceCover">
+                <small>{{ group.title }}</small
+                ><strong>{{ group.name }}</strong>
+              </template>
             </div>
           </div>
           <Camera v-else :size="34" class="camera-placeholder" aria-hidden="true" />
@@ -1269,10 +1292,21 @@ function handleImportChoices(value: typeof choices.value) {
   text-align: center;
   color: var(--muted);
 }
-/* 与搭配、家园共用移动列数及间距；桌面继续按卡片最小宽度自动排列。 */
+/* 相机参数独立控制列宽；中图保留原布局，两端分别读取大小偏好。 */
+.camera-favorites.thumbnail-size-small {
+  --camera-thumbnail-width: 200px;
+  --camera-mobile-columns: repeat(auto-fill, minmax(min(110px, 100%), 1fr));
+}
+.camera-favorites.thumbnail-size-large {
+  --camera-thumbnail-width: 360px;
+  --camera-mobile-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+}
 .camera-favorite-grid {
   display: grid;
-  grid-template-columns: var(--mobile-collection-columns, repeat(auto-fill, minmax(260px, 1fr)));
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(var(--camera-thumbnail-width, 260px), 100%), 1fr)
+  );
   gap: var(--mobile-collection-gap, 16px);
   padding: 10px 0 100px;
 }
@@ -1326,6 +1360,20 @@ function handleImportChoices(value: typeof choices.value) {
   max-width: 84px;
   height: 58px;
   object-fit: contain;
+}
+/* 图标封面填满固定比例区域，避免资源文字的最小高度撑高小图。 */
+.camera-resources.is-image-only {
+  position: absolute;
+  inset: 0;
+  gap: 6px;
+  padding: 6px;
+}
+.camera-resources.is-image-only > div {
+  height: 100%;
+}
+.camera-resources.is-image-only img {
+  height: 100%;
+  max-height: 100%;
 }
 .camera-resources small {
   font-size: 10px;
@@ -1506,6 +1554,12 @@ summary {
 .camera-editor-tags .outfit-tag-choices button {
   max-width: 100%;
   overflow-wrap: anywhere;
+}
+
+@media (max-width: 899px) {
+  .camera-favorite-grid {
+    grid-template-columns: var(--camera-mobile-columns, var(--mobile-collection-columns));
+  }
 }
 
 @media (max-width: 560px) {

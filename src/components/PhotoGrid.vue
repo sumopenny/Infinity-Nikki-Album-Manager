@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount } from 'vue'
 import { Check, Edit3, Heart, ScanSearch } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
-import type { ThumbnailMode } from '../types/thumbnail'
+import type { ThumbnailMode, ThumbnailSize } from '../types/thumbnail'
 import type { ActionGroup, DateGroup, PhotoItem } from '../utils/photoGrouping'
 import { createPhotoLoadQueue } from '../utils/photoLoader'
 import LazyPhotoImage from './LazyPhotoImage.vue'
@@ -14,6 +14,7 @@ const props = defineProps<{
   selectedIds: Set<string>
   favoriteIds: Set<string>
   thumbnailMode: ThumbnailMode
+  thumbnailSize?: ThumbnailSize
   isFavoritesView: boolean
   messages: LocaleMessages['grid']
 }>()
@@ -61,9 +62,9 @@ function toggleGroup(group: { key: string; photos: PhotoItem[]; isAction: boolea
   else emit('toggleDate', group.key)
 }
 
-/** 返回卡片悬浮信息；半尺寸模式和未知元数据只显示时间。参数：photo 为照片。 */
+/** 返回卡片悬浮信息；小图模式和未知元数据只显示时间。参数：photo 为照片。 */
 function getPhotoMeta(photo: PhotoItem): string {
-  return props.thumbnailMode !== 'half' && photo.fileSizeText && photo.fileSizeText !== '--'
+  return props.thumbnailSize !== 'small' && photo.fileSizeText && photo.fileSizeText !== '--'
     ? `${photo.timeText} · ${photo.fileSizeText}`
     : photo.timeText
 }
@@ -78,7 +79,10 @@ onBeforeUnmount(() => photoLoadQueue.cancel())
 </script>
 
 <template>
-  <div class="photo-grid-wrap" :class="`mode-${thumbnailMode}`">
+  <div
+    class="photo-grid-wrap"
+    :class="[`mode-${thumbnailMode}`, `thumbnail-size-${thumbnailSize ?? 'medium'}`]"
+  >
     <div v-if="!renderGroups.length" class="empty-album inline-empty">
       <Heart :size="30" aria-hidden="true" />
       <h2>{{ isFavoritesView ? messages.emptyFavoritesTitle : messages.emptyTitle }}</h2>

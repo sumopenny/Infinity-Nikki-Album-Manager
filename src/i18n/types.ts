@@ -125,7 +125,9 @@ export interface LocaleMessages {
     reauthorizeX6Game: string
     refreshAlbum: string
     refreshing: string
-    thumbnail: string
+    thumbnailRatio: string
+    thumbnailSize: string
+    thumbnailSizes: Record<'small' | 'medium' | 'large', string>
     specialCleanup: string
     tools: string
     toolsMenuAria: string

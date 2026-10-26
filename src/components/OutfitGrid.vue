@@ -2,7 +2,7 @@
 import { onBeforeUnmount } from 'vue'
 import { Check, Copy, Edit3, ScanSearch, Shirt, Trash2 } from 'lucide-vue-next'
 import type { OutfitMessages } from '../i18n'
-import type { ThumbnailMode } from '../types/thumbnail'
+import type { ThumbnailMode, ThumbnailSize } from '../types/thumbnail'
 import type { OutfitItem } from '../utils/outfit/outfitFileSystem'
 import { createPhotoLoadQueue } from '../utils/photoLoader'
 import LazyPhotoImage from './LazyPhotoImage.vue'
@@ -15,6 +15,7 @@ const props = defineProps<{
   totalCount?: number
   selectedIds: Set<string>
   thumbnailMode: ThumbnailMode
+  thumbnailSize?: ThumbnailSize
   messages: OutfitMessages
   disabled: boolean
 }>()
@@ -43,7 +44,10 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
 </script>
 
 <template>
-  <div class="photo-grid-wrap outfit-grid-wrap" :class="`mode-${thumbnailMode}`">
+  <div
+    class="photo-grid-wrap outfit-grid-wrap"
+    :class="[`mode-${thumbnailMode}`, `thumbnail-size-${thumbnailSize ?? 'medium'}`]"
+  >
     <div v-if="!outfits.length" class="empty-album inline-empty">
       <Shirt :size="30" aria-hidden="true" />
       <h2>{{ messages.emptyTitle }}</h2>

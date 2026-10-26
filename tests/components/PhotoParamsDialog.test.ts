@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import PhotoParamsDialog from '../../src/components/PhotoParamsDialog.vue'
-import { photoParamsZh as messages } from '../../src/i18n/messages/photoParams'
+import { photoParamsEn, photoParamsZh as messages } from '../../src/i18n/messages/photoParams'
 
 describe('PhotoParamsDialog', () => {
   it('shows a fixed placeholder when a resource image fails', async () => {
@@ -222,14 +222,15 @@ describe('original photo warning', () => {
         uidRequired: false,
         progress: { stage: 'error', percent: 100, message: '' },
         result: null,
-        error: `错误码：${code}；含义：解析失败`,
-        messages
+        error: `Error code: ${code}; Meaning: failed`,
+        errorCodes: [code],
+        messages: photoParamsEn
       },
       global: { stubs: { Teleport: true } }
     })
     const hint = wrapper.find('.photo-params-original-hint')
     expect(hint.exists()).toBe(expected)
-    if (expected) expect(hint.text()).toBe('该照片不是游戏拍摄原图哦~请检查照片是否经过二次传输或压缩等处理')
+    if (expected) expect(hint.text()).toBe(photoParamsEn.nonOriginalPhotoHint)
     wrapper.unmount()
   })
 })

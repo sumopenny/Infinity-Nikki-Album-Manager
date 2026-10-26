@@ -3,7 +3,7 @@
 <div align="center">
   <img src="img/wxnn.ico" alt="Nikki³ NikkiCube" width="72" height="72">
   <p><strong>Nikki³ · Infinity Nikki Toolkit</strong></p>
-  <p>NikkiCube manages albums, outfit codes, home schemes, camera parameters and resonance records in your browser, with optional resonance cloud sync and targeted cleanup.</p>
+  <p>NikkiCube manages albums, outfit codes, home schemes, camera parameters and resonance records in your browser, with optional resonance and wardrobe cloud sync and targeted cleanup.</p>
   <p style="color: orange;">If you run into any issues, please fill out the survey in the site's Feedback section, or report them through GitHub/Gitee Issues or the author's social platforms.</p>
   <p>
     <a href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases">GitHub Releases</a> ·
@@ -27,7 +27,7 @@
 
 Use the toolkit here: [https://infinity-nikki-album-manager.pages.dev/](https://infinity-nikki-album-manager.pages.dev/)
 
-Open it directly without downloading anything. Local features need no sign-in. Outfits, home schemes, camera favorites, and Nikki Archive need no album selection; choose an album only for browsing game photos, and sign in only for resonance cloud sync.
+Open it directly without downloading anything. Local features need no sign-in. Outfits, home schemes, camera favorites, and Nikki Archive need no album selection; choose an album only for browsing game photos, and sign in only for resonance and wardrobe cloud sync.
 
 For local use, see [Local installation](#local-installation).
 
@@ -37,7 +37,7 @@ For local use, see [Local installation](#local-installation).
 | --- | --- | --- |
 | Outfits, home schemes, camera parameters | Supported | Supported |
 | Resonance and personal wardrobe | Supported | Supported |
-| Manual backup migration and resonance cloud sync | Supported | Supported |
+| Manual backups, migration, and cloud sync for resonance and wardrobe | Supported | Supported |
 | Parse codes or uploaded original photos | Supported | Supported |
 | Game album folders and Recently Deleted | Unavailable | Folder authorization required |
 | Automatically read in-game outfit codes | Unavailable | X6Game authorization required |
@@ -117,7 +117,7 @@ Open Nikki Archive from the bottom navigation, then switch between Resonance rec
 </div>
 
 - **Personal wardrobe:** switch between outfits and pieces, search by name or ID, and filter by ownership, rarity, version, and other criteria to inspect collection details.
-- Tap “+” to import wardrobe data; use “⋯” to export or clear records. See [Backup and Migration](#backup-and-migration) for import replacement and cloud-sync rules.
+- Tap “+” to import wardrobe data; use “⋯” to export, clear records or access cloud sync. See [Backup and Migration](#backup-and-migration) for import replacement and cloud-sync rules.
 
 ## Desktop
 
@@ -248,7 +248,7 @@ Open Resonance records or Personal wardrobe from Nikki Archive in the sidebar.
 </div>
 
 - **Personal wardrobe:** browse original, recolor, and evolution versions. Switch between outfits and pieces, search by name or ID, and filter by rarity, version, item category, or ownership to view details.
-- Import a Whim-Log notebook from China or any global server, or wardrobe JSON, and export a separate JSON backup. One notebook preview lets you choose both resonance and wardrobe data. Clearing wardrobe records does not affect resonance. Makeup and wardrobe cloud sync are not supported.
+- Import a Whim-Log notebook from China or any global server, or wardrobe JSON, and export a separate JSON backup. One notebook preview lets you choose both resonance and wardrobe data. Clearing wardrobe records does not affect resonance. Wardrobe and resonance share an account, with independent cloud upload, download and deletion. Makeup is not supported.
 - Check the replacement rules in [Backup and Migration](#backup-and-migration) before importing.
 
 ### Cleanup and utilities
@@ -284,7 +284,7 @@ Different import entries handle existing records differently:
 | More → Import all data | Merges collections according to each module's rules. Camera-parameter conflicts ask which version to retain; this is not a full replacement. |
 | Outfit module → Import data | Adds plans without overwriting existing ones; duplicate or invalid entries are skipped. |
 
-Resonance cloud sync is manual and uses replacement: **upload replaces all cloud records with local records; download replaces all local records with cloud records.** Records unique to the destination are removed. Export a backup before replacing them. Other modules do not use this cloud sync.
+Resonance and wardrobe cloud sync are manual and use replacement: **upload replaces all cloud records with local records; download replaces all local records with cloud records.** Records unique to the destination are removed. Export a backup before replacing them. The two modules share an account but keep independent saves and revisions. Wardrobe downloads restore the saved region and warn about a region change. A valid imported zero-item wardrobe can sync; an unimported or cleared wardrobe cannot upload, and a missing cloud save never clears local data.
 
 Unrecorded wardrobe pieces were absent from the notebook response; this does not mean they are unowned in the game. A resonance-only export cannot be imported as wardrobe data.
 
@@ -327,7 +327,7 @@ Browsers block web pages from accessing system folders. Please select `NikkiPhot
 
 - Local photo viewing and photo-parameter parsing happen in your browser; photos and photo-parameter results are not uploaded.
 - Outfit-code parsing sends the share code to parsing services, without sending local photos or notebook credentials.
-- Cloud sync covers resonance records only and requires manual upload or download. Other collections remain in the current browser; back them up before changing devices or clearing site data.
+- Cloud sync supports resonance records and the personal wardrobe, with separate manual uploads and downloads. Other collections remain in the current browser; back them up before changing devices or clearing site data.
 - Clear cache removes parsing caches without deleting saved schemes, tags, or settings. **Clear data permanently removes this browser's saved records, images, favorites, settings, and folder authorizations. Export a backup first.** It does not delete uploaded cloud saves or files on your computer. Clearing data through browser settings may also remove login information.
 - Browser security policies may require you to authorize folders again.
 - Album deletion and Special Cleanup operate on real files on your computer. Permanent deletion and cleanup cannot be undone.
@@ -359,7 +359,7 @@ Both commands should print version numbers, which means installation succeeded. 
 
 If the launcher is unavailable, run `start\Start-Remote-D1-Website.bat`, or use the commands below. Resource updates require network access; failed updates keep the existing local resources.
 
-The local site connects to the online service for Likes, resonance accounts, and cloud sync. These actions affect real online data. The default service is `https://infinity-nikki-album-manager.pages.dev`.
+The local site connects to the online service for Likes, shared cloud accounts, and resonance/wardrobe cloud sync. These actions affect real online data. The default service is `https://infinity-nikki-album-manager.pages.dev`.
 
 ### Development Commands
 

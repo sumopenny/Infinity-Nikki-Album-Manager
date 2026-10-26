@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DesktopMenuTransition from './DesktopMenuTransition.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
@@ -139,24 +140,26 @@ watch(cleanAllAccounts, (checked) => {
                 <span>{{ selectedAccount || messages.accountSelectPlaceholder }}</span>
                 <ChevronDown :size="14" aria-hidden="true" />
               </button>
-              <div
-                v-if="menuOpen"
-                class="cleanup-account-menu"
-                role="listbox"
-                :aria-label="messages.accountInputLabel"
-              >
-                <button
-                  v-for="account in accounts"
-                  :key="account"
-                  type="button"
-                  role="option"
-                  :aria-selected="selectedAccount === account"
-                  :class="{ active: selectedAccount === account }"
-                  @click="selectAccount(account)"
+              <DesktopMenuTransition>
+                <div
+                  v-if="menuOpen"
+                  class="cleanup-account-menu"
+                  role="listbox"
+                  :aria-label="messages.accountInputLabel"
                 >
-                  <span>{{ account }}</span>
-                </button>
-              </div>
+                  <button
+                    v-for="account in accounts"
+                    :key="account"
+                    type="button"
+                    role="option"
+                    :aria-selected="selectedAccount === account"
+                    :class="{ active: selectedAccount === account }"
+                    @click="selectAccount(account)"
+                  >
+                    <span>{{ account }}</span>
+                  </button>
+                </div>
+              </DesktopMenuTransition>
             </div>
             <div class="cleanup-account-options">
               <label class="cleanup-account-all">

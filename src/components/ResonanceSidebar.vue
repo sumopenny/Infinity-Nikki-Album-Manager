@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DesktopMenuTransition from './DesktopMenuTransition.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useSidebarMenu } from '../composables/useSidebarMenu'
 import { ChevronDown } from 'lucide-vue-next'
@@ -156,45 +157,47 @@ function hideBrokenImage(event: Event) {
         <ChevronDown :size="14" aria-hidden="true" />
       </button>
       <Teleport to="body" :disabled="compact">
-        <div
-          v-if="sortMenuOpen"
-          ref="sortMenuRef"
-          :style="compact ? undefined : menuStyle"
-          @keydown="handleSortKeydown"
-          class="cleanup-account-menu action-sort-menu resonance-options-menu"
-          role="menu"
-          :aria-label="t.displayOptions"
-        >
-          <div role="group" :aria-label="t.bannerOrder">
-            <div class="resonance-options-label">{{ t.bannerOrder }}</div>
-            <button
-              v-for="order in ['newest', 'oldest'] as ResonanceBannerOrder[]"
-              :key="order"
-              type="button"
-              role="menuitemradio"
-              :aria-checked="bannerOrder === order"
-              :class="{ active: bannerOrder === order }"
-              @click="selectBannerOrder(order)"
-              >{{ order === 'newest' ? t.newestFirst : t.oldestFirst }}</button
-            >
+        <DesktopMenuTransition>
+          <div
+            v-if="sortMenuOpen"
+            ref="sortMenuRef"
+            :style="compact ? undefined : menuStyle"
+            @keydown="handleSortKeydown"
+            class="cleanup-account-menu action-sort-menu resonance-options-menu"
+            role="menu"
+            :aria-label="t.displayOptions"
+          >
+            <div role="group" :aria-label="t.bannerOrder">
+              <div class="resonance-options-label">{{ t.bannerOrder }}</div>
+              <button
+                v-for="order in ['newest', 'oldest'] as ResonanceBannerOrder[]"
+                :key="order"
+                type="button"
+                role="menuitemradio"
+                :aria-checked="bannerOrder === order"
+                :class="{ active: bannerOrder === order }"
+                @click="selectBannerOrder(order)"
+                >{{ order === 'newest' ? t.newestFirst : t.oldestFirst }}</button
+              >
+            </div>
+            <div class="resonance-options-divider" role="separator"></div>
+            <div role="group" :aria-label="t.rarityFilter">
+              <div class="resonance-options-label">{{ t.rarityFilter }}</div>
+              <button
+                v-for="rarity in ['all', 5, 4] as ResonanceRarityFilter[]"
+                :key="rarity"
+                type="button"
+                role="menuitemradio"
+                :aria-checked="rarityFilter === rarity"
+                :class="{ active: rarityFilter === rarity }"
+                @click="selectRarityFilter(rarity)"
+                >{{
+                  rarity === 'all' ? t.allRarities : rarity === 5 ? t.onlyFiveStar : t.onlyFourStar
+                }}</button
+              >
+            </div>
           </div>
-          <div class="resonance-options-divider" role="separator"></div>
-          <div role="group" :aria-label="t.rarityFilter">
-            <div class="resonance-options-label">{{ t.rarityFilter }}</div>
-            <button
-              v-for="rarity in ['all', 5, 4] as ResonanceRarityFilter[]"
-              :key="rarity"
-              type="button"
-              role="menuitemradio"
-              :aria-checked="rarityFilter === rarity"
-              :class="{ active: rarityFilter === rarity }"
-              @click="selectRarityFilter(rarity)"
-              >{{
-                rarity === 'all' ? t.allRarities : rarity === 5 ? t.onlyFiveStar : t.onlyFourStar
-              }}</button
-            >
-          </div>
-        </div>
+        </DesktopMenuTransition>
       </Teleport>
     </div>
     <p v-if="!sortedRecords.length" class="resonance-filter-empty">{{

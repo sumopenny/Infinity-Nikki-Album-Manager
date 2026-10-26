@@ -6,6 +6,7 @@ import {
 } from '../../../src/utils/resonance/resonanceImport'
 import type { ErrorEventPayload } from '../../../src/utils/errorReporting/schema'
 import { sampleEvent } from './fixture'
+import { encodeSnappyLiteral } from '../resonanceSnappyFixture'
 
 const credentials = { token: 'private-test-token', id: 'private-test-id', roleid: '123456' }
 const headers = { 'cache-control': 'no-store', 'X-Request-Id': 'verification-fixture' }
@@ -121,6 +122,16 @@ describe('Pearpal failures reach the reporter with precise, safe context', () =>
     expect(event.stage).toBe('snapshot-decode')
     expect(event.severity).toBe('error')
   })
+  it('never uploads notebook text from a Snappy-valid but malformed JSON document', async () => {
+    const bytes = encodeSnappyLiteral('response-private-secret not json')
+    const { event, failure } = await captureFailure([
+      Response.json({ code: 0, data: { role: { uid: '123456', zone_id: 1 } } }, { headers }),
+      new Response(bytes, { headers })
+    ])
+    expect(event.code).toBe('PEARPAL_NOTEBOOK_DECODE_FAILED')
+    expect(event.context.parseErrorName).toBe('SyntaxError')
+    expect((failure as Error).cause).toBeUndefined()
+  })
   it('keeps user cancellation silent', async () => {
     const controller = new AbortController()
     controller.abort()
@@ -135,5 +146,32 @@ describe('Pearpal failures reach the reporter with precise, safe context', () =>
     await instance.flush()
     expect(events).toHaveLength(0)
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+  it('keeps cancellation during notebook body reading silent', async () => {
+    const responses = [
+      Response.json({ code: 0, data: { role: { uid: '123456', zone_id: 1 } } }, { headers }),
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.error(new DOMException('cancelled', 'AbortError'))
+          }
+        }),
+        { headers }
+      )
+    ]
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => responses.shift()!)
+    )
+    const { instance, events } = reporter()
+    try {
+      await fetchPearpalSnapshot(credentials)
+      expect.fail('should abort')
+    } catch (error) {
+      expect(error).toBeInstanceOf(DOMException)
+      expect(instance.report(error, { module: 'data-import', action: 'preview' })).toBeNull()
+    }
+    await instance.flush()
+    expect(events).toHaveLength(0)
   })
 })

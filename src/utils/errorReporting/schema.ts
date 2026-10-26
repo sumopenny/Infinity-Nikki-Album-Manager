@@ -150,6 +150,8 @@ const expected = new Set([
   'LOGIN_REQUIRED',
   'ACCOUNT_CHANGED',
   'USERNAME_TAKEN',
+  'PASSWORD_MISMATCH',
+  'CONFLICT',
   'home_scheme_code_duplicate',
   'home_scheme_code_invalid',
   'home_scheme_record_changed',

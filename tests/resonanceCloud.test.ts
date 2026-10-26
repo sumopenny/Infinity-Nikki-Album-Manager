@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, describe, expect, it } from 'vitest'
+import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare'
 import { readFile } from 'node:fs/promises'
 import { build } from 'esbuild'
@@ -256,4 +256,44 @@ describe('resonance cloud accounts and complete replacement', () => {
     expect(restored.revision).toBe(2)
     expect(restored.records).toHaveLength(1000)
   }, 30000)
+  it('keeps upload/delete commits and replay receipts successful when record cleanup fails', async () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const db = env.RESONANCE_DB!
+    const broken: CloudEnv = {
+      RESONANCE_DB: {
+        prepare(sql) {
+          if (sql.startsWith('DELETE FROM cloud_records'))
+            throw new Error('private cleanup failure')
+          return db.prepare(sql)
+        },
+        batch: db.batch.bind(db)
+      }
+    }
+    try {
+      for (const [action, revision] of [
+        ['upload', 2],
+        ['delete', 3]
+      ] as const) {
+        const body = {
+          requestId: crypto.randomUUID(),
+          revision,
+          ...(action === 'upload' ? { records: [fixture('cleanup')] } : {})
+        }
+        const result = await request(action, body, {}, broken)
+        expect(result.status).toBe(200)
+        expect(await result.json()).toMatchObject({ revision: revision + 1 })
+        const replay = await request(action, body, {}, broken)
+        expect(replay.status).toBe(200)
+        expect(await replay.json()).toEqual({ revision: revision + 1, replayed: true })
+        expect(await (await request('snapshot')).json()).toMatchObject({
+          revision: revision + 1,
+          records: action === 'upload' ? [fixture('cleanup')] : []
+        })
+      }
+      expect(warning).toHaveBeenCalledTimes(4)
+      expect(JSON.stringify(warning.mock.calls)).not.toContain('private cleanup failure')
+    } finally {
+      warning.mockRestore()
+    }
+  })
 })

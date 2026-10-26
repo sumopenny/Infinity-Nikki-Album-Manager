@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DesktopMenuTransition from './DesktopMenuTransition.vue'
+import TreeCollapse from './TreeCollapse.vue'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useSidebarMenu } from '../composables/useSidebarMenu'
 import { ChevronDown, ChevronRight } from 'lucide-vue-next'
@@ -144,32 +146,39 @@ onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick)
           <strong>{{ yearGroup.year }}</strong>
           <span>{{ yearGroup.photoCount }}</span>
         </button>
-        <div v-if="expandedYears.has(yearGroup.year)" class="timeline-months">
-          <section v-for="month in yearGroup.months" :key="month.monthKey">
-            <button
-              class="timeline-toggle month-toggle"
-              type="button"
-              :aria-expanded="expandedMonths.has(month.monthKey)"
-              @click="toggleMonth(month.monthKey)"
-            >
-              <ChevronRight :size="14" :class="{ expanded: expandedMonths.has(month.monthKey) }" />
-              <span>{{ formatMonth(month.month) }}</span>
-              <small>{{ month.photoCount }}</small>
-            </button>
-            <div v-if="expandedMonths.has(month.monthKey)" class="timeline-dates">
+        <TreeCollapse :open="expandedYears.has(yearGroup.year)">
+          <div class="timeline-months">
+            <section v-for="month in yearGroup.months" :key="month.monthKey">
               <button
-                v-for="date in month.dates"
-                :key="date.dateKey"
-                class="date-link"
+                class="timeline-toggle month-toggle"
                 type="button"
-                @click="$emit('jumpToDate', date.dateKey)"
+                :aria-expanded="expandedMonths.has(month.monthKey)"
+                @click="toggleMonth(month.monthKey)"
               >
-                <span>{{ date.monthDay }}</span>
-                <small>{{ date.photos.length }}</small>
+                <ChevronRight
+                  :size="14"
+                  :class="{ expanded: expandedMonths.has(month.monthKey) }"
+                />
+                <span>{{ formatMonth(month.month) }}</span>
+                <small>{{ month.photoCount }}</small>
               </button>
-            </div>
-          </section>
-        </div>
+              <TreeCollapse :open="expandedMonths.has(month.monthKey)">
+                <div class="timeline-dates">
+                  <button
+                    v-for="date in month.dates"
+                    :key="date.dateKey"
+                    class="date-link"
+                    type="button"
+                    @click="$emit('jumpToDate', date.dateKey)"
+                  >
+                    <span>{{ date.monthDay }}</span>
+                    <small>{{ date.photos.length }}</small>
+                  </button>
+                </div>
+              </TreeCollapse>
+            </section>
+          </div>
+        </TreeCollapse>
       </section>
     </template>
 
@@ -189,27 +198,29 @@ onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick)
             <ChevronDown :size="14" aria-hidden="true" />
           </button>
           <Teleport to="body" :disabled="compact">
-            <div
-              v-if="sortMenuOpen"
-              ref="sortMenuRef"
-              :style="compact ? undefined : menuStyle"
-              @keydown="handleSortKeydown"
-              class="cleanup-account-menu action-sort-menu"
-              role="listbox"
-              :aria-label="messages.sort"
-            >
-              <button
-                v-for="sort in ['id', 'name', 'count', 'latest'] as ActionSort[]"
-                :key="sort"
-                type="button"
-                role="option"
-                :aria-selected="actionSort === sort"
-                :class="{ active: actionSort === sort }"
-                @click="selectSort(sort)"
+            <DesktopMenuTransition>
+              <div
+                v-if="sortMenuOpen"
+                ref="sortMenuRef"
+                :style="compact ? undefined : menuStyle"
+                @keydown="handleSortKeydown"
+                class="cleanup-account-menu action-sort-menu"
+                role="listbox"
+                :aria-label="messages.sort"
               >
-                <span>{{ sortLabels[sort]() }}</span>
-              </button>
-            </div>
+                <button
+                  v-for="sort in ['id', 'name', 'count', 'latest'] as ActionSort[]"
+                  :key="sort"
+                  type="button"
+                  role="option"
+                  :aria-selected="actionSort === sort"
+                  :class="{ active: actionSort === sort }"
+                  @click="selectSort(sort)"
+                >
+                  <span>{{ sortLabels[sort]() }}</span>
+                </button>
+              </div>
+            </DesktopMenuTransition>
           </Teleport>
         </div>
       </div>

@@ -196,36 +196,36 @@ export async function fetchPearpalSnapshot(
         pearpalResponseShape(raw)
       )
   }
+  const context = {
+    region,
+    httpStatus: response.status,
+    requestId: response.headers.get('X-Request-Id')
+  }
+  const bytes = await response.arrayBuffer().catch((error) => {
+    throw annotateDiagnosticError(error, {
+      code: 'PEARPAL_NETWORK_FAILED',
+      stage: 'snapshot-read',
+      type: 'network',
+      context
+    })
+  })
   let decoded: unknown
   try {
-    decoded = decodePearpal(await response.arrayBuffer())
+    decoded = decodePearpal(bytes)
   } catch (error) {
-    throw annotateDiagnosticError(error, {
+    // JSON 解析异常可能含正文片段；只保留错误类别，不保留原异常或 cause。
+    throw annotateDiagnosticError(new Error('Pearpal notebook could not be decoded'), {
       code: 'PEARPAL_NOTEBOOK_DECODE_FAILED',
       stage: 'snapshot-decode',
       severity: 'error',
       context: {
-        region,
-        httpStatus: response.status,
-        requestId: response.headers.get('X-Request-Id')
+        parseErrorName: error instanceof Error ? error.name : 'unknown',
+        ...context
       }
     })
   }
   signal?.throwIfAborted()
   return decoded
-}
-
-/** 共鸣与衣橱共用验证及解压入口；衣橱不要求手账含有共鸣记录。 */
-export async function importFromPearpal(
-  credentials: ResonanceCredentials,
-  onProgress?: (value: ResonanceImportProgress) => void,
-  signal?: AbortSignal,
-  region: PearpalRegion = 'cn'
-): Promise<ResonanceImportResult> {
-  const decoded = (await fetchPearpalSnapshot(credentials, signal, region)) as {
-    info_from_self?: { gacha_list?: unknown }
-  }
-  return parsePearpalResonance(decoded, onProgress, signal)
 }
 
 /** 从已获取的完整手账解析共鸣，与衣橱共享一次网络请求。 */

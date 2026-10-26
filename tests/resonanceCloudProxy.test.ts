@@ -49,7 +49,10 @@ beforeAll(async () => {
     appType: 'custom',
     server: {
       middlewareMode: true,
-      proxy: { '^/api/resonance/cloud(?:\\?|$)': resonanceCloudProxy(target) }
+      proxy: {
+        '^/api/resonance/cloud(?:\\?|$)': resonanceCloudProxy(target),
+        '^/api/wardrobe/cloud(?:\\?|$)': resonanceCloudProxy(target)
+      }
     },
     optimizeDeps: { noDiscovery: true, include: [] }
   })
@@ -112,4 +115,30 @@ it('does not rewrite hostile origins or bypass Fetch Metadata checks', async () 
     })
     expect(response.status).toBe(403)
   }
+})
+
+it('forwards wardrobe uploads to the same remote service with the existing account cookie', async () => {
+  const body = JSON.stringify({
+    requestId: 'fixture',
+    revision: 0,
+    schemaVersion: 1,
+    data: { imported: true }
+  })
+  const response = await fetch(`${origin}/api/wardrobe/cloud?action=upload`, {
+    method: 'POST',
+    headers: {
+      Origin: origin,
+      'Content-Type': 'application/json',
+      Cookie: 'resonance_session=shared-session',
+      'X-Resonance-Request': '1',
+      'X-Resonance-Account': 'account'
+    },
+    body
+  })
+  expect(await response.json()).toMatchObject({
+    origin: target,
+    cookie: 'resonance_session=shared-session',
+    body,
+    path: '/api/wardrobe/cloud?action=upload'
+  })
 })

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DesktopMenuTransition from './DesktopMenuTransition.vue'
 import { nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 import { PEARPAL_REGIONS, type PearpalRegion } from '../utils/resonance/pearpalRegions'
@@ -83,26 +84,28 @@ onBeforeUnmount(() => document.removeEventListener('click', outside))
         <span>{{ PEARPAL_REGIONS[model].name[language] }}</span>
         <ChevronDown :size="14" aria-hidden="true" />
       </button>
-      <div
-        v-if="open"
-        :id="`${id}-menu`"
-        ref="menu"
-        class="cleanup-account-menu"
-        role="menu"
-        :aria-labelledby="`${id}-label`"
-      >
-        <button
-          v-for="key in keys"
-          :key="key"
-          type="button"
-          role="menuitemradio"
-          :data-region="key"
-          :aria-checked="model === key"
-          :class="{ active: model === key }"
-          @click="choose(key)"
-          >{{ PEARPAL_REGIONS[key].name[language] }}</button
+      <DesktopMenuTransition>
+        <div
+          v-if="open"
+          :id="`${id}-menu`"
+          ref="menu"
+          class="cleanup-account-menu"
+          role="menu"
+          :aria-labelledby="`${id}-label`"
         >
-      </div>
+          <button
+            v-for="key in keys"
+            :key="key"
+            type="button"
+            role="menuitemradio"
+            :data-region="key"
+            :aria-checked="model === key"
+            :class="{ active: model === key }"
+            @click="choose(key)"
+            >{{ PEARPAL_REGIONS[key].name[language] }}</button
+          >
+        </div>
+      </DesktopMenuTransition>
     </div>
   </div>
 </template>

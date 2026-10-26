@@ -7,6 +7,8 @@ import {
 } from '../../functions/_lib/errorReporting'
 import { onRequest as middleware } from '../../functions/api/_middleware'
 import { sampleEvent } from '../utils/errorReporting/fixture'
+import { onRequest as wardrobeEndpoint } from '../../functions/api/wardrobe/cloud'
+import type { CloudDB } from '../../functions/_lib/cloudShared'
 
 /** 纯对象 D1 替身；不启动 Wrangler、SQLite 或 IndexedDB。SQL 真正执行留给云端验收。 */
 function fakeDatabase() {
@@ -212,5 +214,40 @@ describe('error intake contract without a database', () => {
     })
     expect(response.status).toBe(503)
     expect(waitUntil).not.toHaveBeenCalled()
+  })
+  it('stores the original wardrobe failure, operation, stage and correlated response ID', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const state = fakeDatabase(),
+        tasks: Promise<unknown>[] = [],
+        data = {}
+      const cause = new Error('wardrobe-database-fixture')
+      const request = new Request('https://example.test/api/wardrobe/cloud?action=summary', {
+        headers: { Cookie: `resonance_session=${'a'.repeat(64)}` }
+      })
+      const db = {
+        prepare() {
+          throw cause
+        }
+      } as unknown as CloudDB
+      const response = await middleware({
+        request,
+        env: state.env,
+        data,
+        next: () => wardrobeEndpoint({ request, env: { RESONANCE_DB: db }, data }),
+        waitUntil: (task) => tasks.push(task)
+      })
+      await Promise.all(tasks)
+      expect(response.status).toBe(500)
+      expect(state.writes()).toBe(1)
+      const serialized = JSON.stringify(state.calls)
+      expect(serialized).toContain('wardrobe-database-fixture')
+      expect(serialized).toContain('summary')
+      expect(serialized).toContain('session')
+      expect(serialized).toContain(response.headers.get('X-Request-Id'))
+      expect(serialized).not.toContain('a'.repeat(64))
+    } finally {
+      log.mockRestore()
+    }
   })
 })

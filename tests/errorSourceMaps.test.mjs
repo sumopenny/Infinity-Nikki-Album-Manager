@@ -62,6 +62,28 @@ test('does not guess a source map when a release artifact is absent', () => {
     f.cleanup()
   }
 })
+test('maps repeated frames across the error and its causes, then reloads artifacts for the next event', () => {
+  const f = fixture()
+  try {
+    const frame = '    at decode (https://example.com/assets/index-test.js:1:1)'
+    const payload = {
+      build: { buildId: 'test-build' },
+      error: { stack: Array(20).fill(frame).join('\n'), causes: [{ stack: frame }] }
+    }
+    const result = mapErrorStack(payload, f.root)
+    assert.equal(result.frames.length, 21)
+    assert.ok(result.frames.every((entry) => entry.source.endsWith('src/utils/image.ts')))
+    writeFileSync(
+      join(f.base, 'assets/index-test.js.map'),
+      JSON.stringify({ version: 3, sources: ['../../src/updated.ts'], names: [], mappings: 'AAAA' })
+    )
+    const next = mapErrorStack(payload, f.root)
+    assert.equal(next.frames.length, 21)
+    assert.ok(next.frames.every((entry) => entry.source.endsWith('src/updated.ts')))
+  } finally {
+    f.cleanup()
+  }
+})
 test('rejects client-supplied artifact directory traversal', () => {
   assert.equal(mapErrorStack({ build: { buildId: '../../outside' } }).status, 'invalid-build-id')
 })

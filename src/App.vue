@@ -58,7 +58,7 @@ import AllDataBackup from './components/AllDataBackup.vue'
 import { loadResonanceRecords } from './utils/resonance/resonanceStorage'
 import { normalizeCameraCode } from './utils/photo-params/favorites'
 import { messages } from './i18n'
-import type { ThumbnailMode } from './types/thumbnail'
+import type { ThumbnailMode, ThumbnailSize } from './types/thumbnail'
 import {
   type ActionSort,
   type PhotoDisplayItem,
@@ -261,9 +261,11 @@ const {
   locale,
   themeMode,
   autoParseActionsEnabled,
-  effectivePhotoThumbnailMode,
-  effectiveOutfitThumbnailMode,
-  effectiveHomeThumbnailMode,
+  thumbnailMode,
+  outfitThumbnailMode,
+  homeThumbnailMode,
+  thumbnailSizes,
+  saveThumbnailSize,
   toggleLanguage,
   toggleTheme,
   saveThumbnailMode
@@ -375,7 +377,7 @@ const cameraFavoriteModal = ref(false)
 const isCameraFavoritesView = computed(
   () => activeView.value === 'favorites' && (compactLayout.value || favoriteTab.value === 'camera')
 )
-// 共鸣、衣橱及相机参数使用固定卡片布局，两端均禁用比例设置。
+// 共鸣、衣橱及相机参数均禁用比例设置；相机参数另支持独立的大小设置。
 const isThumbnailModeDisabled = computed(
   () =>
     isCameraFavoritesView.value ||
@@ -407,6 +409,7 @@ const {
   isVisible: isPhotoParamsVisible,
   result: photoParamsResult,
   error: photoParamsError,
+  errorCodes: photoParamsErrorCodes,
   uidRequired: photoParamsUidRequired,
   progress: photoParamsProgress
 } = photoParams
@@ -479,9 +482,9 @@ const {
   activeOutfitFilter,
   searchQuery,
   currentPreview,
-  thumbnailMode: effectivePhotoThumbnailMode,
-  outfitThumbnailMode: effectiveOutfitThumbnailMode,
-  homeThumbnailMode: effectiveHomeThumbnailMode,
+  thumbnailMode,
+  outfitThumbnailMode,
+  homeThumbnailMode,
   directoryState,
   language,
   locale,
@@ -1037,18 +1040,24 @@ async function refreshAlbum(manual: boolean) {
   }
 }
 
-/** 切换缩略图尺寸；固定布局页面拒绝比例修改，手机拒绝半尺寸。 */
+const thumbnailKind = computed(() =>
+  activeView.value === 'outfits' ? 'outfit' : activeView.value === 'home' ? 'home' : 'photo'
+)
+const thumbnailSizeKind = computed(() =>
+  isCameraFavoritesView.value ? 'camera' : thumbnailKind.value
+)
+const isThumbnailSizeDisabled = computed(
+  () => activeView.value === 'resonance' || activeView.value === 'wardrobe'
+)
+const displayedThumbnailSize = computed(() => thumbnailSizes.value[thumbnailSizeKind.value])
+
+/** 比例与大小独立保存；固定卡片页面拒绝修改。 */
+function changeThumbnailSize(size: ThumbnailSize) {
+  if (!isThumbnailSizeDisabled.value) saveThumbnailSize(thumbnailSizeKind.value, size)
+}
+
 function changeThumbnailMode(mode: ThumbnailMode) {
-  if (isThumbnailModeDisabled.value || (compactLayout.value && mode === 'half')) return
-  if (activeView.value === 'home') {
-    saveThumbnailMode('home', mode)
-    return
-  }
-  if (activeView.value === 'outfits') {
-    saveThumbnailMode('outfit', mode)
-    return
-  }
-  saveThumbnailMode('photo', mode)
+  if (!isThumbnailModeDisabled.value) saveThumbnailMode(thumbnailKind.value, mode)
 }
 
 // X6Game 授权与搭配码流程
@@ -1872,6 +1881,8 @@ function importAllDataFromMenu() {
       :has-x6-game-authorization="hasX6GameAuthorization"
       :thumbnail-mode="displayedThumbnailMode"
       :thumbnail-mode-disabled="isThumbnailModeDisabled"
+      :thumbnail-size="displayedThumbnailSize"
+      :thumbnail-size-disabled="isThumbnailSizeDisabled"
       :thumbnail-mode-options="thumbnailModeOptions"
       :theme-mode="themeMode"
       :language="language"
@@ -1896,6 +1907,7 @@ function importAllDataFromMenu() {
       @import-all-data="allDataBackupRef?.chooseImport()"
       @refresh-backup-availability="allDataBackupRef?.refreshAvailability()"
       @change-thumbnail-mode="changeThumbnailMode"
+      @change-thumbnail-size="changeThumbnailSize"
       @toggle-language="toggleLanguage"
       @toggle-theme="toggleTheme"
       @open-update-log="openUpdateLog"
@@ -2152,6 +2164,7 @@ function importAllDataFromMenu() {
           sidebar-target="#album-sidebar-column"
           actions-target="#favorites-camera-actions"
           :active="isCameraFavoritesView"
+          :thumbnail-size="thumbnailSizes.camera"
           :language="language"
           :messages="photoParamsMessages"
           :search-query="searchQuery"
@@ -2351,6 +2364,7 @@ function importAllDataFromMenu() {
           :lightbox-messages="locale.lightbox"
           :date-messages="locale.date"
           :thumbnail-mode="displayedThumbnailMode"
+          :thumbnail-size="thumbnailSizes.home"
           @status="handleHomeSchemeStatus"
           @count-change="handleHomeSchemeCount"
         />
@@ -2380,7 +2394,8 @@ function importAllDataFromMenu() {
           v-else-if="albumDirectoryHandle && activeView === 'trash'"
           :photos="recentlyDeleted"
           :selected-ids="trashSelectedIds"
-          :thumbnail-mode="effectivePhotoThumbnailMode"
+          :thumbnail-mode="thumbnailMode"
+          :thumbnail-size="thumbnailSizes.photo"
           :language="language"
           :messages="locale.trash"
           @toggle-photo="toggleTrashPhoto"
@@ -2392,7 +2407,8 @@ function importAllDataFromMenu() {
           :outfits="visibleOutfits"
           :total-count="outfits.length"
           :selected-ids="selectedOutfitIds"
-          :thumbnail-mode="effectiveOutfitThumbnailMode"
+          :thumbnail-mode="outfitThumbnailMode"
+          :thumbnail-size="thumbnailSizes.outfit"
           :messages="outfitLocale"
           :disabled="isAnyFileOperationBusy"
           @copy="copyOutfitCode"
@@ -2409,7 +2425,8 @@ function importAllDataFromMenu() {
           :grouping-mode="sidebarMode"
           :selected-ids="selectedIds"
           :favorite-ids="favoriteIds"
-          :thumbnail-mode="effectivePhotoThumbnailMode"
+          :thumbnail-mode="thumbnailMode"
+          :thumbnail-size="thumbnailSizes.photo"
           :is-favorites-view="activeView === 'favorites'"
           :messages="locale.grid"
           @toggle-photo="togglePhoto"
@@ -2545,6 +2562,7 @@ function importAllDataFromMenu() {
       :progress="photoParamsProgress"
       :result="photoParamsResult"
       :error="photoParamsError"
+      :error-codes="photoParamsErrorCodes"
       :uid-required="photoParamsUidRequired"
       :messages="photoParamsMessages"
       @close="closePhotoParams"

@@ -5,13 +5,11 @@ import {
   loadWardrobe,
   mergeWardrobe,
   parseWardrobeBackup,
-  emptyWardrobe,
-  validateWardrobe,
+  readWardrobeSnapshot,
   type WardrobeSnapshot
 } from '../wardrobe/wardrobeStorage'
 import { wardrobeRegionScope, type WardrobeRegionScope } from '../wardrobe/wardrobeRegion'
 import { hasWardrobeSnapshot } from '../wardrobe/wardrobeOwnership'
-import { runStoreRequest } from '../file-system/database'
 import { strToU8, unzip } from 'fflate'
 import { backupPartBlob, downloadBackupBlob, type BackupDownload } from './zipBackup'
 import { exportOutfitBackup, importOutfitBackup, inspectOutfitBackup } from '../outfit/outfitBackup'
@@ -75,12 +73,6 @@ export interface WardrobeRegionConflict {
 export type ResolveWardrobeRegion = (
   conflict: WardrobeRegionConflict
 ) => Promise<WardrobeRegionScope | null>
-
-/** 确认前只读原始快照，不触发旧套装映射迁移，取消时任何模块均不写入。 */
-async function readRestoreWardrobe(): Promise<WardrobeSnapshot> {
-  const raw = await runStoreRequest('wardrobe', 'readonly', (store) => store.get('current'))
-  return raw === undefined ? emptyWardrobe() : validateWardrobe(raw)
-}
 
 /** Keep the original module archives intact so they can also be restored separately. */
 export async function exportAllDataBackup(
@@ -263,7 +255,7 @@ export async function applyAllDataBackup(
   const cameraPlan = planCameraImport(await readCameraFavorites(), plan.camera)
   const choices = cameraPlan.conflicts.length ? await resolveConflict(cameraPlan) : {}
   if (choices === null) return null
-  const localWardrobe = plan.wardrobe ? await readRestoreWardrobe() : null
+  const localWardrobe = plan.wardrobe ? await readWardrobeSnapshot() : null
   let finalRegion: WardrobeRegionScope | undefined
   if (plan.wardrobe && hasWardrobeSnapshot(plan.wardrobe)) {
     const incoming = wardrobeRegionScope(plan.wardrobe)
@@ -277,7 +269,7 @@ export async function applyAllDataBackup(
       finalRegion = selected
     }
     // 等待选择期间其他标签页可能导入新衣橱；在任何模块写入前拒绝过期确认。
-    if (JSON.stringify(await readRestoreWardrobe()) !== JSON.stringify(localWardrobe))
+    if (JSON.stringify(await readWardrobeSnapshot()) !== JSON.stringify(localWardrobe))
       throw new Error('WARDROBE_CHANGED')
   }
   const results: ModuleImportResult[] = []

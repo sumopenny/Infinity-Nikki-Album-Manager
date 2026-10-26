@@ -8,7 +8,7 @@ import {
   sortResonanceRecords
 } from '../../src/utils/resonance/resonanceCatalog'
 import {
-  importFromPearpal,
+  parsePearpalResonance,
   fetchPearpalSnapshot,
   PEARPAL_AUTH_FAILED,
   PEARPAL_REGION_MISMATCH,
@@ -231,7 +231,8 @@ describe('Pearpal import', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const result = await importFromPearpal(CREDENTIALS)
+    const decoded = await fetchPearpalSnapshot(CREDENTIALS)
+    const result = parsePearpalResonance(decoded as Parameters<typeof parsePearpalResonance>[0])
     const record = result.records.find((item) => item.outfitId === '10347')
     expect(result.skippedPools).toBe(0)
     expect(record?.sets[0].totalPulls).toBe(18)
@@ -256,7 +257,7 @@ describe('Pearpal import', () => {
     )
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(importFromPearpal(CREDENTIALS)).rejects.toThrow(PEARPAL_UID_MISMATCH)
+    await expect(fetchPearpalSnapshot(CREDENTIALS)).rejects.toThrow(PEARPAL_UID_MISMATCH)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
@@ -271,7 +272,7 @@ describe('Pearpal import', () => {
         Response.json(payload, { headers: { 'cache-control': 'no-store' } })
       )
       vi.stubGlobal('fetch', fetchMock)
-      await expect(importFromPearpal(CREDENTIALS)).rejects.toThrow(PEARPAL_AUTH_FAILED)
+      await expect(fetchPearpalSnapshot(CREDENTIALS)).rejects.toThrow(PEARPAL_AUTH_FAILED)
       expect(fetchMock).toHaveBeenCalledTimes(1)
     }
   )
@@ -288,7 +289,7 @@ describe('Pearpal import', () => {
         )
       )
     )
-    await expect(importFromPearpal(CREDENTIALS)).rejects.toThrow(PEARPAL_AUTH_FAILED)
+    await expect(fetchPearpalSnapshot(CREDENTIALS)).rejects.toThrow(PEARPAL_AUTH_FAILED)
   })
 
   it('processes every known banner and reports an unparseable pool', async () => {
@@ -322,7 +323,8 @@ describe('Pearpal import', () => {
       )
     )
 
-    const result = await importFromPearpal(CREDENTIALS)
+    const decoded = await fetchPearpalSnapshot(CREDENTIALS)
+    const result = parsePearpalResonance(decoded as Parameters<typeof parsePearpalResonance>[0])
     expect(result.records.map((record) => record.bannerId)).toEqual(['2'])
     expect(result.skippedPools).toBe(1)
   })
@@ -340,7 +342,10 @@ describe('Pearpal import', () => {
           })
     })
     vi.stubGlobal('fetch', fetchMock)
-    await expect(importFromPearpal(CREDENTIALS)).rejects.toThrow(PEARPAL_NO_RECORDS)
+    const decoded = await fetchPearpalSnapshot(CREDENTIALS)
+    expect(() =>
+      parsePearpalResonance(decoded as Parameters<typeof parsePearpalResonance>[0])
+    ).toThrow(PEARPAL_NO_RECORDS)
     expect(() => decodePearpal(new Uint8Array([1, 2, 3]).buffer)).toThrow()
   })
 })

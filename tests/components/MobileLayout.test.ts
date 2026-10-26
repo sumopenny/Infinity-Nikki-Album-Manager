@@ -204,12 +204,12 @@ describe('mobile navigation and collection controls', () => {
         .attributes('aria-expanded')
     ).toBe('false')
     expect(document.querySelector('.view-dropdown')!.textContent).toContain(
-      messages.zh.topBar.thumbnail
+      messages.zh.topBar.thumbnailRatio
     )
   })
 
   it.each([true, false])(
-    'disables only ratio choices in the view menu (compact=%s)',
+    'handles independent ratio and size choices without disabling theme or language (compact=%s)',
     async (compact) => {
       vi.stubGlobal(
         'matchMedia',
@@ -227,9 +227,10 @@ describe('mobile navigation and collection controls', () => {
           thumbnailModeOptions: [
             { value: 'default', label: '1:1' },
             { value: 'wide', label: '16:9' },
-            { value: 'half', label: '半尺寸 1:1' }
+            { value: 'portrait-standard', label: '3:4' }
           ],
           thumbnailModeDisabled: true,
+          thumbnailSizeDisabled: true,
           themeMode: 'light',
           language: 'zh',
           messages: messages.zh.topBar
@@ -243,6 +244,11 @@ describe('mobile navigation and collection controls', () => {
       const options = [...document.querySelectorAll<HTMLButtonElement>('.thumbnail-options button')]
       expect(options).toHaveLength(3)
       expect(options.every((button) => button.disabled)).toBe(true)
+      expect(
+        [...document.querySelectorAll<HTMLButtonElement>('.thumbnail-size-options button')].every(
+          (button) => button.disabled
+        )
+      ).toBe(true)
       options[1]!.click()
       expect(wrapper.emitted('changeThumbnailMode')).toBeUndefined()
       expect(
@@ -250,14 +256,17 @@ describe('mobile navigation and collection controls', () => {
           (button) => !button.disabled
         )
       ).toBe(true)
-      await wrapper.setProps({ thumbnailModeDisabled: false })
+      await wrapper.setProps({ thumbnailModeDisabled: false, thumbnailSizeDisabled: false })
       expect(options[0]!.disabled).toBe(false)
       expect(options[1]!.disabled).toBe(false)
-      expect(options[2]!.disabled).toBe(compact)
-      if (compact) {
-        options[2]!.click()
-        expect(wrapper.emitted('changeThumbnailMode')).toBeUndefined()
-      }
+      expect(options[2]!.disabled).toBe(false)
+      const sizes = [
+        ...document.querySelectorAll<HTMLButtonElement>('.thumbnail-size-options button')
+      ]
+      expect(sizes.map((button) => button.textContent?.trim())).toEqual(['小', '中', '大'])
+      expect(sizes.every((button) => !button.disabled)).toBe(true)
+      sizes[0]!.click()
+      expect(wrapper.emitted('changeThumbnailSize')).toEqual([['small']])
       options[1]!.click()
       expect(wrapper.emitted('changeThumbnailMode')).toEqual([['wide']])
     }
@@ -549,7 +558,9 @@ describe('mobile navigation and collection controls', () => {
     trigger.click()
     await flushPromises()
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
-    actions.querySelector<HTMLButtonElement>('.collection-action-options button')!.click()
+    await new DOMWrapper(
+      actions.querySelector<HTMLButtonElement>('.collection-action-options button')!
+    ).trigger('click')
     expect(imported).toHaveBeenCalledOnce()
     await flushPromises()
     expect(trigger.getAttribute('aria-expanded')).toBe('false')

@@ -1,20 +1,24 @@
+import {
+  ApiError,
+  fail,
+  json,
+  headers,
+  digest,
+  cookieFor,
+  limit,
+  readBody,
+  checkOrigin,
+  readCloudSession,
+  requireCloudAccount,
+  type CloudDB,
+  type CloudEnv
+} from './cloudShared'
+export type { Statement, CloudDB, CloudEnv } from './cloudShared'
+export { digest } from './cloudShared'
 import { argon2idAsync } from '@noble/hashes/argon2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { MAX_CLOUD_BYTES, validateCloudRecords } from '../../src/utils/resonance/cloudSchema'
 
-export interface Statement {
-  bind(...values: unknown[]): Statement
-  first<T = Record<string, unknown>>(): Promise<T | null>
-  all<T = Record<string, unknown>>(): Promise<{ results: T[] }>
-  run(): Promise<unknown>
-}
-export interface CloudDB {
-  prepare(sql: string): Statement
-  batch<T = Record<string, unknown>>(statements: Statement[]): Promise<{ results: T[] }[]>
-}
-export interface CloudEnv {
-  RESONANCE_DB?: CloudDB
-}
 type CloudStage =
   | 'origin'
   | 'session'
@@ -38,34 +42,10 @@ interface User {
   revision: number
   updated_at: number
 }
-const COOKIE = 'resonance_session'
 const enc = new TextEncoder()
-const headers = {
-  'Cache-Control': 'no-store',
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-  'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'"
-}
 const opts = { m: 19456, t: 2, p: 1, dkLen: 32, maxmem: 32 * 1024 * 1024 }
-class ApiError extends Error {
-  constructor(
-    public status: number,
-    message: string
-  ) {
-    super(message)
-  }
-}
-function fail(status: number, code: string): never {
-  throw new ApiError(status, code)
-}
-const json = (value: unknown, cookie?: string) =>
-  Response.json(value, { headers: { ...headers, ...(cookie ? { 'Set-Cookie': cookie } : {}) } })
 const publicUser = (user: User) => ({ id: user.id, username: user.username })
 const random = () => bytesToHex(crypto.getRandomValues(new Uint8Array(32)))
-/** 只对高熵会话令牌、请求摘要做 SHA-256；密码使用 Argon2id。 */
-export async function digest(value: string) {
-  return bytesToHex(new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(value))))
-}
 /** 固定版本和成本参数，随机盐随哈希保存，便于后续迁移。 */
 export async function hashPassword(password: string, salt = random().slice(0, 32)) {
   const hash = await argon2idAsync(password, hexToBytes(salt), opts)
@@ -80,77 +60,19 @@ export async function verifyPassword(password: string, stored: string) {
     diff |= actual.charCodeAt(i) ^ (expected?.charCodeAt(i) || 0)
   return diff === 0 && stored.startsWith('argon2id-v1$')
 }
-/** Cookie 续期不保存密码；服务端会话无固定到期日，退出时撤销。 */
-function cookieFor(request: Request, token: string, clear = false) {
-  return `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${clear ? 0 : 34560000}${new URL(request.url).protocol === 'https:' ? '; Secure' : ''}`
-}
-function getToken(request: Request) {
-  return request.headers
-    .get('Cookie')
-    ?.match(/(?:^|;\s*)resonance_session=([a-f0-9]{64})(?:;|$)/)?.[1]
-}
-/** 跨请求共享 D1 限流；先限流再执行昂贵的密码哈希。 */
-async function limit(db: CloudDB, key: string, max: number) {
-  const now = Date.now()
-  const row = await db
-    .prepare(
-      'INSERT INTO cloud_rate_limits(key,count,resets_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN resets_at<=? THEN 1 ELSE count+1 END,resets_at=CASE WHEN resets_at<=? THEN excluded.resets_at ELSE resets_at END RETURNING count'
-    )
-    .bind(key, now + 900000, now, now)
-    .first<{ count: number }>()
-  if (!row || row.count > max) fail(429, 'RATE_LIMIT')
-}
-/** 流式限制实际请求字节，不能仅信任 Content-Length。 */
-async function readBody(request: Request, maximum: number): Promise<Record<string, unknown>> {
-  if (!request.headers.get('Content-Type')?.startsWith('application/json'))
-    fail(415, 'INVALID_DATA')
-  const reader = request.body?.getReader()
-  if (!reader) fail(400, 'INVALID_DATA')
-  const chunks: Uint8Array[] = []
-  let size = 0
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    size += value.byteLength
-    if (size > maximum) {
-      await reader.cancel()
-      fail(413, 'TOO_LARGE')
-    }
-    chunks.push(value)
-  }
-  const bytes = new Uint8Array(size)
-  let offset = 0
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset)
-    offset += chunk.length
-  }
-  try {
-    const body = JSON.parse(new TextDecoder().decode(bytes))
-    if (!body || typeof body !== 'object' || Array.isArray(body)) fail(400, 'INVALID_DATA')
-    return body
-  } catch {
-    return fail(400, 'INVALID_DATA')
-  }
-}
-/** 只接受本站 JSON 写请求，同时校验浏览器 Origin 与 Fetch Metadata。 */
-function checkOrigin(request: Request) {
-  const origin = request.headers.get('Origin')
-  if (
-    (origin && origin !== new URL(request.url).origin) ||
-    request.headers.get('Sec-Fetch-Site') === 'cross-site'
-  )
-    fail(403, 'FORBIDDEN')
-  if (request.method !== 'GET' && request.headers.get('X-Resonance-Request') !== '1')
-    fail(403, 'FORBIDDEN')
-}
 /** 只回收已提交且不再活跃的记录；保留小型请求回执与其他设备的暂存版本。 */
-async function cleanupRecords(db: CloudDB, userId: string) {
-  await db
-    .prepare(
-      'DELETE FROM cloud_records WHERE user_id=? AND snapshot_id IN (SELECT id FROM cloud_snapshots WHERE user_id=? AND committed_revision IS NOT NULL AND id IS NOT (SELECT active_snapshot FROM cloud_users WHERE id=?))'
-    )
-    .bind(userId, userId, userId)
-    .run()
+async function cleanupRecords(db: CloudDB, userId: string, requestId: string) {
+  try {
+    await db
+      .prepare(
+        'DELETE FROM cloud_records WHERE user_id=? AND snapshot_id IN (SELECT id FROM cloud_snapshots WHERE user_id=? AND committed_revision IS NOT NULL AND id IS NOT (SELECT active_snapshot FROM cloud_users WHERE id=?))'
+      )
+      .bind(userId, userId, userId)
+      .run()
+  } catch {
+    // 提交已完成，回收失败留待下次请求处理，不改变提交回执。
+    console.warn('resonance-cloud', { stage: 'cleanup', requestId, category: 'deferred' })
+  }
 }
 /** 版本化整批覆盖：暂存各行后 CAS 切换指针，失败或中断不影响当前存档。 */
 async function replace(
@@ -158,7 +80,8 @@ async function replace(
   user: User,
   body: Record<string, unknown>,
   deleting: boolean,
-  stage: (value: CloudStage) => void
+  stage: (value: CloudStage) => void,
+  requestId: string
 ) {
   const id = body.requestId
   if (
@@ -182,7 +105,7 @@ async function replace(
   if (previous && previous.digest !== fingerprint) fail(409, 'CONFLICT')
   if (previous?.committed_revision != null) {
     stage('cleanup')
-    await cleanupRecords(db, user.id)
+    await cleanupRecords(db, user.id, requestId)
     return { revision: previous.committed_revision, replayed: true }
   }
   if (user.revision !== body.revision) fail(409, 'CONFLICT')
@@ -273,7 +196,7 @@ async function replace(
     fail(409, 'CONFLICT')
   }
   stage('cleanup')
-  await cleanupRecords(db, user.id)
+  await cleanupRecords(db, user.id, requestId)
   return { revision: Number(body.revision) + 1 }
 }
 
@@ -308,16 +231,7 @@ export async function handleCloud(
     if (!['GET', 'POST'].includes(request.method)) fail(405, 'METHOD')
     if ((request.method === 'GET') !== ['session', 'snapshot'].includes(action)) fail(405, 'METHOD')
     setStage('session')
-    const token = getToken(request)
-    const sessionHash = token ? await digest(token) : ''
-    const user = token
-      ? await db
-          .prepare(
-            'SELECT u.* FROM cloud_users u JOIN cloud_sessions s ON s.user_id=u.id WHERE s.token_hash=?'
-          )
-          .bind(sessionHash)
-          .first<User>()
-      : null
+    const { token, sessionHash, user } = await readCloudSession<User>(db, request)
     if (action === 'session')
       return json(
         { user: user ? publicUser(user) : null },
@@ -374,8 +288,7 @@ export async function handleCloud(
       ])
       return json({ user: publicUser(account) }, cookieFor(request, next))
     }
-    if (!user) fail(401, 'LOGIN_REQUIRED')
-    if (request.headers.get('X-Resonance-Account') !== user.id) fail(409, 'ACCOUNT_CHANGED')
+    requireCloudAccount(request, user)
     if (action === 'logout') {
       setStage('session-write')
       await db.prepare('DELETE FROM cloud_sessions WHERE token_hash=?').bind(sessionHash).run()
@@ -409,7 +322,9 @@ export async function handleCloud(
       setStage('rate-limit')
       await limit(db, `delete:${user.id}`, 10)
     }
-    return json(await replace(db, user, { ...body, sessionHash }, action === 'delete', setStage))
+    return json(
+      await replace(db, user, { ...body, sessionHash }, action === 'delete', setStage, requestId)
+    )
   } catch (error) {
     const known =
       error instanceof ApiError ||

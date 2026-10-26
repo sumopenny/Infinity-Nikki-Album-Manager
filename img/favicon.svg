@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="box" x2="1" y2="1">
+      <stop stop-color="#f9d8ee"/>
+      <stop offset=".5" stop-color="#fff2ce"/>
+      <stop offset="1" stop-color="#c9b5f5"/>
+    </linearGradient>
+    <linearGradient id="dress" x2="1" y2=".5">
+      <stop stop-color="#a582dc"/>
+      <stop offset=".6" stop-color="#ed83b4"/>
+      <stop offset="1" stop-color="#ffc49f"/>
+    </linearGradient>
+  </defs>
+  <path d="M24 12C16 11 7 7 11 4c5-4 11 3 13 8Zm0 0C30 2 39 2 38 7c-1 5-9 6-14 5Z" fill="#fb9bad" stroke="#e96991" stroke-width="1.5"/>
+  <path d="m5 19 19-8 19 8v21l-19 7L5 40Z" fill="url(#box)" stroke="#e96991" stroke-width="2" stroke-linejoin="round"/>
+  <path d="m5 19 19 7 19-7M24 26v20" fill="none" stroke="#fff8ef" stroke-width="2"/>
+  <path d="m20 25 4 2 4-2 3 4-4 3 11 10-14 3-13-4 11-9-4-3Z" fill="url(#dress)"/>
+  <path d="m24 8 2 4 4 2-4 2-2 4-2-4-4-2 4-2Z" fill="#ffce82"/>
+  <path d="m35 27 1.5 3.5L40 32l-3.5 1.5L35 37l-1.5-3.5L30 32l3.5-1.5Z" fill="#fff"/>
+</svg>

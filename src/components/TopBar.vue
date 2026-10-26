@@ -35,9 +35,9 @@ import wxQrCode from '../../img/wx.jpg'
 import zfbQrCode from '../../img/zfb.jpg'
 import type { Language, LocaleMessages } from '../i18n'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
-import type { ThumbnailMode } from '../types/thumbnail'
+import { THUMBNAIL_SIZES, type ThumbnailMode, type ThumbnailSize } from '../types/thumbnail'
 import type { ThemeMode } from '../types/theme'
-import brandIcon from '../../img/wxnn.ico'
+import brandIcon from '../../img/brand-mark.png'
 
 type OpenMenu = 'album' | 'view' | 'tools' | 'more' | null
 
@@ -53,6 +53,8 @@ const props = defineProps<{
   hasX6GameAuthorization: boolean
   thumbnailMode: ThumbnailMode
   thumbnailModeDisabled?: boolean
+  thumbnailSize?: ThumbnailSize
+  thumbnailSizeDisabled?: boolean
   thumbnailModeOptions: Array<{ value: ThumbnailMode; label: string }>
   themeMode: ThemeMode
   language: Language
@@ -77,6 +79,7 @@ const emit = defineEmits<{
   toggleLanguage: []
   toggleTheme: []
   changeThumbnailMode: [mode: ThumbnailMode]
+  changeThumbnailSize: [size: ThumbnailSize]
   openUpdateLog: []
   openHelpAbout: []
   updateSearch: [value: string]
@@ -98,6 +101,12 @@ const menuMotion = useModalPresence(
   computed(() => compact.value && openMenu.value !== null),
   compact
 )
+/** 桌面退场也立即屏蔽交互；手机仍交由原模态生命周期管理滚动锁。 */
+function beforeMenuLeave(element: Element) {
+  element.setAttribute('inert', '')
+  menuMotion.beforeLeave(element)
+}
+
 const menuStyle = computed(() =>
   compact.value ? {} : { top: `${menuPosition.value.top}px`, left: `${menuPosition.value.left}px` }
 )
@@ -451,10 +460,9 @@ function openDonate() {
         </button>
         <Teleport to="body">
           <Transition
-            name="mobile-menu"
-            :css="compact"
+            :name="compact ? 'mobile-menu' : 'desktop-menu'"
             @before-enter="menuMotion.beforeEnter"
-            @before-leave="menuMotion.beforeLeave"
+            @before-leave="beforeMenuLeave"
             @after-leave="menuMotion.afterLeave"
           >
             <div
@@ -521,10 +529,9 @@ function openDonate() {
         </button>
         <Teleport to="body">
           <Transition
-            name="mobile-menu"
-            :css="compact"
+            :name="compact ? 'mobile-menu' : 'desktop-menu'"
             @before-enter="menuMotion.beforeEnter"
-            @before-leave="menuMotion.beforeLeave"
+            @before-leave="beforeMenuLeave"
             @after-leave="menuMotion.afterLeave"
           >
             <div
@@ -595,7 +602,24 @@ function openDonate() {
                   </button>
                 </div>
               </div>
-              <div class="menu-section-label">{{ messages.thumbnail }}</div>
+              <div class="menu-section-label">{{ messages.thumbnailSize }}</div>
+              <div class="thumbnail-size-options">
+                <button
+                  v-for="size in THUMBNAIL_SIZES"
+                  :key="size"
+                  class="menu-radio"
+                  :class="{ active: size === (thumbnailSize ?? 'medium') }"
+                  type="button"
+                  role="menuitemradio"
+                  :disabled="thumbnailSizeDisabled"
+                  :aria-checked="size === (thumbnailSize ?? 'medium')"
+                  @click="runMenuAction(() => emit('changeThumbnailSize', size))"
+                >
+                  <span class="radio-mark"></span>
+                  <span>{{ messages.thumbnailSizes[size] }}</span>
+                </button>
+              </div>
+              <div class="menu-section-label">{{ messages.thumbnailRatio }}</div>
               <div class="thumbnail-options">
                 <button
                   v-for="option in thumbnailModeOptions"
@@ -604,7 +628,7 @@ function openDonate() {
                   :class="{ active: option.value === thumbnailMode }"
                   type="button"
                   role="menuitemradio"
-                  :disabled="thumbnailModeDisabled || (compact && option.value === 'half')"
+                  :disabled="thumbnailModeDisabled"
                   :aria-checked="option.value === thumbnailMode"
                   @click="runMenuAction(() => emit('changeThumbnailMode', option.value))"
                 >
@@ -638,10 +662,9 @@ function openDonate() {
         </button>
         <Teleport to="body">
           <Transition
-            name="mobile-menu"
-            :css="compact"
+            :name="compact ? 'mobile-menu' : 'desktop-menu'"
             @before-enter="menuMotion.beforeEnter"
-            @before-leave="menuMotion.beforeLeave"
+            @before-leave="beforeMenuLeave"
             @after-leave="menuMotion.afterLeave"
           >
             <div
@@ -701,10 +724,9 @@ function openDonate() {
         </button>
         <Teleport to="body">
           <Transition
-            name="mobile-menu"
-            :css="compact"
+            :name="compact ? 'mobile-menu' : 'desktop-menu'"
             @before-enter="menuMotion.beforeEnter"
-            @before-leave="menuMotion.beforeLeave"
+            @before-leave="beforeMenuLeave"
             @after-leave="menuMotion.afterLeave"
           >
             <div

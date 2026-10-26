@@ -1,9 +1,16 @@
-export type ThumbnailMode =
-  'default' | 'half' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'
+export type ThumbnailMode = 'default' | 'wide' | 'standard' | 'portrait-wide' | 'portrait-standard'
+
+export type ThumbnailSize = 'small' | 'medium' | 'large'
+export type ThumbnailRatioKind = 'photo' | 'outfit' | 'home'
+export type ThumbnailKind = ThumbnailRatioKind | 'camera'
+export const THUMBNAIL_SIZES: ThumbnailSize[] = ['small', 'medium', 'large']
+
+export function isThumbnailSize(value: string | null): value is ThumbnailSize {
+  return THUMBNAIL_SIZES.some((size) => size === value)
+}
 
 export const THUMBNAIL_MODE_OPTIONS: Array<{ value: ThumbnailMode; label: string }> = [
   { value: 'default', label: '1:1' },
-  { value: 'half', label: '半尺寸 1:1' },
   { value: 'wide', label: '16:9' },
   { value: 'standard', label: '4:3' },
   { value: 'portrait-wide', label: '9:16' },
