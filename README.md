@@ -6,10 +6,10 @@
   <p>暖立方（NikkiCube）在浏览器中整理相册、搭配码、家园方案、相机参数和共鸣记录，支持可选的共鸣与衣橱云同步，并提供专项清理工具。</p>
   <p style="color: orange;">如果遇到问题，请及时在网站内问题反馈处填写问卷，或在 GitHub / Gitee 的 Issues 或作者社交平台反馈。</p>
   <p>
-    <a href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases">GitHub Releases</a> ·
-    <a href="https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager/releases">Gitee Releases</a> ·
-    <a href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager">GitHub</a> ·
-    <a href="https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager">Gitee</a>
+    <a href="https://github.com/sumopenny/Infinity-Nikki-Toolkit/releases">GitHub Releases</a> ·
+    <a href="https://gitee.com/sumopenny/Infinity-Nikki-Toolkit/releases">Gitee Releases</a> ·
+    <a href="https://github.com/sumopenny/Infinity-Nikki-Toolkit">GitHub</a> ·
+    <a href="https://gitee.com/sumopenny/Infinity-Nikki-Toolkit">Gitee</a>
   </p>
   <p><a href="README_EN.md"><strong>English</strong></a></p>
 </div>
@@ -352,7 +352,7 @@ npm -v
 
 ### 本地部署
 
-1. 从 [GitHub Releases](https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases) 或 [Gitee Releases](https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager/releases) 下载并解压项目，或从仓库克隆源码。
+1. 从 [GitHub Releases](https://github.com/sumopenny/Infinity-Nikki-Toolkit/releases) 或 [Gitee Releases](https://gitee.com/sumopenny/Infinity-Nikki-Toolkit/releases) 下载并解压项目，或从仓库克隆源码。
 2. 双击根目录的 `网站启动器.exe`。
 3. 首次运行会自动安装依赖；资源更新结束且开发服务器成功开始监听后，才自动打开 `http://localhost:5173`。更新过程中不会提前打开网页；若启动失败或端口被占用，不会打开浏览器，请查看开发服务器窗口中的错误提示。
 4. 使用期间不要关闭窗口。

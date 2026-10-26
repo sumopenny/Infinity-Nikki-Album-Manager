@@ -88,7 +88,7 @@ async function fetchJson(url, timeoutMs) {
     url,
     {
       timeoutMs,
-      headers: { Accept: 'application/json', 'User-Agent': 'Infinity-Nikki-Album-Manager' }
+      headers: { Accept: 'application/json', 'User-Agent': 'Infinity-Nikki-Toolkit' }
     },
     async (response) => {
       try {

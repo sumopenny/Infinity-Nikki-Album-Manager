@@ -893,7 +893,7 @@ function openDonate() {
                   </a>
                   <a
                     class="author-social-link"
-                    href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager"
+                    href="https://github.com/sumopenny/Infinity-Nikki-Toolkit"
                     target="_blank"
                     rel="noopener noreferrer"
                     role="menuitem"
@@ -906,7 +906,7 @@ function openDonate() {
                   </a>
                   <a
                     class="author-social-link"
-                    href="https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager"
+                    href="https://gitee.com/sumopenny/Infinity-Nikki-Toolkit"
                     target="_blank"
                     rel="noopener noreferrer"
                     role="menuitem"

@@ -1,6 +1,6 @@
 ---
 name: release-tag-release
-description: 发布 Infinity Nikki Album Manager 的 Git tag 与 GitHub/Gitee Release。用于确定版本边界、创建 annotated tag、同步双远端、生成中文 Release、处理 Gitee 排序和执行发布后核验。
+description: 发布 Infinity Nikki Toolkit 的 Git tag 与 GitHub/Gitee Release。用于确定版本边界、创建 annotated tag、同步双远端、生成中文 Release、处理 Gitee 排序和执行发布后核验。
 ---
 
 # 发布 Tag 与 Release

@@ -6,10 +6,10 @@
   <p>NikkiCube manages albums, outfit codes, home schemes, camera parameters and resonance records in your browser, with optional resonance and wardrobe cloud sync and targeted cleanup.</p>
   <p style="color: orange;">If you run into any issues, please fill out the survey in the site's Feedback section, or report them through GitHub/Gitee Issues or the author's social platforms.</p>
   <p>
-    <a href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases">GitHub Releases</a> ·
-    <a href="https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager/releases">Gitee Releases</a> ·
-    <a href="https://github.com/sumopenny/Infinity-Nikki-Album-Manager">GitHub</a> ·
-    <a href="https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager">Gitee</a>
+    <a href="https://github.com/sumopenny/Infinity-Nikki-Toolkit/releases">GitHub Releases</a> ·
+    <a href="https://gitee.com/sumopenny/Infinity-Nikki-Toolkit/releases">Gitee Releases</a> ·
+    <a href="https://github.com/sumopenny/Infinity-Nikki-Toolkit">GitHub</a> ·
+    <a href="https://gitee.com/sumopenny/Infinity-Nikki-Toolkit">Gitee</a>
   </p>
   <p><a href="README.md"><strong>简体中文</strong></a></p>
 </div>
@@ -352,7 +352,7 @@ Both commands should print version numbers, which means installation succeeded. 
 
 ### Local deployment
 
-1. Download and extract the project from [GitHub Releases](https://github.com/sumopenny/Infinity-Nikki-Album-Manager/releases) or [Gitee Releases](https://gitee.com/sumopenny/Infinity-Nikki-Album-Manager/releases), or clone the source repository.
+1. Download and extract the project from [GitHub Releases](https://github.com/sumopenny/Infinity-Nikki-Toolkit/releases) or [Gitee Releases](https://gitee.com/sumopenny/Infinity-Nikki-Toolkit/releases), or clone the source repository.
 2. Double-click `网站启动器.exe` in the project root.
 3. On first run, dependencies are installed automatically. The browser opens `http://localhost:5173` only after resource updates finish and the dev server successfully starts listening. It does not open during updates or after a startup failure or port conflict; check the dev server window for errors.
 4. Keep the window open while using it.
