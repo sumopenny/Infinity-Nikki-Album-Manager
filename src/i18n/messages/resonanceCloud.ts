@@ -18,8 +18,6 @@ export const resonanceCloudMessages = {
     count: '条',
     credentials:
       '账号名为 4～32 位英文字母、数字或下划线，不区分大小写；密码为 6～128 个字符，区分大小写。',
-    persistent:
-      '保持登录，直到主动退出或浏览器清除登录凭证。第一版不提供修改或找回密码，请妥善保存。',
     uploadWarning: '本地全部记录将完整覆盖云端，不受当前筛选影响。云端独有的记录会删除，本地不变。',
     downloadWarning:
       '云端全部记录将完整覆盖本地。本地独有的记录会删除，云端不变。建议先导出本地备份。',
@@ -72,8 +70,6 @@ export const resonanceCloudMessages = {
     count: 'records',
     credentials:
       'Username: 4–32 letters, digits or underscores, case-insensitive. Password: 6–128 characters, case-sensitive.',
-    persistent:
-      'Stay signed in until you log out or your browser removes the credentials. Password changes and recovery are not available; keep your password safe.',
     uploadWarning:
       'All local records will replace the cloud save, regardless of filters. Cloud-only records will be removed. Local data stays unchanged.',
     downloadWarning:

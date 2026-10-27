@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
 
-const props = defineProps<{ open: boolean }>()
+const props = defineProps<{ open: boolean; softEdges?: boolean }>()
 const present = ref(props.open)
 let closeTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -32,7 +32,7 @@ watch(
 function finishClose(event: TransitionEvent) {
   if (
     event.target !== event.currentTarget ||
-    event.propertyName !== 'grid-template-rows' ||
+    event.propertyName !== (props.softEdges ? 'opacity' : 'grid-template-rows') ||
     props.open
   )
     return
@@ -46,7 +46,7 @@ onBeforeUnmount(clearCloseTimer)
 <template>
   <div
     class="tree-collapse"
-    :class="{ 'is-open': open }"
+    :class="{ 'is-open': open, 'has-soft-edges': softEdges }"
     :inert="open ? undefined : true"
     :aria-hidden="!open"
     @transitionend="finishClose"
@@ -75,8 +75,47 @@ onBeforeUnmount(clearCloseTimer)
   min-height: 0;
   overflow: hidden;
 }
+/* Overlay previews retain their full geometry: a moving feathered mask replaces
+   the hard height clip. The middle third is the fade; endpoints are fully clear/hidden. */
+.tree-collapse.has-soft-edges {
+  grid-template-rows: 1fr;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 33.333%,
+    transparent 66.667%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 33.333%,
+    transparent 66.667%,
+    transparent 100%
+  );
+  -webkit-mask-size: 100% 300%;
+  mask-size: 100% 300%;
+  -webkit-mask-position: 0 100%;
+  mask-position: 0 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  transition:
+    -webkit-mask-position 160ms ease-in,
+    mask-position 160ms ease-in,
+    opacity 160ms ease-in;
+}
+.tree-collapse.has-soft-edges.is-open {
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+  transition-duration: 200ms;
+  transition-timing-function: var(--ease-spring);
+}
+.tree-collapse.has-soft-edges > .tree-collapse-content {
+  overflow: visible;
+}
 @media (prefers-reduced-motion: reduce) {
-  .tree-collapse {
+  .tree-collapse,
+  .tree-collapse.has-soft-edges {
     transition: none;
   }
 }

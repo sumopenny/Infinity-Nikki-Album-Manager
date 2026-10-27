@@ -41,5 +41,4 @@ const t = computed(() => resonanceCloudMessages[props.language])
       required
       :disabled="busy"
   /></label>
-  <p>{{ t.persistent }}</p>
 </template>

@@ -4,7 +4,7 @@ import { Cloud, ChevronDown } from 'lucide-vue-next'
 import { useCompactLayout } from '../composables/useCompactLayout'
 import DesktopMenuTransition from './DesktopMenuTransition.vue'
 
-defineProps<{ label: string }>()
+defineProps<{ label: string; hideArrow?: boolean }>()
 const compact = useCompactLayout()
 const opened = ref(false)
 const root = ref<HTMLElement | null>(null)
@@ -56,7 +56,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside))
   >
     <button v-if="!compact" ref="trigger" type="button" :aria-expanded="opened" @click="toggle">
       <Cloud :size="16" aria-hidden="true" />{{ label
-      }}<ChevronDown :size="14" aria-hidden="true" />
+      }}<ChevronDown v-if="!hideArrow" :size="14" aria-hidden="true" />
     </button>
     <DesktopMenuTransition>
       <!-- 隐藏而不卸载，确保选择云端操作后其弹窗与会话继续存在。 -->

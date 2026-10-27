@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { mount, DOMWrapper } from '@vue/test-utils'
 import { expect, it } from 'vitest'
 import WardrobeItemDialog from '../../src/components/WardrobeItemDialog.vue'
 import type { WardrobeEntry } from '../../src/utils/wardrobe/wardrobeCatalog'
@@ -40,6 +40,51 @@ it('衣橱详情在加载、失败、重试和切换部件时保留展示框', a
     })
     expect(wrapper.get('.outfit-detail-image-frame').attributes('aria-busy')).toBe('true')
     expect(wrapper.get('img').attributes('src')).toContain('/items/1020100002.png')
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+it('switches between available item forms without claiming unknown ownership', async () => {
+  const { loadWardrobeCatalog } = await import('../../src/utils/wardrobe/wardrobeCatalog')
+  const catalog = await loadWardrobeCatalog()
+  const original = catalog.entries.find(
+    (entry) =>
+      entry.kind === 'item' &&
+      entry.variant === 0 &&
+      catalog.entries.some(
+        (other) =>
+          other.kind === 'item' && other.familyRootId === entry.familyRootId && other.variant > 0
+      )
+  )!
+  const evolved = catalog.entries.find(
+    (entry) =>
+      entry.kind === 'item' && entry.familyRootId === original.familyRootId && entry.variant > 0
+  )!
+  const wrapper = mount(WardrobeItemDialog, {
+    props: { item: original, outfits: [], catalog, language: 'zh' },
+    attachTo: document.body,
+    global: { stubs: { Transition: true } }
+  })
+  try {
+    const view = new DOMWrapper(document.body)
+    const nav = view.get('.wardrobe-form-nav')
+    expect(nav.text()).toContain('未知')
+    expect(nav.text()).not.toContain('已拥有')
+    const buttons = nav.findAll('button')
+    const index = catalog.entries
+      .filter((entry) => entry.kind === 'item' && entry.familyRootId === original.familyRootId)
+      .sort((a, b) => a.variant - b.variant)
+      .findIndex((entry) => entry.id === evolved.id)
+    await buttons[index]!.trigger('click')
+    expect(wrapper.emitted('selectForm')?.[0]).toEqual([evolved])
+    const panel = view.get('.outfit-detail-panel').element
+    await wrapper.setProps({ item: evolved })
+    expect(view.get('.outfit-detail-panel').element).toBe(panel)
+    expect(view.get('.outfit-detail-info').text()).toContain(evolved.name.zh)
+    expect(view.get('.outfit-detail-image').attributes('src')).toBe(
+      evolved.image.replace('/items/icons/', '/items/')
+    )
   } finally {
     wrapper.unmount()
   }

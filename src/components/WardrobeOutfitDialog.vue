@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import CatalogImage from './CatalogImage.vue'
+import WardrobeFormNav from './WardrobeFormNav.vue'
+import { useCompactLayout } from '../composables/useCompactLayout'
+import { wardrobeFamilyKey } from '../utils/wardrobe/wardrobeFamilies'
 import { computed, ref, toRef, watch } from 'vue'
 import {
   CalendarDays,
@@ -33,6 +36,15 @@ const props = defineProps<{
   snapshot: WardrobeSnapshot
   language: Language
 }>()
+const compact = useCompactLayout()
+const hasForms = computed(
+  () =>
+    !compact.value &&
+    !!props.detail &&
+    (props.catalog?.entries ?? []).filter(
+      (entry) => wardrobeFamilyKey(entry) === wardrobeFamilyKey(props.detail!)
+    ).length > 1
+)
 const emit = defineEmits<{ close: []; openOutfit: [outfit: WardrobeEntry] }>()
 const itemPreview = ref<WardrobeEntry | null>(null)
 const itemOutfits = computed(() =>
@@ -139,6 +151,7 @@ useModalFocus(dialogOpen, panel, closeDialog)
         <section
           ref="panel"
           class="dialog-panel wardrobe-dialog"
+          :class="{ 'has-form-navigation': hasForms }"
           tabindex="-1"
           role="dialog"
           aria-modal="true"
@@ -155,6 +168,14 @@ useModalFocus(dialogOpen, panel, closeDialog)
               <X :size="20" />
             </button>
           </header>
+          <WardrobeFormNav
+            v-if="hasForms"
+            :entry="detail"
+            :catalog="catalog"
+            :snapshot="snapshot"
+            :language="language"
+            @select="emit('openOutfit', $event)"
+          />
           <div class="wardrobe-dialog-body">
             <div class="wardrobe-overview has-description">
               <section
@@ -310,6 +331,9 @@ useModalFocus(dialogOpen, panel, closeDialog)
   </Teleport>
   <WardrobeItemDialog
     :item="itemPreview"
+    :catalog="catalog"
+    :snapshot="snapshot"
+    @select-form="itemPreview = $event"
     :outfits="itemOutfits"
     :language="language"
     :layer="222"
@@ -318,6 +342,23 @@ useModalFocus(dialogOpen, panel, closeDialog)
   />
 </template>
 <style scoped>
+.wardrobe-dialog.has-form-navigation {
+  --dialog-width: min(1150px, 100%);
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.has-form-navigation > .wardrobe-detail-header {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+.has-form-navigation > .wardrobe-dialog-body {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  border-left: 1px solid var(--line-soft);
+}
+
 .wardrobe-part-open {
   display: block;
   width: 100%;
@@ -405,7 +446,7 @@ useModalFocus(dialogOpen, panel, closeDialog)
 .wardrobe-dialog > .wardrobe-detail-header {
   flex-shrink: 0;
   gap: 18px;
-  padding: 18px 26px;
+  padding: 15px 26px;
   background: radial-gradient(
     ellipse at top right,
     color-mix(in srgb, var(--pink-deep) 8%, transparent),
@@ -832,7 +873,7 @@ useModalFocus(dialogOpen, panel, closeDialog)
     border-radius: 24px;
   }
   .wardrobe-dialog > .wardrobe-detail-header {
-    padding: 16px;
+    padding: 14px;
     gap: 10px;
   }
   .wardrobe-detail-header h2 {

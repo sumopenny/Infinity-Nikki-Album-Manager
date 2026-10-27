@@ -3,7 +3,9 @@ import { takeDownloadFiles } from '../utils/backup/downloadFallback'
 import { downloadBackupBlob } from '../utils/backup/zipBackup'
 import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import DesktopMenuTransition from './DesktopMenuTransition.vue'
+import TreeCollapse from './TreeCollapse.vue'
 import CatalogImage from './CatalogImage.vue'
+import { groupWardrobeEntries, wardrobeFamilyKey } from '../utils/wardrobe/wardrobeFamilies'
 import { wardrobeCatalogForRegion, wardrobeRegionScope } from '../utils/wardrobe/wardrobeRegion'
 import { useWardrobeFilters, type FilterKey } from '../composables/useWardrobeFilters'
 import {
@@ -13,7 +15,16 @@ import {
 import { hasWardrobeSnapshot, getOwnershipSummary } from '../utils/wardrobe/wardrobeOwnership'
 import { backupBaseName } from '../utils/backup/backupName'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRef, watch } from 'vue'
-import { ArrowLeftRight, ChevronDown, RotateCcw, Shirt, Info, X } from 'lucide-vue-next'
+import {
+  ArrowLeftRight,
+  ChevronDown,
+  CircleCheck,
+  CircleMinus,
+  RotateCcw,
+  Shirt,
+  Info,
+  X
+} from 'lucide-vue-next'
 import ResonanceDataActions from './ResonanceDataActions.vue'
 import WardrobeCloudActions from './WardrobeCloudActions.vue'
 import CollectionFilterBar from './CollectionFilterBar.vue'
@@ -142,6 +153,48 @@ const {
   select,
   reset
 } = useWardrobeFilters(tab, toRef(props, 'language'))
+const evolutionPreferenceKey = 'nikki-wardrobe-show-evolutions'
+const showEvolutions = ref(
+  (() => {
+    try {
+      return localStorage.getItem(evolutionPreferenceKey) !== 'false'
+    } catch {
+      return true
+    }
+  })()
+)
+const selectedForms = ref<Record<string, string>>({})
+const expandedFamilies = ref(new Set<string>())
+watch(showEvolutions, (value) => {
+  expandedFamilies.value = new Set()
+  limit.value = 48
+  try {
+    localStorage.setItem(evolutionPreferenceKey, String(value))
+  } catch {
+    /* Session only. */
+  }
+})
+const merged = computed(() => !compact.value && !showEvolutions.value)
+const matchingFamilies = computed(() => groupWardrobeEntries(filtered.value))
+// Filters determine visible families, not the available forms inside a preview.
+const catalogFamilies = computed(() => groupWardrobeEntries(catalog.value?.entries ?? []))
+const displayEntries = computed(() =>
+  !merged.value
+    ? filtered.value
+    : [...matchingFamilies.value].map(
+        ([key, entries]) =>
+          entries.find((entry) => entry.id === selectedForms.value[key]) ?? entries[0]!
+      )
+)
+const formsFor = (entry: WardrobeEntry) =>
+  [...(catalogFamilies.value.get(wardrobeFamilyKey(entry)) ?? [])].sort(
+    (a, b) => a.variant - b.variant
+  )
+function toggleFamily(entry: WardrobeEntry) {
+  const key = wardrobeFamilyKey(entry)
+  if (expandedFamilies.value.has(key)) expandedFamilies.value.delete(key)
+  else expandedFamilies.value.add(key)
+}
 const limit = ref(48)
 const loadMoreTarget = ref<HTMLElement | null>(null)
 let loadMoreObserver: IntersectionObserver | null = null
@@ -152,7 +205,7 @@ watch(
     loadMoreObserver = null
     if (!target) return
     if (!('IntersectionObserver' in window)) {
-      limit.value = filtered.value.length
+      limit.value = displayEntries.value.length
       return
     }
     // 每次追加后重新观察，首屏不足一屏时也能继续补足。
@@ -160,7 +213,7 @@ watch(
       (entries, observer) => {
         if (!entries.some((entry) => entry.isIntersecting)) return
         observer.disconnect()
-        limit.value = Math.min(limit.value + 48, filtered.value.length)
+        limit.value = Math.min(limit.value + 48, displayEntries.value.length)
       },
       { rootMargin: '600px 0px' }
     )
@@ -301,6 +354,7 @@ const stats = computed(() => ({
 }))
 watch([tab, query, ownership, rarity, variant, version, style, source, tag, category, sort], () => {
   limit.value = 48
+  expandedFamilies.value = new Set()
 })
 function resetFilters() {
   emit('update-search', '')
@@ -391,6 +445,7 @@ const itemOutfits = computed(() => {
   )
 })
 function openDetail(entry: WardrobeEntry) {
+  selectedForms.value[wardrobeFamilyKey(entry)] = entry.id
   if (entry.kind === 'item') {
     itemPreview.value = entry
     return
@@ -493,6 +548,7 @@ async function clearRecords() {
         </div>
       </div>
       <ResonanceDataActions
+        hide-cloud-arrow
         :key="compact && loaded ? 'toolbar' : 'header'"
         :t="importText"
         :label="text('衣橱操作', 'Wardrobe actions')"
@@ -505,6 +561,12 @@ async function clearRecords() {
         @clear="requestClear"
         @export="exportBackup"
       >
+        <template #before-cloud>
+          <label v-if="!compact && loaded && hasRecords" class="wardrobe-evolution-switch">
+            <span>{{ text('显示进化形态', 'Show evolution forms') }}</span>
+            <input v-model="showEvolutions" type="checkbox" role="switch" />
+          </label>
+        </template>
         <template #cloud
           ><WardrobeCloudActions
             :language="language"
@@ -725,48 +787,110 @@ async function clearRecords() {
           'Ownership information for this source may be missing from the imported data. Unidentified pieces are shown as Unknown.'
         )
       }}</p>
+
       <div v-if="filtered.length" class="wardrobe-grid" :class="{ 'is-pieces': tab === 'item' }">
         <article
-          v-for="(entry, imageIndex) in filtered.slice(0, limit)"
-          :key="entry.id"
+          v-for="(entry, imageIndex) in displayEntries.slice(0, limit)"
+          :key="merged ? wardrobeFamilyKey(entry) : entry.id"
           class="wardrobe-card"
+          :class="{ 'has-forms': merged && formsFor(entry).length > 1 }"
         >
-          <button
-            class="wardrobe-card-open"
-            type="button"
-            :disabled="blocked"
-            :aria-label="name(entry) + ' · ' + variants[entry.variant] + ' · ' + status(entry)"
-            @click="openDetail(entry)"
-          >
-            <div class="wardrobe-cover">
-              <CatalogImage
-                :language="language"
-                referrerpolicy="no-referrer"
-                :src="entry.image"
-                alt=""
-                :index="imageIndex"
-              />
-              <span class="wardrobe-variant">{{ variants[entry.variant] }}</span>
-            </div>
-            <div class="wardrobe-card-body"
-              ><h3>{{ name(entry) }}</h3>
-              <div class="wardrobe-card-status">
-                <span :class="complete(entry) ? 'wardrobe-owned' : ''">
-                  {{ status(entry) }}
-                  <small v-if="entry.kind === 'outfit'"
-                    >{{ ownedCount(entry) }}/{{ entry.parts.length }}</small
-                  >
-                </span>
-                <small class="wardrobe-card-rarity">{{ entry.quality }} ★</small>
+          <div class="wardrobe-card-media">
+            <button
+              class="wardrobe-card-open"
+              type="button"
+              :disabled="blocked"
+              :aria-label="name(entry) + ' · ' + variants[entry.variant] + ' · ' + status(entry)"
+              @click="openDetail(entry)"
+            >
+              <div class="wardrobe-cover">
+                <CatalogImage
+                  :language="language"
+                  referrerpolicy="no-referrer"
+                  :src="entry.image"
+                  alt=""
+                  :index="imageIndex"
+                />
+                <span class="wardrobe-variant">{{ variants[entry.variant] }}</span>
               </div>
-              <progress
-                v-if="entry.kind === 'outfit'"
-                :value="ownedCount(entry)"
-                :max="entry.parts.length || 1"
-                :aria-label="text('收集进度', 'Collection progress')"
-              ></progress
-            ></div>
-          </button>
+            </button>
+            <div v-if="merged && formsFor(entry).length > 1" class="wardrobe-form-overlay">
+              <TreeCollapse
+                soft-edges
+                class="wardrobe-form-preview"
+                :open="expandedFamilies.has(wardrobeFamilyKey(entry))"
+              >
+                <div class="wardrobe-form-thumbnails">
+                  <button
+                    v-for="form in formsFor(entry)"
+                    :key="form.id"
+                    type="button"
+                    :aria-label="variants[form.variant] + ' · ' + name(form) + ' · ' + status(form)"
+                    :aria-pressed="form.id === entry.id"
+                    :title="variants[form.variant] + ' · ' + status(form)"
+                    @click="openDetail(form)"
+                  >
+                    <CatalogImage :src="form.image" :language="language" alt="" />
+                    <span>{{ variants[form.variant] }}</span>
+                    <small :class="{ 'wardrobe-owned': complete(form) }" :aria-label="status(form)">
+                      <CircleCheck v-if="complete(form)" :size="14" aria-hidden="true" />
+                      <CircleMinus v-else :size="14" aria-hidden="true" />
+                    </small>
+                  </button>
+                </div>
+              </TreeCollapse>
+            </div>
+          </div>
+          <div class="wardrobe-card-body" @click="!blocked && openDetail(entry)">
+            <div class="wardrobe-card-heading">
+              <button
+                class="wardrobe-card-name"
+                type="button"
+                :disabled="blocked"
+                :title="name(entry)"
+                @click.stop="openDetail(entry)"
+              >
+                <h3>{{ name(entry) }}</h3>
+              </button>
+              <button
+                v-if="merged && formsFor(entry).length > 1"
+                type="button"
+                class="wardrobe-form-toggle"
+                :aria-expanded="expandedFamilies.has(wardrobeFamilyKey(entry))"
+                :aria-label="
+                  expandedFamilies.has(wardrobeFamilyKey(entry))
+                    ? text('收起形态', 'Collapse forms')
+                    : text('展开形态', 'Expand forms')
+                "
+                @click.stop="toggleFamily(entry)"
+              >
+                <span>{{
+                  expandedFamilies.has(wardrobeFamilyKey(entry))
+                    ? text('收起', 'Collapse')
+                    : text('展开', 'Expand')
+                }}</span>
+                <ChevronDown
+                  :size="16"
+                  :class="{ rotated: expandedFamilies.has(wardrobeFamilyKey(entry)) }"
+                />
+              </button>
+            </div>
+            <div class="wardrobe-card-status">
+              <span :class="complete(entry) ? 'wardrobe-owned' : ''">
+                {{ status(entry) }}
+                <small v-if="entry.kind === 'outfit'"
+                  >{{ ownedCount(entry) }}/{{ entry.parts.length }}</small
+                >
+              </span>
+              <small class="wardrobe-card-rarity">{{ entry.quality }} ★</small>
+            </div>
+            <progress
+              v-if="entry.kind === 'outfit'"
+              :value="ownedCount(entry)"
+              :max="entry.parts.length || 1"
+              :aria-label="text('收集进度', 'Collection progress')"
+            ></progress>
+          </div>
         </article>
       </div>
       <div v-if="filtered.length === 0" class="wardrobe-empty">
@@ -777,7 +901,7 @@ async function clearRecords() {
         </button>
       </div>
       <div
-        v-if="filtered.length > limit"
+        v-if="displayEntries.length > limit"
         ref="loadMoreTarget"
         class="wardrobe-load-more-target"
         aria-hidden="true"
@@ -786,6 +910,9 @@ async function clearRecords() {
 
     <WardrobeItemDialog
       :item="itemPreview"
+      :catalog="catalog"
+      :snapshot="snapshot"
+      @select-form="openDetail"
       :outfits="itemOutfits"
       @open-outfit="openDetail"
       :language="language"
@@ -822,6 +949,159 @@ async function clearRecords() {
 </template>
 
 <style scoped>
+.wardrobe-evolution-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  margin: 0;
+  white-space: nowrap;
+  font-size: 13px;
+  cursor: pointer;
+}
+.wardrobe-evolution-switch input {
+  appearance: none;
+  width: 38px;
+  height: 22px;
+  border-radius: 20px;
+  background: var(--muted);
+  position: relative;
+  cursor: pointer;
+}
+.wardrobe-evolution-switch input:checked {
+  background: var(--pink-deep);
+}
+.wardrobe-evolution-switch input::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 3px;
+  left: 3px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.15s;
+}
+.wardrobe-evolution-switch input:checked::after {
+  transform: translateX(16px);
+}
+.wardrobe-card {
+  position: relative;
+}
+.wardrobe-card-media {
+  position: relative;
+}
+.wardrobe-card-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+}
+.has-forms .wardrobe-card-heading {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+.wardrobe-card-name {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.wardrobe-form-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 448 / 656;
+  pointer-events: none;
+}
+.is-pieces .wardrobe-form-overlay {
+  aspect-ratio: 1;
+}
+.wardrobe-form-preview {
+  container-type: inline-size;
+  position: absolute;
+  bottom: 4px;
+  left: 2px;
+  right: 2px;
+  pointer-events: auto;
+}
+.wardrobe-form-thumbnails {
+  display: flex;
+  gap: 4px;
+  padding: 2px;
+}
+.wardrobe-form-thumbnails button {
+  flex: 1;
+  min-width: 0;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.wardrobe-form-thumbnails button[aria-pressed='true'] {
+  border-color: var(--pink-deep);
+  box-shadow: var(--photo-hover-shadow);
+}
+.wardrobe-form-thumbnails img {
+  display: block;
+  width: 100%;
+  /* Use the three-form image height regardless of the number of forms.
+     Subtract row padding, two gaps, then each button's border and padding. */
+  height: calc((100cqw - 12px) / 3 - 6px);
+  object-fit: cover;
+  object-position: top;
+  border-radius: 4px;
+}
+.wardrobe-form-thumbnails small {
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
+  color: var(--muted);
+}
+.wardrobe-form-thumbnails small.wardrobe-owned {
+  color: var(--notice-success);
+}
+.wardrobe-form-thumbnails span {
+  font-size: 10px;
+}
+.wardrobe-form-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: auto;
+  min-height: 0;
+  padding: 0 4px;
+  font-size: 12px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--pink-deep);
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.wardrobe-form-toggle svg {
+  transition: transform 220ms var(--ease-spring);
+}
+.wardrobe-form-toggle svg:not(.rotated) {
+  transition-duration: 140ms;
+}
+.wardrobe-form-toggle .rotated {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wardrobe-form-toggle svg {
+    transition: none;
+  }
+}
+
 .wardrobe-ownership-note {
   margin: 0 0 12px;
   color: var(--muted);
@@ -834,10 +1114,13 @@ async function clearRecords() {
   min-width: 0;
 }
 .wardrobe-header {
+  flex-wrap: wrap;
   margin-bottom: 16px;
 }
 .wardrobe-heading {
-  flex: 1;
+  flex: 0 1 auto;
+  width: max-content;
+  max-width: 100%;
   min-width: 0;
 }
 .wardrobe-title-row {
@@ -850,7 +1133,13 @@ async function clearRecords() {
   flex-shrink: 0;
 }
 .wardrobe-header :deep(.resonance-actions) {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  margin-left: auto;
+  justify-content: flex-end;
+  overflow: visible;
 }
 .wardrobe-toolbar,
 .wardrobe-filters {
@@ -862,7 +1151,7 @@ async function clearRecords() {
 .wardrobe-summary {
   display: flex;
   align-items: baseline;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px 12px;
   color: var(--text);
   font-size: 13px;
@@ -1029,23 +1318,23 @@ async function clearRecords() {
   transition: none;
 }
 .wardrobe-card:hover,
-.wardrobe-card:has(> button:focus-visible) {
+.wardrobe-card:has(button:focus-visible) {
   border-color: var(--wardrobe-card-hover-border);
   box-shadow: var(--photo-hover-shadow);
 }
 .wardrobe-grid.is-pieces .wardrobe-card:hover,
-.wardrobe-grid.is-pieces .wardrobe-card:has(> button:focus-visible) {
+.wardrobe-grid.is-pieces .wardrobe-card:has(button:focus-visible) {
   border-color: color-mix(in srgb, var(--pink-deep) 85%, var(--line));
 }
 @supports not (color: color-mix(in srgb, black, white)) {
   .wardrobe-grid.is-pieces .wardrobe-card:hover,
-  .wardrobe-grid.is-pieces .wardrobe-card:has(> button:focus-visible) {
+  .wardrobe-grid.is-pieces .wardrobe-card:has(button:focus-visible) {
     border-color: rgba(205.05, 144.15, 144.8, 1);
   }
   :where(:root[data-theme='dark']) .wardrobe-grid.is-pieces .wardrobe-card:hover,
   :where(:root[data-theme='dark'])
     .wardrobe-grid.is-pieces
-    .wardrobe-card:has(> button:focus-visible) {
+    .wardrobe-card:has(button:focus-visible) {
     border-color: rgba(218, 162.65, 165.1, 1);
   }
 }
@@ -1062,11 +1351,21 @@ async function clearRecords() {
   position: relative;
   /* 套装素材为 448 × 656，按原图比例预留空间，避免 contain 产生侧边留白。 */
   aspect-ratio: 448 / 656;
+}
+.wardrobe-cover {
   background: var(--frame-bg) url('../../img/back.png') center / cover no-repeat;
 }
 .is-pieces .wardrobe-cover {
   aspect-ratio: 1;
+}
+.is-pieces .wardrobe-cover {
   background-image: url('../../img/pinkCardBg.png');
+}
+.wardrobe-form-thumbnails img {
+  background: var(--frame-bg) url('../../img/longBg.jpg') center / cover no-repeat;
+}
+:where(:root[data-theme='dark']) .wardrobe-form-thumbnails img {
+  background-image: url('../../img/longBgdark.jpg');
 }
 .wardrobe-cover img {
   width: 100%;

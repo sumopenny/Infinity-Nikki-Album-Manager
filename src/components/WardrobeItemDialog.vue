@@ -1,19 +1,38 @@
 <script setup lang="ts">
 import CatalogImage from './CatalogImage.vue'
+import WardrobeFormNav from './WardrobeFormNav.vue'
+import { useCompactLayout } from '../composables/useCompactLayout'
+import { wardrobeFamilyKey } from '../utils/wardrobe/wardrobeFamilies'
 import { computed, ref, watch } from 'vue'
 import { ExternalLink, X } from 'lucide-vue-next'
 import type { Language } from '../i18n/types'
-import type { WardrobeEntry } from '../utils/wardrobe/wardrobeCatalog'
+import type { WardrobeSnapshot } from '../utils/wardrobe/wardrobeStorage'
+import type { WardrobeCatalog, WardrobeEntry } from '../utils/wardrobe/wardrobeCatalog'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import { useModalFocus } from '../composables/useModalFocus'
 
 const props = defineProps<{
   item: WardrobeEntry | null
+  catalog?: WardrobeCatalog | null
+  snapshot?: WardrobeSnapshot
   outfits: WardrobeEntry[]
   layer?: number
   language: Language
 }>()
-const emit = defineEmits<{ close: []; openOutfit: [outfit: WardrobeEntry] }>()
+const compact = useCompactLayout()
+const hasForms = computed(
+  () =>
+    !compact.value &&
+    !!props.item &&
+    (props.catalog?.entries ?? []).filter(
+      (entry) => wardrobeFamilyKey(entry) === wardrobeFamilyKey(props.item!)
+    ).length > 1
+)
+const emit = defineEmits<{
+  close: []
+  selectForm: [entry: WardrobeEntry]
+  openOutfit: [outfit: WardrobeEntry]
+}>()
 const visible = computed(() => !!props.item)
 const panel = ref<HTMLElement | null>(null)
 const imageState = ref<'loading' | 'loaded' | 'failed'>('loading')
@@ -43,6 +62,7 @@ useModalFocus(visible, panel, close)
         <section
           ref="panel"
           class="outfit-editor-panel outfit-detail-panel is-single-column"
+          :class="{ 'has-form-navigation': hasForms }"
           tabindex="-1"
           role="dialog"
           aria-modal="true"
@@ -54,6 +74,14 @@ useModalFocus(visible, panel, close)
               <X :size="19" aria-hidden="true" />
             </button>
           </header>
+          <WardrobeFormNav
+            v-if="hasForms"
+            :entry="item"
+            :catalog="catalog"
+            :snapshot="snapshot"
+            :language="language"
+            @select="emit('selectForm', $event)"
+          />
           <div class="outfit-detail-content is-single-column">
             <section class="outfit-detail-summary">
               <div
@@ -118,6 +146,25 @@ useModalFocus(visible, panel, close)
 </template>
 
 <style scoped>
+.outfit-detail-panel.is-single-column.has-form-navigation {
+  width: min(558px, 100%);
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.has-form-navigation > header {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+.has-form-navigation > .outfit-detail-content {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border-left: 1px solid var(--line-soft);
+}
+
 .wardrobe-outfit-link {
   display: inline-flex;
   align-items: center;

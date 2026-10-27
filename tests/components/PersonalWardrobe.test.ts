@@ -39,6 +39,7 @@ const button = (label: string) =>
   )!
 beforeEach(async () => {
   localStorage.removeItem('nikki-wardrobe-ownership-notice-v1')
+  localStorage.removeItem('nikki-wardrobe-show-evolutions')
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
     addEventListener() {},
@@ -69,6 +70,7 @@ beforeEach(async () => {
 })
 afterEach(() => {
   localStorage.removeItem('nikki-wardrobe-ownership-notice-v1')
+  localStorage.removeItem('nikki-wardrobe-show-evolutions')
   wrapper.unmount()
   clearCatalogApiCache()
   vi.restoreAllMocks()
@@ -77,6 +79,87 @@ afterEach(() => {
 })
 
 describe('personal wardrobe interactions', () => {
+  it('keeps the English name and expansion controls separate and opens details from the name', async () => {
+    await wrapper.setProps({ searchQuery: '10347', language: 'en' })
+    await wrapper.get('input[role="switch"]').setValue(false)
+    const heading = wrapper.get('.wardrobe-card-heading')
+    expect(heading.get('.wardrobe-form-toggle').text()).toBe('Expand')
+    await heading.get('.wardrobe-form-toggle').trigger('click')
+    expect(heading.get('.wardrobe-form-toggle').text()).toBe('Collapse')
+    expect(document.querySelector('.wardrobe-dialog')).toBeNull()
+    await heading.get('.wardrobe-card-name').trigger('click')
+    await flushPromises()
+    const catalog = await catalogModule.loadWardrobeCatalog()
+    expect(document.querySelector('#wardrobe-dialog-title')!.textContent).toBe(
+      catalog.byId.get('10347')!.name.en
+    )
+  })
+
+  it('merges matching forms without changing totals and keeps dialog/card selection in sync', async () => {
+    await wrapper.setProps({ searchQuery: '10347' })
+    const originalCount = wrapper.findAll('.wardrobe-card').length
+    expect(originalCount).toBeGreaterThan(1)
+    const summary = wrapper.get('.wardrobe-summary').text()
+    await wrapper.get('input[role="switch"]').setValue(false)
+    expect(wrapper.findAll('.wardrobe-card')).toHaveLength(1)
+    expect(wrapper.get('.wardrobe-summary').text()).toBe(summary)
+    expect(wrapper.find('.wardrobe-form-thumbnails').exists()).toBe(false)
+    await wrapper.get('.wardrobe-form-toggle').trigger('click')
+    const thumbs = wrapper.findAll('.wardrobe-form-thumbnails button')
+    expect(thumbs).toHaveLength(5)
+    expect(thumbs.map((thumb) => thumb.get('span').text())).toEqual([
+      '原套',
+      '焕新',
+      '一进',
+      '二进',
+      '满进'
+    ])
+    expect(thumbs[0]!.find('.lucide-circle-check').exists()).toBe(true)
+    expect(thumbs[3]!.find('.lucide-circle-minus').exists()).toBe(true)
+    expect(thumbs[4]!.find('.lucide-circle-minus').exists()).toBe(true)
+    expect(thumbs[4]!.get('small').text()).toBe('')
+    await thumbs[1]!.trigger('click')
+    await flushPromises()
+    const dialog = new DOMWrapper(document.querySelector<HTMLElement>('.wardrobe-dialog')!)
+    expect(dialog.get('.wardrobe-form-nav button[aria-pressed="true"]').text()).toContain('焕新')
+    const navigation = dialog.findAll('.wardrobe-form-nav button')
+    expect(navigation.map((button) => button.get('strong').text())).toEqual([
+      '原套',
+      '焕新',
+      '一进',
+      '二进',
+      '满进'
+    ])
+    const catalog = await catalogModule.loadWardrobeCatalog()
+    for (const [index, id] of [
+      [3, '1034703'],
+      [4, '1034704']
+    ] as const) {
+      await navigation[index]!.trigger('click')
+      expect(dialog.get('#wardrobe-dialog-title').text()).toBe(catalog.byId.get(id)!.name.zh)
+      expect(
+        dialog.get('.wardrobe-form-nav button[aria-pressed="true"]').get('strong').text()
+      ).toBe(index === 3 ? '二进' : '满进')
+    }
+    await dialog.findAll('.wardrobe-form-nav button')[0]!.trigger('click')
+    expect(dialog.get('.wardrobe-form-nav button[aria-pressed="true"]').text()).toContain('原套')
+    expect(wrapper.get('.wardrobe-variant').text()).toBe('原套')
+    await dialog.get('button[aria-label="关闭"]').trigger('click')
+    await choose('variant', '焕新')
+    expect(wrapper.findAll('.wardrobe-card')).toHaveLength(1)
+    expect(wrapper.get('.wardrobe-variant').text()).toBe('焕新')
+    expect(wrapper.find('.wardrobe-form-toggle').exists()).toBe(true)
+    expect(wrapper.get('.wardrobe-form-toggle').attributes('aria-expanded')).toBe('false')
+    await wrapper.get('.wardrobe-form-toggle').trigger('click')
+    expect(wrapper.get('.wardrobe-form-toggle').attributes('aria-expanded')).toBe('true')
+    await choose('variant', '全部')
+    expect(wrapper.get('.wardrobe-form-toggle').attributes('aria-expanded')).toBe('false')
+    await wrapper.get('.wardrobe-card-open').trigger('click')
+    expect(document.querySelectorAll('.wardrobe-form-nav button').length).toBeGreaterThan(1)
+    await wrapper.get('input[role="switch"]').setValue(true)
+    expect(localStorage.getItem('nikki-wardrobe-show-evolutions')).toBe('true')
+  })
+
   it('shows a retry action after a failed load and recovers', async () => {
     vi.spyOn(storage, 'loadWardrobe').mockRejectedValueOnce(new Error('read failed'))
     await reload()

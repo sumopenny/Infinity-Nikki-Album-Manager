@@ -9,6 +9,7 @@ defineProps<{
   t: Pick<ResonanceMessages, 'addData' | 'clearRecords' | 'exportData'>
   label: string
   cloudLabel: string
+  hideCloudArrow?: boolean
   mobileTarget?: string
   addDisabled?: boolean
   clearDisabled?: boolean
@@ -37,7 +38,10 @@ defineEmits<{ add: []; clear: []; export: [] }>()
       }}</span>
     </button>
     <template #secondary>
-      <CloudActionsMenu :label="cloudLabel"><slot name="cloud" /></CloudActionsMenu>
+      <slot name="before-cloud" />
+      <CloudActionsMenu :label="cloudLabel" :hide-arrow="hideCloudArrow"
+        ><slot name="cloud"
+      /></CloudActionsMenu>
       <slot />
       <button type="button" :disabled="clearDisabled" @click="$emit('clear')"
         ><Trash2 :size="16" aria-hidden="true" />{{ t.clearRecords }}</button
