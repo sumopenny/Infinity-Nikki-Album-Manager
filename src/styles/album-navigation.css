@@ -317,6 +317,14 @@
   animation: resonance-nav-menu-in 0.18s var(--ease-spring);
   transform-origin: top left;
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .resonance-nav-menu {
+    background: rgba(255, 255, 255, 0.84);
+  }
+  :where(:root[data-theme='dark']) .resonance-nav-menu {
+    background: rgba(27, 27, 31, 0.84);
+  }
+}
 @keyframes resonance-nav-menu-in {
   from {
     opacity: 0;
@@ -345,6 +353,16 @@
 .resonance-nav-menu button.active {
   background: color-mix(in srgb, var(--soft-accent) 82%, transparent);
   color: var(--heading);
+}
+@supports not (color: color-mix(in srgb, black, white)) {
+  .resonance-nav-menu button:hover:not(:disabled),
+  .resonance-nav-menu button.active {
+    background: rgba(255, 239, 237, 0.7544);
+  }
+  :where(:root[data-theme='dark']) .resonance-nav-menu button:hover:not(:disabled),
+  :where(:root[data-theme='dark']) .resonance-nav-menu button.active {
+    background: rgba(74, 70, 70, 0.574);
+  }
 }
 .resonance-nav-menu button:disabled {
   color: var(--muted);
@@ -762,6 +780,16 @@
     border-color var(--motion-fast) ease,
     box-shadow var(--motion-fast) ease;
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .photo-card {
+    border: 1px solid rgba(228, 213, 206, 0.78);
+    border-radius: var(--radius-md);
+  }
+  :where(:root[data-theme='dark']) .photo-card {
+    border: 1px solid rgba(99, 87, 92, 0.78);
+    border-radius: var(--radius-md);
+  }
+}
 
 :root.is-theme-switching .photo-card {
   transition: none;
@@ -779,9 +807,31 @@
   box-shadow: var(--photo-hover-shadow);
 }
 
+@supports not (color: color-mix(in srgb, black, white)) {
+  .photo-card:hover,
+  .photo-card:focus-visible {
+    border-color: rgba(213.15, 168.45, 166.4, 1);
+  }
+
+  :where(:root[data-theme='dark']) .photo-card:hover,
+  :where(:root[data-theme='dark']) .photo-card:focus-visible {
+    border-color: rgba(176, 135.95, 139.3, 1);
+  }
+}
+
 .photo-card.selected {
   border-color: var(--pink-deep);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--pink-deep) 20%, transparent);
+}
+
+@supports not (color: color-mix(in srgb, black, white)) {
+  .photo-card.selected {
+    box-shadow: 0 0 0 2px rgba(201, 132, 134, 0.2);
+  }
+
+  :where(:root[data-theme='dark']) .photo-card.selected {
+    box-shadow: 0 0 0 2px rgba(239, 176, 178, 0.2);
+  }
 }
 
 .photo-frame {
@@ -1050,6 +1100,14 @@
 .favorites-tabs button[aria-pressed='true'] {
   background: color-mix(in srgb, var(--pink-deep) 12%, var(--surface-strong));
   color: var(--pink-deep);
+}
+@supports not (color: color-mix(in srgb, black, white)) {
+  .favorites-tabs button[aria-pressed='true'] {
+    background: rgba(248.52, 240.24, 240.48, 1);
+  }
+  :where(:root[data-theme='dark']) .favorites-tabs button[aria-pressed='true'] {
+    background: rgba(52.44, 44.88, 48.64, 1);
+  }
 }
 .favorites-tabs small {
   font-size: 11px;

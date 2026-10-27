@@ -1037,6 +1037,18 @@ async function clearRecords() {
 .wardrobe-grid.is-pieces .wardrobe-card:has(> button:focus-visible) {
   border-color: color-mix(in srgb, var(--pink-deep) 85%, var(--line));
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .wardrobe-grid.is-pieces .wardrobe-card:hover,
+  .wardrobe-grid.is-pieces .wardrobe-card:has(> button:focus-visible) {
+    border-color: rgba(205.05, 144.15, 144.8, 1);
+  }
+  :where(:root[data-theme='dark']) .wardrobe-grid.is-pieces .wardrobe-card:hover,
+  :where(:root[data-theme='dark'])
+    .wardrobe-grid.is-pieces
+    .wardrobe-card:has(> button:focus-visible) {
+    border-color: rgba(218, 162.65, 165.1, 1);
+  }
+}
 .wardrobe-card-open {
   display: block;
   width: 100%;
@@ -1076,6 +1088,18 @@ async function clearRecords() {
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(2px);
   font-size: 12px;
+}
+@supports not (color: color-mix(in srgb, black, white)) {
+  .wardrobe-variant {
+    border: 1px solid rgba(249.06, 244.2, 239.54, 1);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.6204);
+  }
+  :where(:root[data-theme='dark']) .wardrobe-variant {
+    border: 1px solid rgba(39.72, 37.08, 40.52, 1);
+    border-radius: var(--radius-sm);
+    background: rgba(23, 23, 27, 0.627);
+  }
 }
 .wardrobe-card-body {
   display: grid;

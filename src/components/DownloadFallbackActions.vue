@@ -98,11 +98,27 @@ async function save(file: File) {
   font-family: inherit;
   font-size: 14px;
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .download-save-button {
+    box-shadow: 0 2px 6px rgba(201, 132, 134, 0.12);
+  }
+  :where(:root[data-theme='dark']) .download-save-button {
+    box-shadow: 0 2px 6px rgba(239, 176, 178, 0.12);
+  }
+}
 .download-save-button:hover {
   box-shadow: 0 3px 8px color-mix(in srgb, var(--pink-deep) 16%, transparent);
   background: transparent;
   color: var(--pink-deep);
   border-color: var(--pink-deep);
+}
+@supports not (color: color-mix(in srgb, black, white)) {
+  .download-save-button:hover {
+    box-shadow: 0 3px 8px rgba(201, 132, 134, 0.16);
+  }
+  :where(:root[data-theme='dark']) .download-save-button:hover {
+    box-shadow: 0 3px 8px rgba(239, 176, 178, 0.16);
+  }
 }
 .download-save-button:disabled {
   opacity: 0.6;

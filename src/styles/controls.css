@@ -19,6 +19,14 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--pink-deep) 14%, var(--surface-soft));
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .progress-track {
+    background: rgba(244.3867, 230.4543, 230.7856, 0.8452);
+  }
+  :where(:root[data-theme='dark']) .progress-track {
+    background: rgba(64.9468, 54.9195, 59.442, 0.8796);
+  }
+}
 .progress-fill {
   display: block;
   height: 100%;

@@ -3,6 +3,14 @@
 ::selection {
   background: color-mix(in srgb, var(--pink-deep) 26%, transparent);
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  ::selection {
+    background: rgba(201, 132, 134, 0.26);
+  }
+  :where(:root[data-theme='dark']) ::selection {
+    background: rgba(239, 176, 178, 0.26);
+  }
+}
 
 html {
   scroll-behavior: smooth;
@@ -28,6 +36,20 @@ button:focus-visible,
 a:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--pink-deep) 72%, transparent);
   outline-offset: 2px;
+}
+
+@supports not (color: color-mix(in srgb, black, white)) {
+  button:focus-visible,
+  a:focus-visible {
+    outline: 2px solid rgba(201, 132, 134, 0.72);
+    outline-offset: 2px;
+  }
+
+  :where(:root[data-theme='dark']) button:focus-visible,
+  :where(:root[data-theme='dark']) a:focus-visible {
+    outline: 2px solid rgba(239, 176, 178, 0.72);
+    outline-offset: 2px;
+  }
 }
 
 body {
@@ -158,6 +180,18 @@ h1 {
     box-shadow var(--motion-base) ease,
     background var(--motion-base) ease;
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .primary-button {
+    box-shadow:
+    /* inset 0 1px 0 rgba(255, 255, 255, 0.32), */ 0 6px 18px
+      rgba(201, 132, 134, 0.26);
+  }
+  :where(:root[data-theme='dark']) .primary-button {
+    box-shadow:
+    /* inset 0 1px 0 rgba(255, 255, 255, 0.32), */ 0 6px 18px
+      rgba(239, 176, 178, 0.26);
+  }
+}
 
 .primary-button:hover {
   transform: translateY(-1px);
@@ -166,6 +200,20 @@ h1 {
   box-shadow:
     /* inset 0 1px 0 rgba(255, 255, 255, 0.38),不需要这条，也不要删 */ 0 10px 24px
     color-mix(in srgb, var(--pink-deep) 34%, transparent);
+}
+
+@supports not (color: color-mix(in srgb, black, white)) {
+  .primary-button:hover {
+    box-shadow:
+    /* inset 0 1px 0 rgba(255, 255, 255, 0.38),不需要这条，也不要删 */ 0 10px 24px
+      rgba(201, 132, 134, 0.34);
+  }
+
+  :where(:root[data-theme='dark']) .primary-button:hover {
+    box-shadow:
+    /* inset 0 1px 0 rgba(255, 255, 255, 0.38),不需要这条，也不要删 */ 0 10px 24px
+      rgba(239, 176, 178, 0.34);
+  }
 }
 
 .primary-button:active:not(:disabled) {

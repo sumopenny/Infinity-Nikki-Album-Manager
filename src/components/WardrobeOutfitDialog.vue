@@ -348,6 +348,16 @@ useModalFocus(dialogOpen, panel, closeDialog)
   border-color: color-mix(in srgb, var(--pink-deep) 55%, var(--line));
   box-shadow: var(--photo-hover-shadow);
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .wardrobe-part:has(.wardrobe-part-open:hover:not(:disabled)),
+  .wardrobe-part:has(.wardrobe-part-open:focus-visible) {
+    border-color: rgba(213.15, 168.45, 166.4, 1);
+  }
+  :where(:root[data-theme='dark']) .wardrobe-part:has(.wardrobe-part-open:hover:not(:disabled)),
+  :where(:root[data-theme='dark']) .wardrobe-part:has(.wardrobe-part-open:focus-visible) {
+    border-color: rgba(176, 135.95, 139.3, 1);
+  }
+}
 
 .wardrobe-image-fallback {
   display: flex;
@@ -375,6 +385,14 @@ useModalFocus(dialogOpen, panel, closeDialog)
   overflow: hidden;
   background: linear-gradient(145deg, var(--surface-strong), var(--white));
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .wardrobe-dialog {
+    --wardrobe-gold: rgba(166, 127.5, 67.75, 1);
+  }
+  :where(:root[data-theme='dark']) .wardrobe-dialog {
+    --wardrobe-gold: rgba(233.25, 203.75, 146.5, 1);
+  }
+}
 :root[data-theme='dark'] .wardrobe-dialog {
   --notice-success: #85c99d;
   --wardrobe-success-text: #a4d7b2;
@@ -393,6 +411,14 @@ useModalFocus(dialogOpen, panel, closeDialog)
     color-mix(in srgb, var(--pink-deep) 8%, transparent),
     transparent 48%
   );
+}
+@supports not (color: color-mix(in srgb, black, white)) {
+  .wardrobe-dialog > .wardrobe-detail-header {
+    background: radial-gradient(ellipse at top right, rgba(201, 132, 134, 0.08), transparent 48%);
+  }
+  :where(:root[data-theme='dark']) .wardrobe-dialog > .wardrobe-detail-header {
+    background: radial-gradient(ellipse at top right, rgba(239, 176, 178, 0.08), transparent 48%);
+  }
 }
 .wardrobe-detail-heading {
   display: flex;
@@ -453,6 +479,16 @@ useModalFocus(dialogOpen, panel, closeDialog)
   overflow: hidden;
   /* 整张摘要卡共用一张背景图，人物和说明都叠放在同一背景上。 */
   background: url('../../img/longBg.jpg') center / 100% 100% no-repeat;
+}
+@supports not (color: color-mix(in srgb, black, white)) {
+  .wardrobe-suit-summary {
+    border: 1px solid rgba(227.2897, 204.4957, 200.9191, 0.8852);
+    border-radius: var(--radius-md);
+  }
+  :where(:root[data-theme='dark']) .wardrobe-suit-summary {
+    border: 1px solid rgba(101.1785, 84.3845, 89.5712, 0.8852);
+    border-radius: var(--radius-md);
+  }
 }
 :root[data-theme='dark'] .wardrobe-suit-summary {
   background-image: url('../../img/longBgdark.jpg');
@@ -577,6 +613,20 @@ useModalFocus(dialogOpen, panel, closeDialog)
   border-radius: 999px;
   background: color-mix(in srgb, var(--pink-deep) 12%, var(--surface-strong));
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .wardrobe-style-tag,
+  .wardrobe-state-tag,
+  .wardrobe-version-tag,
+  .wardrobe-rarity-tag {
+    background: rgba(248.52, 240.24, 240.48, 1);
+  }
+  :where(:root[data-theme='dark']) .wardrobe-style-tag,
+  :where(:root[data-theme='dark']) .wardrobe-state-tag,
+  :where(:root[data-theme='dark']) .wardrobe-version-tag,
+  :where(:root[data-theme='dark']) .wardrobe-rarity-tag {
+    background: rgba(52.44, 44.88, 48.64, 1);
+  }
+}
 /* 风格标签：比公共浅粉更鲜明的玫瑰红，贴近方案 A 的原始配色。 */
 .wardrobe-style-tag {
   color: #b45162;
@@ -666,6 +716,14 @@ useModalFocus(dialogOpen, panel, closeDialog)
     transparent 70%
   );
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .wardrobe-part-image {
+    background: radial-gradient(ellipse at center, rgba(196, 148, 69, 0.06), transparent 70%);
+  }
+  :where(:root[data-theme='dark']) .wardrobe-part-image {
+    background: radial-gradient(ellipse at center, rgba(226, 189, 114, 0.06), transparent 70%);
+  }
+}
 /* 两条弧线均由正圆裁出上半部：直径始终相等，底部逐渐淡出。 */
 .wardrobe-part-image::before,
 .wardrobe-part-image::after {
@@ -687,10 +745,26 @@ useModalFocus(dialogOpen, panel, closeDialog)
   height: calc(100% - 6px);
   border-color: color-mix(in srgb, var(--notice-warning) 23%, transparent);
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .wardrobe-part-image::before {
+    border-color: rgba(196, 148, 69, 0.23);
+  }
+  :where(:root[data-theme='dark']) .wardrobe-part-image::before {
+    border-color: rgba(226, 189, 114, 0.23);
+  }
+}
 .wardrobe-part-image::after {
   top: 12px;
   height: calc(100% - 24px);
   border-color: color-mix(in srgb, var(--notice-warning) 13%, transparent);
+}
+@supports not (color: color-mix(in srgb, black, white)) {
+  .wardrobe-part-image::after {
+    border-color: rgba(196, 148, 69, 0.13);
+  }
+  :where(:root[data-theme='dark']) .wardrobe-part-image::after {
+    border-color: rgba(226, 189, 114, 0.13);
+  }
 }
 .wardrobe-part-image img {
   position: relative;

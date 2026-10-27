@@ -115,15 +115,7 @@ function handleCardKeydown(event: KeyboardEvent, outfitId: string) {
         </div>
 
         <div class="outfit-card-footer">
-          <button
-            v-if="!outfit.code"
-            class="outfit-pending-code"
-            type="button"
-            :disabled="disabled"
-            @click.stop="$emit('edit', outfit)"
-          >
-            {{ messages.pending }}
-          </button>
+          <span v-if="!outfit.code" class="outfit-pending-code">{{ messages.pending }}</span>
           <span v-else class="outfit-code" :title="outfit.code">{{ outfit.code }}</span>
           <div class="outfit-card-actions" @click.stop @dblclick.stop>
             <button

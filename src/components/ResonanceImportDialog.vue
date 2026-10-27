@@ -344,6 +344,18 @@ const VIDEO_TUTORIALS = [
   font-weight: 800;
   text-decoration: none;
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .resonance-video-tutorials .resonance-video-links a {
+    border: 1px solid rgba(221.2937, 187.9615, 185.6568, 0.909);
+    border-radius: 10px;
+    box-shadow: 0 2px 7px rgba(201, 132, 134, 0.12);
+  }
+  :where(:root[data-theme='dark']) .resonance-video-tutorials .resonance-video-links a {
+    border: 1px solid rgba(132.6117, 105.2794, 109.7393, 0.909);
+    border-radius: 10px;
+    box-shadow: 0 2px 7px rgba(239, 176, 178, 0.12);
+  }
+}
 .resonance-video-links a:hover {
   border-color: var(--pink-deep);
 }

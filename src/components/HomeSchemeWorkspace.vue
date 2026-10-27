@@ -1429,6 +1429,14 @@ function handleAddTag(value: string) {
   font-size: 10px;
   white-space: nowrap;
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .home-scheme-card-tag {
+    background: rgba(249.6, 242.7, 242.9, 1);
+  }
+  :where(:root[data-theme='dark']) .home-scheme-card-tag {
+    background: rgba(48.2, 41.9, 45.7, 1);
+  }
+}
 /* 标签在双端都限制一行，桌面也允许内部文本收缩并显示省略号。 */
 .home-scheme-card-tag > span {
   min-width: 0;
@@ -1459,6 +1467,18 @@ function handleAddTag(value: string) {
   border-radius: 11px;
   background: color-mix(in srgb, var(--pink-deep) 6%, var(--surface-strong));
   vertical-align: top;
+}
+@supports not (color: color-mix(in srgb, black, white)) {
+  .home-scheme-metadata td {
+    border: 1px solid rgba(222.06, 195.18, 190.16, 1);
+    border-radius: 11px;
+    background: rgba(251.76, 247.62, 247.74, 1);
+  }
+  :where(:root[data-theme='dark']) .home-scheme-metadata td {
+    border: 1px solid rgba(129.8, 106.58, 110.92, 1);
+    border-radius: 11px;
+    background: rgba(39.72, 35.94, 39.82, 1);
+  }
 }
 .home-scheme-metadata span {
   display: block;
@@ -1524,6 +1544,14 @@ function handleAddTag(value: string) {
   background: color-mix(in srgb, var(--pink-deep) 8%, var(--surface-strong));
   color: var(--pink-deep);
   transform: translateY(-1px);
+}
+@supports not (color: color-mix(in srgb, black, white)) {
+  .home-scheme-remove-image:hover:not(:disabled) {
+    background: rgba(250.68, 245.16, 245.32, 1);
+  }
+  :where(:root[data-theme='dark']) .home-scheme-remove-image:hover:not(:disabled) {
+    background: rgba(43.96, 38.92, 42.76, 1);
+  }
 }
 /* 手机家具数量不预留额外行高，方案码紧随信息区显示。 */
 @media (max-width: 899px) {

@@ -236,6 +236,14 @@
       box-shadow var(--motion-base) ease,
       background var(--motion-base) ease;
   }
+  @supports not (color: color-mix(in srgb, black, white)) {
+    .mobile-header-search {
+      box-shadow: 0 8px 24px rgba(76, 66, 64, 0.14);
+    }
+    :where(:root[data-theme='dark']) .mobile-header-search {
+      box-shadow: 0 8px 24px rgba(255, 248, 244, 0.14);
+    }
+  }
   .mobile-header-search > svg {
     flex-shrink: 0;
     margin-left: 4px;
@@ -257,6 +265,14 @@
     background: var(--search-focus-bg, var(--surface-strong));
     box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 14%, transparent);
     pointer-events: none;
+  }
+  @supports not (color: color-mix(in srgb, black, white)) {
+    .mobile-header-search.mobile-search-popover-leave-active {
+      box-shadow: 0 0 8px 1px rgba(201, 132, 134, 0.14);
+    }
+    :where(:root[data-theme='dark']) .mobile-header-search.mobile-search-popover-leave-active {
+      box-shadow: 0 0 8px 1px rgba(239, 176, 178, 0.14);
+    }
   }
   .mobile-search-popover-enter-from,
   .mobile-search-popover-leave-to {
@@ -576,6 +592,14 @@
   .mobile-tag-picker header button {
     border-radius: 50%;
     background: color-mix(in srgb, var(--heading) 8%, transparent);
+  }
+  @supports not (color: color-mix(in srgb, black, white)) {
+    .mobile-tag-picker header button {
+      background: rgba(76, 66, 64, 0.08);
+    }
+    :where(:root[data-theme='dark']) .mobile-tag-picker header button {
+      background: rgba(255, 248, 244, 0.08);
+    }
   }
   /* 搜索与管理模式的添加按钮共用一行，长输入不会挤出触摸入口。 */
   .mobile-tag-picker .outfit-sidebar > .outfit-sidebar-heading {
@@ -903,8 +927,24 @@
     border-radius: 50%;
     background: color-mix(in srgb, var(--heading) 8%, transparent);
   }
+  @supports not (color: color-mix(in srgb, black, white)) {
+    .header-dropdown .mobile-menu-heading button {
+      background: rgba(76, 66, 64, 0.08);
+    }
+    :where(:root[data-theme='dark']) .header-dropdown .mobile-menu-heading button {
+      background: rgba(255, 248, 244, 0.08);
+    }
+  }
   .header-dropdown .mobile-menu-heading button:hover {
     background: color-mix(in srgb, var(--heading) 16%, transparent);
+  }
+  @supports not (color: color-mix(in srgb, black, white)) {
+    .header-dropdown .mobile-menu-heading button:hover {
+      background: rgba(76, 66, 64, 0.16);
+    }
+    :where(:root[data-theme='dark']) .header-dropdown .mobile-menu-heading button:hover {
+      background: rgba(255, 248, 244, 0.16);
+    }
   }
   .mobile-menu-sheet .more-menu-content {
     display: block;
@@ -1094,9 +1134,6 @@
     flex: none;
     min-width: 0;
     overflow-wrap: anywhere;
-  }
-  .outfit-card-footer .outfit-pending-code {
-    min-height: var(--mobile-compact-control-size);
   }
   .selection-bar {
     z-index: 55;

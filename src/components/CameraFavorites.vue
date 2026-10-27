@@ -1327,6 +1327,14 @@ function handleImportChoices(value: typeof choices.value) {
   display: grid;
   place-items: center;
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .camera-cover {
+    background: rgba(251.22, 246.39, 246.53, 1);
+  }
+  :where(:root[data-theme='dark']) .camera-cover {
+    background: rgba(41.84, 37.43, 41.29, 1);
+  }
+}
 .camera-cover > img {
   width: 100%;
   height: 100%;
@@ -1429,6 +1437,16 @@ function handleImportChoices(value: typeof choices.value) {
   font-size: 10px;
   overflow-wrap: anywhere;
   max-width: 100%;
+}
+@supports not (color: color-mix(in srgb, black, white)) {
+  .camera-name-tags span,
+  .camera-card-tag {
+    background: rgba(249.6, 242.7, 242.9, 1);
+  }
+  :where(:root[data-theme='dark']) .camera-name-tags span,
+  :where(:root[data-theme='dark']) .camera-card-tag {
+    background: rgba(48.2, 41.9, 45.7, 1);
+  }
 }
 .camera-code {
   display: -webkit-box;
