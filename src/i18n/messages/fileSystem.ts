@@ -4,8 +4,8 @@ import type { LocaleMessages } from '../types'
 export const fileSystemZh: LocaleMessages['fileSystem'] = {
   readFailed: '读取相册失败，请重试。',
   systemDirectory:
-    '无法打开此文件夹：浏览器不允许网页访问包含系统文件或受保护的目录。请直接选择 NikkiPhotos_HighQuality 图片文件夹，不要选择游戏安装根目录、C 盘根目录、Windows、Program Files 等上级目录。',
-  abortSelection: '已取消选择相册文件夹。',
+    '浏览器可能将所选文件夹识别为敏感或受保护目录，因此拒绝网页访问，比如文件夹放在 C 盘 Program Files 文件夹中。即使选择了正确的游戏相册文件夹，也可能出现此问题。\n解决建议：可将文件夹复制到桌面或其他普通目录，再重新选择。',
+  abortSelection: '已取消选择相册文件夹。浏览器可能将所选文件夹识别为敏感或受保护目录，因此拒绝网页访问，比如文件夹放在 C 盘 Program Files 文件夹中。即使选择了正确的游戏相册文件夹，也可能出现此问题。 解决建议：可将文件夹复制到桌面或其他普通目录，再重新选择。',
   permissionRequired:
     '已记住上次相册路径，但浏览器需要重新授权。请点击“选择/恢复相册路径”完成授权。',
   unsupportedBrowser:
@@ -22,8 +22,8 @@ export const fileSystemZh: LocaleMessages['fileSystem'] = {
 export const fileSystemEn: LocaleMessages['fileSystem'] = {
   readFailed: 'Failed to read the album. Please try again.',
   systemDirectory:
-    'Cannot open this folder: the browser does not allow web pages to access system or protected folders. Please choose NikkiPhotos_HighQuality directly instead of the game root folder, C drive root, Windows, Program Files, or other parent folders.',
-  abortSelection: 'Album folder selection was canceled.',
+    'The browser may identify the selected folder as sensitive or protected and deny access, for example if it is inside C:\\Program Files. This can happen even when you select the correct game album folder.\nSuggested solution: Copy the folder to your desktop or another regular directory, then select the copy again.',
+  abortSelection: 'Album folder selection was canceled. If you did not cancel it, the browser may have blocked access to a sensitive or protected folder, such as one inside C:\\Program Files. This can happen even when you select the correct game album folder.\nSuggested solution: Copy the folder to your desktop or another regular directory, then select the copy again.',
   permissionRequired:
     'The last album folder is remembered, but the browser needs permission again. Click “Choose / restore album folder” to authorize it.',
   unsupportedBrowser:
