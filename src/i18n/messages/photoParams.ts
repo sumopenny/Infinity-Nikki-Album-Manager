@@ -33,6 +33,7 @@ export interface PhotoParamsMessages {
   uploadHint: string
   authorizationRequired: string
   nonOriginalPhotoHint: string
+  originalFolderHint: string
   stages: Record<PhotoParamsStage, string>
   labels: {
     gameTime: string
@@ -70,7 +71,8 @@ export const photoParamsZh: PhotoParamsMessages = {
   upload: '上传图片解析',
   uploadHint: '选择本地游戏原图进行解析',
   authorizationRequired: '请先授权 X6Game 文件夹。',
-  nonOriginalPhotoHint: '该照片不是游戏拍摄原图哦~请检查照片是否经过二次传输或压缩等处理',
+  nonOriginalPhotoHint: '该照片可能不是游戏拍摄原图，请检查是否经过压缩、转发或其他处理。',
+  originalFolderHint: '温馨提示：照片参数解析需使用游戏相册 HighQuality 文件夹中的原始照片。其他文件夹如 ScreenShot 文件夹中的图片不包含内置相机参数，无法解析。',
   stages: {
     idle: '',
     resolvingUid: '正在识别照片账号…',
@@ -139,7 +141,9 @@ export const photoParamsEn: PhotoParamsMessages = {
   uploadHint: 'Choose an original game photo from this device',
   authorizationRequired: 'Authorize the X6Game folder first.',
   nonOriginalPhotoHint:
-    'This may not be an original in-game photo. Check whether it has been transferred or compressed.',
+    'This may not be an original in-game photo. Check whether it has been compressed, forwarded, or otherwise modified.',
+  originalFolderHint:
+    'Tip: Photo parameter parsing requires original photos from the game album’s HighQuality folder. Images from other folders, such as ScreenShot, do not contain embedded camera parameters and cannot be parsed.',
   stages: {
     idle: '',
     resolvingUid: 'Resolving photo account...',

@@ -228,9 +228,9 @@ describe('original photo warning', () => {
       },
       global: { stubs: { Teleport: true } }
     })
-    const hint = wrapper.find('.photo-params-original-hint')
-    expect(hint.exists()).toBe(expected)
-    if (expected) expect(hint.text()).toBe(photoParamsEn.nonOriginalPhotoHint)
+    const hints = wrapper.findAll('.photo-params-original-hint').map((element) => element.text())
+    expect(hints.includes(photoParamsEn.nonOriginalPhotoHint)).toBe(expected)
+    expect(hints).toContain(photoParamsEn.originalFolderHint)
     wrapper.unmount()
   })
 })
