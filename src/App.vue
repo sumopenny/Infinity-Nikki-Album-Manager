@@ -1175,7 +1175,7 @@ async function refreshOutfitLibrary(promptSharedAccess = false): Promise<OutfitL
   else releasePhotoUrls(result.outfits)
   return result
 }
-function showOutfitStorageError(error: unknown) {
+function showOutfitStorageError(error: unknown, source?: string) {
   captureDiagnosticError(error, { module: 'outfits', action: activeOperation.value ?? 'storage' })
   const message =
     error instanceof DuplicateOutfitCodeError
@@ -1187,8 +1187,18 @@ function showOutfitStorageError(error: unknown) {
           : error instanceof Error && error.message.startsWith('outfit_')
             ? outfitLocale.value.operationFailed
             : null
-  if (message) showOutfitStatus(message, 'warning')
-  else statusState.value = createErrorStatus(error, { type: 'readFailed' })
+  if (message) showOutfitStatus(message, 'warning', false, source)
+  else {
+    const status = createErrorStatus(error, { type: 'readFailed' })
+    statusState.value = source
+      ? {
+          type: 'custom',
+          message: status.type === 'custom' ? status.message : locale.value.app.readFailedStatus,
+          tone: status.type === 'custom' ? status.tone : 'error',
+          source
+        }
+      : status
+  }
 }
 
 /** 显示搭配码更新结果。重复的共享搭配码保持静默，其它结果按状态提示。 */
@@ -1342,12 +1352,22 @@ function openHelpFromUpdateLog() {
   isHelpAboutVisible.value = true
 }
 
-function showOutfitStatus(message: string, tone: StatusTone = 'success', loading = false) {
-  statusState.value = { type: 'custom', message, tone, loading }
+function showOutfitStatus(
+  message: string,
+  tone: StatusTone = 'success',
+  loading = false,
+  source?: string
+) {
+  statusState.value = { type: 'custom', message, tone, loading, ...(source ? { source } : {}) }
 }
 
-function handleHomeSchemeStatus(message: string, tone: StatusTone) {
-  showOutfitStatus(message, tone)
+function handleHomeSchemeStatus(
+  message: string,
+  tone: StatusTone,
+  downloadFiles?: File[],
+  source = 'home-export'
+) {
+  showStatus({ message, tone, downloadFiles, ...(downloadFiles?.length ? { source } : {}) })
 }
 
 function confirmHomeSchemeAction(
@@ -1935,7 +1955,10 @@ function importAllDataFromMenu() {
       @availability="hasBackupData = $event"
       @busy="handleAllBackupBusy"
       @changed="refreshAfterAllImport"
-      @status="(message, tone, loading) => showStatus({ message, tone, loading })"
+      @status="
+        (message, tone, loading, downloadFiles) =>
+          showStatus({ message, tone, loading, downloadFiles, source: 'all-data-export' })
+      "
     />
 
     <main
@@ -2171,7 +2194,9 @@ function importAllDataFromMenu() {
           :confirm-action="confirmHomeSchemeAction"
           @codes-change="cameraFavoriteCodes = $event"
           @modal-change="cameraFavoriteModal = $event"
-          @status="handleHomeSchemeStatus"
+          @status="
+            (message, tone, files) => handleHomeSchemeStatus(message, tone, files, 'camera-export')
+          "
         />
         <div
           v-if="
@@ -2737,6 +2762,7 @@ function importAllDataFromMenu() {
     />
 
     <OperationNotice
+      :language="language"
       :notices="statusNotices"
       :title="locale.app.operationNoticeTitle"
       :close-label="locale.app.operationNoticeCloseAria"

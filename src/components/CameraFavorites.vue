@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { takeDownloadFiles } from '../utils/backup/downloadFallback'
+import { downloadBackupBlob } from '../utils/backup/zipBackup'
 import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import { validateSelectedImage } from '../utils/imageSelection'
 import { createUuid } from '../utils/uuid'
@@ -81,7 +83,7 @@ const emit = defineEmits<{
   visibleCountChange: [count: number]
   codesChange: [codes: string[]]
   modalChange: [visible: boolean]
-  status: [message: string, tone: 'success' | 'error' | 'warning' | 'info']
+  status: [message: string, tone: 'success' | 'error' | 'warning' | 'info', downloadFiles?: File[]]
 }>()
 const t = (zh: string, en: string) => (props.language === 'zh' ? zh : en)
 const library = shallowRef<FavoriteLibrary>({ records: [], covers: new Map() })
@@ -682,10 +684,7 @@ async function exportBackup() {
       for await (const part of exportCameraBackup(await readCameraFavorites())) {
         const url = URL.createObjectURL(part.blob)
         backupDownloads.value.push({ fileName: part.fileName, url })
-        const link = document.createElement('a')
-        link.href = url
-        link.download = part.fileName
-        link.click()
+        downloadBackupBlob(part.fileName, part.blob, 'camera')
       }
       emit(
         'status',
@@ -693,10 +692,12 @@ async function exportBackup() {
           '已生成 ' + backupDownloads.value.length + ' 个备份文件',
           'Created ' + backupDownloads.value.length + ' backup file(s)'
         ),
-        'success'
+        'success',
+        takeDownloadFiles('camera')
       )
     } catch (caught) {
       report(caught, 'exportBackup')
+      takeDownloadFiles('camera')
     } finally {
       busy.value = false
     }

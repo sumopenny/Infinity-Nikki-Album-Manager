@@ -5,6 +5,7 @@ import {
   HOME_BACKUP_LIMITS,
   planBackupParts,
   downloadBackupParts,
+  downloadBackupBlob,
   type BackupDownload
 } from '../backup/zipBackup'
 import { HOME_SCHEMES_STORE, HOME_IMAGES_STORE, HOME_TAGS_STORE } from '../file-system/database'
@@ -141,7 +142,7 @@ export async function exportHomeSchemeBackup(
     parts,
     'manifest.json',
     HOME_BACKUP_LIMITS,
-    download
+    download ?? ((name, blob) => downloadBackupBlob(name, blob, 'home'))
   )
   return { fileNames, count: library.records.length }
 }

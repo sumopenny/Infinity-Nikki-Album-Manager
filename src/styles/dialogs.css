@@ -71,6 +71,7 @@
   z-index: 2000;
   width: min(400px, calc(100vw - 32px));
   max-height: calc(100dvh - 56px);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;

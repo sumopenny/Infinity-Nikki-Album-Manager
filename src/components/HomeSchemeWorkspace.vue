@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { takeDownloadFiles } from '../utils/backup/downloadFallback'
 import {
   reportError as captureDiagnosticError,
   reportPartialFailure
@@ -72,7 +73,7 @@ const emit = defineEmits<{
   openFilters: []
   closeFilters: []
   visibleCountChange: [count: number]
-  status: [message: string, tone: 'success' | 'warning' | 'error' | 'info']
+  status: [message: string, tone: 'success' | 'warning' | 'error' | 'info', downloadFiles?: File[]]
   countChange: [count: number]
 }>()
 
@@ -811,10 +812,12 @@ async function exportBackup() {
       emit(
         'status',
         props.messages.exportSucceeded(result.count, result.fileNames.join('、')),
-        'success'
+        'success',
+        takeDownloadFiles('home')
       )
     } catch (error) {
       emit('status', operationError(error, 'exportBackup'), 'error')
+      takeDownloadFiles('home')
     } finally {
       busy.value = false
     }

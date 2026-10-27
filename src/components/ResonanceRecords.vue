@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { takeDownloadFiles } from '../utils/backup/downloadFallback'
+import { downloadBackupBlob } from '../utils/backup/zipBackup'
 import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import CatalogImage from './CatalogImage.vue'
 import { backupBaseName } from '../utils/backup/backupName'
@@ -49,7 +51,14 @@ const props = withDefaults(
 )
 const t = computed(() => messages[props.language].resonance)
 const emit = defineEmits<{
-  notice: [payload: { message: string; tone: 'success' | 'warning' | 'error'; source: 'resonance' }]
+  notice: [
+    payload: {
+      message: string
+      tone: 'success' | 'warning' | 'error'
+      source: 'resonance'
+      downloadFiles?: File[]
+    }
+  ]
   clearNotice: []
   recordsChange: [records: ResonanceRecord[]]
 }>()
@@ -108,9 +117,19 @@ function displayName(value: ResonanceLocalizedName): string {
   return value[props.language] || value.zh || value.en
 }
 
-function notify(id: string, message: string, tone: 'success' | 'warning' | 'error') {
+function notify(
+  id: string,
+  message: string,
+  tone: 'success' | 'warning' | 'error',
+  downloadFiles?: File[]
+) {
   activeNoticeId = id
-  emit('notice', { message, tone, source: 'resonance' })
+  emit('notice', {
+    message,
+    tone,
+    source: 'resonance',
+    ...(downloadFiles?.length ? { downloadFiles } : {})
+  })
 }
 
 function clearNotice(id?: string) {
@@ -158,16 +177,12 @@ function exportRecords() {
     const blob = new Blob([JSON.stringify(createResonanceExport(records.value), null, 2)], {
       type: 'application/json'
     })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = backupBaseName('共鸣记录') + '.json'
-    link.click()
-    setTimeout(() => URL.revokeObjectURL(url), 0)
-    notify('export-success', t.value.exportSuccess, 'success')
+    downloadBackupBlob(backupBaseName('共鸣记录') + '.json', blob, 'resonance')
+    notify('export-success', t.value.exportSuccess, 'success', takeDownloadFiles('resonance'))
   } catch (error) {
     captureDiagnosticError(error, { module: 'resonance', action: 'export' })
     notify('export-error', t.value.exportError, 'error')
+    takeDownloadFiles('resonance')
   }
 }
 function requestClearRecords() {

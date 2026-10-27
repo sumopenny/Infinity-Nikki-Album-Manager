@@ -1,4 +1,5 @@
 import { reportPartialFailure } from '../utils/errorReporting/errorReporter'
+import { takeDownloadFiles } from '../utils/backup/downloadFallback'
 import type { Ref, ComputedRef } from 'vue'
 import type { LocaleMessages, OutfitMessages } from '../i18n'
 import type { PhotoDisplayItem } from '../utils/photoGrouping'
@@ -42,8 +43,8 @@ interface OutfitWorkspaceOptions {
   statusState: Ref<StatusState>
   reloadOutfitCollection: () => Promise<void>
   applyOutfitLibraryResult: (result: OutfitLibraryResult) => void
-  showOutfitStatus: (message: string, tone?: StatusTone, loading?: boolean) => void
-  showOutfitStorageError: (error: unknown) => void
+  showOutfitStatus: (message: string, tone?: StatusTone, loading?: boolean, source?: string) => void
+  showOutfitStorageError: (error: unknown, source?: string) => void
   openConfirmDialog: ReturnType<typeof useConfirmDialog>['openConfirmDialog']
   onImportPicked: () => void
 }
@@ -247,12 +248,14 @@ export function useOutfitWorkspace(options: OutfitWorkspaceOptions) {
   async function exportOutfits() {
     if (isAnyFileOperationBusy.value || (!outfits.value.length && !outfitTags.value.length)) return
     activeOperation.value = 'exporting-outfits'
-    showOutfitStatus(outfitLocale.value.exporting, 'info', true)
+    showOutfitStatus(outfitLocale.value.exporting, 'info', true, 'outfits-export')
     try {
       const { exportOutfitBackup } = await import('../utils/outfit/outfitBackup')
       const result = await exportOutfitBackup()
       statusState.value = {
         type: 'custom',
+        source: 'outfits-export',
+        downloadFiles: takeDownloadFiles('outfits'),
         message: outfitLocale.value.operations.exportSucceeded(
           result.fileNames.join('、'),
           result.count
@@ -260,9 +263,10 @@ export function useOutfitWorkspace(options: OutfitWorkspaceOptions) {
         tone: 'success'
       }
     } catch (error) {
-      showOutfitStorageError(error)
+      showOutfitStorageError(error, 'outfits-export')
     } finally {
       if (activeOperation.value === 'exporting-outfits') activeOperation.value = null
+      takeDownloadFiles('outfits')
     }
   }
 

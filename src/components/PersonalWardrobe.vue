@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { takeDownloadFiles } from '../utils/backup/downloadFallback'
+import { downloadBackupBlob } from '../utils/backup/zipBackup'
 import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import DesktopMenuTransition from './DesktopMenuTransition.vue'
 import CatalogImage from './CatalogImage.vue'
@@ -58,7 +60,14 @@ const props = withDefaults(
 )
 const emit = defineEmits<{
   'update-search': [value: string]
-  notice: [payload: { message: string; tone: 'success' | 'warning' | 'error' }]
+  notice: [
+    payload: {
+      message: string
+      tone: 'success' | 'warning' | 'error'
+      source?: string
+      downloadFiles?: File[]
+    }
+  ]
 }>()
 const compact = useCompactLayout()
 // 顶栏搜索是唯一输入来源；桌面将同一组筛选节点移入现有侧栏。
@@ -395,21 +404,21 @@ async function exportBackup() {
   try {
     await track(async () => {
       const latest = await loadWardrobe()
-      const url = URL.createObjectURL(
-        new Blob([createWardrobeBackup(latest)], { type: 'application/json' })
+      downloadBackupBlob(
+        backupBaseName('个人衣橱') + '.json',
+        new Blob([createWardrobeBackup(latest)], { type: 'application/json' }),
+        'wardrobe'
       )
-      const a = document.createElement('a')
-      a.href = url
-      a.download = backupBaseName('个人衣橱') + '.json'
-      a.click()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
       snapshot.value = latest
     })
     emit('notice', {
       message: text('衣橱数据已导出。', 'Wardrobe data exported.'),
+      source: 'wardrobe-export',
+      downloadFiles: takeDownloadFiles('wardrobe'),
       tone: 'success'
     })
   } catch (cause) {
+    takeDownloadFiles('wardrobe')
     reportError(cause)
   } finally {
     busy.value = false

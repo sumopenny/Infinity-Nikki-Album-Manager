@@ -8,6 +8,7 @@ import {
   OUTFIT_BACKUP_LIMITS,
   planBackupParts,
   downloadBackupParts,
+  downloadBackupBlob,
   type BackupDownload
 } from '../backup/zipBackup'
 import {
@@ -92,7 +93,7 @@ export async function exportOutfitBackup(
     parts,
     'manifest.json',
     OUTFIT_BACKUP_LIMITS,
-    download
+    download ?? ((name, blob) => downloadBackupBlob(name, blob, 'outfits'))
   )
   return { fileNames, count: snapshot.records.length }
 }

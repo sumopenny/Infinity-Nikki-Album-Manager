@@ -1,4 +1,5 @@
 import { strToU8, Zip, ZipDeflate, ZipPassThrough } from 'fflate'
+import { retainDownload, requestBlobDownload } from './downloadFallback'
 
 export interface BackupLimits {
   bytes: number
@@ -194,18 +195,9 @@ export async function streamBackupPart(
 
 export type BackupDownload = (fileName: string, blob: Blob) => void | Promise<void>
 
-export function downloadBackupBlob(fileName: string, blob: Blob): void {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileName
-  document.body.appendChild(link)
-  try {
-    link.click()
-  } finally {
-    link.remove()
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
-  }
+export function downloadBackupBlob(fileName: string, blob: Blob, module = 'default'): void {
+  retainDownload(fileName, blob, module)
+  requestBlobDownload(fileName, blob)
 }
 
 export async function downloadBackupParts(

@@ -76,7 +76,7 @@ export type ResolveWardrobeRegion = (
 
 /** Keep the original module archives intact so they can also be restored separately. */
 export async function exportAllDataBackup(
-  download: BackupDownload = downloadBackupBlob
+  download: BackupDownload = (name, blob) => downloadBackupBlob(name, blob, 'all-data')
 ): Promise<string> {
   const files: Array<{ name: string; blob: Blob }> = []
   const entries: BundleEntry[] = []

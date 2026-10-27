@@ -13,6 +13,7 @@ export interface OperationNoticeItem {
   tone: StatusTone
   loading: boolean
   source?: string
+  downloadFiles?: File[]
 }
 
 export type ActiveOperation =
@@ -39,9 +40,17 @@ export type StatusState =
   | { type: 'readFailed' }
   | { type: 'cleared' }
   | { type: 'success'; count: number; prefix: StatusPrefix; suffix?: StatusSuffix }
-  | { type: 'custom'; message: string; tone?: StatusTone; loading?: boolean; source?: string }
+  | {
+      type: 'custom'
+      message: string
+      tone?: StatusTone
+      loading?: boolean
+      source?: string
+      downloadFiles?: File[]
+    }
 
 export interface ConfirmableStatus {
+  downloadFiles?: File[]
   message: string
   tone?: StatusTone
   loading?: boolean
@@ -143,16 +152,27 @@ export function useOperationNotice(
     for (const notice of [...notices.value]) {
       if (notice.loading && notice.source === source) closeNotice(notice.id)
     }
+    const downloadFiles =
+      state.type === 'custom' && !options.loading ? (state.downloadFiles ?? []) : []
+    if (downloadFiles.length) {
+      for (const notice of [...notices.value]) {
+        if (notice.downloadFiles?.length && notice.source === source) closeNotice(notice.id)
+      }
+    }
     const id = ++nextId
     notices.value.push({
       id,
       message: statusMessage.value,
       tone: statusTone.value,
       loading: !!options.loading,
+      ...(downloadFiles.length ? { downloadFiles } : {}),
       source
     })
+    // Only the notice owns the retained files, so closing it can release them.
+    if (state.type === 'custom') state.downloadFiles = undefined
     timers.set(id, { deadline: 0, remaining: 0, paused: false })
-    if (!options.loading && options.duration !== undefined) hideAfter(id, options.duration)
+    if (!options.loading && options.duration !== undefined)
+      hideAfter(id, downloadFiles.length ? 6000 : options.duration)
   }
   /** 更新同一条顶部进度通知，不随每张照片产生新通知；结束时仅移除该任务通知。 */
   const updateLoadingNotice = (source: string, message: string | null) => {
@@ -187,9 +207,11 @@ export function useOperationNotice(
     message,
     tone = 'success',
     loading = false,
-    source
+    source,
+    downloadFiles
   }: ConfirmableStatus) => {
     if (
+      !downloadFiles?.length &&
       notices.value.some(
         (notice) =>
           notice.message === message &&
@@ -199,7 +221,7 @@ export function useOperationNotice(
       )
     )
       return
-    statusState.value = { type: 'custom', message, tone, loading, source }
+    statusState.value = { type: 'custom', message, tone, loading, source, downloadFiles }
   }
   const clearStatus = (source?: string) => {
     if (!source) {

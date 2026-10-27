@@ -1,8 +1,18 @@
 <script setup lang="ts">
 import type { OperationNoticeItem } from '../composables/useOperationNotice'
 import { onMounted, onBeforeUnmount, ref } from 'vue'
+import DownloadFallbackActions from './DownloadFallbackActions.vue'
 
 const noticeTarget = ref<HTMLElement | string>('body')
+const hovered = new Set<number>()
+const sharing = new Set<number>()
+function setPaused(id: number, reason: 'hover' | 'share', value: boolean) {
+  const reasons = reason === 'hover' ? hovered : sharing
+  if (value) reasons.add(id)
+  else reasons.delete(id)
+  if (hovered.has(id) || sharing.has(id)) emit('pause', id)
+  else emit('resume', id)
+}
 let modalObserver: MutationObserver | undefined
 /** 原生模态窗口位于浏览器顶层；提示挂到打开的 dialog 内，避免遮挡和无法点击关闭。 */
 function updateNoticeTarget() {
@@ -27,6 +37,7 @@ defineProps<{
   notices: OperationNoticeItem[]
   title: string
   closeLabel: string
+  language?: 'zh' | 'en'
 }>()
 
 const emit = defineEmits<{
@@ -47,8 +58,8 @@ const emit = defineEmits<{
         :role="notice.tone === 'error' ? 'alert' : 'status'"
         :aria-live="notice.tone === 'error' ? 'assertive' : 'polite'"
         aria-atomic="true"
-        @mouseenter="emit('pause', notice.id)"
-        @mouseleave="emit('resume', notice.id)"
+        @mouseenter="setPaused(notice.id, 'hover', true)"
+        @mouseleave="setPaused(notice.id, 'hover', false)"
       >
         <div class="operation-notice-icon" aria-hidden="true">
           <span v-if="notice.loading" class="operation-notice-spinner"></span>
@@ -72,6 +83,12 @@ const emit = defineEmits<{
         <div class="operation-notice-content">
           <p class="operation-notice-title">{{ title }}</p>
           <p class="operation-notice-message">{{ notice.message }}</p>
+          <DownloadFallbackActions
+            v-if="notice.downloadFiles?.length"
+            :files="notice.downloadFiles"
+            :language="language ?? 'zh'"
+            @sharing="(value) => setPaused(notice.id, 'share', value)"
+          />
         </div>
 
         <button

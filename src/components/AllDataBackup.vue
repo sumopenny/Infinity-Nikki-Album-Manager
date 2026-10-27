@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { takeDownloadFiles } from '../utils/backup/downloadFallback'
 import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import CameraImportConflictDialog from './CameraImportConflictDialog.vue'
@@ -17,7 +18,12 @@ const emit = defineEmits<{
   busy: [value: boolean]
   availability: [value: boolean]
   changed: []
-  status: [message: string, tone: 'success' | 'warning' | 'error' | 'info', loading?: boolean]
+  status: [
+    message: string,
+    tone: 'success' | 'warning' | 'error' | 'info',
+    loading?: boolean,
+    downloadFiles?: File[]
+  ]
 }>()
 const picker = ref<HTMLInputElement | null>(null),
   busy = ref(false)
@@ -81,10 +87,17 @@ async function exportData() {
     const { exportAllDataBackup } = await import('../utils/backup/allDataBackup')
     if (disposed) return
     const name = await exportAllDataBackup()
-    emit('status', t('已生成全部数据备份：', 'All-data backup created: ') + name, 'success')
+    emit(
+      'status',
+      t('已生成全部数据备份：', 'All-data backup created: ') + name,
+      'success',
+      false,
+      takeDownloadFiles('all-data')
+    )
   } catch (error) {
     report(error, 'exportData')
   } finally {
+    takeDownloadFiles('all-data')
     setBusy(false)
     void refreshAvailability()
   }
