@@ -83,9 +83,10 @@ describe('personal wardrobe interactions', () => {
     await wrapper.setProps({ searchQuery: '10347', language: 'en' })
     await wrapper.get('input[role="switch"]').setValue(false)
     const heading = wrapper.get('.wardrobe-card-heading')
+    expect(heading.get('.wardrobe-form-toggle').attributes('aria-label')).toBe('Expand forms')
     expect(heading.get('.wardrobe-form-toggle').text()).toBe('Expand')
     await heading.get('.wardrobe-form-toggle').trigger('click')
-    expect(heading.get('.wardrobe-form-toggle').text()).toBe('Collapse')
+    expect(heading.get('.wardrobe-form-toggle').attributes('aria-label')).toBe('Collapse forms')
     expect(document.querySelector('.wardrobe-dialog')).toBeNull()
     await heading.get('.wardrobe-card-name').trigger('click')
     await flushPromises()
@@ -93,6 +94,38 @@ describe('personal wardrobe interactions', () => {
     expect(document.querySelector('#wardrobe-dialog-title')!.textContent).toBe(
       catalog.byId.get('10347')!.name.en
     )
+  })
+
+  it('centers the form popover on its card and only shifts it at viewport edges', async () => {
+    await wrapper.setProps({ searchQuery: '10347' })
+    await wrapper.get('input[role="switch"]').setValue(false)
+    const box = {
+      left: 500,
+      top: 200,
+      bottom: 450,
+      right: 680,
+      width: 180,
+      height: 250,
+      x: 500,
+      y: 200,
+      toJSON() {}
+    }
+    vi.spyOn(wrapper.get('.wardrobe-card').element, 'getBoundingClientRect').mockImplementation(
+      () => box
+    )
+    const trigger = wrapper.get('.wardrobe-form-toggle')
+    for (const [left, expected] of [
+      [500, 400],
+      [0, 12],
+      [window.innerWidth - 50, window.innerWidth - 380 - 12]
+    ]) {
+      box.left = left!
+      await trigger.trigger('click')
+      await flushPromises()
+      const popup = document.querySelector<HTMLElement>('.wardrobe-form-popover')!
+      expect(popup.style.left).toBe(`${expected}px`)
+      await trigger.trigger('click')
+    }
   })
 
   it('merges matching forms without changing totals and keeps dialog/card selection in sync', async () => {
@@ -103,11 +136,13 @@ describe('personal wardrobe interactions', () => {
     await wrapper.get('input[role="switch"]').setValue(false)
     expect(wrapper.findAll('.wardrobe-card')).toHaveLength(1)
     expect(wrapper.get('.wardrobe-summary').text()).toBe(summary)
-    expect(wrapper.find('.wardrobe-form-thumbnails').exists()).toBe(false)
+    expect(!!document.querySelector('.wardrobe-form-popover')).toBe(false)
     await wrapper.get('.wardrobe-form-toggle').trigger('click')
-    const thumbs = wrapper.findAll('.wardrobe-form-thumbnails button')
+    const thumbs = new DOMWrapper(
+      document.querySelector<HTMLElement>('.wardrobe-form-popover')!
+    ).findAll('button')
     expect(thumbs).toHaveLength(5)
-    expect(thumbs.map((thumb) => thumb.get('span').text())).toEqual([
+    expect(thumbs.map((thumb) => thumb.get('strong').text())).toEqual([
       '原套',
       '焕新',
       '一进',
@@ -115,9 +150,9 @@ describe('personal wardrobe interactions', () => {
       '满进'
     ])
     expect(thumbs[0]!.find('.lucide-circle-check').exists()).toBe(true)
-    expect(thumbs[3]!.find('.lucide-circle-minus').exists()).toBe(true)
-    expect(thumbs[4]!.find('.lucide-circle-minus').exists()).toBe(true)
-    expect(thumbs[4]!.get('small').text()).toBe('')
+    expect(thumbs[3]!.find('.wardrobe-form-owned').exists()).toBe(false)
+    expect(thumbs[4]!.find('.wardrobe-form-owned').exists()).toBe(false)
+    expect(thumbs[4]!.find('small').exists()).toBe(false)
     await thumbs[1]!.trigger('click')
     await flushPromises()
     const dialog = new DOMWrapper(document.querySelector<HTMLElement>('.wardrobe-dialog')!)
@@ -158,6 +193,104 @@ describe('personal wardrobe interactions', () => {
     expect(document.querySelectorAll('.wardrobe-form-nav button').length).toBeGreaterThan(1)
     await wrapper.get('input[role="switch"]').setValue(true)
     expect(localStorage.getItem('nikki-wardrobe-show-evolutions')).toBe('true')
+  })
+
+  it('shares mobile evolution preferences and opens the selected form directly in details', async () => {
+    wrapper.unmount()
+    vi.stubGlobal('matchMedia', () => ({
+      matches: true,
+      addEventListener() {},
+      removeEventListener() {}
+    }))
+    wrapper = mount(PersonalWardrobe, { attachTo: document.body, props: { searchQuery: '10347' } })
+    await vi.waitFor(() => expect(wrapper.find('.wardrobe-grid').exists()).toBe(true))
+    const expandedCount = wrapper.findAll('.wardrobe-card').length
+    expect(expandedCount).toBeGreaterThan(1)
+    await wrapper.get('input[role="switch"]').setValue(false)
+    expect(localStorage.getItem('nikki-wardrobe-show-evolutions')).toBe('false')
+    expect(wrapper.findAll('.wardrobe-card')).toHaveLength(1)
+    expect(wrapper.find('.wardrobe-form-toggle').exists()).toBe(false)
+    await wrapper.get('.wardrobe-mobile-form-toggle').trigger('click')
+    await flushPromises()
+    const popup = new DOMWrapper(document.querySelector<HTMLElement>('.wardrobe-form-popover')!)
+    expect(popup.findAll('button')).toHaveLength(5)
+    expect(popup.find('.form-label small').exists()).toBe(false)
+    expect(popup.findAll('.wardrobe-form-owned')).toHaveLength(2)
+    expect(popup.findAll('button')[3]!.find('.wardrobe-form-owned').exists()).toBe(false)
+    await popup.findAll('button')[3]!.trigger('click')
+    await flushPromises()
+    expect(document.querySelector('.wardrobe-form-popover')).toBeNull()
+    const dialog = new DOMWrapper(document.querySelector<HTMLElement>('.wardrobe-dialog')!)
+    expect(dialog.get('.wardrobe-form-nav').classes()).toContain('is-horizontal')
+    expect(dialog.get('.wardrobe-form-nav button[aria-pressed="true"]').text()).toContain('二进')
+    expect(dialog.get('.wardrobe-detail-variant').text()).toBe('二进')
+    await dialog.findAll('.wardrobe-form-nav button')[4]!.trigger('click')
+    await flushPromises()
+    expect(dialog.get('.wardrobe-detail-variant').text()).toBe('满进')
+    await dialog.get('button[aria-label="关闭"]').trigger('click')
+    await wrapper.get('input[role="switch"]').setValue(true)
+    expect(wrapper.findAll('.wardrobe-card')).toHaveLength(expandedCount)
+    expect(wrapper.find('.wardrobe-mobile-form-toggle').exists()).toBe(false)
+    expect(localStorage.getItem('nikki-wardrobe-show-evolutions')).toBe('true')
+  })
+
+  it('positions mobile forms above low cards and closes on outside input, Escape and scrolling', async () => {
+    wrapper.unmount()
+    vi.stubGlobal('matchMedia', () => ({
+      matches: true,
+      addEventListener() {},
+      removeEventListener() {}
+    }))
+    localStorage.setItem('nikki-wardrobe-show-evolutions', 'false')
+    wrapper = mount(PersonalWardrobe, { attachTo: document.body, props: { searchQuery: '10347' } })
+    await vi.waitFor(() => expect(wrapper.find('.wardrobe-grid').exists()).toBe(true))
+    const rect = {
+      top: window.innerHeight - 200,
+      bottom: window.innerHeight - 10,
+      left: 10,
+      right: 110,
+      width: 100,
+      height: 190,
+      x: 10,
+      y: window.innerHeight - 200,
+      toJSON() {}
+    }
+    vi.spyOn(wrapper.get('.wardrobe-card').element, 'getBoundingClientRect').mockReturnValue(rect)
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(160)
+    const trigger = wrapper.get('.wardrobe-mobile-form-toggle')
+    await trigger.trigger('click')
+    await flushPromises()
+    let popup = document.querySelector<HTMLElement>('.wardrobe-form-popover')!
+    expect(popup.style.top).toBe('auto')
+    expect(popup.style.bottom).toBe('206px')
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await flushPromises()
+    expect(document.querySelector('.wardrobe-form-popover')).toBeNull()
+    expect(document.activeElement).toBe(trigger.element)
+    await trigger.trigger('click')
+    await flushPromises()
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    await flushPromises()
+    expect(document.querySelector('.wardrobe-form-popover')).toBeNull()
+    // 两侧都能容纳时，即使下方更宽裕，也优先向上。
+    rect.top = 200
+    rect.bottom = 390
+    await trigger.trigger('click')
+    await flushPromises()
+    popup = document.querySelector<HTMLElement>('.wardrobe-form-popover')!
+    expect(popup.style.top).toBe('auto')
+    expect(popup.style.bottom).toBe(`${window.innerHeight - 200 + 6}px`)
+    await trigger.trigger('click')
+    rect.top = 10
+    rect.bottom = 200
+    await trigger.trigger('click')
+    await flushPromises()
+    popup = document.querySelector<HTMLElement>('.wardrobe-form-popover')!
+    expect(popup.style.top).toBe('206px')
+    expect(popup.style.bottom).toBe('auto')
+    window.dispatchEvent(new Event('scroll'))
+    await flushPromises()
+    expect(document.querySelector('.wardrobe-form-popover')).toBeNull()
   })
 
   it('shows a retry action after a failed load and recovers', async () => {

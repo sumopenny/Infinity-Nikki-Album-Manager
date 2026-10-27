@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import CatalogImage from './CatalogImage.vue'
 import WardrobeFormNav from './WardrobeFormNav.vue'
-import { useCompactLayout } from '../composables/useCompactLayout'
 import { wardrobeFamilyKey } from '../utils/wardrobe/wardrobeFamilies'
 import { computed, ref, toRef, watch } from 'vue'
 import {
@@ -36,10 +35,8 @@ const props = defineProps<{
   snapshot: WardrobeSnapshot
   language: Language
 }>()
-const compact = useCompactLayout()
 const hasForms = computed(
   () =>
-    !compact.value &&
     !!props.detail &&
     (props.catalog?.entries ?? []).filter(
       (entry) => wardrobeFamilyKey(entry) === wardrobeFamilyKey(props.detail!)
@@ -168,162 +165,168 @@ useModalFocus(dialogOpen, panel, closeDialog)
               <X :size="20" />
             </button>
           </header>
-          <WardrobeFormNav
-            v-if="hasForms"
-            :entry="detail"
-            :catalog="catalog"
-            :snapshot="snapshot"
-            :language="language"
-            @select="emit('openOutfit', $event)"
-          />
-          <div class="wardrobe-dialog-body">
-            <div class="wardrobe-overview has-description">
-              <section
-                class="wardrobe-suit-summary"
-                :aria-label="text('套装总览', 'Outfit overview')"
-              >
-                <div class="wardrobe-suit-preview">
-                  <CatalogImage
-                    :language="language"
-                    :key="detail.id"
-                    referrerpolicy="no-referrer"
-                    :src="detail.image"
-                    loading="eager"
-                    fetchpriority="high"
-                    :alt="name(detail)"
-                  />
-                </div>
-                <div class="wardrobe-suit-copy">
-                  <h3>{{ name(detail) }}</h3>
-                  <p
-                    class="wardrobe-suit-message"
-                    :class="{ 'is-complete': detailProgress.complete }"
-                  >
-                    <CircleHelp v-if="!ownershipKnown" :size="17" aria-hidden="true" />
-                    <CircleCheck
-                      v-else-if="detailProgress.complete"
-                      :size="17"
-                      aria-hidden="true"
-                    />
-                    <CircleMinus v-else :size="17" aria-hidden="true" />
-                    <span>{{ detailSummary }}</span>
-                  </p>
-                  <div v-if="ownershipKnown && detailProgress.total" class="wardrobe-suit-progress">
-                    <span
-                      >{{
-                        detailProgress.complete
-                          ? text('已集齐', 'Complete')
-                          : text('已拥有', 'Owned')
-                      }}
-                      <strong>{{ detailProgress.owned }}/{{ detailProgress.total }}</strong>
-                    </span>
-                    <progress
-                      :value="detailProgress.owned"
-                      :max="detailProgress.total"
-                      :aria-label="text('收集进度', 'Collection progress')"
-                    ></progress>
-                  </div>
-                </div>
-              </section>
-              <dl class="wardrobe-suit-facts">
-                <div>
-                  <dt><Star :size="17" aria-hidden="true" />{{ text('星级', 'Rarity') }}</dt>
-                  <dd
-                    ><span class="wardrobe-rarity-tag">{{ detail.quality }} ★</span></dd
-                  >
-                </div>
-                <div v-if="detailStyle">
-                  <dt><Flower2 :size="17" aria-hidden="true" />{{ text('风格', 'Style') }}</dt>
-                  <dd
-                    ><span class="wardrobe-style-tag">{{ detailStyle }}</span></dd
-                  >
-                </div>
-                <div v-if="detailSourceVersion">
-                  <dt
-                    ><CalendarDays :size="17" aria-hidden="true" />{{
-                      text('来源版本', 'Release version')
-                    }}</dt
-                  >
-                  <dd
-                    ><span class="wardrobe-version-tag">{{ detailSourceVersion }}</span></dd
-                  >
-                </div>
-              </dl>
-              <div
-                class="wardrobe-suit-description"
-                :aria-label="text('套装描述', 'Outfit description')"
-                :aria-busy="detailDescriptionLoading"
-              >
-                <Quote :size="20" aria-hidden="true" />
-                <p v-if="detailDescription">{{ detailDescription }}</p>
-                <p v-else class="wardrobe-description-placeholder">{{
-                  detailDescriptionLoading
-                    ? text('正在加载套装描述…', 'Loading outfit description…')
-                    : text('暂无套装描述', 'No outfit description available')
-                }}</p>
-                <Sparkles :size="17" aria-hidden="true" />
-              </div>
-            </div>
-            <div
-              v-if="detailParts.length"
-              class="wardrobe-detail-parts"
-              role="list"
-              :aria-label="text('套装部件', 'Outfit pieces')"
-            >
-              <div
-                v-for="part in detailParts"
-                :key="part.id"
-                class="wardrobe-part"
-                :class="{ 'is-owned': part.owned }"
-                role="listitem"
-              >
-                <button
-                  type="button"
-                  class="wardrobe-part-open"
-                  :disabled="!part.entry"
-                  :aria-label="part.entry ? name(part.entry) : part.id"
-                  @click="itemPreview = part.entry ?? null"
+          <div class="wardrobe-detail-scroll">
+            <WardrobeFormNav
+              ownership-icons
+              v-if="hasForms"
+              :entry="detail"
+              :catalog="catalog"
+              :snapshot="snapshot"
+              :language="language"
+              @select="emit('openOutfit', $event)"
+            />
+            <div class="wardrobe-dialog-body">
+              <div class="wardrobe-overview has-description">
+                <section
+                  class="wardrobe-suit-summary"
+                  :aria-label="text('套装总览', 'Outfit overview')"
                 >
-                  <div class="wardrobe-part-image">
+                  <div class="wardrobe-suit-preview">
                     <CatalogImage
                       :language="language"
-                      v-if="part.entry"
+                      :key="detail.id"
                       referrerpolicy="no-referrer"
-                      :src="part.entry.image"
-                      alt=""
-                      loading="lazy"
+                      :src="detail.image"
+                      loading="eager"
+                      fetchpriority="high"
+                      :alt="name(detail)"
                     />
-                    <div v-else class="wardrobe-image-fallback">
-                      <Shirt :size="28" /><span>{{ text('暂无图片', 'No image') }}</span>
+                  </div>
+                  <div class="wardrobe-suit-copy">
+                    <h3>{{ name(detail) }}</h3>
+                    <p
+                      class="wardrobe-suit-message"
+                      :class="{ 'is-complete': detailProgress.complete }"
+                    >
+                      <CircleHelp v-if="!ownershipKnown" :size="17" aria-hidden="true" />
+                      <CircleCheck
+                        v-else-if="detailProgress.complete"
+                        :size="17"
+                        aria-hidden="true"
+                      />
+                      <CircleMinus v-else :size="17" aria-hidden="true" />
+                      <span>{{ detailSummary }}</span>
+                    </p>
+                    <div
+                      v-if="ownershipKnown && detailProgress.total"
+                      class="wardrobe-suit-progress"
+                    >
+                      <span
+                        >{{
+                          detailProgress.complete
+                            ? text('已集齐', 'Complete')
+                            : text('已拥有', 'Owned')
+                        }}
+                        <strong>{{ detailProgress.owned }}/{{ detailProgress.total }}</strong>
+                      </span>
+                      <progress
+                        :value="detailProgress.owned"
+                        :max="detailProgress.total"
+                        :aria-label="text('收集进度', 'Collection progress')"
+                      ></progress>
                     </div>
                   </div>
-                  <span
-                    class="wardrobe-part-name"
-                    :title="part.entry ? name(part.entry) : part.id"
-                    >{{ part.entry ? name(part.entry) : part.id }}</span
-                  >
-                  <small class="wardrobe-part-state">
-                    <CircleHelp
-                      v-if="!ownershipKnown || part.unknown"
-                      :size="14"
-                      aria-hidden="true"
-                    />
-                    <CircleCheck v-else-if="part.owned" :size="14" aria-hidden="true" />
-                    <CircleMinus v-else :size="14" aria-hidden="true" />
-                    {{
-                      !ownershipKnown || part.unknown
-                        ? unknownLabel
-                        : part.owned
-                          ? text('已拥有', 'Owned')
-                          : text('未拥有', 'Not owned')
-                    }}
-                  </small>
-                </button>
+                </section>
+                <dl class="wardrobe-suit-facts">
+                  <div>
+                    <dt><Star :size="17" aria-hidden="true" />{{ text('星级', 'Rarity') }}</dt>
+                    <dd
+                      ><span class="wardrobe-rarity-tag">{{ detail.quality }} ★</span></dd
+                    >
+                  </div>
+                  <div v-if="detailStyle">
+                    <dt><Flower2 :size="17" aria-hidden="true" />{{ text('风格', 'Style') }}</dt>
+                    <dd
+                      ><span class="wardrobe-style-tag">{{ detailStyle }}</span></dd
+                    >
+                  </div>
+                  <div v-if="detailSourceVersion">
+                    <dt
+                      ><CalendarDays :size="17" aria-hidden="true" />{{
+                        text('来源版本', 'Release version')
+                      }}</dt
+                    >
+                    <dd
+                      ><span class="wardrobe-version-tag">{{ detailSourceVersion }}</span></dd
+                    >
+                  </div>
+                </dl>
+                <div
+                  class="wardrobe-suit-description"
+                  :aria-label="text('套装描述', 'Outfit description')"
+                  :aria-busy="detailDescriptionLoading"
+                >
+                  <Quote :size="20" aria-hidden="true" />
+                  <p v-if="detailDescription">{{ detailDescription }}</p>
+                  <p v-else class="wardrobe-description-placeholder">{{
+                    detailDescriptionLoading
+                      ? text('正在加载套装描述…', 'Loading outfit description…')
+                      : text('暂无套装描述', 'No outfit description available')
+                  }}</p>
+                  <Sparkles :size="17" aria-hidden="true" />
+                </div>
               </div>
+              <div
+                v-if="detailParts.length"
+                class="wardrobe-detail-parts"
+                role="list"
+                :aria-label="text('套装部件', 'Outfit pieces')"
+              >
+                <div
+                  v-for="part in detailParts"
+                  :key="part.id"
+                  class="wardrobe-part"
+                  :class="{ 'is-owned': part.owned }"
+                  role="listitem"
+                >
+                  <button
+                    type="button"
+                    class="wardrobe-part-open"
+                    :disabled="!part.entry"
+                    :aria-label="part.entry ? name(part.entry) : part.id"
+                    @click="itemPreview = part.entry ?? null"
+                  >
+                    <div class="wardrobe-part-image">
+                      <CatalogImage
+                        :language="language"
+                        v-if="part.entry"
+                        referrerpolicy="no-referrer"
+                        :src="part.entry.image"
+                        alt=""
+                        loading="lazy"
+                      />
+                      <div v-else class="wardrobe-image-fallback">
+                        <Shirt :size="28" /><span>{{ text('暂无图片', 'No image') }}</span>
+                      </div>
+                    </div>
+                    <span
+                      class="wardrobe-part-name"
+                      :title="part.entry ? name(part.entry) : part.id"
+                      >{{ part.entry ? name(part.entry) : part.id }}</span
+                    >
+                    <small class="wardrobe-part-state">
+                      <CircleHelp
+                        v-if="!ownershipKnown || part.unknown"
+                        :size="14"
+                        aria-hidden="true"
+                      />
+                      <CircleCheck v-else-if="part.owned" :size="14" aria-hidden="true" />
+                      <CircleMinus v-else :size="14" aria-hidden="true" />
+                      {{
+                        !ownershipKnown || part.unknown
+                          ? unknownLabel
+                          : part.owned
+                            ? text('已拥有', 'Owned')
+                            : text('未拥有', 'Not owned')
+                      }}
+                    </small>
+                  </button>
+                </div>
+              </div>
+              <p v-else class="wardrobe-parts-empty">{{
+                text('暂无部件资料', 'Piece information is not available yet')
+              }}</p>
             </div>
-            <p v-else class="wardrobe-parts-empty">{{
-              text('暂无部件资料', 'Piece information is not available yet')
-            }}</p>
           </div>
         </section>
       </div>
@@ -342,21 +345,24 @@ useModalFocus(dialogOpen, panel, closeDialog)
   />
 </template>
 <style scoped>
-.wardrobe-dialog.has-form-navigation {
-  --dialog-width: min(1150px, 100%);
-  display: grid;
-  grid-template-columns: 150px minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
-}
-.has-form-navigation > .wardrobe-detail-header {
-  grid-column: 1 / -1;
-  grid-row: 1;
-}
-.has-form-navigation > .wardrobe-dialog-body {
-  grid-column: 2;
-  grid-row: 2;
-  min-width: 0;
-  border-left: 1px solid var(--line-soft);
+/* 形态导航的左右分栏仅用于电脑端，手机端由 mobile.css 提供单列滚动布局。 */
+@media (min-width: 900px) {
+  .wardrobe-dialog.has-form-navigation {
+    --dialog-width: min(1150px, 100%);
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .has-form-navigation > .wardrobe-detail-header {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .has-form-navigation > .wardrobe-detail-scroll > .wardrobe-dialog-body {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    border-left: 1px solid var(--line-soft);
+  }
 }
 
 .wardrobe-part-open {
@@ -417,7 +423,6 @@ useModalFocus(dialogOpen, panel, closeDialog)
   --dialog-width: min(1000px, 100%);
   --dialog-max-height: calc(100dvh - 40px);
   --notice-success: #5d9873;
-  --wardrobe-success-text: #3f7855;
   --wardrobe-success-bg: #e9f1e2;
   --wardrobe-success-border: #a9c59a;
   --wardrobe-gold: color-mix(in srgb, var(--notice-warning) 75%, var(--heading));
@@ -436,7 +441,6 @@ useModalFocus(dialogOpen, panel, closeDialog)
 }
 :root[data-theme='dark'] .wardrobe-dialog {
   --notice-success: #85c99d;
-  --wardrobe-success-text: #a4d7b2;
   --wardrobe-success-bg: #243d2b;
   --wardrobe-success-border: #628d6a;
 }

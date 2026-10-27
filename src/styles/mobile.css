@@ -1211,7 +1211,8 @@
   .outfit-detail-panel {
     height: auto;
   }
-  .outfit-detail-panel > .outfit-detail-content {
+  .outfit-detail-panel > .outfit-detail-content,
+  .outfit-detail-panel > .wardrobe-detail-scroll > .outfit-detail-content {
     flex: 0 1 auto;
     min-height: 0;
     grid-template-columns: minmax(0, 1fr);
@@ -1520,6 +1521,41 @@
       opacity 120ms ease,
       transform 120ms ease-in;
   }
+  /* 共用下拉在手机端也保留完整进退场；独立 translate 不覆盖菜单定位 transform。 */
+  .cleanup-account-menu,
+  .resonance-nav-menu {
+    animation: none;
+  }
+  .mobile-dropdown-enter-active,
+  .mobile-dropdown-leave-active {
+    animation: none !important;
+    transition:
+      opacity 200ms var(--ease-spring),
+      translate 200ms var(--ease-spring);
+  }
+  .mobile-dropdown-leave-active {
+    pointer-events: none;
+    transition-duration: 140ms;
+    transition-timing-function: ease-in;
+  }
+  .mobile-dropdown-enter-from,
+  .mobile-dropdown-leave-to {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+  .cleanup-account-select svg {
+    transition: transform 220ms var(--ease-spring);
+  }
+  .cleanup-account-select:not(.open) svg {
+    transition-duration: 140ms;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mobile-dropdown-enter-active,
+    .mobile-dropdown-leave-active,
+    .cleanup-account-select svg {
+      transition: none;
+    }
+  }
   .mobile-action-menu-enter-from,
   .mobile-action-menu-leave-to {
     opacity: 0;
@@ -1615,5 +1651,165 @@
   }
   .app-header .brand-title-row {
     gap: 6px;
+  }
+}
+
+/* 衣橱手机端形态开关、卡片浮层和详情横向导航。 */
+@media (max-width: 899px) {
+  .wardrobe-mobile-evolution {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 14px;
+    padding: 8px;
+    min-height: 44px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+    cursor: pointer;
+  }
+  .wardrobe-mobile-evolution input {
+    appearance: none;
+    position: relative;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 26px;
+    margin: 0;
+    border: 0;
+    border-radius: 999px;
+    background: #c8cbd0;
+    cursor: pointer;
+  }
+  .wardrobe-mobile-evolution input::after {
+    content: '';
+    position: absolute;
+    inset: 3px auto auto 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+  }
+  .wardrobe-mobile-evolution input:checked {
+    background: var(--pink-deep);
+  }
+  .wardrobe-mobile-evolution input:checked::after {
+    transform: translateX(16px);
+  }
+  .wardrobe-mobile-evolution input:focus-visible {
+    outline: 2px solid var(--pink-deep);
+    outline-offset: 3px;
+  }
+  .wardrobe-mobile-evolution-title {
+    flex-shrink: 0;
+    color: var(--heading);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .wardrobe-mobile-evolution-hint {
+    min-width: 0;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .wardrobe-mobile-evolution input {
+      transition: background-color 0.18s ease-out;
+    }
+    .wardrobe-mobile-evolution input::after {
+      transition: transform 0.18s ease-out;
+    }
+  }
+}
+
+@media (max-width: 899px) {
+  .wardrobe-mobile-evolution input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .wardrobe-page .has-forms .wardrobe-card-heading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .wardrobe-page .wardrobe-variant {
+    box-sizing: border-box;
+    height: 22px;
+    line-height: 14px;
+  }
+  .wardrobe-mobile-form-toggle {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+  }
+  /* 详情缩略图采用方形卡片和悬出勾选标记，文字区域保留原有排版。 */
+  body :is(.wardrobe-dialog, .outfit-detail-panel) .wardrobe-form-nav.is-horizontal {
+    container-type: inline-size;
+    border-bottom: 1px solid var(--line);
+  }
+  body
+    :is(.wardrobe-dialog, .outfit-detail-panel)
+    .wardrobe-form-nav.is-horizontal
+    .wardrobe-form-image {
+    display: block;
+    position: relative;
+    align-self: center;
+    width: min(100%, calc((100cqw - 24px) / 5));
+    aspect-ratio: 1;
+  }
+  body :is(.wardrobe-dialog, .outfit-detail-panel) .wardrobe-form-nav.is-horizontal img {
+    aspect-ratio: 1;
+    border: 0;
+    border-radius: 10px;
+    background: var(--surface) url('../../img/longBg.jpg') center / cover no-repeat;
+  }
+  :where(:root[data-theme='dark'])
+    body
+    :is(.wardrobe-dialog, .outfit-detail-panel)
+    .wardrobe-form-nav.is-horizontal
+    img {
+    background-image: url('../../img/longBgdark.jpg');
+  }
+  body
+    :is(.wardrobe-dialog, .outfit-detail-panel)
+    .wardrobe-form-nav.is-horizontal
+    button[aria-pressed='true']
+    img {
+    border: 2px solid var(--surface);
+    outline: 2px solid var(--pink-deep);
+    outline-offset: 0;
+  }
+  :is(.wardrobe-dialog, .outfit-detail-panel)
+    .wardrobe-form-nav.is-horizontal
+    .wardrobe-form-selected {
+    top: -5px;
+    right: -5px;
+    z-index: 1;
+    width: 16px;
+    height: 16px;
+    padding: 2px;
+    box-sizing: content-box;
+    border: 2px solid var(--surface);
+    background: var(--pink-deep);
+    color: var(--white);
+  }
+  body .wardrobe-dialog.wardrobe-dialog.has-form-navigation,
+  body .outfit-detail-panel.is-single-column.has-form-navigation {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    width: min(100%, 600px);
+  }
+  body :is(.wardrobe-dialog, .outfit-detail-panel) > .wardrobe-detail-scroll {
+    display: block;
+    grid-column: 1;
+    grid-row: 2;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  body .wardrobe-dialog .wardrobe-detail-scroll > .wardrobe-dialog-body,
+  body .outfit-detail-panel .wardrobe-detail-scroll > .outfit-detail-content {
+    overflow: visible;
+    border-left: 0;
   }
 }

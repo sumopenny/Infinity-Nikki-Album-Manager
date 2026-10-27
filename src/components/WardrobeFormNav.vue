@@ -1,18 +1,30 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Check, CircleCheck } from 'lucide-vue-next'
+import { useCompactLayout } from '../composables/useCompactLayout'
 import CatalogImage from './CatalogImage.vue'
 import type { Language } from '../i18n/types'
 import type { WardrobeCatalog, WardrobeEntry } from '../utils/wardrobe/wardrobeCatalog'
 import type { WardrobeSnapshot } from '../utils/wardrobe/wardrobeStorage'
 import { wardrobeFamilyKey } from '../utils/wardrobe/wardrobeFamilies'
-import { wardrobeVariantLabels } from '../utils/wardrobe/wardrobePresentation'
+import {
+  wardrobeEvolutionMessages,
+  wardrobeVariantLabels
+} from '../utils/wardrobe/wardrobePresentation'
 import { getOwnershipSummary, hasWardrobeSnapshot } from '../utils/wardrobe/wardrobeOwnership'
+const compact = useCompactLayout()
 const props = defineProps<{
   entry: WardrobeEntry
   catalog?: WardrobeCatalog | null
   snapshot?: WardrobeSnapshot
   language: Language
+  horizontal?: boolean
+  ownershipIcons?: boolean
 }>()
+const isOwned = (entry: WardrobeEntry) =>
+  !!props.snapshot &&
+  hasWardrobeSnapshot(props.snapshot) &&
+  getOwnershipSummary(entry, props.snapshot).complete
 defineEmits<{ select: [entry: WardrobeEntry] }>()
 const forms = computed(() =>
   (props.catalog?.entries ?? [])
@@ -45,9 +57,9 @@ function status(entry: WardrobeEntry) {
   <nav
     v-if="forms.length > 1"
     class="wardrobe-form-nav"
-    :class="{ 'is-pieces': entry.kind === 'item' }"
+    :class="{ 'is-pieces': entry.kind === 'item', 'is-horizontal': compact || horizontal }"
     :style="{ '--form-count': forms.length }"
-    :aria-label="language === 'zh' ? '进化形态' : 'Evolution forms'"
+    :aria-label="wardrobeEvolutionMessages[language].forms"
   >
     <div
       v-for="(form, index) in forms"
@@ -59,18 +71,38 @@ function status(entry: WardrobeEntry) {
         type="button"
         :aria-pressed="entry.id === form.id"
         :aria-current="entry.id === form.id ? 'step' : undefined"
+        :aria-label="wardrobeVariantLabels[language][form.variant] + ' · ' + status(form)"
         @click="$emit('select', form)"
       >
-        <CatalogImage :src="form.image" :language="language" alt="" />
-        <span class="form-label"
-          ><strong>{{ wardrobeVariantLabels[language][form.variant] }}</strong
-          ><small>{{ status(form) }}</small></span
-        >
+        <span class="wardrobe-form-image">
+          <CatalogImage :src="form.image" :language="language" alt="" />
+          <Check
+            v-if="compact && entry.id === form.id"
+            class="wardrobe-form-selected"
+            :size="20"
+            aria-hidden="true"
+          />
+        </span>
+        <span class="form-label">
+          <span class="wardrobe-form-title">
+            <strong>{{ wardrobeVariantLabels[language][form.variant] }}</strong>
+            <CircleCheck
+              v-if="ownershipIcons && isOwned(form)"
+              class="wardrobe-form-owned"
+              :size="14"
+              aria-hidden="true"
+            />
+          </span>
+          <small v-if="!ownershipIcons">{{ status(form) }}</small>
+        </span>
       </button>
     </div>
   </nav>
 </template>
 <style scoped>
+.wardrobe-form-image {
+  display: contents;
+}
 .wardrobe-form-nav {
   --form-selected-shadow: 0 1px 5px color-mix(in srgb, var(--primary-button-bg) 20.2%, transparent);
   position: relative;

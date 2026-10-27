@@ -69,3 +69,37 @@ export const wardrobeOwnershipNotice: Record<
     close: 'Dismiss collection status information'
   }
 }
+
+interface WardrobeEvolutionMessages {
+  label: string
+  enabledHint: string
+  disabledHint: string
+  expand: string
+  expandShort: string
+  collapseShort: string
+  collapse: string
+  forms: string
+}
+
+export const wardrobeEvolutionMessages: Record<Language, WardrobeEvolutionMessages> = {
+  zh: {
+    label: '显示进化形态',
+    expand: '展开形态',
+    expandShort: '展开',
+    collapseShort: '收起',
+    collapse: '收起形态',
+    forms: '进化形态',
+    enabledHint: '开启时：界面显示套装所有形态',
+    disabledHint: '关闭时：每个套装系列合并为一张卡片'
+  },
+  en: {
+    label: 'Show evolution forms',
+    expand: 'Expand forms',
+    expandShort: 'Expand',
+    collapseShort: 'Collapse',
+    collapse: 'Collapse forms',
+    forms: 'Evolution forms',
+    enabledHint: 'When on: show all outfit forms',
+    disabledHint: 'When off: each outfit family shares one card'
+  }
+}

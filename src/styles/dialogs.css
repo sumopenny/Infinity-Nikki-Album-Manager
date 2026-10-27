@@ -3173,3 +3173,8 @@
     font-size: 13px;
   }
 }
+
+/* 电脑端保留详情左右网格，手机端由 mobile.css 将此层变为统一滚动容器。 */
+.wardrobe-detail-scroll {
+  display: contents;
+}

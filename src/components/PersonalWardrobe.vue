@@ -3,7 +3,6 @@ import { takeDownloadFiles } from '../utils/backup/downloadFallback'
 import { downloadBackupBlob } from '../utils/backup/zipBackup'
 import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import DesktopMenuTransition from './DesktopMenuTransition.vue'
-import TreeCollapse from './TreeCollapse.vue'
 import CatalogImage from './CatalogImage.vue'
 import { groupWardrobeEntries, wardrobeFamilyKey } from '../utils/wardrobe/wardrobeFamilies'
 import { wardrobeCatalogForRegion, wardrobeRegionScope } from '../utils/wardrobe/wardrobeRegion'
@@ -15,18 +14,11 @@ import {
 import { hasWardrobeSnapshot, getOwnershipSummary } from '../utils/wardrobe/wardrobeOwnership'
 import { backupBaseName } from '../utils/backup/backupName'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRef, watch } from 'vue'
-import {
-  ArrowLeftRight,
-  ChevronDown,
-  CircleCheck,
-  CircleMinus,
-  RotateCcw,
-  Shirt,
-  Info,
-  X
-} from 'lucide-vue-next'
+import { ArrowLeftRight, ChevronDown, RotateCcw, Shirt, Info, X } from 'lucide-vue-next'
 import ResonanceDataActions from './ResonanceDataActions.vue'
 import WardrobeCloudActions from './WardrobeCloudActions.vue'
+import WardrobeEvolutionSwitch from './WardrobeEvolutionSwitch.vue'
+import WardrobeFormPopover from './WardrobeFormPopover.vue'
 import CollectionFilterBar from './CollectionFilterBar.vue'
 import AdaptiveFilterPanel from './AdaptiveFilterPanel.vue'
 import DataImportWindow from './DataImportWindow.vue'
@@ -164,9 +156,9 @@ const showEvolutions = ref(
   })()
 )
 const selectedForms = ref<Record<string, string>>({})
-const expandedFamilies = ref(new Set<string>())
+const formPreviewRevision = ref(0)
 watch(showEvolutions, (value) => {
-  expandedFamilies.value = new Set()
+  formPreviewRevision.value++
   limit.value = 48
   try {
     localStorage.setItem(evolutionPreferenceKey, String(value))
@@ -174,7 +166,7 @@ watch(showEvolutions, (value) => {
     /* Session only. */
   }
 })
-const merged = computed(() => !compact.value && !showEvolutions.value)
+const merged = computed(() => !showEvolutions.value)
 const matchingFamilies = computed(() => groupWardrobeEntries(filtered.value))
 // Filters determine visible families, not the available forms inside a preview.
 const catalogFamilies = computed(() => groupWardrobeEntries(catalog.value?.entries ?? []))
@@ -190,11 +182,6 @@ const formsFor = (entry: WardrobeEntry) =>
   [...(catalogFamilies.value.get(wardrobeFamilyKey(entry)) ?? [])].sort(
     (a, b) => a.variant - b.variant
   )
-function toggleFamily(entry: WardrobeEntry) {
-  const key = wardrobeFamilyKey(entry)
-  if (expandedFamilies.value.has(key)) expandedFamilies.value.delete(key)
-  else expandedFamilies.value.add(key)
-}
 const limit = ref(48)
 const loadMoreTarget = ref<HTMLElement | null>(null)
 let loadMoreObserver: IntersectionObserver | null = null
@@ -354,7 +341,7 @@ const stats = computed(() => ({
 }))
 watch([tab, query, ownership, rarity, variant, version, style, source, tag, category, sort], () => {
   limit.value = 48
-  expandedFamilies.value = new Set()
+  formPreviewRevision.value++
 })
 function resetFilters() {
   emit('update-search', '')
@@ -595,6 +582,12 @@ async function clearRecords() {
       @open="mobileFiltersOpen = true"
       @clear="resetFilters"
     />
+    <WardrobeEvolutionSwitch
+      v-if="compact && loaded"
+      v-model="showEvolutions"
+      :language="language"
+      :disabled="blocked"
+    />
     <Teleport v-if="compact && loaded" to="#wardrobe-mobile-category-target" defer>
       <button
         type="button"
@@ -814,32 +807,16 @@ async function clearRecords() {
                 <span class="wardrobe-variant">{{ variants[entry.variant] }}</span>
               </div>
             </button>
-            <div v-if="merged && formsFor(entry).length > 1" class="wardrobe-form-overlay">
-              <TreeCollapse
-                soft-edges
-                class="wardrobe-form-preview"
-                :open="expandedFamilies.has(wardrobeFamilyKey(entry))"
-              >
-                <div class="wardrobe-form-thumbnails">
-                  <button
-                    v-for="form in formsFor(entry)"
-                    :key="form.id"
-                    type="button"
-                    :aria-label="variants[form.variant] + ' · ' + name(form) + ' · ' + status(form)"
-                    :aria-pressed="form.id === entry.id"
-                    :title="variants[form.variant] + ' · ' + status(form)"
-                    @click="openDetail(form)"
-                  >
-                    <CatalogImage :src="form.image" :language="language" alt="" />
-                    <span>{{ variants[form.variant] }}</span>
-                    <small :class="{ 'wardrobe-owned': complete(form) }" :aria-label="status(form)">
-                      <CircleCheck v-if="complete(form)" :size="14" aria-hidden="true" />
-                      <CircleMinus v-else :size="14" aria-hidden="true" />
-                    </small>
-                  </button>
-                </div>
-              </TreeCollapse>
-            </div>
+            <WardrobeFormPopover
+              v-if="compact && merged && formsFor(entry).length > 1"
+              :entry="entry"
+              :catalog="catalog"
+              :snapshot="snapshot"
+              :language="language"
+              :disabled="blocked"
+              :reset-key="formPreviewRevision"
+              @select="openDetail"
+            />
           </div>
           <div class="wardrobe-card-body" @click="!blocked && openDetail(entry)">
             <div class="wardrobe-card-heading">
@@ -852,28 +829,16 @@ async function clearRecords() {
               >
                 <h3>{{ name(entry) }}</h3>
               </button>
-              <button
-                v-if="merged && formsFor(entry).length > 1"
-                type="button"
-                class="wardrobe-form-toggle"
-                :aria-expanded="expandedFamilies.has(wardrobeFamilyKey(entry))"
-                :aria-label="
-                  expandedFamilies.has(wardrobeFamilyKey(entry))
-                    ? text('收起形态', 'Collapse forms')
-                    : text('展开形态', 'Expand forms')
-                "
-                @click.stop="toggleFamily(entry)"
-              >
-                <span>{{
-                  expandedFamilies.has(wardrobeFamilyKey(entry))
-                    ? text('收起', 'Collapse')
-                    : text('展开', 'Expand')
-                }}</span>
-                <ChevronDown
-                  :size="16"
-                  :class="{ rotated: expandedFamilies.has(wardrobeFamilyKey(entry)) }"
-                />
-              </button>
+              <WardrobeFormPopover
+                v-if="!compact && merged && formsFor(entry).length > 1"
+                :entry="entry"
+                :catalog="catalog"
+                :snapshot="snapshot"
+                :language="language"
+                :disabled="blocked"
+                :reset-key="formPreviewRevision"
+                @select="openDetail"
+              />
             </div>
             <div class="wardrobe-card-status">
               <span :class="complete(entry) ? 'wardrobe-owned' : ''">
@@ -1010,98 +975,6 @@ async function clearRecords() {
   text-align: left;
   cursor: pointer;
 }
-.wardrobe-form-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  aspect-ratio: 448 / 656;
-  pointer-events: none;
-}
-.is-pieces .wardrobe-form-overlay {
-  aspect-ratio: 1;
-}
-.wardrobe-form-preview {
-  container-type: inline-size;
-  position: absolute;
-  bottom: 4px;
-  left: 2px;
-  right: 2px;
-  pointer-events: auto;
-}
-.wardrobe-form-thumbnails {
-  display: flex;
-  gap: 4px;
-  padding: 2px;
-}
-.wardrobe-form-thumbnails button {
-  flex: 1;
-  min-width: 0;
-  padding: 2px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-}
-.wardrobe-form-thumbnails button[aria-pressed='true'] {
-  border-color: var(--pink-deep);
-  box-shadow: var(--photo-hover-shadow);
-}
-.wardrobe-form-thumbnails img {
-  display: block;
-  width: 100%;
-  /* Use the three-form image height regardless of the number of forms.
-     Subtract row padding, two gaps, then each button's border and padding. */
-  height: calc((100cqw - 12px) / 3 - 6px);
-  object-fit: cover;
-  object-position: top;
-  border-radius: 4px;
-}
-.wardrobe-form-thumbnails small {
-  display: flex;
-  justify-content: center;
-  margin-top: 2px;
-  color: var(--muted);
-}
-.wardrobe-form-thumbnails small.wardrobe-owned {
-  color: var(--notice-success);
-}
-.wardrobe-form-thumbnails span {
-  font-size: 10px;
-}
-.wardrobe-form-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  height: auto;
-  min-height: 0;
-  padding: 0 4px;
-  font-size: 12px;
-  border: 0;
-  border-radius: 7px;
-  background: var(--surface);
-  color: var(--pink-deep);
-  white-space: nowrap;
-  pointer-events: auto;
-  cursor: pointer;
-}
-.wardrobe-form-toggle svg {
-  transition: transform 220ms var(--ease-spring);
-}
-.wardrobe-form-toggle svg:not(.rotated) {
-  transition-duration: 140ms;
-}
-.wardrobe-form-toggle .rotated {
-  transform: rotate(180deg);
-}
-@media (prefers-reduced-motion: reduce) {
-  .wardrobe-form-toggle svg {
-    transition: none;
-  }
-}
-
 .wardrobe-ownership-note {
   margin: 0 0 12px;
   color: var(--muted);
@@ -1360,12 +1233,6 @@ async function clearRecords() {
 }
 .is-pieces .wardrobe-cover {
   background-image: url('../../img/pinkCardBg.png');
-}
-.wardrobe-form-thumbnails img {
-  background: var(--frame-bg) url('../../img/longBg.jpg') center / cover no-repeat;
-}
-:where(:root[data-theme='dark']) .wardrobe-form-thumbnails img {
-  background-image: url('../../img/longBgdark.jpg');
 }
 .wardrobe-cover img {
   width: 100%;

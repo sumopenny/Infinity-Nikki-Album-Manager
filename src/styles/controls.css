@@ -65,3 +65,270 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 衣橱两端共用横向形态浮层。 */
+.wardrobe-form-nav:not(.is-horizontal) button {
+  overflow: hidden;
+}
+/* 只偏移部件详情缩略图内部的图像，卡片、背景和文字保持原位。 */
+.outfit-detail-panel .wardrobe-form-nav.is-pieces img {
+  object-position: center calc(50% - 6px);
+}
+.wardrobe-form-popover {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+}
+/* 两端形态浮层共用柔边遮罩、时长和缓动。 */
+.wardrobe-forms-enter-active,
+.wardrobe-forms-leave-active {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 33.333%,
+    transparent 66.667%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 33.333%,
+    transparent 66.667%,
+    transparent 100%
+  );
+  -webkit-mask-size: 100% 300%;
+  mask-size: 100% 300%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  transition:
+    -webkit-mask-position 200ms var(--ease-spring),
+    mask-position 200ms var(--ease-spring),
+    opacity 200ms var(--ease-spring);
+}
+.wardrobe-forms-leave-active {
+  pointer-events: none;
+  transition-duration: 160ms;
+  transition-timing-function: ease-in;
+}
+.wardrobe-forms-enter-active.is-upward,
+.wardrobe-forms-leave-active.is-upward {
+  -webkit-mask-image: linear-gradient(
+    to top,
+    #000 0%,
+    #000 33.333%,
+    transparent 66.667%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(to top, #000 0%, #000 33.333%, transparent 66.667%, transparent 100%);
+}
+.wardrobe-forms-enter-from,
+.wardrobe-forms-leave-to {
+  opacity: 0;
+  -webkit-mask-position: 0 100%;
+  mask-position: 0 100%;
+}
+.wardrobe-forms-enter-to,
+.wardrobe-forms-leave-from,
+.wardrobe-forms-enter-from.is-upward,
+.wardrobe-forms-leave-to.is-upward {
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+}
+.wardrobe-forms-enter-to.is-upward,
+.wardrobe-forms-leave-from.is-upward {
+  -webkit-mask-position: 0 100%;
+  mask-position: 0 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wardrobe-mobile-form-toggle svg,
+  .wardrobe-forms-enter-active,
+  .wardrobe-forms-leave-active {
+    transition: none;
+  }
+}
+body .wardrobe-form-nav.is-horizontal {
+  display: grid;
+  grid-template-columns: repeat(var(--form-count), minmax(0, 1fr));
+  grid-template-rows: auto;
+  grid-column: 1;
+  grid-row: 2;
+  gap: 6px;
+  padding: 12px;
+  overflow: auto;
+  background: var(--surface-soft);
+}
+.wardrobe-form-popover .wardrobe-form-nav.is-horizontal {
+  background: transparent;
+}
+body .wardrobe-form-nav.is-horizontal .form-stage {
+  display: block;
+  container-type: normal;
+  min-width: 0;
+}
+body .wardrobe-form-nav.is-horizontal .form-stage::before,
+body .wardrobe-form-nav.is-horizontal .form-stage::after {
+  display: none;
+}
+body .wardrobe-form-nav.is-horizontal button {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: auto;
+  aspect-ratio: auto;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: center;
+}
+body .wardrobe-form-nav.is-horizontal img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 448 / 656;
+  object-fit: cover;
+  object-position: top;
+  border: 2px solid transparent;
+  border-radius: 9px;
+  box-sizing: border-box;
+}
+body .wardrobe-form-nav.is-horizontal.is-pieces img {
+  aspect-ratio: 1;
+}
+body .wardrobe-form-nav.is-horizontal button[aria-pressed='true'] img {
+  border-color: var(--pink-deep);
+}
+.wardrobe-form-nav.is-horizontal .wardrobe-form-selected {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--pink-deep);
+}
+body .wardrobe-form-nav.is-horizontal .form-label {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 0 0;
+  background: transparent;
+  white-space: normal;
+}
+body .wardrobe-form-nav.is-horizontal strong {
+  font-size: 12px;
+}
+.wardrobe-form-nav .wardrobe-form-title {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  max-width: 100%;
+}
+.wardrobe-form-nav.is-horizontal .wardrobe-form-title strong {
+  min-width: 0;
+  flex-shrink: 1;
+  overflow-wrap: anywhere;
+}
+.wardrobe-form-nav .wardrobe-form-owned {
+  flex-shrink: 0;
+  color: var(--wardrobe-success-text);
+}
+body .wardrobe-form-nav.is-horizontal small {
+  font-size: 10px;
+  color: var(--muted);
+}
+body .wardrobe-form-nav.is-horizontal button[aria-pressed='true'] strong {
+  color: var(--pink-deep);
+}
+
+/* 卡片展开预览沿用电脑端：整张缩略卡片描边与阴影，不使用详情的勾选角标。 */
+.wardrobe-form-popover .wardrobe-form-nav.is-horizontal button {
+  padding: 2px 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+}
+.wardrobe-form-popover .wardrobe-form-nav.is-horizontal button[aria-pressed='true'] {
+  border-color: var(--pink-deep);
+  box-shadow: var(--photo-hover-shadow);
+}
+.wardrobe-form-popover .wardrobe-form-nav.is-horizontal img {
+  border: 0;
+  border-radius: 4px;
+  background: var(--frame-bg) url('../../img/longBg.jpg') center / cover no-repeat;
+}
+:where(:root[data-theme='dark']) .wardrobe-form-popover .wardrobe-form-nav.is-horizontal img {
+  background-image: url('../../img/longBgdark.jpg');
+}
+.wardrobe-form-popover .wardrobe-form-selected {
+  display: none;
+}
+.wardrobe-form-popover .wardrobe-form-nav.is-horizontal button[aria-pressed='true'] strong {
+  color: inherit;
+}
+
+/* 电脑端保留卡片名称右侧的展开入口。 */
+.wardrobe-form-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: auto;
+  min-height: 0;
+  padding: 0 4px;
+  font-size: 12px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--pink-deep);
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.wardrobe-mobile-form-toggle {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--white) 78%, var(--line));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface) 66%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(2px);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 10%);
+  cursor: pointer;
+}
+:is(.wardrobe-form-toggle, .wardrobe-mobile-form-toggle) svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 220ms var(--ease-spring);
+}
+:is(.wardrobe-form-toggle, .wardrobe-mobile-form-toggle) svg:not(.rotated) {
+  transition-duration: 140ms;
+}
+:is(.wardrobe-form-toggle, .wardrobe-mobile-form-toggle) .rotated {
+  transform: rotate(180deg);
+}
+:is(.wardrobe-form-toggle, .wardrobe-mobile-form-toggle):focus-visible {
+  outline: 2px solid var(--pink-deep);
+  outline-offset: 2px;
+}
+:is(.wardrobe-form-toggle, .wardrobe-mobile-form-toggle):disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.wardrobe-form-toggle, .wardrobe-mobile-form-toggle) svg {
+    transition: none;
+  }
+}

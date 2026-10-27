@@ -15,8 +15,7 @@ function beforeEnter(element: Element) {
 
 <template>
   <Transition
-    name="desktop-menu"
-    :css="!compact"
+    :name="compact ? 'mobile-dropdown' : 'desktop-menu'"
     @before-enter="beforeEnter"
     @before-leave="beforeLeave"
   >

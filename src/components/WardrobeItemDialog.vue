@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import CatalogImage from './CatalogImage.vue'
 import WardrobeFormNav from './WardrobeFormNav.vue'
-import { useCompactLayout } from '../composables/useCompactLayout'
 import { wardrobeFamilyKey } from '../utils/wardrobe/wardrobeFamilies'
 import { computed, ref, watch } from 'vue'
 import { ExternalLink, X } from 'lucide-vue-next'
@@ -19,10 +18,8 @@ const props = defineProps<{
   layer?: number
   language: Language
 }>()
-const compact = useCompactLayout()
 const hasForms = computed(
   () =>
-    !compact.value &&
     !!props.item &&
     (props.catalog?.entries ?? []).filter(
       (entry) => wardrobeFamilyKey(entry) === wardrobeFamilyKey(props.item!)
@@ -74,70 +71,75 @@ useModalFocus(visible, panel, close)
               <X :size="19" aria-hidden="true" />
             </button>
           </header>
-          <WardrobeFormNav
-            v-if="hasForms"
-            :entry="item"
-            :catalog="catalog"
-            :snapshot="snapshot"
-            :language="language"
-            @select="emit('selectForm', $event)"
-          />
-          <div class="outfit-detail-content is-single-column">
-            <section class="outfit-detail-summary">
-              <div
-                class="outfit-detail-image-frame"
-                :class="{ 'is-image-loading': imageState === 'loading' }"
-                :aria-busy="imageState === 'loading'"
-              >
-                <CatalogImage
-                  :language="language"
-                  :key="item.id"
-                  class="outfit-detail-image"
-                  loading="eager"
-                  fetchpriority="high"
-                  :class="{ 'is-loading': imageState === 'loading' }"
-                  referrerpolicy="no-referrer"
-                  :src="imageUrl"
-                  :alt="item.name[language]"
-                  @load="imageState = 'loaded'"
-                  @error="imageState = 'failed'"
-                  @retry="imageState = 'loading'"
-                />
+          <div class="wardrobe-detail-scroll">
+            <WardrobeFormNav
+              ownership-icons
+              v-if="hasForms"
+              :entry="item"
+              :catalog="catalog"
+              :snapshot="snapshot"
+              :language="language"
+              @select="emit('selectForm', $event)"
+            />
+            <div class="outfit-detail-content is-single-column">
+              <section class="outfit-detail-summary">
                 <div
-                  v-if="imageState === 'loading'"
-                  class="outfit-detail-image-placeholder"
-                  role="status"
+                  class="outfit-detail-image-frame"
+                  :class="{ 'is-image-loading': imageState === 'loading' }"
+                  :aria-busy="imageState === 'loading'"
                 >
-                  <span class="outfit-image-spinner" aria-hidden="true"></span>
-                  <span>{{ text('正在加载图片…', 'Loading image…') }}</span>
+                  <CatalogImage
+                    :language="language"
+                    :key="item.id"
+                    class="outfit-detail-image"
+                    loading="eager"
+                    fetchpriority="high"
+                    :class="{ 'is-loading': imageState === 'loading' }"
+                    referrerpolicy="no-referrer"
+                    :src="imageUrl"
+                    :alt="item.name[language]"
+                    @load="imageState = 'loaded'"
+                    @error="imageState = 'failed'"
+                    @retry="imageState = 'loading'"
+                  />
+                  <div
+                    v-if="imageState === 'loading'"
+                    class="outfit-detail-image-placeholder"
+                    role="status"
+                  >
+                    <span class="outfit-image-spinner" aria-hidden="true"></span>
+                    <span>{{ text('正在加载图片…', 'Loading image…') }}</span>
+                  </div>
                 </div>
-              </div>
-              <dl class="outfit-detail-info">
-                <div
-                  ><dt>{{ text('所属套装', 'Outfit') }}</dt
-                  ><dd>
-                    <template v-if="outfits.length">
-                      <span v-for="(outfit, index) in outfits" :key="outfit.id">
-                        <span v-if="index"> / </span>{{ outfit.name[language] }}
-                        <button
-                          type="button"
-                          class="wardrobe-outfit-link"
-                          :aria-label="text('查看套装：', 'View outfit: ') + outfit.name[language]"
-                          :title="text('查看套装', 'View outfit')"
-                          @click="emit('openOutfit', outfit)"
-                          ><ExternalLink :size="15" aria-hidden="true"
-                        /></button>
-                      </span>
-                    </template>
-                    <template v-else>{{ text('无所属套装', 'No associated outfit') }}</template>
-                  </dd></div
-                >
-                <div
-                  ><dt>{{ text('当前部件', 'Current item') }}</dt
-                  ><dd>{{ item.name[language] }}</dd></div
-                >
-              </dl>
-            </section>
+                <dl class="outfit-detail-info">
+                  <div
+                    ><dt>{{ text('所属套装', 'Outfit') }}</dt
+                    ><dd>
+                      <template v-if="outfits.length">
+                        <span v-for="(outfit, index) in outfits" :key="outfit.id">
+                          <span v-if="index"> / </span>{{ outfit.name[language] }}
+                          <button
+                            type="button"
+                            class="wardrobe-outfit-link"
+                            :aria-label="
+                              text('查看套装：', 'View outfit: ') + outfit.name[language]
+                            "
+                            :title="text('查看套装', 'View outfit')"
+                            @click="emit('openOutfit', outfit)"
+                            ><ExternalLink :size="15" aria-hidden="true"
+                          /></button>
+                        </span>
+                      </template>
+                      <template v-else>{{ text('无所属套装', 'No associated outfit') }}</template>
+                    </dd></div
+                  >
+                  <div
+                    ><dt>{{ text('当前部件', 'Current item') }}</dt
+                    ><dd>{{ item.name[language] }}</dd></div
+                  >
+                </dl>
+              </section>
+            </div>
           </div>
         </section>
       </div>
@@ -146,23 +148,26 @@ useModalFocus(visible, panel, close)
 </template>
 
 <style scoped>
-.outfit-detail-panel.is-single-column.has-form-navigation {
-  width: min(558px, 100%);
-  display: grid;
-  grid-template-columns: 150px minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
-}
-.has-form-navigation > header {
-  grid-column: 1 / -1;
-  grid-row: 1;
-}
-.has-form-navigation > .outfit-detail-content {
-  grid-column: 2;
-  grid-row: 2;
-  min-width: 0;
-  min-height: 0;
-  overflow: auto;
-  border-left: 1px solid var(--line-soft);
+/* 形态导航的左右分栏仅用于电脑端，手机端由 mobile.css 提供单列滚动布局。 */
+@media (min-width: 900px) {
+  .outfit-detail-panel.is-single-column.has-form-navigation {
+    width: min(558px, 100%);
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .has-form-navigation > header {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .has-form-navigation > .wardrobe-detail-scroll > .outfit-detail-content {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    border-left: 1px solid var(--line-soft);
+  }
 }
 
 .wardrobe-outfit-link {

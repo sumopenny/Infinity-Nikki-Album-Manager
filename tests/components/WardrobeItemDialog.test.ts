@@ -1,5 +1,5 @@
 import { mount, DOMWrapper } from '@vue/test-utils'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import WardrobeItemDialog from '../../src/components/WardrobeItemDialog.vue'
 import type { WardrobeEntry } from '../../src/utils/wardrobe/wardrobeCatalog'
 
@@ -45,47 +45,77 @@ it('衣橱详情在加载、失败、重试和切换部件时保留展示框', a
   }
 })
 
-it('switches between available item forms without claiming unknown ownership', async () => {
-  const { loadWardrobeCatalog } = await import('../../src/utils/wardrobe/wardrobeCatalog')
-  const catalog = await loadWardrobeCatalog()
-  const original = catalog.entries.find(
-    (entry) =>
-      entry.kind === 'item' &&
-      entry.variant === 0 &&
-      catalog.entries.some(
-        (other) =>
-          other.kind === 'item' && other.familyRootId === entry.familyRootId && other.variant > 0
+it.each([false, true])(
+  'switches item forms without claiming unknown ownership (mobile=%s)',
+  async (compact) => {
+    vi.stubGlobal('matchMedia', () => ({
+      matches: compact,
+      addEventListener() {},
+      removeEventListener() {}
+    }))
+    const { loadWardrobeCatalog } = await import('../../src/utils/wardrobe/wardrobeCatalog')
+    const catalog = await loadWardrobeCatalog()
+    const original = catalog.entries.find(
+      (entry) =>
+        entry.kind === 'item' &&
+        entry.variant === 0 &&
+        catalog.entries.some(
+          (other) =>
+            other.kind === 'item' && other.familyRootId === entry.familyRootId && other.variant > 0
+        )
+    )!
+    const evolved = catalog.entries.find(
+      (entry) =>
+        entry.kind === 'item' && entry.familyRootId === original.familyRootId && entry.variant > 0
+    )!
+    const wrapper = mount(WardrobeItemDialog, {
+      props: { item: original, outfits: [], catalog, language: 'zh' },
+      attachTo: document.body,
+      global: { stubs: { Transition: true } }
+    })
+    try {
+      const view = new DOMWrapper(document.body)
+      const nav = view.get('.wardrobe-form-nav')
+      expect(nav.element.closest('.wardrobe-detail-scroll')).toBe(
+        view.get('.outfit-detail-content').element.parentElement
       )
-  )!
-  const evolved = catalog.entries.find(
-    (entry) =>
-      entry.kind === 'item' && entry.familyRootId === original.familyRootId && entry.variant > 0
-  )!
-  const wrapper = mount(WardrobeItemDialog, {
-    props: { item: original, outfits: [], catalog, language: 'zh' },
-    attachTo: document.body,
-    global: { stubs: { Transition: true } }
-  })
-  try {
-    const view = new DOMWrapper(document.body)
-    const nav = view.get('.wardrobe-form-nav')
-    expect(nav.text()).toContain('未知')
-    expect(nav.text()).not.toContain('已拥有')
-    const buttons = nav.findAll('button')
-    const index = catalog.entries
-      .filter((entry) => entry.kind === 'item' && entry.familyRootId === original.familyRootId)
-      .sort((a, b) => a.variant - b.variant)
-      .findIndex((entry) => entry.id === evolved.id)
-    await buttons[index]!.trigger('click')
-    expect(wrapper.emitted('selectForm')?.[0]).toEqual([evolved])
-    const panel = view.get('.outfit-detail-panel').element
-    await wrapper.setProps({ item: evolved })
-    expect(view.get('.outfit-detail-panel').element).toBe(panel)
-    expect(view.get('.outfit-detail-info').text()).toContain(evolved.name.zh)
-    expect(view.get('.outfit-detail-image').attributes('src')).toBe(
-      evolved.image.replace('/items/icons/', '/items/')
-    )
-  } finally {
-    wrapper.unmount()
+      expect(nav.find('.form-label small').exists()).toBe(false)
+      expect(nav.find('.wardrobe-form-owned').exists()).toBe(false)
+      expect(nav.text()).not.toContain('已拥有')
+      await wrapper.setProps({
+        snapshot: {
+          entries: Object.fromEntries(
+            original.parts.map((id) => [id, { owned: true, source: 'pearpal' as const }])
+          ),
+          unknownSuitIds: [],
+          updatedAt: '2026-10-27T00:00:00Z'
+        }
+      })
+      expect(nav.findAll('.wardrobe-form-owned')).toHaveLength(1)
+      expect(
+        nav
+          .get('button[aria-pressed="true"] .wardrobe-form-title')
+          .find('.lucide-circle-check')
+          .exists()
+      ).toBe(true)
+      expect(nav.find('.form-label small').exists()).toBe(false)
+      const buttons = nav.findAll('button')
+      const index = catalog.entries
+        .filter((entry) => entry.kind === 'item' && entry.familyRootId === original.familyRootId)
+        .sort((a, b) => a.variant - b.variant)
+        .findIndex((entry) => entry.id === evolved.id)
+      await buttons[index]!.trigger('click')
+      expect(wrapper.emitted('selectForm')?.[0]).toEqual([evolved])
+      const panel = view.get('.outfit-detail-panel').element
+      await wrapper.setProps({ item: evolved })
+      expect(view.get('.outfit-detail-panel').element).toBe(panel)
+      expect(view.get('.outfit-detail-info').text()).toContain(evolved.name.zh)
+      expect(view.get('.outfit-detail-image').attributes('src')).toBe(
+        evolved.image.replace('/items/icons/', '/items/')
+      )
+    } finally {
+      wrapper.unmount()
+      vi.unstubAllGlobals()
+    }
   }
-})
+)

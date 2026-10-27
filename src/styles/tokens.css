@@ -44,6 +44,7 @@
   --favorite-heart-fill: var(--pink-deep);
   --notice-info: #6e91b8;
   --notice-success: #6c9f7c;
+  --wardrobe-success-text: #6c9f7c;
   --notice-warning: #c49445;
   --notice-error: #c76f72;
   --title-gradient: linear-gradient(115deg, #c98486 5%, #e0a19b 50%, #d9b86a 95%);
@@ -130,6 +131,7 @@
   --favorite-heart-fill: #ffb9bc;
   --notice-info: #8bb7e5;
   --notice-success: #91c9a0;
+  --wardrobe-success-text: #91c9a0;
   --notice-warning: #e2bd72;
   --notice-error: #f09a9d;
   --title-gradient: linear-gradient(115deg, #efb0b2 5%, #ffd9c4 50%, #fff2a8 95%);
