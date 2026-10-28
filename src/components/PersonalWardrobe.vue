@@ -1299,24 +1299,17 @@ progress::-webkit-progress-bar {
 progress::-webkit-progress-value {
   background: var(--notice-success);
 }
-.wardrobe-empty,
-.wardrobe-image-fallback {
+.wardrobe-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
   color: var(--muted);
-}
-.wardrobe-empty {
   padding: 60px 20px;
 }
 .wardrobe-empty p {
   margin: 0;
-}
-.wardrobe-image-fallback {
-  height: 100%;
-  font-size: 12px;
 }
 .wardrobe-load-more-target {
   height: 1px;

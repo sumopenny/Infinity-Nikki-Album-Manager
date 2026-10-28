@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, toRef, watch } from 'vue'
+import { ref, toRef } from 'vue'
+import { useModalFocus } from '../composables/useModalFocus'
 import { X } from 'lucide-vue-next'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { LocaleMessages } from '../i18n'
@@ -11,50 +12,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{ close: [] }>()
 const panelRef = ref<HTMLElement | null>(null)
-let previousActiveElement: HTMLElement | null = null
 useBodyScrollLock(toRef(props, 'visible'))
+useModalFocus(toRef(props, 'visible'), panelRef, closeDialog)
 
 function closeDialog() {
   emit('close')
 }
-
-function handleKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    closeDialog()
-    return
-  }
-  if (event.key !== 'Tab' || !panelRef.value) return
-  const focusable = [
-    ...panelRef.value.querySelectorAll<HTMLElement>(
-      'button, [href], [tabindex]:not([tabindex="-1"])'
-    )
-  ].filter((element) => !element.hasAttribute('disabled'))
-  if (!focusable.length) return
-  const first = focusable[0]
-  const last = focusable[focusable.length - 1]
-  if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault()
-    last.focus()
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault()
-    first.focus()
-  }
-}
-
-watch(
-  () => props.visible,
-  (visible) => {
-    if (visible) {
-      previousActiveElement =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null
-    } else {
-      previousActiveElement?.focus()
-      previousActiveElement = null
-    }
-  },
-  { immediate: true }
-)
 </script>
 
 <template>
@@ -67,9 +30,8 @@ watch(
         aria-modal="true"
         :aria-labelledby="'fortune-time-title'"
         @click.self="closeDialog"
-        @keydown="handleKeydown"
       >
-        <section ref="panelRef" class="dialog-panel fortune-time-panel">
+        <section ref="panelRef" class="dialog-panel fortune-time-panel" tabindex="-1">
           <header class="fortune-time-header">
             <h2 id="fortune-time-title">{{ messages.title }}</h2>
             <button

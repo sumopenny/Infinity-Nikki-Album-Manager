@@ -811,6 +811,32 @@ it('converts an existing non-WebP cover when saving an edit', async () => {
   expect(mocks.save.mock.calls[0][1].type).toBe('image/webp')
 })
 
+it('does not read saved covers while the favorites page is inactive', async () => {
+  vi.stubGlobal('IntersectionObserver', undefined)
+  const cover = new Blob(['cover'], { type: 'image/webp' })
+  mocks.read.mockResolvedValue({
+    records: [
+      {
+        ...item,
+        cover: { name: 'cover.webp', type: cover.type, size: cover.size, sha256: 'a'.repeat(64) }
+      }
+    ],
+    covers: new Map([[item.id, cover]])
+  })
+  const view = create()
+  await view.setProps({ active: false })
+  await flushPromises()
+  expect(view.find('.stored-image').exists()).toBe(true)
+  expect(mocks.readCover).not.toHaveBeenCalled()
+  await view.setProps({ active: true })
+  await flushPromises()
+  expect(mocks.readCover).toHaveBeenCalledOnce()
+  expect(view.get('.stored-image img').attributes('src')).toBe('blob:cover')
+  await view.setProps({ active: false })
+  expect(view.find('.stored-image img').exists()).toBe(false)
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:cover')
+})
+
 it('skips focus refresh for an inactive module and while its editor is open', async () => {
   const view = create()
   await flushPromises()

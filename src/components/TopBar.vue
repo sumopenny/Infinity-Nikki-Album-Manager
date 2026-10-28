@@ -125,8 +125,6 @@ const showFeedback = ref(false)
 useBodyScrollLock(
   computed(() => showDonate.value || showFeedback.value || menuMotion.present.value)
 )
-// iframe 懒加载：首次打开弹窗时才设置 src，避免启动时请求第三方页面
-const feedbackLoaded = ref(false)
 const feedbackLoadFailed = ref(false)
 const headerRef = ref<HTMLElement | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
@@ -261,9 +259,8 @@ function selectLanguage(language: Language) {
   if (language !== props.language) emit('toggleLanguage')
 }
 
-/** 打开问题反馈弹窗，首次打开时加载问卷 iframe。参数：无。 */
+/** 打开问题反馈弹窗并加载问卷。 */
 function openFeedback() {
-  feedbackLoaded.value = true
   feedbackLoadFailed.value = false
   showFeedback.value = true
 }
@@ -1023,7 +1020,6 @@ function openDonate() {
           </header>
           <div class="feedback-dialog-body">
             <iframe
-              v-if="feedbackLoaded"
               class="feedback-iframe"
               :src="FEEDBACK_URL"
               :title="messages.feedbackTitle"

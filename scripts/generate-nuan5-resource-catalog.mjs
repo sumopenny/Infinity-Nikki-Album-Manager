@@ -237,7 +237,8 @@ class MessagePackReader {
             ? this.bytes(2).readUInt16BE(0)
             : this.bytes(4).readUInt32BE(0)
       this.byte()
-      return this.bytes(length - 1)
+      // 扩展长度只包含 payload，不包含上面已读取的类型字节。
+      return this.bytes(length)
     }
     throw new Error(`不支持 MessagePack 标记 0x${marker.toString(16)}`)
   }

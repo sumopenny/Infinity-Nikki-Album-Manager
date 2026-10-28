@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, toRef, watch } from 'vue'
+import { ref, toRef } from 'vue'
+import { useModalFocus } from '../composables/useModalFocus'
 import { Eraser, FolderOpen, X } from 'lucide-vue-next'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import type { LocaleMessages } from '../i18n'
@@ -22,36 +23,12 @@ const emit = defineEmits<{
 // 清理项展示顺序，与 i18n cleanup.items 对应
 const cleanupItems: SpecialCleanupItem[] = ['lowQuality', 'crashes', 'logs', 'webcache']
 const panelRef = ref<HTMLElement | null>(null)
-let previousActiveElement: HTMLElement | null = null
 useBodyScrollLock(toRef(props, 'visible'))
+useModalFocus(toRef(props, 'visible'), panelRef, closeDialog)
 
 /** 关闭专项清理窗口。参数：无。 */
 function closeDialog() {
   emit('close')
-}
-
-/** 处理窗口键盘操作。参数：键盘事件；Escape 关闭，Tab 在窗口内循环聚焦。 */
-function handleKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') {
-    closeDialog()
-    return
-  }
-  if (event.key !== 'Tab' || !panelRef.value) return
-  const focusable = [
-    ...panelRef.value.querySelectorAll<HTMLElement>(
-      'button, input, [href], [tabindex]:not([tabindex="-1"])'
-    )
-  ].filter((element) => !element.hasAttribute('disabled'))
-  if (!focusable.length) return
-  const first = focusable[0]
-  const last = focusable[focusable.length - 1]
-  if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault()
-    last.focus()
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault()
-    first.focus()
-  }
 }
 
 /** 判断某个清理项的按钮是否可用。参数：item 为清理项标识。 */
@@ -60,20 +37,6 @@ function isItemDisabled(item: SpecialCleanupItem): boolean {
     props.disabled || !props.authorizedName || (props.busyItem !== null && props.busyItem !== item)
   )
 }
-
-watch(
-  () => props.visible,
-  (visible) => {
-    if (visible) {
-      previousActiveElement =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null
-    } else {
-      previousActiveElement?.focus()
-      previousActiveElement = null
-    }
-  },
-  { immediate: true }
-)
 </script>
 
 <template>
@@ -86,9 +49,8 @@ watch(
         aria-modal="true"
         :aria-label="messages.dialogTitle"
         @click.self="closeDialog"
-        @keydown="handleKeydown"
       >
-        <section ref="panelRef" class="dialog-panel cleanup-dialog-panel">
+        <section ref="panelRef" class="dialog-panel cleanup-dialog-panel" tabindex="-1">
           <div class="cleanup-dialog-header">
             <div class="cleanup-dialog-title-group">
               <h2>{{ messages.dialogTitle }}</h2>

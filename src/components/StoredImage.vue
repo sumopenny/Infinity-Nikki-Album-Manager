@@ -1,33 +1,27 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { observeStoredImageVisibility } from '../utils/storedImageVisibility'
 
-const props = defineProps<{ sourceKey: string; load: () => Promise<Blob>; alt: string }>()
+const props = withDefaults(
+  defineProps<{ sourceKey: string; load: () => Promise<Blob>; alt: string; active?: boolean }>(),
+  { active: true }
+)
 const root = ref<HTMLElement | null>(null)
 const url = ref('')
 const failed = ref(false)
-let observer: IntersectionObserver | null = null
+let stopObserving: (() => void) | undefined
 let visible = false
 let generation = 0
-let frame = 0
-let fallbackTimer: ReturnType<typeof setTimeout> | undefined
 
-/** 不依赖观察器首次通知：挂载、页面返回和滚动后核对实际占位，仍只加载附近封面。 */
-function checkVisibility() {
-  frame = 0
-  if (!root.value) return
-  const rect = root.value.getBoundingClientRect()
-  const next =
-    rect.width > 0 &&
-    rect.height > 0 &&
-    rect.bottom >= -240 &&
-    rect.top <= window.innerHeight + 240 &&
-    rect.right >= 0 &&
-    rect.left <= window.innerWidth
-  setVisible(next)
+function activate() {
+  if (props.active && root.value && !stopObserving)
+    stopObserving = observeStoredImageVisibility(root.value, setVisible)
 }
 
-function scheduleCheck() {
-  if (!frame) frame = requestAnimationFrame(checkVisibility)
+function deactivate() {
+  stopObserving?.()
+  stopObserving = undefined
+  setVisible(false)
 }
 
 function setVisible(next: boolean) {
@@ -66,37 +60,12 @@ watch(
     if (visible) void load()
   }
 )
-onMounted(() => {
-  window.addEventListener('scroll', scheduleCheck, true)
-  window.addEventListener('resize', scheduleCheck)
-  window.addEventListener('focus', scheduleCheck)
-  scheduleCheck()
-  fallbackTimer = setTimeout(() => {
-    checkVisibility()
-  }, 1000)
-  if (typeof window.IntersectionObserver !== 'function') {
-    setVisible(true)
-    return
-  }
-  observer = new IntersectionObserver(
-    (entries) => {
-      const next = entries.some((entry) => entry.isIntersecting)
-      setVisible(next)
-    },
-    { rootMargin: '240px 0px' }
-  )
-  if (root.value) observer.observe(root.value)
-})
-onBeforeUnmount(() => {
-  cancelAnimationFrame(frame)
-  clearTimeout(fallbackTimer)
-  window.removeEventListener('scroll', scheduleCheck, true)
-  window.removeEventListener('resize', scheduleCheck)
-  window.removeEventListener('focus', scheduleCheck)
-  visible = false
-  observer?.disconnect()
-  release()
-})
+watch(
+  () => props.active,
+  (active) => (active ? activate() : deactivate())
+)
+onMounted(activate)
+onBeforeUnmount(deactivate)
 </script>
 
 <template>

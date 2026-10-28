@@ -945,6 +945,7 @@ function handleImportChoices(value: typeof choices.value) {
         <div class="camera-cover">
           <StoredImage
             v-if="item.cover"
+            :active="active"
             :source-key="`${item.id}:${item.updatedAt}`"
             :load="() => readCameraFavoriteCover(item.id)"
             :alt="item.name"

@@ -686,7 +686,6 @@ useModalFocus(dialogOpen, panel, closeDialog)
   overflow-wrap: anywhere;
 }
 .wardrobe-style-tag,
-.wardrobe-state-tag,
 .wardrobe-version-tag,
 .wardrobe-rarity-tag {
   display: inline-block;
@@ -696,13 +695,11 @@ useModalFocus(dialogOpen, panel, closeDialog)
 }
 @supports not (color: color-mix(in srgb, black, white)) {
   .wardrobe-style-tag,
-  .wardrobe-state-tag,
   .wardrobe-version-tag,
   .wardrobe-rarity-tag {
     background: rgba(248.52, 240.24, 240.48, 1);
   }
   :where(:root[data-theme='dark']) .wardrobe-style-tag,
-  :where(:root[data-theme='dark']) .wardrobe-state-tag,
   :where(:root[data-theme='dark']) .wardrobe-version-tag,
   :where(:root[data-theme='dark']) .wardrobe-rarity-tag {
     background: rgba(52.44, 44.88, 48.64, 1);
@@ -732,13 +729,6 @@ useModalFocus(dialogOpen, panel, closeDialog)
 :root[data-theme='dark'] .wardrobe-version-tag {
   color: #b5d9fa;
   background: #243e57;
-}
-.wardrobe-state-tag {
-  background: var(--frame-bg);
-}
-.wardrobe-state-tag.is-complete {
-  color: var(--wardrobe-success-text);
-  background: var(--wardrobe-success-bg);
 }
 .wardrobe-suit-description {
   min-width: 0;
