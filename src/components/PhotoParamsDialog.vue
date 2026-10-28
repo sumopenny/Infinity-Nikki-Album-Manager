@@ -101,6 +101,7 @@ function markImageFailed(title: string, name: string) {
             <p v-if="showNonOriginalPhotoHint" class="photo-params-original-hint">{{
               messages.nonOriginalPhotoHint
             }}</p>
+            <p class="photo-params-original-hint photo-params-folder-hint">{{ messages.originalFolderHint }}</p>
             <!-- uid 表单收进报错模块内部，跟随整体垂直居中，避免与报错区堆叠导致窗口出现滚动条。 -->
             <form
               v-if="!result && uidRequired"
@@ -220,6 +221,10 @@ function markImageFailed(title: string, name: string) {
 .photo-params-original-hint {
   margin-top: 8px;
   color: var(--muted);
+}
+.photo-params-folder-hint {
+  max-width: 560px;
+  width: 100%;
 }
 /* 2026-10-11：仅动作图片使用项目内银色卡片背景，加载失败时保留默认占位背景。 */
 .photo-params-resource-row--pose img {
