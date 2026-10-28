@@ -7,11 +7,6 @@ import {
 } from './pearpalDiagnostics'
 import { diagnosticFetch } from '../errorReporting/diagnosticFetch'
 // 奇想手账按所选区服验证角色；凭据只随当前请求发送，不进入持久化层。
-import {
-  buildResonanceRecords,
-  loadResonanceBanners,
-  normalizeBannerPulls
-} from './resonanceCatalog'
 import { decodePearpal } from './resonancePearpalData'
 import type { ResonanceRecord } from './resonanceTypes'
 import { PEARPAL_REGIONS, type PearpalRegion } from './pearpalRegions'
@@ -229,11 +224,11 @@ export async function fetchPearpalSnapshot(
 }
 
 /** 从已获取的完整手账解析共鸣，与衣橱共享一次网络请求。 */
-export function parsePearpalResonance(
+export async function parsePearpalResonance(
   decoded: { info_from_self?: { gacha_list?: unknown } },
   onProgress?: (value: ResonanceImportProgress) => void,
   signal?: AbortSignal
-): ResonanceImportResult {
+): Promise<ResonanceImportResult> {
   signal?.throwIfAborted()
   const gachaList = asGachaRows(decoded?.info_from_self?.gacha_list)
   if (!gachaList.length) throw new Error(PEARPAL_NO_RECORDS)
@@ -248,6 +243,10 @@ export function parsePearpalResonance(
     byBanner.set(bannerId, list)
   }
 
+  const { loadResonanceCatalog } = await import('./resonanceCatalog')
+  const { loadResonanceBanners, normalizeBannerPulls, buildResonanceRecords } =
+    await loadResonanceCatalog()
+  signal?.throwIfAborted()
   const banners = loadResonanceBanners()
   const targets = banners.filter((banner) => byBanner.has(banner.bannerId))
   const records: ResonanceRecord[] = []

@@ -1,9 +1,3 @@
-import {
-  buildResonanceRecords,
-  getBannerMeta,
-  normalizeBannerPulls,
-  resolveOutfit
-} from './resonanceCatalog'
 import type { ResonancePull, ResonanceRecord } from './resonanceTypes'
 
 const FORMAT = 'infinity-nikki-album-manager/resonance'
@@ -73,7 +67,10 @@ export interface ResonanceFileResult {
 }
 
 /** 识别本项目备份、共鸣录旧版逐抽文件和新版多来源文件；坏卡池不阻断其余卡池。 */
-export function parseResonanceFile(value: unknown, allowEmptyBackup = false): ResonanceFileResult {
+export async function parseResonanceFile(
+  value: unknown,
+  allowEmptyBackup = false
+): Promise<ResonanceFileResult> {
   if (!object(value)) throw new Error(RESONANCE_FILE_INVALID)
   if ('format' in value) {
     if (
@@ -116,6 +113,10 @@ export function parseResonanceFile(value: unknown, allowEmptyBackup = false): Re
     ...Object.keys(pearpalByBanner)
   ])
   if (!bannerIds.size) throw new Error(RESONANCE_FILE_EMPTY)
+  // 标准备份已经包含名称与部件，只有旧版逐抽数据需要下载目录重新组装。
+  const { loadResonanceCatalog } = await import('./resonanceCatalog')
+  const { buildResonanceRecords, getBannerMeta, normalizeBannerPulls, resolveOutfit } =
+    await loadResonanceCatalog()
   const records: ResonanceRecord[] = []
   let skippedPools = 0
   for (const bannerId of bannerIds) {

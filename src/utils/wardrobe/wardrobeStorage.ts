@@ -1,5 +1,5 @@
 import { openDb, runStoreRequest } from '../file-system/database'
-import { loadWardrobeCatalog, type WardrobeCatalog } from './wardrobeCatalog'
+import type { WardrobeCatalog } from './wardrobeCatalog'
 import { wardrobeRegionScope, type WardrobeRegionScope } from './wardrobeRegion'
 
 import { emptyWardrobe, validateWardrobe, type WardrobeSnapshot } from './wardrobeSchema'
@@ -20,6 +20,7 @@ export async function readWardrobeSnapshot(): Promise<WardrobeSnapshot> {
 export async function loadWardrobe(): Promise<WardrobeSnapshot> {
   const snapshot = await readWardrobeSnapshot()
   if (!snapshot.unknownSuitIds.length) return snapshot
+  const { loadWardrobeCatalog } = await import('./wardrobeCatalog')
   const catalog = await loadWardrobeCatalog()
   if (resolveUnknownWardrobeSuits(snapshot, catalog) === snapshot) return snapshot
   // Re-read inside the transaction so another tab's import is never overwritten.
@@ -111,7 +112,9 @@ export async function mergeWardrobe(
   options: { regionScope?: WardrobeRegionScope; expectedRegionScope?: WardrobeRegionScope } = {}
 ): Promise<{ saved: number; skipped: number }> {
   const data = validateWardrobe(incoming)
-  const catalog = data.unknownSuitIds.length ? await loadWardrobeCatalog() : null
+  const catalog = data.unknownSuitIds.length
+    ? await import('./wardrobeCatalog').then((module) => module.loadWardrobeCatalog())
+    : null
   let saved = 0,
     skipped = 0
   await updateWardrobe((latest) => {

@@ -65,7 +65,7 @@
   --lightbox-nav-bg: rgba(18, 18, 22, 0.38);
   --lightbox-nav-bg-hover: rgba(18, 18, 22, 0.56);
   /* 统一的弹性缓动与主按钮纯色背景 */
-  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: ease-out;
   --primary-button-bg: #e4a6a8;
   --primary-button-bg-hover: #d88f95;
   --header-glow: linear-gradient(
@@ -121,7 +121,7 @@
   --shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
   --top-bg: rgba(15, 15, 18, 0.82);
   --top-border: rgba(255, 255, 255, 0.08);
-  --frame-bg: #5a4f57;
+  --frame-bg: #4d4749;
   --overlay-bg: rgba(0, 0, 0, 0.76);
   --favorite-button-bg: rgba(28, 24, 28, 0.96);
   --favorite-button-text: #ffd0d2;

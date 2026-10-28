@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, toRef, watch } from 'vue'
+import { ref, toRef, watch } from 'vue'
 import { X } from 'lucide-vue-next'
 import { useModalFocus } from '../composables/useModalFocus'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
@@ -23,7 +23,6 @@ const emit = defineEmits<{
 }>()
 
 const value = ref('')
-const inputRef = ref<HTMLInputElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
 useBodyScrollLock(toRef(props, 'visible'))
 // 备注窗口独占焦点与 Escape，防止快捷键落到后方的大图。
@@ -36,7 +35,6 @@ watch(
   (visible) => {
     if (!visible) return
     value.value = props.initialValue
-    void nextTick(() => inputRef.value?.focus())
   },
   { immediate: true }
 )
@@ -73,7 +71,6 @@ watch(
             <label :for="'photo-note-input'">{{ label }}</label>
             <input
               id="photo-note-input"
-              ref="inputRef"
               v-model="value"
               :maxlength="maxLength"
               :placeholder="placeholder"

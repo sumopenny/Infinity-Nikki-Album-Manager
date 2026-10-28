@@ -86,7 +86,10 @@ watch(
         .catch(() => undefined)
       previousActiveElement =
         document.activeElement instanceof HTMLElement ? document.activeElement : null
-      void nextTick(() => panelRef.value?.querySelector('input')?.focus())
+      // 打开时聚焦面板，避免自动进入输入状态或唤起手机键盘。
+      void nextTick(() => {
+        if (props.visible) panelRef.value?.focus({ preventScroll: true })
+      })
     } else {
       previousActiveElement?.focus()
       previousActiveElement = null
@@ -107,7 +110,7 @@ watch(
         @click.self="closeDialog"
         @keydown="handleKeydown"
       >
-        <section ref="panelRef" class="dialog-panel parse-tools-panel">
+        <section ref="panelRef" class="dialog-panel parse-tools-panel" tabindex="-1">
           <header>
             <h2>{{ messages.title }}</h2>
             <button

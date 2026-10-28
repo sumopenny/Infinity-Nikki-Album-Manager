@@ -20,7 +20,7 @@ it('keeps editing keys inside the dialog and consumes Escape', async () => {
   await wrapper.setProps({ visible: true })
   await flushPromises()
   const input = document.querySelector<HTMLInputElement>('#photo-note-input')!
-  expect(document.activeElement).toBe(input)
+  expect(document.activeElement).toBe(document.querySelector('.note-dialog-panel'))
   const rects = vi
     .spyOn(HTMLElement.prototype, 'getClientRects')
     .mockReturnValue([{} as DOMRect] as unknown as DOMRectList)

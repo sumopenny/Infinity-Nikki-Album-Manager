@@ -36,7 +36,7 @@ import {
   type DataPreview,
   type DataPreviewStage
 } from '../utils/unifiedDataImport'
-import { sortResonanceRecords } from '../utils/resonance/resonanceCatalog'
+import { sortResonanceRecords } from '../utils/resonance/resonanceView'
 import {
   isPearpalRegion,
   PEARPAL_REGIONS,

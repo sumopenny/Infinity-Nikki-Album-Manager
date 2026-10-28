@@ -10,7 +10,7 @@ import {
   sortResonanceRecords,
   type ResonanceBannerOrder,
   type ResonanceRarityFilter
-} from '../utils/resonance/resonanceCatalog'
+} from '../utils/resonance/resonanceView'
 import type { ResonanceLocalizedName, ResonanceRecord } from '../utils/resonance/resonanceTypes'
 
 const props = withDefaults(

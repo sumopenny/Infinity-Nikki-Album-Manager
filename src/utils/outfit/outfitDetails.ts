@@ -1,3 +1,5 @@
+import { catalogResources, loadCatalogNames } from '../gongeo/catalogResources'
+import { registerCacheReset } from '../cacheLifecycle'
 import type { Language } from '../../i18n'
 import {
   requestCatalogEntity as requestEntity,
@@ -86,20 +88,20 @@ let catalogSnapshotPromise: Promise<Omit<CatalogSnapshot, 'outfitNames'>> | null
 
 const loadCatalogSnapshot = async (language: Language): Promise<CatalogSnapshot> => {
   catalogSnapshotPromise ??= Promise.all([
-    import('../../data/gongeo/items.json'),
-    import('../../data/gongeo/outfits.json'),
-    import('../../data/gongeo/outfitItems.json'),
-    import('../../data/gongeo/makeupItems.json'),
-    import('../../data/gongeo/makeupOutfits.json'),
-    import('../../data/gongeo/palettes.json')
+    catalogResources.items(),
+    catalogResources.outfits(),
+    catalogResources.outfitItems(),
+    catalogResources.makeupItems(),
+    catalogResources.makeupOutfits(),
+    catalogResources.palettes()
   ])
     .then(([items, outfits, outfitItems, makeupItems, makeupOutfits, dyeCatalog]) => ({
-      items: items.default as CompactRow[],
-      outfits: outfits.default as CompactRow[],
-      outfitItems: outfitItems.default as CompactRow[],
-      makeupItems: makeupItems.default as CompactRow[],
-      makeupOutfits: makeupOutfits.default as CompactRow[],
-      dyeCatalog: dyeCatalog.default as CatalogSnapshot['dyeCatalog']
+      items: items as CompactRow[],
+      outfits: outfits as CompactRow[],
+      outfitItems: outfitItems as CompactRow[],
+      makeupItems: makeupItems as CompactRow[],
+      makeupOutfits: makeupOutfits as CompactRow[],
+      dyeCatalog: dyeCatalog as CatalogSnapshot['dyeCatalog']
     }))
     .catch((error) => {
       catalogSnapshotPromise = null
@@ -107,11 +109,9 @@ const loadCatalogSnapshot = async (language: Language): Promise<CatalogSnapshot>
     })
   const [snapshot, names] = await Promise.all([
     catalogSnapshotPromise,
-    language === 'en'
-      ? import('../../data/gongeo/locales/en/outfit.json')
-      : import('../../data/gongeo/locales/zh/outfit.json')
+    loadCatalogNames('outfit', language)
   ])
-  return { ...snapshot, outfitNames: names.default as Record<string, string> }
+  return { ...snapshot, outfitNames: names as Record<string, string> }
 }
 
 const asId = (value: unknown): number | null => {
@@ -522,3 +522,4 @@ export function clearOutfitDetailCache(): void {
   detailCache.clear()
   catalogSnapshotPromise = null
 }
+registerCacheReset('outfit-details', clearOutfitDetailCache)

@@ -135,7 +135,6 @@
   background: var(--search-focus-bg, var(--surface-strong));
   box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 14%, transparent);
 }
-
 @supports not (color: color-mix(in srgb, black, white)) {
   .header-search input:focus,
   .header-search input:focus-visible,
@@ -380,12 +379,12 @@
 @keyframes header-dropdown-in {
   from {
     opacity: 0;
-    transform: translateX(calc(-50% + var(--menu-shift, 0px))) translateY(-6px) scale(0.97);
+    transform: translateX(calc(-50% + var(--menu-shift, 0px))) translateY(-6px);
   }
 
   to {
     opacity: 1;
-    transform: translateX(calc(-50% + var(--menu-shift, 0px))) translateY(0) scale(1);
+    transform: translateX(calc(-50% + var(--menu-shift, 0px))) translateY(0);
   }
 }
 
@@ -450,6 +449,7 @@
 }
 
 .view-toggle-pill {
+  position: relative;
   display: flex;
   flex: 1 1 0;
   min-width: 0;
@@ -460,9 +460,38 @@
   border-radius: 999px;
   background: var(--surface-soft);
 }
+.view-toggle-pill::before {
+  position: absolute;
+  inset-block: 2px;
+  left: 3px;
+  box-sizing: border-box;
+  width: calc(50% - 4px);
+  border: 1px solid color-mix(in srgb, var(--pink-deep) 35%, var(--line-soft));
+  border-radius: 999px;
+  background: var(--surface-strong);
+  box-shadow: 0 2px 7px color-mix(in srgb, var(--pink-deep) 12%, transparent);
+  content: '';
+  pointer-events: none;
+  transition: transform 220ms var(--ease-spring);
+}
+.view-toggle-pill.is-second::before {
+  transform: translateX(calc(100% + 2px));
+}
+@supports not (color: color-mix(in srgb, black, white)) {
+  .view-toggle-pill::before {
+    border-color: rgba(221, 188, 186, 0.91);
+    box-shadow: 0 2px 7px rgba(201, 132, 134, 0.12);
+  }
+  :where(:root[data-theme='dark']) .view-toggle-pill::before {
+    border-color: rgba(133, 105, 110, 0.91);
+    box-shadow: 0 2px 7px rgba(239, 176, 178, 0.12);
+  }
+}
 
 /* 选择器需要写得比 .header-dropdown button 更具体，才能盖掉它的整行按钮样式 */
 .view-dropdown .view-toggle-option {
+  position: relative;
+  z-index: 1;
   width: auto;
   min-height: 0;
   flex: 1 1 0;
@@ -478,50 +507,29 @@
   line-height: 1.2;
   text-align: center;
   white-space: nowrap;
-  transition:
-    background var(--motion-fast) var(--ease-spring),
-    color var(--motion-fast) var(--ease-spring),
-    border-color var(--motion-fast) var(--ease-spring);
+  transition: color var(--motion-fast) var(--ease-spring);
 }
 
 .view-dropdown .view-toggle-option:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--surface-strong) 70%, transparent);
-  color: var(--heading);
-}
-
-@supports not (color: color-mix(in srgb, black, white)) {
-  .view-dropdown .view-toggle-option:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.7);
-  }
-
-  :where(:root[data-theme='dark']) .view-dropdown .view-toggle-option:hover:not(:disabled) {
-    background: rgba(27, 27, 31, 0.7);
-  }
+  background: transparent;
+  color: var(--text);
 }
 
 .view-dropdown .view-toggle-option.active {
-  border-color: color-mix(in srgb, var(--pink-deep) 35%, var(--line-soft));
-  background: var(--surface-strong);
+  border-color: transparent;
+  background: transparent;
   color: var(--pink-deep);
   font-weight: 800;
-  box-shadow: 0 2px 7px color-mix(in srgb, var(--pink-deep) 12%, transparent);
-}
-
-@supports not (color: color-mix(in srgb, black, white)) {
-  .view-dropdown .view-toggle-option.active {
-    border-color: rgba(221.2937, 187.9615, 185.6568, 0.909);
-    box-shadow: 0 2px 7px rgba(201, 132, 134, 0.12);
-  }
-
-  :where(:root[data-theme='dark']) .view-dropdown .view-toggle-option.active {
-    border-color: rgba(132.6117, 105.2794, 109.7393, 0.909);
-    box-shadow: 0 2px 7px rgba(239, 176, 178, 0.12);
-  }
 }
 
 .view-dropdown .view-toggle-option.active:hover:not(:disabled) {
-  background: var(--surface-strong);
+  background: transparent;
   color: var(--pink-deep);
+}
+@media (prefers-reduced-motion: reduce) {
+  .view-toggle-pill::before {
+    transition: none;
+  }
 }
 
 .brand-lockup .brand-logo {

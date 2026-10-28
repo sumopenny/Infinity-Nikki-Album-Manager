@@ -2,7 +2,8 @@ import { expect, it, vi } from 'vitest'
 import {
   cacheGeneration,
   invalidateCacheWrites,
-  persistCacheIfCurrent
+  persistCacheIfCurrent,
+  registerCacheReset
 } from '../../src/utils/cacheLifecycle'
 it('waits for active writes and prevents old producers from restoring cleared cache', async () => {
   const generation = cacheGeneration()
@@ -29,4 +30,14 @@ it('waits for active writes and prevents old producers from restoring cleared ca
   const next = vi.fn().mockResolvedValue(undefined)
   await persistCacheIfCurrent(cacheGeneration(), next)
   expect(next).toHaveBeenCalledOnce()
+})
+
+it('resets already loaded modules when clearing, replacing stale registrations', async () => {
+  const old = vi.fn(),
+    current = vi.fn()
+  registerCacheReset('test-feature', old)
+  registerCacheReset('test-feature', current)
+  await invalidateCacheWrites()
+  expect(old).not.toHaveBeenCalled()
+  expect(current).toHaveBeenCalledOnce()
 })

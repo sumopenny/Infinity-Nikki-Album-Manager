@@ -1,3 +1,4 @@
+import { catalogResources, loadCatalogNames } from '../gongeo/catalogResources'
 import { getCatalogImageSource } from '../gongeo/catalogImage'
 import type { Language } from '../../i18n/types'
 import { assignWardrobeRewardSources, wardrobeGameVersionFromSource } from './wardrobeFilters'
@@ -98,18 +99,18 @@ export function itemVariant(id: string, root?: string): number {
 let pending: Promise<WardrobeCatalog> | null = null
 export function loadWardrobeCatalog(): Promise<WardrobeCatalog> {
   pending ??= Promise.all([
-    import('../../data/gongeo/items.json'),
-    import('../../data/gongeo/outfits.json'),
-    import('../../data/gongeo/outfitItems.json'),
-    import('../../data/gongeo/locales/zh/item.json'),
-    import('../../data/gongeo/locales/en/item.json'),
-    import('../../data/gongeo/locales/zh/outfit.json'),
-    import('../../data/gongeo/locales/en/outfit.json')
+    catalogResources.items(),
+    catalogResources.outfits(),
+    catalogResources.outfitItems(),
+    loadCatalogNames('item', 'zh'),
+    loadCatalogNames('item', 'en'),
+    loadCatalogNames('outfit', 'zh'),
+    loadCatalogNames('outfit', 'en')
   ])
     .then(([items, outfits, outfitParts, zhItems, enItems, zhOutfits, enOutfits]) => {
       const entries: WardrobeEntry[] = []
       const outfitMap = new Map(
-        (outfitParts.default as unknown as [number, number[]][]).map(([id, parts]) => [
+        (outfitParts as unknown as [number, number[]][]).map(([id, parts]) => [
           String(id),
           ids(parts)
         ])
@@ -123,18 +124,18 @@ export function loadWardrobeCatalog(): Promise<WardrobeCatalog> {
         const dict = (
           kind === 'outfit'
             ? language === 'zh'
-              ? zhOutfits.default
-              : enOutfits.default
+              ? zhOutfits
+              : enOutfits
             : language === 'zh'
-              ? zhItems.default
-              : enItems.default
+              ? zhItems
+              : enItems
         ) as Record<string, string>
         const prefix = kind === 'outfit' ? 'outfit' : 'item'
         return dict[`${prefix}.${id}.name`] || dict[`${prefix}.${root}.name`] || id
       }
       for (const [data, kind] of [
-        [items.default, 'item'],
-        [outfits.default, 'outfit']
+        [items, 'item'],
+        [outfits, 'outfit']
       ] as const) {
         for (const row of catalogRows(data, kind)) {
           const family = ids(row.ids)

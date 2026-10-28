@@ -100,7 +100,7 @@ export async function exportAllDataBackup(
   for await (const part of exportCameraBackup(await readCameraFavorites()))
     await collect('camera', part.blob)
   const resonance = createResonanceExport(await loadResonanceRecords())
-  parseResonanceFile(resonance, true)
+  await parseResonanceFile(resonance, true)
   await collect('resonance', new Blob([JSON.stringify(resonance)], { type: 'application/json' }))
   await collect(
     'wardrobe',
@@ -236,9 +236,8 @@ export async function prepareAllDataBackup(file: File): Promise<AllDataPlan> {
     for (const [id, blob] of part.covers) camera.covers.set(id, blob)
     camera.tags = [...new Set([...camera.tags!, ...part.tags!])]
   }
-  const resonance = parseResonanceFile(
-    JSON.parse(await files.get('resonance')![0].text()),
-    true
+  const resonance = (
+    await parseResonanceFile(JSON.parse(await files.get('resonance')![0].text()), true)
   ).records
   const wardrobeFile = files.get('wardrobe')![0]
   const wardrobe = wardrobeFile ? parseWardrobeBackup(await wardrobeFile.text()) : null

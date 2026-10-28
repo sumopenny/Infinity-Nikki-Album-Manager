@@ -31,7 +31,7 @@ import {
   sortResonanceRecords,
   type ResonanceBannerOrder,
   type ResonanceRarityFilter
-} from '../utils/resonance/resonanceCatalog'
+} from '../utils/resonance/resonanceView'
 import { loadResonanceRecords, saveResonanceRecords } from '../utils/resonance/resonanceStorage'
 import type {
   ResonanceLocalizedName,
@@ -419,6 +419,9 @@ defineExpose({ reload })
   </section>
   <WardrobeItemDialog
     :item="itemPreview"
+    :catalog="previewCatalog"
+    :snapshot="previewSnapshot"
+    @select-form="itemPreview = $event"
     :outfits="itemOutfits"
     :language="language"
     @close="itemPreview = null"

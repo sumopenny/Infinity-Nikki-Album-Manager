@@ -103,7 +103,7 @@ async function seed() {
   const cover = webp('cover.webp')
   await saveCameraFavorite({ ...camera(), cover: await coverMetadata(cover, 'cover.webp') }, cover)
   await saveResonanceRecords(
-    parseResonanceFile({ pulls: {}, edits: { 77: [['2026-01-01', '1020100347']] } }).records
+    (await parseResonanceFile({ pulls: {}, edits: { 77: [['2026-01-01', '1020100347']] } })).records
   )
 }
 async function exported() {
@@ -295,7 +295,7 @@ it('collects module parts into one ZIP and merges empty modules without clearing
     note: '',
     metadata: createEmptyHomeSchemeMetadata()
   })
-  const resonance = parseResonanceFile({ 77: [['2026-01-01', '1020100347']] }).records
+  const resonance = (await parseResonanceFile({ 77: [['2026-01-01', '1020100347']] })).records
   await saveResonanceRecords(resonance)
   const plan = await prepareAllDataBackup(file)
   expect(plan.files.get('outfits')).toHaveLength(2)

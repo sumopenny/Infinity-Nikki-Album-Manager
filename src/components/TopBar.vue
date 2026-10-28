@@ -565,7 +565,12 @@ function openDonate() {
                   ><X :size="20" /></button
               ></header>
               <div class="view-toggle-row">
-                <div class="view-toggle-pill" role="group" :aria-label="messages.themeToggleAria">
+                <div
+                  class="view-toggle-pill"
+                  :class="{ 'is-second': themeMode === 'dark' }"
+                  role="group"
+                  :aria-label="messages.themeToggleAria"
+                >
                   <button
                     type="button"
                     class="view-toggle-option"
@@ -591,6 +596,7 @@ function openDonate() {
                 </div>
                 <div
                   class="view-toggle-pill"
+                  :class="{ 'is-second': language === 'en' }"
                   role="group"
                   :aria-label="messages.languageToggleAria"
                 >

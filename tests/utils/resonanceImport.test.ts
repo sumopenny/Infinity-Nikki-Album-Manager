@@ -1,12 +1,16 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import outfitItems from '../../src/data/gongeo/outfitItems.json'
 import {
-  buildResonanceRecords,
-  loadResonanceBanners,
-  normalizeBannerPulls,
-  sortResonanceParts,
-  sortResonanceRecords
+  loadResonanceCatalog,
+  type ResonanceCatalog
 } from '../../src/utils/resonance/resonanceCatalog'
+import { loadResonanceBanners } from '../../src/utils/resonance/resonanceBanners'
+import { sortResonanceParts, sortResonanceRecords } from '../../src/utils/resonance/resonanceView'
+let buildResonanceRecords: ResonanceCatalog['buildResonanceRecords']
+let normalizeBannerPulls: ResonanceCatalog['normalizeBannerPulls']
+beforeAll(async () => {
+  ;({ buildResonanceRecords, normalizeBannerPulls } = await loadResonanceCatalog())
+})
 import {
   parsePearpalResonance,
   fetchPearpalSnapshot,
@@ -232,7 +236,9 @@ describe('Pearpal import', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const decoded = await fetchPearpalSnapshot(CREDENTIALS)
-    const result = parsePearpalResonance(decoded as Parameters<typeof parsePearpalResonance>[0])
+    const result = await parsePearpalResonance(
+      decoded as Parameters<typeof parsePearpalResonance>[0]
+    )
     const record = result.records.find((item) => item.outfitId === '10347')
     expect(result.skippedPools).toBe(0)
     expect(record?.sets[0].totalPulls).toBe(18)
@@ -324,7 +330,9 @@ describe('Pearpal import', () => {
     )
 
     const decoded = await fetchPearpalSnapshot(CREDENTIALS)
-    const result = parsePearpalResonance(decoded as Parameters<typeof parsePearpalResonance>[0])
+    const result = await parsePearpalResonance(
+      decoded as Parameters<typeof parsePearpalResonance>[0]
+    )
     expect(result.records.map((record) => record.bannerId)).toEqual(['2'])
     expect(result.skippedPools).toBe(1)
   })
@@ -343,9 +351,9 @@ describe('Pearpal import', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
     const decoded = await fetchPearpalSnapshot(CREDENTIALS)
-    expect(() =>
+    await expect(
       parsePearpalResonance(decoded as Parameters<typeof parsePearpalResonance>[0])
-    ).toThrow(PEARPAL_NO_RECORDS)
+    ).rejects.toThrow(PEARPAL_NO_RECORDS)
     expect(() => decodePearpal(new Uint8Array([1, 2, 3]).buffer)).toThrow()
   })
 })

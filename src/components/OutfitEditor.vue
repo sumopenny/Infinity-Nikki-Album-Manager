@@ -33,7 +33,6 @@ const emit = defineEmits<{
 }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
-const codeInput = ref<HTMLInputElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
 const imageFile = ref<File | undefined>()
 const compact = useCompactLayout()
@@ -264,7 +263,10 @@ watch(
       previousActiveElement =
         document.activeElement instanceof HTMLElement ? document.activeElement : null
       void resetForm()
-      void nextTick(() => codeInput.value?.focus())
+      // 初始焦点放在面板上，避免自动进入搭配码输入框或唤起手机键盘。
+      void nextTick(() => {
+        if (props.visible) panelRef.value?.focus({ preventScroll: true })
+      })
     } else {
       closeTagInput()
       revokePreview()
@@ -310,7 +312,7 @@ onBeforeUnmount(() => {
         :aria-label="messages.editTitle"
         @click.self="handleEditorBackdropClick"
       >
-        <section ref="panelRef" class="outfit-editor-panel">
+        <section ref="panelRef" class="outfit-editor-panel" tabindex="-1">
           <header>
             <h2>{{ messages.editTitle }}</h2>
             <button
@@ -367,7 +369,6 @@ onBeforeUnmount(() => {
               <label for="outfit-code">{{ messages.codeLabel }}</label>
               <input
                 id="outfit-code"
-                ref="codeInput"
                 :value="code"
                 :maxlength="MAX_OUTFIT_CODE_LENGTH"
                 :placeholder="messages.codePlaceholder"

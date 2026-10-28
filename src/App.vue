@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { lazyFeature } from './utils/lazyFeature'
 import { isAlbumPhoto } from './utils/photoGrouping'
 import { readCompatibleAlbum } from './utils/file-system/compatibleAlbum'
 import { exportCompatiblePhotos } from './utils/file-system/compatiblePhotoExport'
@@ -22,7 +23,10 @@ import {
 const operations = createOperationCoordinator()
 provide(operationCoordinatorKey, operations)
 import { archiveCloudKey, useArchiveCloudSync } from './composables/useArchiveCloudSync'
-import ArchiveCloudDialog from './components/ArchiveCloudDialog.vue'
+const ArchiveCloudDialog = lazyFeature(
+  () => import('./components/ArchiveCloudDialog.vue'),
+  () => language.value
+)
 const archiveCloud = useArchiveCloudSync((task) => operations.run('archive-cloud', task))
 provide(archiveCloudKey, archiveCloud)
 import { invalidateCacheWrites } from './utils/cacheLifecycle'
@@ -30,8 +34,14 @@ import { clearAllBrowserData } from './utils/file-system/database'
 
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { CircleHelp, Download, Plus, Trash2, Upload } from 'lucide-vue-next'
-import UpdateLogDialog from './components/UpdateLogDialog.vue'
-import HelpAboutDialog from './components/HelpAboutDialog.vue'
+const UpdateLogDialog = lazyFeature(
+  () => import('./components/UpdateLogDialog.vue'),
+  () => language.value
+)
+const HelpAboutDialog = lazyFeature(
+  () => import('./components/HelpAboutDialog.vue'),
+  () => language.value
+)
 import AlbumViewSwitcher, { type AlbumView } from './components/AlbumViewSwitcher.vue'
 import CleanupAccountPicker from './components/CleanupAccountPicker.vue'
 import CleanupDialog from './components/CleanupDialog.vue'
@@ -41,17 +51,44 @@ import Lightbox from './components/Lightbox.vue'
 import OperationNotice from './components/OperationNotice.vue'
 import PageScrollbar from './components/PageScrollbar.vue'
 import NoteDialog from './components/NoteDialog.vue'
-import OutfitEditor from './components/OutfitEditor.vue'
+const OutfitEditor = lazyFeature(
+  () => import('./components/OutfitEditor.vue'),
+  () => language.value
+)
 import OutfitGrid from './components/OutfitGrid.vue'
-import OutfitGuideDialog from './components/OutfitGuideDialog.vue'
-import OutfitParseDialog from './components/OutfitParseDialog.vue'
-import ParseToolsDialog from './components/ParseToolsDialog.vue'
-import FortuneTimeDialog from './components/FortuneTimeDialog.vue'
+const OutfitGuideDialog = lazyFeature(
+  () => import('./components/OutfitGuideDialog.vue'),
+  () => language.value
+)
+const OutfitParseDialog = lazyFeature(
+  () => import('./components/OutfitParseDialog.vue'),
+  () => language.value
+)
+const ParseToolsDialog = lazyFeature(
+  () => import('./components/ParseToolsDialog.vue'),
+  () => language.value
+)
+const FortuneTimeDialog = lazyFeature(
+  () => import('./components/FortuneTimeDialog.vue'),
+  () => language.value
+)
 import OutfitSidebar, { type OutfitFilter } from './components/OutfitSidebar.vue'
-import HomeSchemeWorkspace from './components/HomeSchemeWorkspace.vue'
-import ResonanceRecords from './components/ResonanceRecords.vue'
-import PersonalWardrobe from './components/PersonalWardrobe.vue'
-import ResonanceSidebar from './components/ResonanceSidebar.vue'
+const HomeSchemeWorkspace = lazyFeature(
+  () => import('./components/HomeSchemeWorkspace.vue'),
+  () => language.value
+)
+const ResonanceRecords = lazyFeature(
+  () => import('./components/ResonanceRecords.vue'),
+  () => language.value
+)
+const PersonalWardrobe = lazyFeature(
+  () => import('./components/PersonalWardrobe.vue'),
+  () => language.value
+)
+const ResonanceSidebar = lazyFeature(
+  () => import('./components/ResonanceSidebar.vue'),
+  () => language.value
+)
 import PhotoGrid from './components/PhotoGrid.vue'
 import RecentlyDeletedGrid from './components/RecentlyDeletedGrid.vue'
 import SelectionBar from './components/SelectionBar.vue'
@@ -62,11 +99,17 @@ import MobileNavigation from './components/MobileNavigation.vue'
 import { useCompactLayout, useVisualViewport } from './composables/useCompactLayout'
 import TopBar from './components/TopBar.vue'
 import PhotoTransferProgressDialog from './components/PhotoTransferProgressDialog.vue'
-import PhotoParamsDialog from './components/PhotoParamsDialog.vue'
-import CameraFavorites from './components/CameraFavorites.vue'
+const PhotoParamsDialog = lazyFeature(
+  () => import('./components/PhotoParamsDialog.vue'),
+  () => language.value
+)
+const CameraFavorites = lazyFeature(
+  () => import('./components/CameraFavorites.vue'),
+  () => language.value
+)
 import AllDataBackup from './components/AllDataBackup.vue'
 import { loadResonanceRecords } from './utils/resonance/resonanceStorage'
-import { normalizeCameraCode } from './utils/photo-params/favorites'
+import { normalizeCameraCode, readCameraFavorites } from './utils/photo-params/favorites'
 import { messages } from './i18n'
 import type { ThumbnailMode, ThumbnailSize } from './types/thumbnail'
 import {
@@ -128,14 +171,14 @@ import { usePhotoParams } from './composables/usePhotoParams'
 import { usePhotoActionParsing } from './composables/usePhotoActionParsing'
 import { usePhotoTransfer } from './composables/usePhotoTransfer'
 
-import { clearSavedHomeSchemeParseResults } from './utils/file-system/directoryStorage'
+import {
+  clearSavedHomeSchemeParseResults,
+  clearSavedOutfitParseResults
+} from './utils/file-system/directoryStorage'
 import { countHomeSchemes } from './utils/homeBuild/homeSchemeStorage'
 
 import type { ResonanceRecord } from './utils/resonance/resonanceTypes'
-import type {
-  ResonanceBannerOrder,
-  ResonanceRarityFilter
-} from './utils/resonance/resonanceCatalog'
+import type { ResonanceBannerOrder, ResonanceRarityFilter } from './utils/resonance/resonanceView'
 
 const OUTFIT_GUIDE_DISMISSED_KEY = 'infinity-nikki-outfit-guide-dismissed'
 const X6GAME_AUTO_PROMPT_DISMISSED_KEY = 'infinity-nikki-x6game-auto-prompt-dismissed'
@@ -221,6 +264,20 @@ const noteDialogBaseline = ref('')
 const isNoteDialogVisible = ref(false)
 // 首次打开后保留组件，使关闭监听、焦点恢复及退出动画继续按原流程执行。
 const mountedDialogs = ref(new Set<string>())
+watch(
+  isParseToolsVisible,
+  (open) => {
+    if (open) mountedDialogs.value.add('ParseToolsDialog')
+  },
+  { immediate: true, flush: 'sync' }
+)
+watch(
+  archiveCloud.visible,
+  (open) => {
+    if (open) mountedDialogs.value.add('ArchiveCloudDialog')
+  },
+  { immediate: true, flush: 'sync' }
+)
 watch(
   isOutfitParseVisible,
   (open) => {
@@ -391,7 +448,7 @@ async function refreshAfterAllImport() {
   const updates = await Promise.allSettled([
     reloadOutfitCollection(),
     updateHomeSchemeCount(),
-    cameraFavoritesRef.value?.reload(),
+    cameraFavoritesRef.value ? cameraFavoritesRef.value.reload() : refreshCameraFavoriteCodes(),
     wardrobeRef.value?.reload(),
     resonanceRecordsRef.value
       ? resonanceRecordsRef.value.reload()
@@ -410,9 +467,54 @@ async function refreshAfterAllImport() {
 }
 const cameraFavoriteCodes = ref<string[]>([])
 const cameraFavoriteModal = ref(false)
+const cameraMounted = ref(false)
+let cameraCodesGeneration = 0
+let pendingCameraFavorite: (() => void) | null = null
+function updateCameraFavoriteCodes(codes: string[]) {
+  cameraCodesGeneration++
+  cameraFavoriteCodes.value = codes
+}
+/** 首屏只读取记录元数据，维持收藏计数和“已收藏”标记，不加载封面或编辑器。 */
+async function refreshCameraFavoriteCodes() {
+  const generation = ++cameraCodesGeneration
+  const library = await readCameraFavorites(false)
+  if (!appDisposed && generation === cameraCodesGeneration)
+    cameraFavoriteCodes.value = library.records.map((record) => record.code)
+}
+function refreshCameraFavoriteMetadata() {
+  void refreshCameraFavoriteCodes().catch((error) => {
+    if (!appDisposed) captureDiagnosticError(error, { module: 'camera', action: 'load-count' })
+  })
+}
+function saveCameraFavoriteFromParams() {
+  const result = photoParamsResult.value
+  if (!result || pendingCameraFavorite) return
+  const photo = photoParamsPhoto.value
+  const open = () => {
+    void cameraFavoritesRef.value?.openFromResult(result, photo)
+  }
+  if (cameraFavoritesRef.value) open()
+  else {
+    pendingCameraFavorite = open
+    cameraMounted.value = true
+  }
+}
+watch(cameraFavoritesRef, (view) => {
+  if (!view || !pendingCameraFavorite) return
+  const open = pendingCameraFavorite
+  pendingCameraFavorite = null
+  open()
+})
 // 手机布局只展示相机参数，保留电脑端原有的收藏标签状态。
 const isCameraFavoritesView = computed(
   () => activeView.value === 'favorites' && (compactLayout.value || favoriteTab.value === 'camera')
+)
+watch(
+  isCameraFavoritesView,
+  (active) => {
+    if (active) cameraMounted.value = true
+  },
+  { immediate: true, flush: 'sync' }
 )
 // 共鸣、衣橱及相机参数均禁用比例设置；相机参数另支持独立的大小设置。
 const isThumbnailModeDisabled = computed(
@@ -1068,12 +1170,8 @@ async function clearCache() {
   try {
     photoActionParsing.reset()
     await invalidateCacheWrites()
-    const { clearOutfitDetailCache } = await import('./utils/outfit/outfitDetails')
-    clearOutfitDetailCache()
     await Promise.all([
-      import('./utils/outfit/outfitCodeParser').then(({ clearOutfitCodeParseCache }) =>
-        clearOutfitCodeParseCache()
-      ),
+      clearSavedOutfitParseResults(),
       clearSavedHomeSchemeParseResults(),
       clearSavedPhotoActionCache()
     ])
@@ -1948,6 +2046,7 @@ async function refreshAfterFocus() {
     return
   if (albumDirectoryHandle.value) await refreshAlbum(false)
   await updateOutfitLibrary(false, false)
+  if (!cameraMounted.value) refreshCameraFavoriteMetadata()
 }
 
 /** 合并窗口聚焦和页面可见事件后执行自动刷新。参数：无。 */
@@ -1985,6 +2084,7 @@ watch(activeView, (view) => {
   if (view === 'outfits') void ensureInitialOutfitScan()
 })
 onMounted(() => {
+  refreshCameraFavoriteMetadata()
   activeOperation.value = 'loading'
   // 计数独立读取；本地集合与目录迁移仍保持顺序，防止较旧读取覆盖迁移结果。
   void updateHomeSchemeCount().catch((error) => {
@@ -2135,6 +2235,7 @@ function importAllDataFromMenu() {
       "
     />
     <ArchiveCloudDialog
+      v-if="mountedDialogs.has('ArchiveCloudDialog')"
       :language="language"
       @notice="showStatus"
       @restored="refreshAfterArchiveSync"
@@ -2380,6 +2481,7 @@ function importAllDataFromMenu() {
           ></div>
         </div>
         <CameraFavorites
+          v-if="cameraMounted"
           @open-filters="mobileFiltersOpen = true"
           @close-filters="mobileFiltersOpen = false"
           :filters-open="mobileFiltersOpen"
@@ -2394,7 +2496,7 @@ function importAllDataFromMenu() {
           :messages="photoParamsMessages"
           :search-query="searchQuery"
           :confirm-action="confirmHomeSchemeAction"
-          @codes-change="cameraFavoriteCodes = $event"
+          @codes-change="updateCameraFavoriteCodes"
           @modal-change="cameraFavoriteModal = $event"
           @status="
             (message, tone, files) => handleHomeSchemeStatus(message, tone, files, 'camera-export')
@@ -2802,9 +2904,7 @@ function importAllDataFromMenu() {
             ? '收藏参数'
             : 'Save parameters'
       "
-      @favorite="
-        photoParamsResult && cameraFavoritesRef?.openFromResult(photoParamsResult, photoParamsPhoto)
-      "
+      @favorite="saveCameraFavoriteFromParams"
       :photo="photoParamsPhoto"
       :progress="photoParamsProgress"
       :result="photoParamsResult"
@@ -2818,6 +2918,7 @@ function importAllDataFromMenu() {
     />
 
     <ParseToolsDialog
+      v-if="mountedDialogs.has('ParseToolsDialog')"
       :visible="isParseToolsVisible"
       :camera-params="cameraParamsInput"
       :outfit-code="parseCodeInput"

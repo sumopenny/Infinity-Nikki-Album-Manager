@@ -275,7 +275,8 @@ watch(modal, async (visible) => {
   if (visible) {
     previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
     await nextTick()
-    form.value?.querySelector<HTMLElement>('textarea, input, button')?.focus()
+    // 打开编辑器只聚焦面板，输入框由用户主动选择。
+    if (modal.value) form.value?.focus({ preventScroll: true })
   } else {
     previousFocus?.focus()
     previousFocus = null
@@ -1065,6 +1066,7 @@ function handleImportChoices(value: typeof choices.value) {
         <form
           ref="form"
           class="outfit-editor-panel camera-favorite-editor"
+          tabindex="-1"
           role="dialog"
           aria-modal="true"
           aria-labelledby="camera-editor-title"

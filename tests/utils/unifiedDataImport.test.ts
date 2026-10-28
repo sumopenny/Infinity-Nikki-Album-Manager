@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto'
+import * as resonanceImport from '../../src/utils/resonance/resonanceImport'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearAllBrowserData } from '../../src/utils/file-system/database'
 import { parseDataPreview, saveDataImport } from '../../src/utils/unifiedDataImport'
@@ -90,6 +91,24 @@ describe('unified import', () => {
     expect(report).toHaveBeenCalledOnce()
     expect(await loadResonanceRecords()).toEqual([])
     expect((await loadWardrobe()).entries).toEqual({})
+  })
+  it('discards a preview cancelled while awaiting resonance parsing', async () => {
+    const controller = new AbortController()
+    const parse = vi
+      .spyOn(resonanceImport, 'parsePearpalResonance')
+      .mockImplementationOnce(async () => {
+        await Promise.resolve()
+        controller.abort()
+        return { records: [], skippedPools: 0 }
+      })
+    try {
+      await expect(
+        parseDataPreview({ info_from_self: { gacha_list: [{}] } }, { signal: controller.signal })
+      ).rejects.toMatchObject({ name: 'AbortError' })
+      expect(await loadResonanceRecords()).toEqual([])
+    } finally {
+      parse.mockRestore()
+    }
   })
   it('parses both notebook sections and enables only the supported type in dedicated backups', async () => {
     const preview = await parseDataPreview(notebook)

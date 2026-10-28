@@ -629,7 +629,7 @@ it.each([
     vi.spyOn(resonanceImport, 'fetchPearpalSnapshot').mockResolvedValueOnce({
       info_from_self: { gacha_list: [{}] }
     })
-    vi.spyOn(resonanceImport, 'parsePearpalResonance').mockReturnValueOnce({
+    vi.spyOn(resonanceImport, 'parsePearpalResonance').mockResolvedValueOnce({
       records: [savedRecord],
       skippedPools: 0
     })
@@ -655,7 +655,7 @@ it.each([false, true])('handles partial replacement with save failure=%s', async
   vi.spyOn(resonanceImport, 'fetchPearpalSnapshot').mockResolvedValueOnce({
     info_from_self: { gacha_list: [{}] }
   })
-  vi.spyOn(resonanceImport, 'parsePearpalResonance').mockReturnValueOnce({
+  vi.spyOn(resonanceImport, 'parsePearpalResonance').mockResolvedValueOnce({
     records: [savedRecord],
     skippedPools: 1
   })
@@ -834,6 +834,30 @@ it('opens outfit and item details from record images without changing records', 
     '/images/items/' + HAIR + '.png'
   )
   expect(document.querySelector('.outfit-detail-image-placeholder')).not.toBeNull()
+  const { loadWardrobeCatalog } = await import('../../src/utils/wardrobe/wardrobeCatalog')
+  const { wardrobeFamilyKey } = await import('../../src/utils/wardrobe/wardrobeFamilies')
+  const catalog = await loadWardrobeCatalog()
+  const original = catalog.byId.get(HAIR)!
+  const forms = catalog.entries
+    .filter((entry) => wardrobeFamilyKey(entry) === wardrobeFamilyKey(original))
+    .sort((a, b) => a.variant - b.variant)
+  expect(forms.length).toBeGreaterThan(1)
+  const formButtons = document.querySelectorAll<HTMLButtonElement>('.wardrobe-form-nav button')
+  expect(formButtons).toHaveLength(forms.length)
+  const evolvedIndex = forms.findIndex((entry) => entry.variant > original.variant)
+  const evolved = forms[evolvedIndex]!
+  formButtons[evolvedIndex]!.click()
+  await flushPromises()
+  expect(document.querySelector<HTMLImageElement>('.outfit-detail-image')?.src).toContain(
+    '/images/items/' + evolved.id + '.png'
+  )
+  expect(document.querySelector('.outfit-detail-info')?.textContent).toContain(evolved.name.zh)
+  const evolvedOutfits = catalog.entries.filter(
+    (entry) => entry.kind === 'outfit' && entry.parts.includes(evolved.id)
+  )
+  expect(document.querySelectorAll('.wardrobe-outfit-link')).toHaveLength(evolvedOutfits.length)
+  formButtons[forms.findIndex((entry) => entry.id === HAIR)]!.click()
+  await flushPromises()
   document.querySelector<HTMLButtonElement>('.wardrobe-outfit-link')!.click()
   await vi.waitFor(() => expect(document.querySelector('.wardrobe-dialog')).not.toBeNull())
   expect(document.querySelector('.outfit-detail-panel')).not.toBeNull()

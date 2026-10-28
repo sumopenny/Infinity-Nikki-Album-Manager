@@ -1,4 +1,6 @@
 import { useModuleOperation } from '../src/composables/useOperationCoordinator'
+import { useArchiveCloud, type ArchiveCloudSync } from '../src/composables/useArchiveCloudSync'
+import * as cameraStorage from '../src/utils/photo-params/favorites'
 import { Blob as NodeBlob } from 'node:buffer'
 import 'fake-indexeddb/auto'
 import { runStoreRequest } from '../src/utils/file-system/database'
@@ -128,6 +130,64 @@ describe('App lifecycle coordination', () => {
   afterEach(() => {
     vi.useRealTimers()
     document.body.innerHTML = ''
+  })
+
+  it('keeps favorite counts without mounting the camera page and hands off saving after its first lazy mount', async () => {
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+    const metadata = vi.spyOn(cameraStorage, 'readCameraFavorites').mockResolvedValue({
+      records: [{ code: 'existing' } as cameraStorage.CameraFavorite],
+      covers: new Map()
+    })
+    decodeCameraParamsMock.mockResolvedValue({ ok: true, value: {} } as Awaited<
+      ReturnType<typeof decodeCameraParams>
+    >)
+    const save = vi.fn().mockResolvedValue(undefined)
+    const wrapper = mount(App, {
+      global: {
+        stubs: {
+          Teleport: true,
+          CameraFavorites: defineComponent({
+            name: 'CameraFavorites',
+            setup(_, { expose }) {
+              expose({ openFromResult: save, reload: vi.fn() })
+              return () => null
+            }
+          }),
+          PhotoParamsDialog: {
+            name: 'PhotoParamsDialog',
+            props: ['visible', 'result'],
+            template:
+              '<button v-if="visible" class="save-params-stub" @click="$emit(\'favorite\')">Save</button>'
+          }
+        }
+      }
+    })
+    try {
+      await vi.waitFor(() => expect(metadata).toHaveBeenCalledWith(false))
+      await vi.waitFor(() =>
+        expect(wrapper.getComponent({ name: 'AlbumViewSwitcher' }).props('favoriteCount')).toBe(1)
+      )
+      expect(wrapper.findComponent({ name: 'CameraFavorites' }).exists()).toBe(false)
+      wrapper.getComponent({ name: 'TopBar' }).vm.$emit('openParseTools')
+      await vi.waitFor(() =>
+        expect(wrapper.findAll('.parse-tools-section input:not([type="file"])')).toHaveLength(2)
+      )
+      await wrapper
+        .findAll('.parse-tools-section input:not([type="file"])')[0]
+        .setValue('camera-raw')
+      await wrapper.findAll('form.parse-tools-section')[0].trigger('submit')
+      await vi.waitFor(() => expect(wrapper.find('.save-params-stub').exists()).toBe(true))
+      expect(wrapper.findComponent({ name: 'CameraFavorites' }).exists()).toBe(false)
+      await wrapper.get('.save-params-stub').trigger('click')
+      await vi.waitFor(() => expect(save).toHaveBeenCalledOnce())
+      expect(save).toHaveBeenCalledWith(
+        expect.objectContaining({ rawCameraParams: 'camera-raw' }),
+        null
+      )
+    } finally {
+      wrapper.unmount()
+      metadata.mockRestore()
+    }
   })
 
   it('opens compatible files without migration or persisted handles, preserves state on cancel/error and supports switching back', async () => {
@@ -360,10 +420,23 @@ describe('App lifecycle coordination', () => {
       vi.fn(() => query)
     )
     getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
-    const wrapper = mount(App, { global: { stubs: { CameraFavorites: true } } })
+    const wrapper = mount(App, {
+      global: {
+        stubs: {
+          CameraFavorites: {
+            name: 'CameraFavorites',
+            props: ['active', 'thumbnailSize'],
+            template: '<div />'
+          }
+        }
+      }
+    })
     try {
       await flushPromises()
       await wrapper.findAll('.mobile-navigation button')[2]!.trigger('click')
+      await vi.waitFor(() =>
+        expect(wrapper.findComponent({ name: 'CameraFavorites' }).exists()).toBe(true)
+      )
       const topBar = wrapper.getComponent({ name: 'TopBar' })
       expect(topBar.props('thumbnailModeDisabled')).toBe(true)
       expect(topBar.props('thumbnailSizeDisabled')).toBe(false)
@@ -597,6 +670,7 @@ describe('App lifecycle coordination', () => {
         expect(wrapper.findComponent({ name: 'ConfirmDialog' }).props('visible')).toBe(false)
       }
       if (index === 2) {
+        await vi.waitFor(() => expect(wrapper.find('.home-scheme-empty h2').exists()).toBe(true))
         expect(wrapper.get('.home-scheme-empty h2').text()).toBe(messages.zh.homeScheme.emptyTitle)
         await vi.waitFor(() =>
           expect(
@@ -610,7 +684,9 @@ describe('App lifecycle coordination', () => {
         expect(wrapper.findComponent({ name: 'ConfirmDialog' }).props('visible')).toBe(false)
       }
       if (index === 4)
-        expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('active')).toBe(true)
+        await vi.waitFor(() =>
+          expect(wrapper.findComponent({ name: 'CameraFavorites' }).props('active')).toBe(true)
+        )
     }
     expect(readOutfitLibraryMock).toHaveBeenCalledWith(
       null,
@@ -919,12 +995,16 @@ describe('App lifecycle coordination', () => {
 
     await wrapper.get('.tools-menu-button').trigger('click')
     await wrapper.get('.header-dropdown').findAll('button')[2].trigger('click')
+    await vi.waitFor(() =>
+      expect(wrapper.findAll('.parse-tools-section input:not([type="file"])')).toHaveLength(2)
+    )
     const input = wrapper.findAll('.parse-tools-section input:not([type="file"])')[1]
     expect(input.attributes('placeholder')).toBe('填入搭配码进行解析')
 
     await input.setValue(' ABC 123 ')
     await flushPromises()
     await wrapper.findAll('form.parse-tools-section')[1].trigger('submit')
+    await vi.waitFor(() => expect(wrapper.find('.parse-dialog-stub').exists()).toBe(true))
 
     expect(wrapper.get('.parse-dialog-stub').text()).toContain('ABC123')
     await wrapper.get('.parse-dialog-close').trigger('click')
@@ -975,12 +1055,15 @@ describe('App lifecycle coordination', () => {
 
     await wrapper.get('.tools-menu-button').trigger('click')
     await wrapper.get('.header-dropdown').findAll('button')[2].trigger('click')
+    await vi.waitFor(() =>
+      expect(wrapper.findAll('.parse-tools-section input:not([type="file"])')).toHaveLength(2)
+    )
     const input = wrapper.findAll('.parse-tools-section input:not([type="file"])')[0]
     await input.setValue('camera-raw')
     await wrapper.findAll('form.parse-tools-section')[0].trigger('submit')
     await flushPromises()
 
-    expect(wrapper.find('.photo-params-stub').exists()).toBe(true)
+    await vi.waitFor(() => expect(wrapper.find('.photo-params-stub').exists()).toBe(true))
     await wrapper.get('.photo-params-close').trigger('click')
     expect(wrapper.find('.parse-tools-dialog').exists()).toBe(true)
     expect(
@@ -1019,6 +1102,9 @@ it('blocks desktop and mobile navigation until a child operation settles', async
     await flushPromises()
     const desktop = wrapper.findComponent({ name: 'AlbumViewSwitcher' })
     const mobile = wrapper.findComponent({ name: 'MobileNavigation' })
+    await vi.waitFor(() => expect(desktop.props('disabled')).toBe(false))
+    desktop.vm.$emit('changeView', 'favorites')
+    await flushPromises()
     const previous = desktop.props('activeView')
     expect(desktop.props('disabled')).toBe(true)
     expect(mobile.props('disabled')).toBe(true)
@@ -1038,6 +1124,7 @@ it('blocks desktop and mobile navigation until a child operation settles', async
 })
 
 it('warns after cloud restore if wardrobe refresh reports a failure', async () => {
+  let cloud!: ArchiveCloudSync
   localStorage.clear()
   countHomeSchemesMock.mockResolvedValue(0)
   readOutfitLibraryMock.mockResolvedValue({
@@ -1055,6 +1142,7 @@ it('warns after cloud restore if wardrobe refresh reports a failure', async () =
         ArchiveCloudDialog: true,
         PersonalWardrobe: defineComponent({
           setup(_, { expose }) {
+            cloud = useArchiveCloud()
             expose({ reload })
             return () => null
           }
@@ -1066,6 +1154,8 @@ it('warns after cloud restore if wardrobe refresh reports a failure', async () =
   const navigation = wrapper.getComponent({ name: 'AlbumViewSwitcher' })
   await vi.waitFor(() => expect(navigation.props('disabled')).toBe(false))
   navigation.vm.$emit('changeView', 'wardrobe')
+  await flushPromises()
+  cloud.visible.value = true
   await flushPromises()
   wrapper.getComponent({ name: 'ArchiveCloudDialog' }).vm.$emit('restored', ['wardrobe'])
   await flushPromises()

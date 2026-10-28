@@ -8,8 +8,7 @@ import {
   CAMERA_FAVORITES_STORE,
   CAMERA_TAGS_STORE
 } from '../file-system/database'
-import { hasWardrobeSnapshot } from '../wardrobe/wardrobeOwnership'
-import { validateWardrobe } from '../wardrobe/wardrobeStorage'
+import { hasWardrobeSnapshot, validateWardrobe } from '../wardrobe/wardrobeSchema'
 import { loadResonanceRecords } from '../resonance/resonanceStorage'
 
 /** 仅检查本地数据存在性，不加载 ZIP 编解码和各模块导入导出实现。 */

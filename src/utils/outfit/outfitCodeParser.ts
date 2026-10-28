@@ -1,11 +1,15 @@
-import { cacheGeneration, isCurrentCacheGeneration, persistCacheIfCurrent } from '../cacheLifecycle'
+import {
+  cacheGeneration,
+  isCurrentCacheGeneration,
+  persistCacheIfCurrent,
+  registerCacheReset
+} from '../cacheLifecycle'
 // 搭配码解析：缓存未命中时并发请求同源原始数据和第三方，以首个有效解析结果为准。
 import {
   clearSavedOutfitParseResults,
   getSavedOutfitParseResult,
   saveOutfitParseResult
 } from '../file-system/directoryStorage'
-import { decodeLookbookPayload, decodeLookbookShareCodePathId } from './lookbookWasmClient'
 import { inferClothTypeFromItemId } from './clothType'
 import { lookbookTiming, measureLookbook } from './lookbookDiagnostics'
 
@@ -149,6 +153,7 @@ const isCachedParseResult = (value: unknown, code: string): value is LookbookDec
 async function requestLookbookParse(code: string): Promise<LookbookDecodeResult> {
   let pathId: string | null
   try {
+    const { decodeLookbookShareCodePathId } = await import('./lookbookWasmClient')
     pathId = await measureLookbook('share_code_decode', () => decodeLookbookShareCodePathId(code))
   } catch (error) {
     throw new OutfitCodeParseError(
@@ -260,7 +265,9 @@ async function requestLookbookSource(
   let decoded
   try {
     decoded = await measureLookbook('payload_decode', () =>
-      decodeLookbookPayload<LookbookDecodeResult>(code, payload)
+      import('./lookbookWasmClient').then(({ decodeLookbookPayload }) =>
+        decodeLookbookPayload<LookbookDecodeResult>(code, payload)
+      )
     )
   } catch (error) {
     throw new OutfitCodeParseError(
@@ -335,10 +342,15 @@ export async function parseOutfitCode(rawCode: string): Promise<LookbookDecodeRe
   }
 }
 
-export async function clearOutfitCodeParseCache(): Promise<void> {
+function resetMemoryCache(): void {
   parseCacheGeneration++
   parsedResultCache.clear()
   pendingParseRequests.clear()
+}
+registerCacheReset('outfit-code', resetMemoryCache)
+
+export async function clearOutfitCodeParseCache(): Promise<void> {
+  resetMemoryCache()
   await Promise.allSettled([...pendingCacheWrites])
   if (typeof indexedDB !== 'undefined') await clearSavedOutfitParseResults()
 }

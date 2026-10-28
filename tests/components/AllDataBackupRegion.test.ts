@@ -30,6 +30,7 @@ async function open(language: 'zh' | 'en' = 'zh') {
   Object.defineProperty(input.element, 'files', { value: [{ name: 'backup.zip' }] })
   await input.trigger('change')
   await flushPromises()
+  await vi.waitFor(() => expect(document.querySelector('.wardrobe-restore-region')).not.toBeNull())
   return wrapper
 }
 it.each(['国服', '国际服'])(
@@ -60,6 +61,9 @@ it.each(['国服', '国际服'])(
   }
 )
 it('cancels the entire restore on Escape without emitting a data change', async () => {
+  const trigger = document.createElement('button')
+  document.body.append(trigger)
+  trigger.focus()
   const wrapper = await open()
   try {
     const panel = document.querySelector<HTMLElement>('.wardrobe-restore-region-panel')!
@@ -69,12 +73,14 @@ it('cancels the entire restore on Escape without emitting a data change', async 
     )
     await flushPromises()
     expect(selected).toHaveBeenCalledWith(null)
+    expect(document.activeElement).toBe(trigger)
     expect(wrapper.emitted('changed')).toBeUndefined()
     expect(
       wrapper.emitted('status')?.some(([message]) => message === '已取消导入，数据未修改')
     ).toBe(true)
   } finally {
     wrapper.unmount()
+    trigger.remove()
   }
 })
 it('settles a pending English region prompt when unmounted', async () => {

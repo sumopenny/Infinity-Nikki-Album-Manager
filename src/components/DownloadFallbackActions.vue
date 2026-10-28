@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { Download } from 'lucide-vue-next'
 import { requestBlobDownload } from '../utils/backup/downloadFallback'
 
 const props = defineProps<{ files: File[]; language: 'zh' | 'en' }>()
@@ -56,12 +57,8 @@ async function save(file: File) {
     }}</p>
     <div v-for="(file, index) in files" :key="index" class="download-file">
       <span v-if="files.length > 1" class="download-name">{{ file.name }}</span>
-      <button
-        class="primary-button download-save-button"
-        type="button"
-        :disabled="busy"
-        @click="save(file)"
-      >
+      <button class="download-save-button" type="button" :disabled="busy" @click="save(file)">
+        <Download :size="16" aria-hidden="true" />
         {{ text('手动下载／分享', 'Download / share') }}
       </button>
     </div>
@@ -89,41 +86,35 @@ async function save(file: File) {
   width: 100%;
 }
 .download-save-button {
-  box-shadow: 0 2px 6px color-mix(in srgb, var(--pink-deep) 12%, transparent);
-  padding: 10px 16px;
-  background: transparent;
-  color: var(--pink-deep);
-  border: 1px solid var(--pink-deep);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 8px 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-strong);
+  color: var(--text);
   cursor: pointer;
   font-family: inherit;
   font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  transition:
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
 }
-@supports not (color: color-mix(in srgb, black, white)) {
-  .download-save-button {
-    box-shadow: 0 2px 6px rgba(201, 132, 134, 0.12);
-  }
-  :where(:root[data-theme='dark']) .download-save-button {
-    box-shadow: 0 2px 6px rgba(239, 176, 178, 0.12);
-  }
-}
-.download-save-button:hover {
-  box-shadow: 0 3px 8px color-mix(in srgb, var(--pink-deep) 16%, transparent);
-  background: transparent;
-  color: var(--pink-deep);
+.download-save-button:hover:not(:disabled) {
+  background: var(--surface-soft);
   border-color: var(--pink-deep);
 }
-@supports not (color: color-mix(in srgb, black, white)) {
-  .download-save-button:hover {
-    box-shadow: 0 3px 8px rgba(201, 132, 134, 0.16);
-  }
-  :where(:root[data-theme='dark']) .download-save-button:hover {
-    box-shadow: 0 3px 8px rgba(239, 176, 178, 0.16);
-  }
+.download-save-button:focus-visible {
+  outline: 2px solid var(--pink-deep);
+  outline-offset: 2px;
 }
 .download-save-button:disabled {
   opacity: 0.6;
   cursor: wait;
-  transform: none;
-  box-shadow: none;
 }
 </style>

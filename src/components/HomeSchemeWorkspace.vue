@@ -329,7 +329,9 @@ function resetEditor(item: HomeSchemeItem | null) {
       })
   }
   void nextTick(() => {
-    document.getElementById('home-scheme-code')?.focus()
+    // 打开时停留在面板，避免自动进入方案码输入框。
+    if (editorVisible.value)
+      document.querySelector<HTMLElement>('.home-scheme-editor')?.focus({ preventScroll: true })
   })
   if (!item) queueParse('')
 }
@@ -1155,7 +1157,7 @@ function handleAddTag(value: string) {
           :aria-label="editing ? messages.edit : messages.add"
           @click.self="handleEditorBackdropClick"
         >
-          <section class="outfit-editor-panel home-scheme-editor">
+          <section class="outfit-editor-panel home-scheme-editor" tabindex="-1">
             <header>
               <h2>{{ editing ? messages.edit : messages.add }}</h2>
               <button

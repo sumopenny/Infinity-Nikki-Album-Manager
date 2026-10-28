@@ -73,7 +73,8 @@ export async function parseDataPreview(
   }
   if (raw.format || !('info_from_self' in raw || 'info_from_gm' in raw)) {
     await report('resonance')
-    const parsed = parseResonanceFile(raw, true)
+    const parsed = await parseResonanceFile(raw, true)
+    checkCurrent()
     result.resonance = parsed.records
     result.skippedPools = parsed.skippedPools
     return result
@@ -88,7 +89,8 @@ export async function parseDataPreview(
   if (raw.info_from_self?.gacha_list) {
     await report('resonance')
     try {
-      const parsed = parsePearpalResonance(raw)
+      const parsed = await parsePearpalResonance(raw, undefined, options.signal)
+      checkCurrent()
       result.resonance = parsed.records
       result.skippedPools = parsed.skippedPools
     } catch (error) {
