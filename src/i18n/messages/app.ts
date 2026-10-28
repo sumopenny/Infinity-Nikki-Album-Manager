@@ -25,9 +25,25 @@ export const appZh: LocaleMessages['app'] = {
   authorizeX6GameStatus: 'X6Game 文件夹授权已完成。',
   x6GameAuthorizationCancelledStatus:
     '已取消 X6Game 文件夹授权。后续进入搭配码界面将不再自动弹出授权窗口，可在当前相册下拉框中点击“授权 X6Game”手动授权。',
-  clearDataDialogTitle: '清除缓存、设置和授权',
-  clearDataFirstConfirmMessage:
-    '将永久删除当前浏览器保存的全部网站数据，包括搭配方案、家园方案、共鸣记录、照片收藏标记、相机参数收藏及其图片、封面和标签，以及解析缓存、UID、目录授权、迁移记录和设置。完成后页面自动重新加载，恢复初始状态。此操作无法撤销，请先导出备份；云端账号和存档保留，不会主动退出云端登录，也不会删除电脑里的原始照片、游戏文件或已导出的备份。',
+  clearDataDialogTitle: '清除浏览器中的全部数据？',
+  clearDataFirstConfirmMessage: '此操作无法撤销，请先导出备份。',
+  clearDataSections: [
+    {
+      title: '将清除',
+      items: [
+        '搭配、家园方案、共鸣记录、个人衣橱与照片收藏标记',
+        '相机参数收藏，以及已保存的图片、封面和标签',
+        '解析缓存、UID、目录授权、迁移记录及设置'
+      ]
+    },
+    {
+      title: '会保留',
+      text: '云端账号与存档，电脑原始照片、游戏文件和已导出的备份。不会主动退出云端登录。'
+    }
+  ],
+  clearDataConsequence: '清除完成后，页面将自动刷新并恢复初始状态。',
+  clearDataBackup: '先导出备份',
+  clearDataConfirm: '清除全部数据',
   clearDataStatus: '当前浏览器的网站数据已清除，云端存档保留；正在重新加载并恢复初始状态。',
   languageUpdated: '语言切换成功。',
   themeUpdated: '主题切换成功。',
@@ -136,9 +152,25 @@ export const appEn: LocaleMessages['app'] = {
   authorizeX6GameStatus: 'X6Game folder authorization completed.',
   x6GameAuthorizationCancelledStatus:
     'X6Game folder authorization was canceled. The authorization window will no longer open automatically when entering Outfit Codes; use Authorize X6Game from the Current album menu when needed.',
-  clearDataDialogTitle: 'Clear caches, settings and authorization',
-  clearDataFirstConfirmMessage:
-    'This permanently deletes all website data saved in this browser, including outfits, home schemes, resonance records, photo favorite marks, camera favorites, their images, covers and tags, parse caches, UIDs, directory authorizations, migration records and settings. The page will reload to its initial state. This cannot be undone; export a backup first. Cloud accounts and saves remain, and this does not sign you out of cloud sync. Original photos, game files and exported backups on your computer will not be deleted.',
+  clearDataDialogTitle: 'Clear all data in this browser?',
+  clearDataFirstConfirmMessage: 'This cannot be undone. Export a backup first.',
+  clearDataSections: [
+    {
+      title: 'Will be cleared',
+      items: [
+        'Outfits, home schemes, resonance records, personal wardrobe and photo favorites',
+        'Camera parameter favorites and saved images, covers and tags',
+        'Parsing caches, UIDs, folder permissions, migration records and settings'
+      ]
+    },
+    {
+      title: 'Will be kept',
+      text: 'Your cloud account and saves, original photos and game files on your computer, and exported backups. You will not be actively signed out of the cloud.'
+    }
+  ],
+  clearDataConsequence: 'The page will reload and return to its initial state after clearing.',
+  clearDataBackup: 'Export a backup first',
+  clearDataConfirm: 'Clear all data',
   clearDataStatus:
     'Website data in this browser cleared; cloud saves remain. Reloading to restore the initial state.',
   languageUpdated: 'Language updated successfully.',

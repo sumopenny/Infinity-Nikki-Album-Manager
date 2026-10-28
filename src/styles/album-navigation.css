@@ -530,15 +530,89 @@
   color: var(--muted);
 }
 
-.empty-album-start .primary-button {
+/* 相册两个打开入口共用尺寸与间距，兼容入口使用次要按钮外观。 */
+.empty-album-actions {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.empty-album-actions > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 42px;
-  border-radius: 8px;
+  max-width: 100%;
+  padding: 10px 16px;
+  border-radius: var(--ui-radius);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.album-compatible-button {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--heading);
+  transition:
+    transform var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.album-compatible-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--pink-deep);
+  background: var(--surface-soft);
+}
+
+.album-compatible-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .album-compatible-button:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+.empty-album-actions > button:focus-visible {
+  outline: 2px solid var(--pink-deep);
+  outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .empty-album-actions > button {
+    flex: 1 1 100%;
+  }
 }
 
 .empty-album-start .recommended-path {
   margin-top: 18px;
   overflow-wrap: anywhere;
   font-size: 12px;
+}
+
+.empty-album-guidance {
+  margin: 16px auto 0;
+  max-width: 560px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.empty-album-guidance p {
+  margin: 0;
+}
+
+.empty-album-guidance .empty-album-reload-hint {
+  margin-top: 6px;
+  color: var(--text);
+  font-weight: 600;
 }
 
 .empty-album-start .hidden-folder-tip {

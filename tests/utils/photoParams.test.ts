@@ -1,3 +1,4 @@
+import { readCompatibleAlbum } from '../../src/utils/file-system/compatibleAlbum'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { computed, effectScope, ref } from 'vue'
 import { flushPromises } from '@vue/test-utils'
@@ -123,3 +124,21 @@ it.each(['switch', 'close', 'dispose'])(
     expect(state.progress.value).toEqual(progress)
   }
 )
+
+it('parses compatibility photos without X6Game authorization and permits manual UID retry', async () => {
+  const state = setup()
+  const image = new File(['photo'], '2026_04_26_21_05_24.jpeg', { lastModified: 1000 })
+  Object.defineProperties(image, {
+    webkitRelativePath: { value: `album/${image.name}` },
+    arrayBuffer: { value: async () => new Uint8Array([1, 2, 3]).buffer }
+  })
+  const photo = (await readCompatibleAlbum([image])).photos[0]
+  vi.mocked(getSavedCameraParamUids).mockResolvedValue([])
+  await state.openForPhoto(photo)
+  expect(state.uidRequired.value).toBe(true)
+  expect(state.photo.value).toEqual(photo)
+  vi.mocked(decodePhoto).mockResolvedValue({ ok: false, errorCode: 'base64_invalid' })
+  await state.submitUid('123456')
+  expect(decodePhoto).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]), '123456')
+  expect(state.errorCodes.value).toEqual(['base64_invalid'])
+})

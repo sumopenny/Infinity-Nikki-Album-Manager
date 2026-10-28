@@ -173,7 +173,18 @@
   opacity: 1;
 }
 
-.photo-note-edit:hover {
+/* 禁用态不能覆盖桌面卡片的悬停显隐；触屏仍沿用常显操作按钮。 */
+@media (min-width: 900px) {
+  .photo-note-edit:disabled {
+    opacity: 0;
+  }
+
+  .photo-card:hover .photo-note-edit:disabled {
+    opacity: 0.55;
+  }
+}
+
+.photo-note-edit:hover:not(:disabled) {
   background: rgba(25, 22, 22, 0.56);
   color: #f4d989;
 }
@@ -310,4 +321,33 @@
     flex: 0 0 auto;
     padding-inline: 8px;
   }
+}
+
+/* 提示位于内容列内，避开固定侧栏；窄屏允许文本和按钮换行。 */
+.compatible-album-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--top-border);
+  border-radius: 12px;
+  font-size: 13px;
+}
+.compatible-album-notice > span {
+  flex: 1 1 280px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.compatible-album-notice button {
+  flex: 0 0 auto;
+  max-width: 100%;
+  padding: 6px 12px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  cursor: pointer;
 }

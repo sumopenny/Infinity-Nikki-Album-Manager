@@ -44,6 +44,9 @@ type OpenMenu = 'album' | 'view' | 'tools' | 'more' | null
 const props = defineProps<{
   viewMessages?: LocaleMessages['viewNav']
   directorySupported?: boolean
+  albumReadOnly?: boolean
+  readOnlyHint?: string
+  compatibleLabel?: string
   directoryName: string
   isLoading: boolean
   backupDisabled?: boolean
@@ -66,6 +69,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   changeView: [view: AlbumView]
   chooseDirectory: []
+  chooseCompatible: []
   clearDirectory: []
   authorizeX6Game: []
   openCleanup: []
@@ -487,6 +491,15 @@ function openDonate() {
                 <span>{{ messages.chooseDirectory }}</span>
               </button>
               <button
+                v-if="compatibleLabel"
+                type="button"
+                role="menuitem"
+                :disabled="isBusy"
+                @click="runMenuAction(() => emit('chooseCompatible'))"
+              >
+                <FolderOpen :size="16" /><span>{{ compatibleLabel }}</span>
+              </button>
+              <button
                 type="button"
                 role="menuitem"
                 :disabled="!hasAlbumDirectory || isBusy"
@@ -682,7 +695,8 @@ function openDonate() {
               <button
                 type="button"
                 role="menuitem"
-                :disabled="isBusy"
+                :disabled="isBusy || albumReadOnly"
+                :title="albumReadOnly ? readOnlyHint : undefined"
                 @click="runMenuAction(() => emit('openCleanup'))"
                 ><Eraser :size="16" /><span>{{ messages.specialCleanup }}</span></button
               >
@@ -763,6 +777,14 @@ function openDonate() {
                     @click="runMenuAction(() => emit('openFortuneTime'))"
                     >✦ {{ messages.fortuneTime }}</button
                   >
+                  <button
+                    v-if="compatibleLabel"
+                    type="button"
+                    role="menuitem"
+                    :disabled="isBusy"
+                    @click="runMenuAction(() => emit('chooseCompatible'))"
+                    ><FolderOpen :size="18" />{{ compatibleLabel }}</button
+                  >
                   <template v-if="directorySupported !== false">
                     <button
                       type="button"
@@ -788,7 +810,8 @@ function openDonate() {
                     <button
                       type="button"
                       role="menuitem"
-                      :disabled="isBusy"
+                      :disabled="isBusy || albumReadOnly"
+                      :title="albumReadOnly ? readOnlyHint : undefined"
                       @click="runMenuAction(() => emit('openCleanup'))"
                       >{{ messages.specialCleanup }}</button
                     >

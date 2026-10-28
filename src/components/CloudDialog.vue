@@ -137,6 +137,64 @@ function close() {
   justify-content: flex-end;
   flex-wrap: wrap;
 }
+/* 仅统一底部操作按钮，避免影响正文备份入口与标题栏关闭按钮。 */
+.resonance-cloud-panel footer :deep(.confirm-dialog-button) {
+  min-width: 88px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: var(--ui-radius);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.4;
+  box-shadow: none;
+  transition:
+    transform var(--motion-base) ease,
+    background var(--motion-base) ease,
+    border-color var(--motion-base) ease,
+    color var(--motion-base) ease;
+}
+.resonance-cloud-panel footer :deep(.confirm-dialog-button.primary) {
+  background: #f6ccca;
+  color: #61383d;
+}
+.resonance-cloud-panel footer :deep(.confirm-dialog-button.primary:hover:not(:disabled)) {
+  background: #eab1b3;
+}
+.resonance-cloud-panel footer :deep(.confirm-dialog-button.ghost:hover:not(:disabled)) {
+  border-color: var(--pink-deep);
+  border-color: color-mix(in srgb, var(--pink-deep) 45%, var(--line));
+  background: var(--surface-strong);
+  background: color-mix(in srgb, var(--pink-deep) 9%, var(--surface-strong));
+  color: var(--heading);
+}
+.resonance-cloud-panel footer :deep(.confirm-dialog-button:hover:not(:disabled)) {
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+.resonance-cloud-panel footer :deep(.confirm-dialog-button:focus-visible) {
+  outline: 2px solid var(--pink-deep);
+  outline-offset: 3px;
+}
+.resonance-cloud-panel footer :deep(.confirm-dialog-button:active:not(:disabled)) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+.resonance-cloud-panel footer :deep(.confirm-dialog-button:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+.resonance-cloud-panel footer :deep(.confirm-dialog-button.primary.is-danger) {
+  background: #a13e48;
+  color: #fff;
+}
+.resonance-cloud-panel footer :deep(.confirm-dialog-button.primary.is-danger:hover:not(:disabled)) {
+  background: #872d38;
+}
+@media (prefers-reduced-motion: reduce) {
+  .resonance-cloud-panel footer :deep(.confirm-dialog-button:hover:not(:disabled)) {
+    transform: none;
+  }
+}
 .archive-cloud-panel {
   width: min(680px, 100%);
 }

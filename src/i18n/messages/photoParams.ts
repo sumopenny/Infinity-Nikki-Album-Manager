@@ -29,6 +29,9 @@ export interface PhotoParamsMessages {
   uidPrompt: string
   uidPlaceholder: string
   uidParse: string
+  uidParsing: string
+  uidRetryFailed: string
+  uidMismatch: string
   upload: string
   uploadHint: string
   authorizationRequired: string
@@ -68,11 +71,15 @@ export const photoParamsZh: PhotoParamsMessages = {
   uidPrompt: '请输入拍摄此照片所用账号的 UID',
   uidPlaceholder: '填写账号 UID',
   uidParse: '解析',
+  uidParsing: '解析中…',
+  uidRetryFailed: '本次解析失败。',
+  uidMismatch: '未能使用该 UID 解析照片，请确认填写的是拍摄这张照片的账号 UID。',
   upload: '上传图片解析',
   uploadHint: '选择本地游戏原图进行解析',
   authorizationRequired: '请先授权 X6Game 文件夹。',
   nonOriginalPhotoHint: '该照片可能不是游戏拍摄原图，请检查是否经过压缩、转发或其他处理。',
-  originalFolderHint: '温馨提示：照片参数解析需使用游戏相册 HighQuality 文件夹中的原始照片。其他文件夹如 ScreenShot 文件夹中的图片不包含内置相机参数，无法解析。',
+  originalFolderHint:
+    '温馨提示：照片参数解析需使用游戏相册 HighQuality 文件夹中的原始照片。其他文件夹如 ScreenShot 文件夹中的图片不包含内置相机参数，无法解析。',
   stages: {
     idle: '',
     resolvingUid: '正在识别照片账号…',
@@ -137,6 +144,10 @@ export const photoParamsEn: PhotoParamsMessages = {
   uidPrompt: 'Enter the UID used to take this photo',
   uidPlaceholder: 'Enter account UID',
   uidParse: 'Parse',
+  uidParsing: 'Parsing…',
+  uidRetryFailed: 'This parsing attempt failed.',
+  uidMismatch:
+    'Unable to parse the photo with this UID. Check that it belongs to the account that took this photo.',
   upload: 'Parse local image',
   uploadHint: 'Choose an original game photo from this device',
   authorizationRequired: 'Authorize the X6Game folder first.',

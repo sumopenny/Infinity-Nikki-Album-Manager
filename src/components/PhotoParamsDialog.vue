@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, toRef, watch } from 'vue'
+import { computed, nextTick, ref, toRef, watch } from 'vue'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import { useModalFocus } from '../composables/useModalFocus'
 import { Bookmark, Copy, ScanSearch, X } from 'lucide-vue-next'
@@ -28,11 +28,42 @@ useBodyScrollLock(toRef(props, 'visible'))
 useModalFocus(toRef(props, 'visible'), panel, () => emit('close'))
 const showNonOriginalPhotoHint = computed(() => needsOriginalPhotoHint(props.errorCodes ?? []))
 const uidInput = ref('')
+const uidField = ref<HTMLInputElement | null>(null)
+const uidAttempt = ref(0)
+const uidParsing = ref(false)
+const uidFeedback = ref('')
+function resetUidAttempt() {
+  uidInput.value = ''
+  uidAttempt.value = 0
+  uidParsing.value = false
+  uidFeedback.value = ''
+}
+watch(() => props.photo, resetUidAttempt)
+function submitUid() {
+  if (uidParsing.value || !uidInput.value.trim()) return
+  uidFeedback.value = ''
+  uidAttempt.value += 1
+  uidParsing.value = true
+  emit('submitUid', uidInput.value.trim())
+}
+watch(
+  () => [props.progress.stage, props.error] as const,
+  async ([stage, error]) => {
+    if (!uidParsing.value) return
+    if (stage === 'ready') uidParsing.value = false
+    if (stage !== 'error' || !error) return
+    uidParsing.value = false
+    uidFeedback.value = props.uidRequired ? props.messages.uidMismatch : error
+    await nextTick()
+    uidField.value?.focus()
+  },
+  { flush: 'post' }
+)
 const failedImages = ref<Set<string>>(new Set())
 watch(
   () => props.visible,
   (visible) => {
-    if (!visible) uidInput.value = ''
+    if (!visible) resetUidAttempt()
     failedImages.value = new Set()
   }
 )
@@ -84,10 +115,10 @@ function markImageFailed(title: string, name: string) {
 
         <div
           class="fortune-time-body photo-params-body"
-          :class="{ 'is-loading': progress.stage !== 'ready' && !error }"
+          :class="{ 'is-loading': progress.stage !== 'ready' && !error && !uidAttempt }"
         >
           <div
-            v-if="progress.stage !== 'ready' && !error"
+            v-if="progress.stage !== 'ready' && !error && !uidAttempt"
             class="photo-params-loading"
             role="status"
             aria-live="polite"
@@ -96,33 +127,52 @@ function markImageFailed(title: string, name: string) {
             <p>{{ progress.message }}</p>
           </div>
 
-          <div v-if="error" class="photo-params-error">
-            <p>{{ error }}</p>
+          <div v-if="error || (uidAttempt && !result)" class="photo-params-error">
+            <p v-if="error">{{ error }}</p>
             <p v-if="showNonOriginalPhotoHint" class="photo-params-original-hint">{{
               messages.nonOriginalPhotoHint
             }}</p>
-            <p class="photo-params-original-hint photo-params-folder-hint">{{ messages.originalFolderHint }}</p>
+            <p class="photo-params-original-hint photo-params-folder-hint">{{
+              messages.originalFolderHint
+            }}</p>
             <!-- uid 表单收进报错模块内部，跟随整体垂直居中，避免与报错区堆叠导致窗口出现滚动条。 -->
             <form
-              v-if="!result && uidRequired"
+              v-if="!result && (uidRequired || uidAttempt)"
               class="photo-params-uid-form"
-              @submit.prevent="uidInput.trim() && emit('submitUid', uidInput.trim())"
+              :aria-busy="uidParsing"
+              @submit.prevent="submitUid"
             >
               <label for="photo-params-uid-input">{{ messages.uidPrompt }}</label>
               <div>
                 <input
                   id="photo-params-uid-input"
+                  ref="uidField"
                   v-model="uidInput"
+                  :disabled="uidParsing"
+                  :aria-invalid="uidFeedback ? 'true' : undefined"
+                  :aria-describedby="uidFeedback ? 'photo-params-uid-feedback' : undefined"
+                  @input="uidFeedback = ''"
                   :placeholder="messages.uidPlaceholder"
                   autocomplete="off"
                 />
                 <button
                   type="submit"
                   class="confirm-dialog-button primary"
-                  :disabled="!uidInput.trim()"
-                  ><ScanSearch :size="15" />{{ messages.uidParse }}</button
+                  :disabled="uidParsing || !uidInput.trim()"
+                  ><ScanSearch :size="15" />{{
+                    uidParsing ? messages.uidParsing : messages.uidParse
+                  }}</button
                 >
               </div>
+              <p v-if="uidParsing" role="status" aria-live="polite">{{ messages.uidParsing }}</p>
+              <p
+                v-if="uidFeedback"
+                id="photo-params-uid-feedback"
+                :key="uidAttempt"
+                class="photo-params-uid-feedback"
+                role="alert"
+                >{{ messages.uidRetryFailed }} {{ uidFeedback }}</p
+              >
             </form>
           </div>
 

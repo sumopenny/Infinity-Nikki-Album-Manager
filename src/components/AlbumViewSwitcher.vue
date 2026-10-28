@@ -16,6 +16,8 @@ defineProps<{
   resonanceLabel?: string
   favoriteCount: number
   favoriteCountText?: string
+  trashDisabled?: boolean
+  trashDisabledHint?: string
   trashCount: number
   outfitLabel: string
   disabled: boolean
@@ -98,7 +100,8 @@ function selectView(view: AlbumView) {
             activeView === item.view || (item.view === 'resonance' && activeView === 'wardrobe')
         }"
         type="button"
-        :disabled="disabled"
+        :disabled="disabled || (item.view === 'trash' && trashDisabled)"
+        :title="item.view === 'trash' && trashDisabled ? trashDisabledHint : undefined"
         :aria-pressed="
           activeView === item.view || (item.view === 'resonance' && activeView === 'wardrobe')
         "

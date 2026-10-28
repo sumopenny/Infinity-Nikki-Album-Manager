@@ -16,14 +16,14 @@ import {
 } from 'lucide-vue-next'
 import type { LocaleMessages } from '../i18n'
 import type { OutfitMessages } from '../i18n'
-import type { PhotoItem } from '../utils/photoGrouping'
+import { isAlbumPhoto, type PhotoDisplayItem, type PhotoItem } from '../utils/photoGrouping'
 import type { OutfitItem } from '../utils/outfit/outfitFileSystem'
 import type { HomeSchemeItem } from '../utils/homeBuild/homeSchemeTypes'
 import type { HomeSchemeMessages } from '../i18n/messages/homeScheme'
 import { loadImageUrlWithSize, loadPhotoWithRetryAndSize } from '../utils/photoLoader'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 
-type PreviewPhoto = Omit<PhotoItem, 'fileHandle' | 'directoryHandle'>
+type PreviewPhoto = PhotoDisplayItem
 
 const MIN_ZOOM = 50
 const MAX_ZOOM = 300
@@ -33,6 +33,8 @@ const props = defineProps<{
   photo: PhotoItem | PreviewPhoto | null
   hasPrevious: boolean
   hasNext: boolean
+  readOnly?: boolean
+  readOnlyHint?: string
   isDeleting: boolean
   isFavorite: boolean
   keyboardEnabled: boolean
@@ -273,7 +275,7 @@ async function updateDisplayedPhoto(nextPhoto: PhotoItem | PreviewPhoto): Promis
 
   try {
     const { width, height } =
-      'fileHandle' in nextPhoto || nextPhoto.loadImageBlob
+      isAlbumPhoto(nextPhoto) || nextPhoto.loadImageBlob
         ? await loadPhotoWithRetryAndSize(nextPhoto, previewAbortController.signal)
         : await loadImageUrlWithSize(nextPhoto.url ?? '', previewAbortController.signal)
     if (currentToken !== previewLoadToken) return
@@ -313,6 +315,7 @@ function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'ArrowRight' && props.hasNext) emit('next')
   if (
     event.key === 'Delete' &&
+    !props.readOnly &&
     props.mode !== 'outfit' &&
     props.mode !== 'home' &&
     !props.isDeleting &&
@@ -325,12 +328,12 @@ function handleKeydown(event: KeyboardEvent) {
 
 /** 恢复当前回收照片，切图加载期间忽略点击。参数：无。 */
 function handleRestoreClick() {
-  if (!props.isDeleting && !isPreviewLoading.value) emit('restoreCurrent')
+  if (!props.readOnly && !props.isDeleting && !isPreviewLoading.value) emit('restoreCurrent')
 }
 
 /** 删除当前预览照片，切图加载期间忽略点击。参数：无。 */
 function handleDeleteClick() {
-  if (props.isDeleting || isPreviewLoading.value) return
+  if (props.readOnly || props.isDeleting || isPreviewLoading.value) return
   if (props.mode === 'home') return
   props.mode === 'trash' ? emit('permanentlyDeleteCurrent') : emit('deleteCurrent')
 }
@@ -548,10 +551,10 @@ function navigatePreview(direction: 'previous' | 'next') {
             <button
               v-if="mode === 'album'"
               type="button"
-              :title="messages.editNote"
+              :title="readOnly ? readOnlyHint : messages.editNote"
               :aria-label="messages.editNote"
-              :disabled="photoActionsDisabled"
-              @click="!photoActionsDisabled && emit('editPhotoNote')"
+              :disabled="photoActionsDisabled || readOnly"
+              @click="!readOnly && !photoActionsDisabled && emit('editPhotoNote')"
               ><Pencil :size="18"
             /></button>
             <button
@@ -569,7 +572,7 @@ function navigatePreview(direction: 'previous' | 'next') {
               v-else-if="mode === 'trash'"
               type="button"
               :class="{ 'is-preview-loading': isPreviewLoading }"
-              :disabled="isDeleting"
+              :disabled="isDeleting || readOnly"
               :aria-disabled="isPreviewLoading || undefined"
               :title="messages.restoreCurrent"
               @click="handleRestoreClick"
@@ -581,9 +584,15 @@ function navigatePreview(direction: 'previous' | 'next') {
               class="lightbox-delete"
               type="button"
               :class="{ 'is-preview-loading': isPreviewLoading }"
-              :disabled="isDeleting"
+              :disabled="isDeleting || readOnly"
               :aria-disabled="isPreviewLoading || undefined"
-              :title="mode === 'trash' ? messages.permanentlyDeleteCurrent : messages.deleteCurrent"
+              :title="
+                readOnly
+                  ? readOnlyHint
+                  : mode === 'trash'
+                    ? messages.permanentlyDeleteCurrent
+                    : messages.deleteCurrent
+              "
               @click="handleDeleteClick"
             >
               <Trash2 :size="18" />

@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import { isAlbumPhoto } from './utils/photoGrouping'
+import { readCompatibleAlbum } from './utils/file-system/compatibleAlbum'
+import { exportCompatiblePhotos } from './utils/file-system/compatiblePhotoExport'
+import { requestBlobDownload } from './utils/backup/downloadFallback'
+import { compatibleAlbumMessages, ALBUM_ACCESS_MODE_KEY } from './i18n/messages/compatibleAlbum'
+
 import {
   reportError as captureDiagnosticError,
   setDiagnosticModule
@@ -313,8 +319,14 @@ const {
   takeMovePending: takePhotoTransferMovePending,
   clearController: clearPhotoTransferController
 } = usePhotoTransfer()
-const { confirmDialog, openConfirmDialog, closeConfirmDialog } = useConfirmDialog()
+const { confirmDialog, openConfirmDialog, closeConfirmDialog, runSecondaryAction } =
+  useConfirmDialog()
 const albumDirectoryHandle = ref<FileSystemDirectoryHandle | null>(null)
+const isCompatibleAlbum = ref(false)
+const hasAlbum = computed(() => Boolean(albumDirectoryHandle.value) || isCompatibleAlbum.value)
+const compatibleMessages = computed(() => compatibleAlbumMessages[language.value])
+const compatibleAlbumInput = ref<HTMLInputElement | null>(null)
+
 const appShellRef = ref<HTMLElement | null>(null)
 let topBarResizeObserver: ResizeObserver | null = null
 let focusRefreshTimer: number | undefined
@@ -665,10 +677,10 @@ const {
   showCleanupAccountDialog,
   cleanupAccounts,
   cleanupRememberedChoice,
-  openCleanupDialog,
+  openCleanupDialog: openWritableCleanupDialog,
   authorizeCleanupFolder,
   resolveCleanupAccounts,
-  cleanSpecialItem,
+  cleanSpecialItem: cleanWritableSpecialItem,
   deleteMatchingLowQualityPhotos: cleanMatchingPhotos
 } = useGameCleanup({
   albumDirectoryHandle,
@@ -682,8 +694,21 @@ const {
   openConfirmDialog
 })
 
+function openCleanupDialog() {
+  if (isCompatibleAlbum.value) {
+    showStatus({ message: compatibleMessages.value.writeDisabled, tone: 'info' })
+    return
+  }
+  return openWritableCleanupDialog()
+}
+function cleanSpecialItem(...args: Parameters<typeof cleanWritableSpecialItem>) {
+  if (isCompatibleAlbum.value) return
+  return cleanWritableSpecialItem(...args)
+}
+
 function deleteMatchingLowQualityPhotos() {
-  if (activeView.value === 'trash' || activeView.value === 'outfits') return
+  if (isCompatibleAlbum.value || activeView.value === 'trash' || activeView.value === 'outfits')
+    return
   return cleanMatchingPhotos(scopedSelectedPhotos.value)
 }
 // 通用通知、偏好与持久化
@@ -696,8 +721,9 @@ watch(
   { deep: true }
 )
 async function resolveActionCandidateUids(): Promise<string[]> {
+  if (isCompatibleAlbum.value) return getSavedCameraParamUids()
   const source = sharedOutfitSource.value ?? (await ensureSharedOutfitSource(true, false))
-  if (!source) return []
+  if (!source) return getSavedCameraParamUids()
   const [directoryUids, savedUids] = await Promise.all([
     listGamePlayPhotoAccounts(source.x6GameDirectory),
     getSavedCameraParamUids()
@@ -706,15 +732,17 @@ async function resolveActionCandidateUids(): Promise<string[]> {
 }
 
 watch(
-  [autoParseActionsEnabled, photos, albumDirectoryHandle],
-  ([enabled, currentPhotos, directory], previous) => {
-    if (!directory || !currentPhotos.length) {
+  [autoParseActionsEnabled, photos, albumDirectoryHandle, isCompatibleAlbum],
+  ([enabled, currentPhotos, directory, compatible], previous) => {
+    if ((!directory && !compatible) || !currentPhotos.length) {
       photoActionParsing.cancel()
       return
     }
     void photoActionParsing.start(
       currentPhotos,
-      directory.name,
+      compatible
+        ? `compat:${directoryState.value.type !== 'none' ? directoryState.value.name : ''}`
+        : directory!.name,
       resolveActionCandidateUids,
       enabled,
       enabled && previous?.[0] === false
@@ -818,6 +846,8 @@ async function replaceAlbum(
       return
     }
     await saveAlbumDirectoryHandle(result.directoryHandle)
+    isCompatibleAlbum.value = false
+    writeLocalStorage(ALBUM_ACCESS_MODE_KEY, 'directory')
 
     releasePhotoUrls(photos.value)
     releasePhotoUrls(outfits.value)
@@ -863,6 +893,7 @@ async function replaceAlbum(
 
 const { restoreSavedDirectory, restoreSavedX6GameAuthorization, chooseDirectory } =
   useDirectorySession({
+    language,
     activeOperation,
     isAnyFileOperationBusy,
     statusState,
@@ -873,6 +904,105 @@ const { restoreSavedDirectory, restoreSavedX6GameAuthorization, chooseDirectory 
     replaceAlbum,
     createErrorStatus
   })
+
+/** 用户点击时同步打开选择器，避免选择过程触发焦点刷新。 */
+function chooseCompatibleAlbum() {
+  if (isAnyFileOperationBusy.value) return
+  suppressNextFocusRefresh = true
+  if (compatibleAlbumInput.value) {
+    compatibleAlbumInput.value.value = ''
+    compatibleAlbumInput.value.click()
+  }
+}
+function cancelCompatibleAlbum() {
+  suppressNextFocusRefresh = false
+}
+async function loadCompatibleAlbum(event: Event) {
+  suppressNextFocusRefresh = false
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files ?? [])
+  input.value = ''
+  if (!files.length || isAnyFileOperationBusy.value) return
+  activeOperation.value = 'loading'
+  try {
+    const result = await readCompatibleAlbum(files)
+    if (!result.photos.length) {
+      showStatus({ message: compatibleMessages.value.empty, tone: 'warning' })
+      return
+    }
+    await operations.waitForPending()
+    if (appDisposed) return
+    resetLoadedAlbumState()
+    albumDirectoryHandle.value = null
+    isCompatibleAlbum.value = true
+    directoryState.value = { type: 'selected', name: result.directoryName }
+    photos.value = result.photos
+    activeView.value = 'all'
+    isNoteDialogVisible.value = false
+    noteDialogPhoto.value = null
+    writeLocalStorage(ALBUM_ACCESS_MODE_KEY, 'compatible')
+    showStatus({ message: compatibleMessages.value.hint, tone: 'success' })
+  } catch (error) {
+    statusState.value = createErrorStatus(error, { type: 'readFailed' })
+  } finally {
+    if (activeOperation.value === 'loading') activeOperation.value = null
+  }
+}
+
+async function downloadCompatiblePhotos(source: PhotoItem[]) {
+  activeOperation.value = 'exporting-photos'
+  beginPhotoTransfer('export', locale.value.selectionBar.exportPhotos)
+  showPreparedPhotoTransfer(source.length)
+  const controller = createPhotoTransferController()
+  const downloads: File[] = []
+  try {
+    await exportCompatiblePhotos(
+      source,
+      controller.signal,
+      (file) => {
+        downloads.push(file)
+        requestBlobDownload(file.name, file)
+      },
+      (completed) => {
+        updatePhotoTransferProgress({
+          completed,
+          total: source.length,
+          succeeded: completed,
+          failedNames: [],
+          cancelled: false
+        })
+      }
+    )
+    markPhotoTransferCompleted()
+    showStatus({
+      message: compatibleMessages.value.exported,
+      tone: 'success',
+      downloadFiles: downloads
+    })
+  } catch (error) {
+    if (controller.signal.aborted) {
+      updatePhotoTransferProgress({
+        completed: photoTransfer.completed,
+        total: source.length,
+        succeeded: photoTransfer.succeeded,
+        failedNames: [],
+        cancelled: true
+      })
+    } else {
+      markPhotoTransferCompleted()
+      statusState.value = createErrorStatus(error, { type: 'readFailed' })
+    }
+    if (downloads.length)
+      showStatus({
+        message: compatibleMessages.value.exported,
+        tone: 'info',
+        downloadFiles: downloads
+      })
+  } finally {
+    if (activeOperation.value === 'exporting-photos') activeOperation.value = null
+    clearPhotoTransferController()
+  }
+}
 
 /** 清除页面内已加载的相册和选择状态。参数：无。 */
 function resetLoadedAlbumState(options: { clearSharedOutfit?: boolean } = {}) {
@@ -904,6 +1034,8 @@ async function clearDirectory() {
   }
   resetLoadedAlbumState({ clearSharedOutfit: false })
   albumDirectoryHandle.value = null
+  isCompatibleAlbum.value = false
+  removeLocalStorage(ALBUM_ACCESS_MODE_KEY)
   activeView.value = 'all'
   directoryState.value = { type: 'none' }
   statusState.value = { type: 'cleared' }
@@ -961,8 +1093,14 @@ async function clearData() {
   const confirmed = await openConfirmDialog({
     title: locale.value.app.clearDataDialogTitle,
     message: locale.value.app.clearDataFirstConfirmMessage,
+    sections: locale.value.app.clearDataSections,
+    consequence: locale.value.app.clearDataConsequence,
+    secondaryLabel: locale.value.app.clearDataBackup,
+    onSecondary: async () => {
+      await allDataBackupRef.value?.exportData()
+    },
     tone: 'danger',
-    confirmLabel: locale.value.topBar.clearData,
+    confirmLabel: locale.value.app.clearDataConfirm,
     cancelLabel: locale.value.app.dialogCancel
   })
   // 确认期间可能有其他模块开始读写，重置前再次核对忙碌状态。
@@ -1312,6 +1450,10 @@ async function updateOutfitLibrary(announce = true, promptSharedAccess = announc
 /** 切换相册视图并清空上个视图的选中状态（重复点击当前视图不清空）。参数：view 为目标视图；电脑端进入搭配码时按用户偏好显示操作指南。 */
 function changeAlbumView(view: AlbumView) {
   if (navigationBusy.value) return
+  if (view === 'trash' && isCompatibleAlbum.value) {
+    showStatus({ message: compatibleMessages.value.trash, tone: 'info' })
+    return
+  }
   const isViewChanged = view !== activeView.value
   const isEnteringOutfits = view === 'outfits' && isViewChanged
   // 点击收藏夹入口时默认显示相机参数。
@@ -1474,7 +1616,7 @@ async function editPhotoNote(photo: PhotoDisplayItem | null) {
 }
 
 function openPhotoParams(photo: PhotoDisplayItem) {
-  if (!('fileHandle' in photo)) return
+  if (!isAlbumPhoto(photo)) return
   reopenParseToolsAfterPhotoClose.value = false
   return photoParams.openForPhoto(photo as PhotoItem)
 }
@@ -1645,6 +1787,7 @@ async function pickPhotoExportDirectory(): Promise<FileSystemDirectoryHandle | n
 async function exportAlbumPhotos(targets: PhotoItem[], allPhotos = false) {
   const source = allPhotos ? photos.value : targets
   if (!source.length || isAnyFileOperationBusy.value) return
+  if (isCompatibleAlbum.value) return downloadCompatiblePhotos(source)
   let directory: FileSystemDirectoryHandle
   try {
     const picked = await pickPhotoExportDirectory()
@@ -1689,7 +1832,7 @@ function cancelPhotoTransfer() {
 async function closePhotoTransfer() {
   if (photoTransfer.phase === 'running' || photoTransfer.phase === 'preparing') return
   const succeededPhotos = takePhotoTransferMovePending()
-  if (!succeededPhotos?.length) return
+  if (isCompatibleAlbum.value || !succeededPhotos?.length) return
   const confirmed = await openConfirmDialog({
     title: locale.value.app.exportMoveSourceTitle,
     message: locale.value.app.exportMoveSourceConfirm(succeededPhotos.length),
@@ -1917,12 +2060,14 @@ function importAllDataFromMenu() {
       :view-messages="locale.viewNav"
       :directory-supported="directorySupported"
       @change-view="changeAlbumView"
-      :directory-name="directoryName"
+      :directory-name="
+        isCompatibleAlbum ? `${directoryName} · ${compatibleMessages.readOnly}` : directoryName
+      "
       :is-loading="isLoading || activeOperation === 'all-data-backup'"
       :backup-disabled="allBackupDisabled"
       :has-backup-data="hasBackupData"
       :is-deleting="isDeleting || isTrashBusy"
-      :has-album-directory="Boolean(albumDirectoryHandle)"
+      :has-album-directory="hasAlbum"
       :has-x6-game-authorization="hasX6GameAuthorization"
       :thumbnail-mode="displayedThumbnailMode"
       :thumbnail-mode-disabled="isThumbnailModeDisabled"
@@ -1941,6 +2086,10 @@ function importAllDataFromMenu() {
       "
       :search-query="searchQuery"
       @choose-directory="chooseDirectory"
+      @choose-compatible="chooseCompatibleAlbum"
+      :compatible-label="compatibleMessages.open"
+      :album-read-only="isCompatibleAlbum"
+      :read-only-hint="compatibleMessages.writeDisabled"
       @clear-directory="clearDirectory"
       @authorize-x6-game="authorizeX6GameDirectory"
       @open-cleanup="openCleanupDialog"
@@ -1991,11 +2140,21 @@ function importAllDataFromMenu() {
       @restored="refreshAfterArchiveSync"
     />
 
+    <input
+      ref="compatibleAlbumInput"
+      data-testid="compatible-album-input"
+      type="file"
+      webkitdirectory
+      multiple
+      hidden
+      @change="loadCompatibleAlbum"
+      @cancel="cancelCompatibleAlbum"
+    />
     <main
       class="album-layout"
       :class="{
         'without-album':
-          !albumDirectoryHandle &&
+          !hasAlbum &&
           activeView !== 'outfits' &&
           activeView !== 'home' &&
           activeView !== 'resonance' &&
@@ -2014,6 +2173,8 @@ function importAllDataFromMenu() {
           :favorite-count="favoriteCount + cameraFavoriteCodes.length"
           :favorite-count-text="`${favoriteCount + cameraFavoriteCodes.length} ${language === 'zh' ? '项' : 'items'}`"
           :trash-count="recentlyDeleted.length"
+          :trash-disabled="isCompatibleAlbum"
+          :trash-disabled-hint="compatibleMessages.trash"
           :outfit-label="outfitLocale.viewName"
           :disabled="navigationBusy"
           :messages="locale.viewNav"
@@ -2092,6 +2253,16 @@ function importAllDataFromMenu() {
 
       <section class="album-content" :aria-label="locale.app.albumContentAria">
         <div
+          v-if="isCompatibleAlbum && activeView === 'all'"
+          class="compatible-album-notice"
+          role="status"
+        >
+          <span>{{ compatibleMessages.readOnly }} · {{ compatibleMessages.hint }}</span>
+          <button type="button" :disabled="isAnyFileOperationBusy" @click="chooseCompatibleAlbum">{{
+            compatibleMessages.reselect
+          }}</button>
+        </div>
+        <div
           v-if="compactLayout && (activeView === 'resonance' || activeView === 'wardrobe')"
           class="archive-main-toolbar"
           :class="{ 'is-wardrobe': activeView === 'wardrobe' }"
@@ -2160,12 +2331,13 @@ function importAllDataFromMenu() {
             >
           </nav>
           <CollectionActions
-            v-if="favoriteTab === 'photos' && albumDirectoryHandle"
+            v-if="favoriteTab === 'photos' && hasAlbum"
             class="outfit-header-actions photo-header-actions"
             :label="mobileText('页面操作', 'Page actions')"
             ><button
               type="button"
-              :disabled="isAnyFileOperationBusy"
+              :disabled="isAnyFileOperationBusy || isCompatibleAlbum"
+              :title="isCompatibleAlbum ? compatibleMessages.writeDisabled : undefined"
               @click="openPhotoImportPicker"
             >
               <Download :size="16" aria-hidden="true" />{{
@@ -2230,7 +2402,7 @@ function importAllDataFromMenu() {
         />
         <div
           v-if="
-            !albumDirectoryHandle &&
+            !hasAlbum &&
             activeView !== 'outfits' &&
             activeView !== 'home' &&
             activeView !== 'resonance' &&
@@ -2242,14 +2414,27 @@ function importAllDataFromMenu() {
           <div class="empty-start-mark" aria-hidden="true"></div>
           <h2>{{ locale.grid.emptyTitle }}</h2>
           <p>{{ locale.grid.emptyDescription }}</p>
-          <button
-            class="primary-button"
-            type="button"
-            :disabled="isLoading"
-            @click="chooseDirectory"
-          >
-            {{ isLoading ? locale.topBar.loading : locale.topBar.chooseDirectory }}
-          </button>
+          <div class="empty-album-actions">
+            <button
+              class="primary-button"
+              type="button"
+              :disabled="isLoading"
+              @click="chooseDirectory"
+            >
+              {{ isLoading ? locale.topBar.loading : locale.topBar.chooseDirectory }}
+            </button>
+            <button
+              type="button"
+              class="album-compatible-button"
+              :disabled="isAnyFileOperationBusy"
+              @click="chooseCompatibleAlbum"
+              >{{ compatibleMessages.open }}</button
+            >
+          </div>
+          <div class="empty-album-guidance">
+            <p>{{ compatibleMessages.openingHint }}</p>
+            <p class="empty-album-reload-hint">{{ compatibleMessages.reloadHint }}</p>
+          </div>
           <p class="recommended-path">{{ locale.grid.recommendedPath }}</p>
           <p class="hidden-folder-tip">{{ locale.grid.hiddenFolderTip }}</p>
         </div>
@@ -2339,7 +2524,8 @@ function importAllDataFromMenu() {
             :label="mobileText('页面操作', 'Page actions')"
             ><button
               type="button"
-              :disabled="isAnyFileOperationBusy"
+              :disabled="isAnyFileOperationBusy || isCompatibleAlbum"
+              :title="isCompatibleAlbum ? compatibleMessages.writeDisabled : undefined"
               @click="openPhotoImportPicker"
             >
               <Download :size="16" aria-hidden="true" />{{
@@ -2474,7 +2660,9 @@ function importAllDataFromMenu() {
           @toggle-outfit="toggleOutfit"
         />
         <PhotoGrid
-          v-else-if="albumDirectoryHandle && !isCameraFavoritesView"
+          v-else-if="hasAlbum && !isCameraFavoritesView"
+          :read-only="isCompatibleAlbum"
+          :read-only-hint="compatibleMessages.writeDisabled"
           :date-groups="formattedDateGroups"
           :action-groups="actionGroups"
           :grouping-mode="sidebarMode"
@@ -2504,6 +2692,8 @@ function importAllDataFromMenu() {
     />
 
     <SelectionBar
+      :read-only="isCompatibleAlbum && activeView !== 'outfits'"
+      :read-only-hint="compatibleMessages.writeDisabled"
       v-if="
         activeView !== 'home' &&
         activeView !== 'resonance' &&
@@ -2566,6 +2756,8 @@ function importAllDataFromMenu() {
     />
 
     <Lightbox
+      :read-only="isCompatibleAlbum && activeView !== 'outfits'"
+      :read-only-hint="compatibleMessages.writeDisabled"
       :photo="currentPreview"
       :has-previous="hasPreviousPreview"
       :has-next="hasNextPreview"
@@ -2783,6 +2975,10 @@ function importAllDataFromMenu() {
       :visible="confirmDialog.visible"
       :title="confirmDialog.title"
       :message="confirmDialog.message"
+      :sections="confirmDialog.sections"
+      :consequence="confirmDialog.consequence"
+      :secondary-label="confirmDialog.secondaryLabel"
+      @secondary="runSecondaryAction"
       :tone="confirmDialog.tone"
       :confirm-label="confirmDialog.confirmLabel"
       :cancel-label="confirmDialog.cancelLabel"

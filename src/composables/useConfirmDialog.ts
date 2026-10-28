@@ -1,11 +1,15 @@
 // 确认弹窗状态：将一次确认交互封装为可等待的 Promise 流程。
 import { ref } from 'vue'
-import type { ConfirmDialogTone } from '../components/ConfirmDialog.vue'
+import type { ConfirmDialogSection, ConfirmDialogTone } from '../components/ConfirmDialog.vue'
 
 export interface ConfirmDialogState {
   visible: boolean
   title: string
   message: string
+  sections?: ConfirmDialogSection[]
+  consequence?: string
+  secondaryLabel?: string
+  onSecondary?: () => void | Promise<void>
   tone: ConfirmDialogTone
   confirmLabel: string
   cancelLabel?: string
@@ -37,5 +41,11 @@ export function useConfirmDialog() {
     resolve?.(confirmed)
   }
 
-  return { confirmDialog, openConfirmDialog, closeConfirmDialog }
+  async function runSecondaryAction() {
+    const action = confirmDialog.value.onSecondary
+    closeConfirmDialog(false)
+    await action?.()
+  }
+
+  return { confirmDialog, openConfirmDialog, closeConfirmDialog, runSecondaryAction }
 }

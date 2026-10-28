@@ -130,6 +130,106 @@ describe('App lifecycle coordination', () => {
     document.body.innerHTML = ''
   })
 
+  it('opens compatible files without migration or persisted handles, preserves state on cancel/error and supports switching back', async () => {
+    getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+    const wrapper = mount(App, {
+      attachTo: document.body,
+      global: { stubs: { CameraFavorites: true, PhotoGrid: true, Lightbox: true } }
+    })
+    try {
+      await flushPromises()
+      vi.clearAllMocks()
+      const input = wrapper.get<HTMLInputElement>('[data-testid="compatible-album-input"]')
+      const file = new File(['photo'], '2026_04_26_21_05_24.jpeg', { lastModified: 1000 })
+      Object.defineProperty(file, 'webkitRelativePath', { value: `相册/${file.name}` })
+      Object.defineProperty(input.element, 'files', { configurable: true, value: [file] })
+      await input.trigger('change')
+      await flushPromises()
+      expect(wrapper.find('.compatible-album-notice').exists()).toBe(true)
+      expect(wrapper.find('.empty-album-start').exists()).toBe(false)
+      expect(wrapper.getComponent({ name: 'PhotoGrid' }).props('readOnly')).toBe(true)
+      expect(wrapper.getComponent({ name: 'AlbumViewSwitcher' }).props('trashDisabled')).toBe(true)
+      expect(saveAlbumDirectoryHandleMock).not.toHaveBeenCalled()
+      expect(readOutfitLibraryMock).not.toHaveBeenCalled()
+      expect(listRecentlyDeletedMock).not.toHaveBeenCalled()
+      const originalGroups = wrapper.getComponent({ name: 'PhotoGrid' }).props('dateGroups')
+      wrapper.getComponent({ name: 'AlbumViewSwitcher' }).vm.$emit('changeView', 'outfits')
+      await flushPromises()
+      expect(wrapper.find('.compatible-album-notice').exists()).toBe(false)
+      wrapper.getComponent({ name: 'AlbumViewSwitcher' }).vm.$emit('changeView', 'all')
+      await flushPromises()
+      expect(wrapper.find('.compatible-album-notice').exists()).toBe(true)
+      await input.trigger('cancel')
+      const nested = new File(['nested'], 'hidden.jpg')
+      Object.defineProperty(nested, 'webkitRelativePath', { value: '相册/trash/hidden.jpg' })
+      Object.defineProperty(input.element, 'files', { configurable: true, value: [nested] })
+      await input.trigger('change')
+      await flushPromises()
+      expect(wrapper.getComponent({ name: 'PhotoGrid' }).props('dateGroups')).toEqual(
+        originalGroups
+      )
+      const badMetadata = new File(['invalid'], 'album-metadata.json')
+      Object.defineProperties(badMetadata, {
+        webkitRelativePath: { value: '相册/album-metadata.json' },
+        text: { value: async () => '{invalid' }
+      })
+      Object.defineProperty(input.element, 'files', {
+        configurable: true,
+        value: [file, badMetadata]
+      })
+      await input.trigger('change')
+      await flushPromises()
+      expect(wrapper.getComponent({ name: 'PhotoGrid' }).props('dateGroups')).toEqual(
+        originalGroups
+      )
+      const grid = wrapper.getComponent({ name: 'PhotoGrid' })
+      const photos = grid.props('dateGroups')[0].photos
+      grid.vm.$emit('togglePhoto', photos[0].id)
+      await flushPromises()
+      const selection = wrapper.getComponent({ name: 'SelectionBar' })
+      expect(selection.props('readOnly')).toBe(true)
+      selection.vm.$emit('delete')
+      grid.vm.$emit('editNote', photos[0])
+      await flushPromises()
+      expect(wrapper.findComponent({ name: 'PhotoNoteDialog' }).exists()).toBe(false)
+      const handle = {
+        name: 'regular',
+        getFileHandle: vi.fn().mockRejectedValue(new DOMException('missing', 'NotFoundError')),
+        async *entries() {}
+      } as unknown as FileSystemDirectoryHandle
+      vi.stubGlobal('showDirectoryPicker', vi.fn().mockResolvedValue(handle))
+      readAlbumDirectoryMock.mockResolvedValue({
+        directoryName: 'regular',
+        directoryHandle: handle,
+        photos: []
+      })
+      wrapper.getComponent({ name: 'TopBar' }).vm.$emit('chooseDirectory')
+      await flushPromises()
+      expect(wrapper.find('.compatible-album-notice').exists()).toBe(false)
+      expect(saveAlbumDirectoryHandleMock).toHaveBeenCalledWith(handle)
+      expect(localStorage.getItem('infinity-nikki-album-access-mode')).toBe('directory')
+    } finally {
+      wrapper.unmount()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('asks to reselect a compatible album after reload without accessing the retained directory', async () => {
+    localStorage.setItem('infinity-nikki-album-access-mode', 'compatible')
+    const wrapper = mount(App, {
+      attachTo: document.body,
+      global: { stubs: { CameraFavorites: true } }
+    })
+    try {
+      await flushPromises()
+      expect(getSavedAlbumDirectoryHandleMock).not.toHaveBeenCalled()
+      expect(readAlbumDirectoryMock).not.toHaveBeenCalled()
+      expect(document.body.textContent).toContain('重新选择文件夹')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('migrates half thumbnails and connects independent sizes across mobile and desktop', async () => {
     const listeners = new Set<() => void>()
     const query = {
@@ -365,7 +465,7 @@ describe('App lifecycle coordination', () => {
       wrapper.findComponent({ name: 'TopBar' }).vm.$emit('clearData')
       await nextTick()
       const dialog = wrapper.findComponent({ name: 'ConfirmDialog' })
-      expect(dialog.props('message')).toContain('永久删除')
+      expect(dialog.props('message')).toContain('无法撤销')
       expect(dialog.props('message')).toContain('请先导出备份')
       dialog.vm.$emit('confirm')
       await vi.waitFor(() =>

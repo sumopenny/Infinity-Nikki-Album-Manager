@@ -142,6 +142,16 @@ Click Choose / restore album folder and select the following directory directly.
 ...\InfinityNikki Launcher\InfinityNikki\X6Game\Saved\GamePlayPhotos\Your ID\NikkiPhotos_HighQuality
 ```
 
+#### Compatibility open (read-only)
+
+If normal authorization cannot open your game album, choose **Compatibility open (read-only)** from the current album menu or empty album page, then select the folder directly containing the photos. Files are read locally for this session, without uploading photos or changing the source folder.
+
+- Browse, filter, preview, favorite, parse parameters, and view existing notes. Enter a UID manually to parse parameters without X6Game authorization.
+- Only root images are shown; subfolders and `trash` images are excluded. Export downloads ZIP files containing photos and notes, split into parts of at most 128 MiB; individual photos are limited to 64 MiB.
+- Importing into the source folder, editing notes, deleting, restoring, and Special Cleanup are unavailable. Switch to normal directory authorization for these actions.
+- Use **Select folder again** for new photos. Reloading the page or reopening the site also requires reselection. Canceling, selecting an empty folder, or a read failure preserves the current album. The saved normal directory authorization is retained.
+- Favorites use relative paths, sizes, and modification times; identical metadata in same-named folder copies cannot be distinguished. Compatibility and normal mode photo favorites are separate. Original album photos are not persisted in browser storage.
+
 #### Photo controls
 
 | Action | Result |

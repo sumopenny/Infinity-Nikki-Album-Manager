@@ -36,6 +36,26 @@ function getButton(selector: string) {
 }
 
 describe('ConfirmDialog keyboard focus', () => {
+  it('keeps cancellation as the default when a backup action is available', async () => {
+    const { wrapper } = createDialog()
+    await wrapper.setProps({
+      visible: true,
+      sections: [
+        { title: '将清除', items: ['本地收藏'] },
+        { title: '会保留', text: '原始照片' }
+      ],
+      consequence: '页面将刷新',
+      secondaryLabel: '先导出备份'
+    })
+    await flushPromises()
+    expect(document.activeElement).toBe(getButton('.confirm-dialog-button.ghost'))
+    expect(document.body.textContent).toContain('原始照片')
+    expect(document.body.textContent).toContain('页面将刷新')
+    getButton('.confirm-dialog-button.secondary').click()
+    expect(wrapper.emitted('secondary')).toHaveLength(1)
+    expect(wrapper.emitted('confirm')).toBeUndefined()
+  })
+
   it.each(['danger', 'warning', 'info'] as const)(
     'chooses the safe initial focus for %s and returns to its trigger',
     async (tone) => {

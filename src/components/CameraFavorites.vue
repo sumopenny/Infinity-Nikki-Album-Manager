@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { readPhotoFile, isAlbumPhoto } from '../utils/photoGrouping'
+
 import { takeDownloadFiles } from '../utils/backup/downloadFallback'
 import { downloadBackupBlob } from '../utils/backup/zipBackup'
 import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
@@ -483,8 +485,8 @@ async function openFromResult(
       if (loadError.value) throw new Error(loadError.value)
       if (library.value.records.some((r) => r.code === normalizeCameraCode(result.rawCameraParams)))
         throw new DuplicateCameraCodeError()
-      const isAlbum = !!photo && 'fileHandle' in photo
-      const file = isAlbum ? await (photo as PhotoItem).fileHandle.getFile() : null
+      const isAlbum = !!photo && isAlbumPhoto(photo)
+      const file = isAlbum ? await readPhotoFile(photo as PhotoItem) : null
       busy.value = false
       await openEditor(null, result, isAlbum ? 'album' : photo ? 'tool' : 'manual', file)
     } catch (caught) {

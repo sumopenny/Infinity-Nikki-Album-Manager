@@ -1,3 +1,5 @@
+import { readLocalStorage } from '../utils/localStorage'
+import { ALBUM_ACCESS_MODE_KEY, compatibleAlbumMessages } from '../i18n/messages/compatibleAlbum'
 import type { Ref, ComputedRef } from 'vue'
 import type { LocaleMessages } from '../i18n'
 import type { PhotoItem } from '../utils/photoGrouping'
@@ -12,6 +14,7 @@ import type { ActiveOperation, StatusState, useOperationNotice } from './useOper
 
 export type DirectoryState = { type: 'none' } | { type: 'remembered' | 'selected'; name: string }
 interface DirectorySessionOptions {
+  language?: Ref<'zh' | 'en'>
   activeOperation: Ref<ActiveOperation | null>
   isAnyFileOperationBusy: ComputedRef<boolean>
   statusState: Ref<StatusState>
@@ -43,6 +46,14 @@ export function useDirectorySession(options: DirectorySessionOptions) {
   async function restoreSavedDirectory() {
     activeOperation.value = 'loading'
     try {
+      if (readLocalStorage(ALBUM_ACCESS_MODE_KEY) === 'compatible') {
+        statusState.value = {
+          type: 'custom',
+          message: compatibleAlbumMessages[options.language?.value ?? 'zh'].restore,
+          tone: 'info'
+        }
+        return
+      }
       const savedHandle = await getSavedAlbumDirectoryHandle()
       if (!savedHandle) return
       directoryState.value = { type: 'remembered', name: savedHandle.name }

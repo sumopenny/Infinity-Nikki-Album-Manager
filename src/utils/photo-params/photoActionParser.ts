@@ -1,3 +1,4 @@
+import { readPhotoFile } from '../photoGrouping'
 import type { PhotoItem, PhotoActionInfo } from '../photoGrouping'
 import { decodePhoto } from './wasmClient'
 import { PHOTO_ACTION_CATALOG_VERSION, resourceImage, resourceName } from './resourceManifest'
@@ -16,7 +17,7 @@ export async function parsePhotoAction(
   language: 'zh' | 'en'
 ): Promise<PhotoActionInfo> {
   try {
-    const bytes = new Uint8Array(await (await photo.fileHandle.getFile()).arrayBuffer())
+    const bytes = new Uint8Array(await (await readPhotoFile(photo)).arrayBuffer())
     const errors: string[] = []
     for (const uid of candidateUids) {
       const decoded = await decodePhoto<

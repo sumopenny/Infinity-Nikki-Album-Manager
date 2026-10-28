@@ -8,6 +8,8 @@ import { createPhotoLoadQueue } from '../utils/photoLoader'
 import LazyPhotoImage from './LazyPhotoImage.vue'
 
 const props = defineProps<{
+  readOnly?: boolean
+  readOnlyHint?: string
   dateGroups: DateGroup[]
   actionGroups?: ActionGroup[]
   groupingMode?: 'date' | 'action'
@@ -167,9 +169,10 @@ onBeforeUnmount(() => photoLoadQueue.cancel())
             <button
               class="photo-note-edit"
               type="button"
-              :title="messages.editNote"
+              :disabled="readOnly"
+              :title="readOnly ? readOnlyHint : messages.editNote"
               :aria-label="messages.editNote"
-              @click.stop="emit('editNote', photo)"
+              @click.stop="!readOnly && emit('editNote', photo)"
               ><Edit3 :size="16"
             /></button>
           </div>

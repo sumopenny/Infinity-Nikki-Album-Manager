@@ -64,9 +64,29 @@ export interface PhotoDisplayItem extends ParsedPhotoDate {
   note?: string
 }
 
-export interface PhotoItem extends PhotoDisplayItem {
+export interface DirectoryPhotoItem extends PhotoDisplayItem {
+  source?: 'directory'
   fileHandle: FileSystemFileHandle
   directoryHandle: FileSystemDirectoryHandle
+}
+
+export interface FilePhotoItem extends PhotoDisplayItem {
+  source: 'file'
+  file: File
+}
+
+export type PhotoItem = DirectoryPhotoItem | FilePhotoItem
+
+export function isAlbumPhoto(photo: object): photo is PhotoItem {
+  return 'fileHandle' in photo || ('source' in photo && photo.source === 'file')
+}
+
+export function isDirectoryPhoto(photo: PhotoItem): photo is DirectoryPhotoItem {
+  return photo.source !== 'file'
+}
+
+export function readPhotoFile(photo: PhotoItem): Promise<File> {
+  return photo.source === 'file' ? Promise.resolve(photo.file) : photo.fileHandle.getFile()
 }
 
 export type PhotoActionStatus = 'pending' | 'action' | 'none' | 'unparsed'
@@ -93,7 +113,7 @@ export interface ActionGroup {
   isSpecial?: 'none' | 'unparsed'
 }
 
-export interface RecentlyDeletedPhoto extends PhotoItem {
+export interface RecentlyDeletedPhoto extends DirectoryPhotoItem {
   albumDirectoryHandle?: FileSystemDirectoryHandle
   noteKey?: string
   trashName: string

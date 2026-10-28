@@ -21,7 +21,7 @@ export function normalizePhotoNote(value: unknown): string {
 }
 
 /** 严格识别元数据格式，损坏或未知版本必须保留原文件，不能当作空库覆盖。 */
-function parseAlbumMetadata(text: string): AlbumMetadata {
+export function parseAlbumMetadata(text: string): AlbumMetadata {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)

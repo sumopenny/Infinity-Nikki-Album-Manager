@@ -45,6 +45,10 @@ export interface LocaleMessages {
     x6GameAuthorizationCancelledStatus: string
     clearDataDialogTitle: string
     clearDataFirstConfirmMessage: string
+    clearDataSections: Array<{ title: string; items?: string[]; text?: string }>
+    clearDataConsequence: string
+    clearDataBackup: string
+    clearDataConfirm: string
     clearDataStatus: string
     languageUpdated: string
     themeUpdated: string
@@ -179,11 +183,13 @@ export interface LocaleMessages {
     date: string
     time: string
     direction: string
+    zodiac: string
     rating: string
     rows: Array<{
       date: string
       time: string
       direction: string
+      zodiac: string
       rating: string
       highlighted?: boolean
     }>

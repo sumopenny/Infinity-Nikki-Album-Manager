@@ -42,6 +42,48 @@ describe('Lightbox preview navigation', () => {
     loadPhotoMock.mockReset()
   })
 
+  it('loads File photos and blocks destructive clicks and Delete while allowing favorites and parsing', async () => {
+    const photo = {
+      ...createPhoto('photo.jpg'),
+      source: 'file' as const,
+      file: new File(['photo'], 'photo.jpg')
+    }
+    loadPhotoMock.mockResolvedValue('blob:photo')
+    const wrapper = mount(Lightbox, {
+      props: {
+        photo,
+        readOnly: true,
+        readOnlyHint: '只读',
+        hasPrevious: false,
+        hasNext: false,
+        isDeleting: false,
+        isFavorite: false,
+        keyboardEnabled: true,
+        mode: 'album',
+        messages: messages.zh.lightbox,
+        dateMessages: messages.zh.date
+      },
+      global: { stubs: { Teleport: true } }
+    })
+    try {
+      await flushPromises()
+      expect(loadPhotoMock).toHaveBeenCalled()
+      expect(wrapper.get('.lightbox-delete').attributes('disabled')).toBeDefined()
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete' }))
+      await wrapper.get('.lightbox-delete').trigger('click')
+      expect(wrapper.emitted('deleteCurrent')).toBeUndefined()
+      await wrapper.get(`[aria-label="${messages.zh.lightbox.parsePhoto}"]`).trigger('click')
+      expect(wrapper.emitted('parsePhoto')).toHaveLength(1)
+      await wrapper.get(`[aria-label="${messages.zh.lightbox.favorite}"]`).trigger('click')
+      expect(wrapper.emitted('toggleFavorite')).toHaveLength(1)
+      expect(
+        wrapper.get(`[aria-label="${messages.zh.lightbox.editNote}"]`).attributes('disabled')
+      ).toBeDefined()
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('keeps the delete button visually enabled while the next image is loading', async () => {
     const firstPhoto = createPhoto('2026_07_21_11_20_00.jpeg')
     const nextPhoto = createPhoto('2026_07_21_11_21_00.jpeg')

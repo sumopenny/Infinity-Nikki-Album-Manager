@@ -656,24 +656,6 @@ p.archive-cloud-note {
   color: var(--archive-secondary);
   font-size: 12px;
 }
-button.archive-cloud-confirm {
-  min-width: 88px;
-  min-height: 44px;
-  background: #f6ccca;
-  color: #61383d;
-  box-shadow: none;
-}
-button.archive-cloud-confirm:hover:not(:disabled) {
-  background: #eab1b3;
-  box-shadow: none;
-}
-button.archive-cloud-confirm.is-danger {
-  background: #a13e48;
-  color: #fff;
-}
-button.archive-cloud-confirm.is-danger:hover:not(:disabled) {
-  background: #872d38;
-}
 .archive-cloud-module input:focus-visible,
 .archive-cloud-details summary:focus-visible {
   outline: 2px solid var(--heading);

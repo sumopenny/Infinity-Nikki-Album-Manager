@@ -1,3 +1,4 @@
+import { isDirectoryPhoto } from '../photoGrouping'
 // 相册回收站：负责最近删除照片的读取、移动、恢复、永久删除和安全清空。
 import {
   datePartsFromTimestamp,
@@ -132,13 +133,16 @@ export async function movePhotosToRecentlyDeleted(
   const failedNames: string[] = []
   if (!photos.length) return { succeeded, movedPhotos, failedNames }
 
-  const albumDirectoryHandle = photos[0].directoryHandle
+  const writablePhotos = photos.filter(isDirectoryPhoto)
+  if (writablePhotos.length !== photos.length)
+    throw new DOMException('Read-only album', 'NotAllowedError')
+  const albumDirectoryHandle = writablePhotos[0].directoryHandle
   const trashDirectoryHandle = await albumDirectoryHandle.getDirectoryHandle(TRASH_DIRECTORY_NAME, {
     create: true
   })
 
   const results = await runWithConcurrency(
-    photos,
+    writablePhotos,
     async (photo) => {
       const deletedAt = Date.now()
       const wasFavorite = favoriteIds.has(photo.id)

@@ -1,3 +1,4 @@
+import { isDirectoryPhoto } from '../utils/photoGrouping'
 import { reportPartialFailure } from '../utils/errorReporting/errorReporter'
 import type { Ref, ComputedRef } from 'vue'
 import type { LocaleMessages } from '../i18n'
@@ -96,7 +97,13 @@ export function usePhotoTrashActions(options: PhotoTrashActionsOptions) {
    * 参数：targets 为目标照片，keepPreviewOpen 表示删除预览图后是否继续预览相邻照片。
    */
   async function movePhotosToTrash(targets: PhotoItem[], keepPreviewOpen = false) {
-    if (!targets.length || isAnyFileOperationBusy.value) return
+    if (
+      !albumDirectoryHandle.value ||
+      !targets.length ||
+      targets.some((photo) => !isDirectoryPhoto(photo)) ||
+      isAnyFileOperationBusy.value
+    )
+      return
     const confirmed = await openConfirmDialog({
       title: locale.value.trash.moveDialogTitle,
       message: locale.value.trash.confirmMove(targets.length),
@@ -203,7 +210,13 @@ export function usePhotoTrashActions(options: PhotoTrashActionsOptions) {
       clearDirectory?: boolean
     } = {}
   ) {
-    if (!targets.length || isAnyFileOperationBusy.value) return
+    if (
+      !albumDirectoryHandle.value ||
+      !targets.length ||
+      targets.some((photo) => !isDirectoryPhoto(photo)) ||
+      isAnyFileOperationBusy.value
+    )
+      return
     if (!options.skipConfirmation) {
       const confirmed = await openConfirmDialog({
         title: locale.value.trash.permanentDeleteDialogTitle,

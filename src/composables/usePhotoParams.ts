@@ -1,3 +1,4 @@
+import { readPhotoFile, isAlbumPhoto } from '../utils/photoGrouping'
 import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import { formatCameraParams } from '../utils/photo-params/formatCameraParams'
 import {
@@ -12,7 +13,7 @@ import {
 import { PhotoParseError } from '../utils/photo-params/parseError'
 import type { Language } from '../i18n'
 import type { PhotoParamsMessages } from '../i18n/messages/photoParams'
-import type { PhotoItem } from '../utils/photoGrouping'
+import type { FilePhotoItem, PhotoItem } from '../utils/photoGrouping'
 import { listGamePlayPhotoAccounts } from '../utils/file-system/directoryAccess'
 import {
   addSavedCameraParamUid,
@@ -111,6 +112,7 @@ export function usePhotoParams(options: {
   }
 
   async function openForPhoto(selectedPhoto: PhotoItem) {
+    if (selectedPhoto.source === 'file') return openForFile(selectedPhoto.file, selectedPhoto)
     const run = ++runId
     isVisible.value = true
     photo.value = selectedPhoto
@@ -128,7 +130,7 @@ export function usePhotoParams(options: {
       setStage('readingPhoto', 30)
       await nextTick()
       if (run !== runId) return null
-      const bytes = new Uint8Array(await (await selectedPhoto.fileHandle.getFile()).arrayBuffer())
+      const bytes = new Uint8Array(await (await readPhotoFile(selectedPhoto)).arrayBuffer())
       if (run !== runId) return
       const directoryUids = await listGamePlayPhotoAccounts(x6Game)
       if (run !== runId) return
@@ -148,10 +150,10 @@ export function usePhotoParams(options: {
     }
   }
 
-  async function openForFile(file: File) {
+  async function openForFile(file: File, sourcePhoto?: FilePhotoItem) {
     const run = ++runId
     isVisible.value = true
-    photo.value = { name: file.name } as PhotoItem
+    photo.value = sourcePhoto ?? { name: file.name }
     uploadFile.value = file
     result.value = null
     failure.value = null
@@ -160,7 +162,7 @@ export function usePhotoParams(options: {
       setStage('readingPhoto', 30)
       const bytes = new Uint8Array(await file.arrayBuffer())
       if (run !== runId) return
-      const x6Game = await getSavedX6GameDirectoryHandle()
+      const x6Game = sourcePhoto ? null : await getSavedX6GameDirectoryHandle()
       if (run !== runId) return
       const directoryUids = x6Game ? await listGamePlayPhotoAccounts(x6Game) : []
       if (run !== runId) return
@@ -197,8 +199,8 @@ export function usePhotoParams(options: {
     try {
       const bytes = uploadFile.value
         ? new Uint8Array(await uploadFile.value.arrayBuffer())
-        : 'fileHandle' in selectedPhoto
-          ? new Uint8Array(await (await selectedPhoto.fileHandle.getFile()).arrayBuffer())
+        : isAlbumPhoto(selectedPhoto)
+          ? new Uint8Array(await (await readPhotoFile(selectedPhoto)).arrayBuffer())
           : null
       if (!bytes || run !== runId) return
       const decoded = await decodePhoto<DecodedPhoto>(bytes, normalized)

@@ -5,6 +5,8 @@ import type { LocaleMessages } from '../i18n'
 export type SelectionBarMode = 'album' | 'favorites' | 'trash' | 'outfit'
 
 defineProps<{
+  readOnly?: boolean
+  readOnlyHint?: string
   mode: SelectionBarMode
   selectedCount: number
   allSelected: boolean
@@ -61,13 +63,20 @@ defineEmits<{
         <button
           class="selection-danger"
           type="button"
-          :disabled="isBusy"
-          @click="$emit('deleteRelated')"
+          :disabled="isBusy || readOnly"
+          :title="readOnly ? readOnlyHint : undefined"
+          @click="!readOnly && $emit('deleteRelated')"
         >
           <Trash2 :size="16" aria-hidden="true" />
           <span>{{ messages.deleteRelated }}</span>
         </button>
-        <button class="selection-danger" type="button" :disabled="isBusy" @click="$emit('delete')">
+        <button
+          class="selection-danger"
+          type="button"
+          :disabled="isBusy || readOnly"
+          :title="readOnly ? readOnlyHint : undefined"
+          @click="!readOnly && $emit('delete')"
+        >
           <Trash2 :size="16" aria-hidden="true" />
           <span>{{ messages.delete }}</span>
         </button>
@@ -77,7 +86,13 @@ defineEmits<{
           <RotateCcw :size="16" aria-hidden="true" />
           <span>{{ messages.restore }}</span>
         </button>
-        <button class="selection-danger" type="button" :disabled="isBusy" @click="$emit('delete')">
+        <button
+          class="selection-danger"
+          type="button"
+          :disabled="isBusy || readOnly"
+          :title="readOnly ? readOnlyHint : undefined"
+          @click="!readOnly && $emit('delete')"
+        >
           <Trash2 :size="16" aria-hidden="true" />
           <span>{{ allItemsSelected ? messages.clearAll : messages.permanentlyDelete }}</span>
         </button>

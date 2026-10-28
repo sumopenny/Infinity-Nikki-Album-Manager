@@ -1,3 +1,4 @@
+import { readPhotoFile } from '../photoGrouping'
 import { reportError as captureDiagnosticError } from '../errorReporting/errorReporter'
 // 相册图片传输：负责批量导入、并发导出、重名分配和可取消进度。
 import type { PhotoItem } from '../photoGrouping'
@@ -124,7 +125,7 @@ async function copyPhoto(
   name: string,
   photo: PhotoItem
 ): Promise<void> {
-  const source = await photo.fileHandle.getFile()
+  const source = await readPhotoFile(photo)
   await writeFile(directory, name, source)
 }
 

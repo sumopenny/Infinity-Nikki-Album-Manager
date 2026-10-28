@@ -9,6 +9,10 @@ export const updateLogZh: LocaleMessages['updateLog'] = {
   currentDate: '2026.10.26 更新',
   currentItems: [
     {
+      title: '新增相册兼容只读模式：',
+      text: '普通授权无法打开文件夹时，可选择“兼容打开（只读）”浏览、解析、收藏和导出照片；新照片需重新选择文件夹，原目录不可修改。'
+    },
+    {
       title: '全新网站图标：',
       text: '粉色透明礼盒里装着精致裙装与星光，周围环绕着丝带。寓意把暖暖世界中的每一份心动，都珍藏进小小的魔法盒里。同步更新网站顶栏、浏览器标签页与启动器图标。'
     },
@@ -584,6 +588,10 @@ export const updateLogEn: LocaleMessages['updateLog'] = {
   currentVersion: 'v2.2',
   currentDate: 'Updated 2026.10.26',
   currentItems: [
+    {
+      title: 'Read-only album compatibility mode:',
+      text: 'Use Compatibility open when normal folder authorization fails. Browse, parse, favorite, and export photos; select the folder again for new photos. Original files cannot be changed.'
+    },
     {
       title: 'New website icon: ',
       text: 'A transparent pink gift box holds an exquisite dress and starlight, surrounded by ribbons. It symbolizes treasuring every heartwarming moment in Nikki’s world inside a little magic box. Updated the website header, browser tab, and launcher icons.'

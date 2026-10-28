@@ -94,6 +94,7 @@ watch(
                       ><th>{{ messages.date }}</th
                       ><th>{{ messages.time }}</th
                       ><th>{{ messages.direction }}</th
+                      ><th>{{ messages.zodiac }}</th
                       ><th>{{ messages.rating }}</th></tr
                     ></thead
                   >
@@ -115,6 +116,7 @@ watch(
                         ><strong v-if="row.highlighted">{{ row.direction }}</strong
                         ><template v-else>{{ row.direction }}</template></td
                       >
+                      <td>{{ row.zodiac }}</td>
                       <td
                         ><strong v-if="row.highlighted">{{ row.rating }}</strong
                         ><template v-else>{{ row.rating }}</template></td

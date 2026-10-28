@@ -1,5 +1,5 @@
 // 相片对象地址：按需创建、缓存并释放图片 Object URL。
-import type { PhotoDisplayItem, PhotoItem } from '../photoGrouping'
+import { isAlbumPhoto, readPhotoFile, type PhotoDisplayItem } from '../photoGrouping'
 
 const pendingPhotoLoads = new WeakMap<PhotoDisplayItem, Promise<string>>()
 const releasedPhotos = new WeakSet<PhotoDisplayItem>()
@@ -13,7 +13,7 @@ export function formatFileSize(size: number): string {
 
 export async function readPhotoBlob(photo: PhotoDisplayItem): Promise<Blob> {
   if (photo.loadImageBlob) return photo.loadImageBlob()
-  if ('fileHandle' in photo) return (photo as PhotoItem).fileHandle.getFile()
+  if (isAlbumPhoto(photo)) return readPhotoFile(photo)
   throw new Error('Image source is unavailable')
 }
 

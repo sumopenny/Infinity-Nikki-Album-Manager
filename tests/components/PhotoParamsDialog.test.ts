@@ -4,6 +4,51 @@ import PhotoParamsDialog from '../../src/components/PhotoParamsDialog.vue'
 import { photoParamsEn, photoParamsZh as messages } from '../../src/i18n/messages/photoParams'
 
 describe('PhotoParamsDialog', () => {
+  it('keeps the UID form during retries and announces repeated failures', async () => {
+    const wrapper = mount(PhotoParamsDialog, {
+      props: {
+        visible: true,
+        photo: { name: 'photo.jpeg' },
+        uidRequired: true,
+        progress: { stage: 'error', percent: 100, message: '' },
+        result: null,
+        error: '未找到有效 UID 账号',
+        messages
+      },
+      global: { stubs: { Teleport: true } }
+    })
+    try {
+      const input = wrapper.get('input')
+      await input.setValue('123')
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        await wrapper.get('form').trigger('submit')
+        expect(wrapper.emitted('submitUid')).toHaveLength(attempt)
+        expect(wrapper.get('button[type="submit"]').text()).toContain(messages.uidParsing)
+        await wrapper.get('form').trigger('submit')
+        expect(wrapper.emitted('submitUid')).toHaveLength(attempt)
+        await wrapper.setProps({
+          error: null,
+          uidRequired: false,
+          progress: { stage: 'readingPhoto', percent: 30, message: '' }
+        })
+        expect(wrapper.find('input').exists()).toBe(true)
+        await wrapper.setProps({
+          error: '未找到有效 UID 账号',
+          uidRequired: true,
+          progress: { stage: 'error', percent: 100, message: '' }
+        })
+        expect(wrapper.get('[role="alert"]').text()).toContain(messages.uidMismatch)
+        expect((wrapper.get('input').element as HTMLInputElement).value).toBe('123')
+        expect(wrapper.get('input').attributes('aria-invalid')).toBe('true')
+        expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
+      }
+      await input.setValue('456')
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('shows a fixed placeholder when a resource image fails', async () => {
     const wrapper = mount(PhotoParamsDialog, {
       props: {
