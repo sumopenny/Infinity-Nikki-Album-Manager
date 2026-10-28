@@ -2,12 +2,7 @@ import { openDb, runStoreRequest } from '../file-system/database'
 import { loadWardrobeCatalog, type WardrobeCatalog } from './wardrobeCatalog'
 import { wardrobeRegionScope, type WardrobeRegionScope } from './wardrobeRegion'
 
-import {
-  emptyWardrobe,
-  validateWardrobe,
-  wardrobeBaseline,
-  type WardrobeSnapshot
-} from './wardrobeSchema'
+import { emptyWardrobe, validateWardrobe, type WardrobeSnapshot } from './wardrobeSchema'
 export {
   emptyWardrobe,
   validateWardrobe,
@@ -34,8 +29,7 @@ export async function loadWardrobe(): Promise<WardrobeSnapshot> {
 /** 读改写位于同一事务；导入和清空整份替换时验证基线，避免覆盖其他标签页的新数据。 */
 export async function updateWardrobe(
   change: (latest: WardrobeSnapshot) => WardrobeSnapshot,
-  expected?: string,
-  compare: (value: WardrobeSnapshot) => string = JSON.stringify
+  expected?: string
 ): Promise<WardrobeSnapshot> {
   const db = await openDb()
   return new Promise((resolve, reject) => {
@@ -59,7 +53,7 @@ export async function updateWardrobe(
       try {
         const current =
           request.result === undefined ? emptyWardrobe() : validateWardrobe(request.result)
-        if (expected !== undefined && compare(current) !== expected)
+        if (expected !== undefined && JSON.stringify(current) !== expected)
           throw new Error('WARDROBE_CHANGED')
         result = validateWardrobe(change(current))
         result.updatedAt = new Date().toISOString()
@@ -157,16 +151,4 @@ export async function mergeWardrobe(
     return catalog ? resolveUnknownWardrobeSuits(result, catalog) : result
   })
   return { saved, skipped }
-}
-
-/** 云端恢复只替换衣橱；比较与写入同一事务，输入先复制避免外部修改。 */
-export async function replaceWardrobeIfUnchanged(expected: string, incoming: WardrobeSnapshot) {
-  const data = validateWardrobe(incoming)
-  try {
-    return await updateWardrobe(() => data, expected, wardrobeBaseline)
-  } catch (error) {
-    if (error instanceof Error && error.message === 'WARDROBE_CHANGED')
-      throw new Error('LOCAL_CHANGED')
-    throw error
-  }
 }

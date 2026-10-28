@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Cloud, ChevronDown } from 'lucide-vue-next'
+import { Cloud } from 'lucide-vue-next'
 import { useCompactLayout } from '../composables/useCompactLayout'
 import DesktopMenuTransition from './DesktopMenuTransition.vue'
 
-defineProps<{ label: string; hideArrow?: boolean }>()
+defineProps<{ label: string }>()
 const compact = useCompactLayout()
 const opened = ref(false)
 const root = ref<HTMLElement | null>(null)
@@ -55,8 +55,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside))
     @focusout="opened && !root?.contains($event.relatedTarget as Node) && close()"
   >
     <button v-if="!compact" ref="trigger" type="button" :aria-expanded="opened" @click="toggle">
-      <Cloud :size="16" aria-hidden="true" />{{ label
-      }}<ChevronDown v-if="!hideArrow" :size="14" aria-hidden="true" />
+      <Cloud :size="16" aria-hidden="true" />{{ label }}
     </button>
     <DesktopMenuTransition>
       <!-- 隐藏而不卸载，确保选择云端操作后其弹窗与会话继续存在。 -->
@@ -116,8 +115,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside))
   padding: 10px 12px;
   justify-content: flex-start;
 }
-.cloud-actions-options :deep(.cloud-account),
-.cloud-actions-options :deep(.resonance-cloud-account) {
+.cloud-actions-options :deep(.cloud-account) {
   box-sizing: border-box;
   max-width: 240px;
 }

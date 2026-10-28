@@ -6,6 +6,9 @@ import 'fake-indexeddb/auto'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import ResonanceRecords from '../../src/components/ResonanceRecords.vue'
+vi.mock('../../src/components/ArchiveCloudActions.vue', () => ({
+  default: { template: '<span />' }
+}))
 import ResonanceImportDialog from '../../src/components/ResonanceImportDialog.vue'
 import MobileEmptyScreenshot from '../../src/components/MobileEmptyScreenshot.vue'
 import {

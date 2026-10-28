@@ -1886,3 +1886,28 @@
 .outfit-detail-image-placeholder .outfit-image-spinner {
   position: static;
 }
+
+/* 搭配码部件详情与衣橱共用形态导航，染色区域继续使用原有双栏。 */
+@media (min-width: 900px) {
+  .outfit-detail-panel.has-form-navigation {
+    display: grid;
+    width: min(1110px, 100%);
+    grid-template-columns: 150px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .outfit-detail-panel.is-single-column.has-form-navigation {
+    width: min(558px, 100%);
+  }
+  .outfit-detail-panel.has-form-navigation > header {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .outfit-detail-panel.has-form-navigation > .wardrobe-detail-scroll > .outfit-detail-content {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    border-left: 1px solid var(--line-soft);
+  }
+}

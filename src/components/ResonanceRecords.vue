@@ -10,7 +10,7 @@ import { useModuleOperation } from '../composables/useOperationCoordinator'
 const trackOperation = useModuleOperation('resonance')
 import ResonanceDataActions from './ResonanceDataActions.vue'
 import DataImportWindow from './DataImportWindow.vue'
-import ResonanceCloudActions from './ResonanceCloudActions.vue'
+import ArchiveCloudActions from './ArchiveCloudActions.vue'
 import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import WardrobeOutfitDialog from './WardrobeOutfitDialog.vue'
@@ -100,7 +100,6 @@ async function openPreview(id: string, kind: 'outfit' | 'item') {
 }
 const records = ref<ResonanceRecord[]>([])
 const recordsLoaded = ref(false)
-const cloudOpen = ref(false)
 const selectedSet = ref<Record<string, 1 | 2>>({})
 const compactLayout = useCompactLayout()
 const showAddDialog = ref(false)
@@ -166,12 +165,12 @@ function displayedSets(record: ResonanceRecord) {
 }
 
 function openDialog() {
-  if (props.disabled || cloudOpen.value) return
+  if (props.disabled) return
   clearNotice()
   showAddDialog.value = true
 }
 function exportRecords() {
-  if (props.disabled || cloudOpen.value) return
+  if (props.disabled) return
   if (!records.value.length) return
   try {
     const blob = new Blob([JSON.stringify(createResonanceExport(records.value), null, 2)], {
@@ -218,11 +217,14 @@ async function clearRecords() {
   })
 }
 
-async function reload() {
+/** 与衣橱保持相同刷新契约，调用方可汇总已保存但刷新失败的情况。 */
+async function reload(): Promise<boolean> {
   return trackOperation(async () => {
     try {
       records.value = await loadResonanceRecords()
+      selectedSet.value = {}
       recordsLoaded.value = true
+      return true
     } catch (error) {
       captureDiagnosticError(error, { module: 'resonance', action: 'load' })
       notify(
@@ -232,16 +234,12 @@ async function reload() {
           : 'Records could not be loaded. Reload the page and retry.',
         'error'
       )
+      return false
     }
   })
 }
 onMounted(reload)
 defineExpose({ reload })
-/** 云端恢复后同步列表并重置套数切换状态。 */
-function applyCloudRecords(restored: ResonanceRecord[]) {
-  records.value = restored
-  selectedSet.value = {}
-}
 </script>
 
 <template>
@@ -256,20 +254,17 @@ function applyCloudRecords(restored: ResonanceRecord[]) {
         :mobile-target="mobileActionsTarget"
         :label="language === 'zh' ? '共鸣操作' : 'Resonance actions'"
         :cloud-label="language === 'zh' ? '云端' : 'Cloud'"
-        :add-disabled="disabled || cloudOpen"
-        :clear-disabled="disabled || cloudOpen || !records.length || clearing"
-        :export-disabled="disabled || cloudOpen || !records.length"
+        :add-disabled="disabled"
+        :clear-disabled="disabled || !records.length || clearing"
+        :export-disabled="disabled || !records.length"
         @add="openDialog"
         @clear="requestClearRecords"
         @export="exportRecords"
       >
         <template #cloud
-          ><ResonanceCloudActions
+          ><ArchiveCloudActions
             :language="language"
             :disabled="disabled || showAddDialog || showClearConfirm"
-            @lock="cloudOpen = $event"
-            @restored="applyCloudRecords"
-            @notice="(message, tone) => notify('cloud-' + tone, message, tone)"
         /></template>
       </ResonanceDataActions>
     </header>

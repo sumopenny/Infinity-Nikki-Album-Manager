@@ -2,6 +2,9 @@ import 'fake-indexeddb/auto'
 import { mount, flushPromises, DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import PersonalWardrobe from '../../src/components/PersonalWardrobe.vue'
+vi.mock('../../src/components/ArchiveCloudActions.vue', () => ({
+  default: { template: '<span />' }
+}))
 import { clearAllBrowserData, runStoreRequest } from '../../src/utils/file-system/database'
 import { messages } from '../../src/i18n'
 import { loadWardrobe } from '../../src/utils/wardrobe/wardrobeStorage'
@@ -28,7 +31,7 @@ const openSuit = async (id = '1029402') => {
   return new DOMWrapper(document.querySelector<HTMLElement>('.wardrobe-dialog')!)
 }
 const reload = async () => {
-  await (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
+  await (wrapper.vm as unknown as { reload: () => Promise<boolean> }).reload()
   await flushPromises()
 }
 
@@ -293,6 +296,13 @@ describe('personal wardrobe interactions', () => {
     expect(document.querySelector('.wardrobe-form-popover')).toBeNull()
   })
 
+  it('reports a refresh failure to callers and reports success after recovery', async () => {
+    const reloadView = () => (wrapper.vm as unknown as { reload: () => Promise<boolean> }).reload()
+    vi.spyOn(storage, 'loadWardrobe').mockRejectedValueOnce(new Error('read failed'))
+    expect(await reloadView()).toBe(false)
+    expect(await reloadView()).toBe(true)
+  })
+
   it('shows a retry action after a failed load and recovers', async () => {
     vi.spyOn(storage, 'loadWardrobe').mockRejectedValueOnce(new Error('read failed'))
     await reload()
@@ -313,7 +323,7 @@ describe('personal wardrobe interactions', () => {
       .mockResolvedValueOnce(saved)
     vi.useFakeTimers()
     try {
-      const pending = (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
+      const pending = (wrapper.vm as unknown as { reload: () => Promise<boolean> }).reload()
       await vi.advanceTimersByTimeAsync(15000)
       await pending
       expect(wrapper.text()).toContain('衣橱加载失败或超时')
@@ -657,7 +667,7 @@ describe('personal wardrobe interactions', () => {
       ...storage.emptyWardrobe(),
       entries: { '1020100347': { owned: true, source: 'pearpal' } }
     }))
-    await (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
+    await (wrapper.vm as unknown as { reload: () => Promise<boolean> }).reload()
     await flushPromises()
     button('清空本地记录').click()
     await vi.waitFor(() => expect(document.querySelector('.confirm-dialog')).not.toBeNull())

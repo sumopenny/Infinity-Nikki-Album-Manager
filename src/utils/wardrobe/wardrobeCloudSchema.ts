@@ -27,13 +27,6 @@ export interface WardrobeCloudSnapshot extends WardrobeCloudHead {
   schemaVersion: 1
   data: WardrobeSnapshot | null
 }
-export interface WardrobeCloudWrite {
-  requestId: string
-  revision: number
-  schemaVersion?: 1
-  data?: WardrobeSnapshot
-}
-
 /** 前后端共用；补齐旧区服的副本不能替代本地预览基线。 */
 export function normalizeCloudWardrobe(value: unknown): WardrobeSnapshot {
   let data: WardrobeSnapshot

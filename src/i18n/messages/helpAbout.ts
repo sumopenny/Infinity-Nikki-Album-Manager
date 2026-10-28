@@ -2,17 +2,17 @@
 import type { HelpAboutDeviceContent, LocaleMessages } from '../types'
 
 const sharedNotesZh = [
-  '方案、相机参数收藏、共鸣记录和设置保存在当前浏览器中。共鸣可手动上传云端，在其他设备登录同一账号后下载；登录和本地修改不会自动同步。其他模块跨设备迁移仍使用备份，清理浏览器站点数据前请先备份或上传最新共鸣记录。',
+  '方案、相机参数收藏、共鸣记录和设置保存在当前浏览器中。共鸣与衣橱可在同一窗口勾选后手动上传云端，在其他设备登录同一账号后下载；登录和本地修改不会自动同步。其他模块跨设备迁移仍使用备份，清理浏览器站点数据前请先备份或上传最新共鸣与衣橱记录。',
   '“清除缓存”只清理解析缓存；“清除数据”永久删除当前浏览器中的全部方案、图片、标签、共鸣记录、收藏、UID、目录授权、迁移记录和设置，并重新加载回到初始状态。清除数据前请导出备份；云端账号和存档保留，该操作不会主动退出云端登录。两项操作都不会删除电脑中的原始照片、游戏文件和已导出的备份。',
-  '每个云同步账号只有一份存档。上传以全部本地记录覆盖云端，下载以完整云端记录覆盖本地；先核对账号和数量再确认。空记录不覆盖，版本冲突需重新预览。清空本地不删除云端；删除云端只需登录后确认，账号、登录状态和本地记录保留。',
+  '共鸣与衣橱共用账号和同步窗口，可勾选后一起上传、下载或删除云端存档。上传以所选本机完整存档覆盖云端，下载反向覆盖；请核对账号、数量和衣橱区服。所选模块共同提交，冲突需重新预览。云端无存档不清空本机；有效的 0 件衣橱可覆盖目标。清空本机不删除云端，删除云端需明确勾选范围，账号和本机记录保留。',
   '全部数据 ZIP 只备份当前浏览器中的记录，不包含云端账号、密码或登录状态；导入 ZIP 不会更新云端。需要备份最新云端记录时，先从云端同步再导出。',
   '删除方案或参数收藏前会要求确认；已删除的记录不能直接恢复，请用备份恢复需要保留的数据。',
   '美鸭梨导入凭据用于获取游戏记录，与本站云同步账号密码不同。凭据失效时按导入窗口提示重新获取；两类凭据都请妥善保管。云同步账号名为 4～32 位英文字母、数字或下划线，不区分大小写，密码为 6～128 个字符；不提供密码修改或找回。'
 ]
 const sharedNotesEn = [
-  'Schemes, camera favorites, resonance records and settings are stored in the current browser. Manually upload resonance records, then sign in to the same account on another device and download them. Login and local edits do not sync automatically. Other collections use backup files for migration; back up or upload your latest resonance records before clearing browser site data.',
+  'Schemes, camera favorites, resonance records and settings are stored in the current browser. Manually upload resonance and wardrobe together from the shared sync dialog, then sign in to the same account on another device and download them. Login and local edits do not sync automatically. Other collections use backup files for migration; back up or upload your latest resonance and wardrobe records before clearing browser site data.',
   'Clear cache only removes parse caches. Clear data permanently deletes all schemes, images, tags, resonance records, favorites, UIDs, directory authorizations, migration records and settings in this browser, then reloads to the initial state. Export a backup first. Cloud accounts and saves remain; this action does not sign you out of cloud sync. Neither action deletes original photos, game files or exported backups on your computer.',
-  'Each cloud account has one save. Upload replaces the cloud with all local records; download replaces all local records with the cloud save. Check the account and counts before confirming. Empty sources do not overwrite; conflicts require a new preview. Clearing local records leaves the cloud save. Cloud deletion requires confirmation while signed in and preserves your account, session and local records.',
+  'Resonance and wardrobe share an account and one sync dialog. Select modules to upload, download or delete together. Complete selected saves replace their destinations; check the account, counts and wardrobe region. Selected modules commit together; conflicts require a new preview. Missing cloud saves never clear local data; a valid zero-piece wardrobe can replace its destination. Deletion requires explicit selection and preserves your account and local records.',
   'A full-data ZIP backs up records in this browser, without cloud accounts, passwords or login sessions. Importing a ZIP does not update the cloud. Download the latest cloud records before exporting if needed.',
   'Deleting a scheme or camera favorite requires confirmation. Deleted records cannot be restored directly; use a backup to recover data you need to keep.',
   'Pear-Pal import credentials fetch game records and are separate from your cloud-sync username and password. Obtain fresh import credentials when prompted; keep both types private. Cloud usernames use 4–32 ASCII letters, digits or underscores, case-insensitive; passwords use 6–128 characters. Password changes and recovery are unavailable.'
@@ -110,7 +110,7 @@ const desktopZh: HelpAboutDeviceContent = {
       title: '备份与跨设备迁移',
       items: [
         '单个模块的导入导出位于页面操作区；共鸣使用 JSON，搭配、家园和相机收藏使用 ZIP。',
-        '共鸣可在源设备上传云端，在另一设备登录同一账号后从云端同步。迁移搭配、家园和相机收藏时，在“更多”导出全部数据 ZIP，传给另一设备后导入；游戏相册原图请另行保存。',
+        '共鸣与衣橱可在同一窗口勾选后在源设备上传云端，在另一设备登录同一账号后从云端同步。迁移搭配、家园和相机收藏时，在“更多”导出全部数据 ZIP，传给另一设备后导入；游戏相册原图请另行保存。',
         '导入会校验数据，并按各模块规则合并或处理冲突；重要数据建议先备份，再按提示操作。'
       ]
     },
@@ -234,7 +234,7 @@ const mobileZh: HelpAboutDeviceContent = {
     {
       title: '备份与电脑端能力',
       items: [
-        '共鸣可登录同一账号，通过手动上传和下载跨设备同步；搭配、家园和相机收藏继续使用“更多”的全部数据 ZIP 迁移。重要数据请定期备份。',
+        '共鸣与衣橱可登录同一账号，通过手动上传和下载跨设备同步；搭配、家园和相机收藏继续使用“更多”的全部数据 ZIP 迁移。重要数据请定期备份。',
         '导入前核对文件来源和内容，遇到冲突按提示处理；游戏相册原图需要另行保存。',
         '相册目录管理、游戏目录自动同步及专项清理需在支持目录授权的电脑浏览器使用。手机上传照片解析需要原始照片，若提示 UID，请输入对应账号的 UID。'
       ]
@@ -242,7 +242,7 @@ const mobileZh: HelpAboutDeviceContent = {
   ],
   notes: [
     ...sharedNotesZh,
-    '手机与电脑不会自动同步。共鸣可登录同一账号，在源设备上传后到目标设备从云端同步；搭配、家园和相机收藏通过备份迁移。',
+    '手机与电脑不会自动同步。共鸣与衣橱可登录同一账号，在源设备上传后到目标设备从云端同步；搭配、家园和相机收藏通过备份迁移。',
     '参数码、凭据或原始照片解析失败时，请检查输入及窗口提示；转存或压缩过的照片可能缺少原始参数。'
   ],
   operationSections: [
@@ -354,7 +354,7 @@ const desktopEn: HelpAboutDeviceContent = {
       title: 'Backups and migration',
       items: [
         'Collection import and export are in the page actions. Resonance uses JSON; outfits, home schemes and camera favorites use ZIP files.',
-        'For resonance, upload on the source device and sign in to the same account to download on another. For outfits, home schemes and camera favorites, export a full-data ZIP from More and import it on the destination. Save original game album photos separately.',
+        'For resonance and wardrobe, select both in the shared sync dialog, upload on the source device and sign in to the same account to download on another. For outfits, home schemes and camera favorites, export a full-data ZIP from More and import it on the destination. Save original game album photos separately.',
         'Imports validate data and apply the merge or conflict rules of each collection. Back up important data first, then follow the prompts.'
       ]
     },
@@ -486,7 +486,7 @@ const mobileEn: HelpAboutDeviceContent = {
   ],
   notes: [
     ...sharedNotesEn,
-    'Phone and computer records do not sync automatically. For resonance, sign in to the same account, upload on the source device and download on the destination. Transfer outfits, home schemes and camera favorites with backups.',
+    'Phone and computer records do not sync automatically. For resonance and wardrobe, sign in to the same account, upload on the source device and download on the destination. Transfer outfits, home schemes and camera favorites with backups.',
     'If code, credential or photo decoding fails, check the input and dialog prompts. Re-saved or compressed photos may lack original parameters.'
   ],
   operationSections: [
@@ -513,7 +513,7 @@ export const helpAboutZh: LocaleMessages['helpAbout'] = {
   intro:
     '暖立方（NikkiCube）是一个在浏览器中使用的无限暖暖工具集，帮助你整理搭配方案、家园方案、相机参数、共鸣记录和游戏照片。',
   privacyNote:
-    '照片在浏览器本地读取和处理。搭配码解析、共鸣导入和外部链接会请求对应服务；共鸣云同步连接本站服务，手动上传会将共鸣记录保存到云端，不上传本地照片。',
+    '照片在浏览器本地读取和处理。搭配码解析、共鸣导入和外部链接会请求对应服务；共鸣与衣橱云同步连接本站服务，手动上传会将所选模块存档保存到云端，不上传本地照片。',
   featuresTitle: '特色功能',
   tutorialTitle: '使用教程',
   notesTitle: '注意事项',
@@ -533,7 +533,7 @@ export const helpAboutEn: LocaleMessages['helpAbout'] = {
   intro:
     'NikkiCube is a browser-based Infinity Nikki toolkit for organizing outfits, home schemes, camera parameters, resonance records and game photos.',
   privacyNote:
-    'Photos are read and processed locally. Outfit-code decoding, resonance imports and external links contact the relevant services. Resonance cloud sync contacts this site; manual upload stores resonance records in the cloud without uploading local photos.',
+    'Photos are read and processed locally. Outfit-code decoding, resonance imports and external links contact the relevant services. Resonance and wardrobe cloud sync contacts this site; manual upload stores selected module saves in the cloud without uploading local photos.',
   featuresTitle: 'Highlights',
   tutorialTitle: 'How to use',
   notesTitle: 'Important notes',

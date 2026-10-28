@@ -467,7 +467,7 @@ useModalFocus(dialogOpen, panel, closeDialog)
 }
 .wardrobe-detail-heading {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   flex-wrap: wrap;
   min-width: 0;
   gap: 10px 22px;
@@ -475,7 +475,8 @@ useModalFocus(dialogOpen, panel, closeDialog)
 .wardrobe-detail-header h2 {
   min-width: 0;
   color: var(--heading);
-  font-size: 26px;
+  font-size: 24px;
+  font-weight: 700;
   font-family: 'Songti SC', 'SimSun', serif;
   overflow-wrap: anywhere;
 }
@@ -491,10 +492,26 @@ useModalFocus(dialogOpen, panel, closeDialog)
   font-size: 15px;
 }
 .wardrobe-detail-variant {
-  padding: 3px 13px;
-  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border: 1px solid color-mix(in srgb, var(--notice-warning) 28%, var(--line));
   border-radius: 999px;
+  background: color-mix(in srgb, var(--notice-warning) 8%, var(--surface-strong));
+  color: var(--heading);
   font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+@supports not (color: color-mix(in srgb, black, white)) {
+  .wardrobe-detail-variant {
+    border-color: #dbc4a8;
+    background: #fbf9f5;
+  }
+  :where(:root[data-theme='dark']) .wardrobe-detail-variant {
+    border-color: #806c54;
+    background: #2b2925;
+  }
 }
 .wardrobe-dialog-body {
   min-height: 0;
@@ -504,6 +521,25 @@ useModalFocus(dialogOpen, panel, closeDialog)
   display: grid;
   gap: 18px;
   line-height: 1.65;
+  background:
+    radial-gradient(
+      ellipse at bottom right,
+      color-mix(in srgb, var(--pink-deep) 10%, transparent) 0%,
+      transparent 80%
+    ),
+    linear-gradient(180deg, var(--surface-strong) 0%, var(--white) 100%);
+}
+@supports not (color: color-mix(in srgb, black, white)) {
+  .wardrobe-dialog-body {
+    background:
+      radial-gradient(ellipse at bottom right, rgba(201, 132, 134, 0.12) 0%, transparent 58%),
+      linear-gradient(180deg, var(--surface-strong) 0%, var(--white) 100%);
+  }
+  :where(:root[data-theme='dark']) .wardrobe-dialog-body {
+    background:
+      radial-gradient(ellipse at bottom right, rgba(239, 176, 178, 0.12) 0%, transparent 58%),
+      linear-gradient(180deg, var(--surface-strong) 0%, var(--white) 100%);
+  }
 }
 .wardrobe-overview {
   display: grid;
@@ -880,12 +916,15 @@ useModalFocus(dialogOpen, panel, closeDialog)
     padding: 14px;
     gap: 10px;
   }
+  .wardrobe-detail-heading {
+    gap: 8px 10px;
+  }
   .wardrobe-detail-header h2 {
-    font-size: 21px;
+    font-size: 16px;
   }
   .wardrobe-detail-header > button {
-    width: 40px;
-    height: 40px;
+    width: 30px;
+    height: 30px;
   }
   .wardrobe-overview,
   .wardrobe-overview.has-description {
@@ -902,6 +941,12 @@ useModalFocus(dialogOpen, panel, closeDialog)
   .wardrobe-suit-preview,
   .wardrobe-suit-summary {
     min-height: 140px;
+  }
+  .wardrobe-suit-copy h3 {
+    font-size: 16px;
+  }
+  .wardrobe-suit-message {
+    font-size: 11px;
   }
   .wardrobe-detail-parts {
     grid-template-columns: repeat(4, minmax(0, 1fr));

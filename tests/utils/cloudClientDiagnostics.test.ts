@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cloudRequest } from '../../src/utils/resonance/cloudClient'
-import { getWardrobeHead } from '../../src/utils/wardrobe/wardrobeCloudClient'
+import { getArchiveHead } from '../../src/utils/cloud/archiveClient'
+import { archiveHead } from '../fixtures/archiveCloud'
 import {
   annotateDiagnosticError,
   trackDiagnostic
@@ -19,9 +20,9 @@ const endpoints = [
     response: { revision: 0, updated_at: 0, active_snapshot: null, records: [] }
   },
   {
-    path: '/api/wardrobe/cloud',
-    request: () => getWardrobeHead(user),
-    response: { revision: 0, updated_at: 0, active_snapshot: null, summary: null }
+    path: '/api/archive/cloud',
+    request: () => getArchiveHead(user),
+    response: archiveHead()
   }
 ]
 

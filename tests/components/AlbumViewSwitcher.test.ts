@@ -55,8 +55,18 @@ describe('album view controls', () => {
     expect(arrow.classes()).toContain('is-open')
     expect(resonanceItem.find('.album-view-button').attributes('aria-expanded')).toBe('true')
     expect(resonanceItem.find('[role="menu"]').exists()).toBe(true)
+    // 悬停后点击入口应继续展开，不能直接跳转或将菜单关闭。
+    await resonanceItem.find('.album-view-button').trigger('click')
+    expect(wrapper.emitted('changeView')).toBeUndefined()
+    expect(resonanceItem.find('[role="menu"]').exists()).toBe(true)
     await resonanceItem.find('[role="menuitem"]').trigger('click')
     expect(wrapper.emitted('changeView')).toEqual([['resonance']])
+    // 无悬停时，点击入口也能展开菜单并选择衣橱。
+    await resonanceItem.find('.album-view-button').trigger('click')
+    expect(resonanceItem.find('.album-view-button').attributes('aria-expanded')).toBe('true')
+    await resonanceItem.findAll('[role="menuitem"]')[1]!.trigger('click')
+    expect(wrapper.emitted('changeView')).toEqual([['resonance'], ['wardrobe']])
+    wrapper.unmount()
   })
 })
 

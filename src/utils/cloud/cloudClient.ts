@@ -29,18 +29,21 @@ export async function requestCloud<T>(
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 90000)
   try {
-    const response = await diagnosticFetch(`${path}?action=${encodeURIComponent(action)}`, {
-      method: body === undefined ? 'GET' : 'POST',
-      credentials: 'same-origin',
-      cache: 'no-store',
-      signal: controller.signal,
-      headers: {
-        'X-Resonance-Request': '1',
-        ...(user ? { 'X-Resonance-Account': user.id } : {}),
-        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {})
-      },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) })
-    })
+    const response = await diagnosticFetch(
+      `${path}${path.includes('?') ? '&' : '?'}action=${encodeURIComponent(action)}`,
+      {
+        method: body === undefined ? 'GET' : 'POST',
+        credentials: 'same-origin',
+        cache: 'no-store',
+        signal: controller.signal,
+        headers: {
+          'X-Resonance-Request': '1',
+          ...(user ? { 'X-Resonance-Account': user.id } : {}),
+          ...(body !== undefined ? { 'Content-Type': 'application/json' } : {})
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) })
+      }
+    )
     const traceId = response.headers.get('X-Request-Id') ?? undefined
     const result = await response.json().catch(() => {
       throw new CloudRequestError('SERVER_ERROR', traceId)

@@ -151,6 +151,8 @@ describe('mobile navigation and collection controls', () => {
     await entry.trigger('pointerenter', { pointerType: 'touch' })
     await entry.trigger('mouseenter')
     await entry.get('button').trigger('click')
+    expect(wrapper.emitted('changeView')).toBeUndefined()
+    await wrapper.get('.resonance-nav-menu [role=menuitem]').trigger('click')
     expect(wrapper.emitted('changeView')).toEqual([['resonance']])
     expect(wrapper.find('.resonance-nav-menu').exists()).toBe(false)
   })

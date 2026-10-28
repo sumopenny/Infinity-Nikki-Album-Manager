@@ -3,8 +3,15 @@ import { nextTick, ref, watch } from 'vue'
 import { X } from 'lucide-vue-next'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
 import { useModalPresence } from '../composables/useModalPresence'
-const props = defineProps<{ visible: boolean; busy: boolean; title: string; cancelLabel: string }>()
-const emit = defineEmits<{ close: []; submit: []; lock: [value: boolean] }>()
+const props = defineProps<{
+  visible: boolean
+  busy: boolean
+  title: string
+  cancelLabel: string
+  archive?: boolean
+  destructive?: boolean
+}>()
+const emit = defineEmits<{ close: []; submit: [] }>()
 const visible = ref(props.visible)
 watch(
   () => props.visible,
@@ -24,7 +31,6 @@ watch(visible, async (value) => {
   }
 })
 watch(modal.present, (value) => {
-  emit('lock', value)
   if (!value) {
     dialog.value?.close()
     opener?.focus()
@@ -46,6 +52,7 @@ function close() {
         <div v-if="visible" class="dialog-overlay resonance-import-dialog" @click.self="close">
           <form
             class="dialog-panel resonance-import-panel resonance-cloud-panel"
+            :class="{ 'archive-cloud-panel': archive, 'is-destructive': destructive }"
             novalidate
             @submit.prevent="$emit('submit')"
           >
@@ -126,11 +133,45 @@ function close() {
   outline: 2px solid var(--heading);
   outline-offset: 2px;
 }
-.resonance-cloud-body :deep(.resonance-cloud-error) {
-  color: var(--notice-error);
-}
 .resonance-cloud-panel footer {
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+.archive-cloud-panel {
+  width: min(680px, 100%);
+}
+.archive-cloud-panel > header {
+  padding: 24px 28px 16px;
+}
+.archive-cloud-panel > header h2 {
+  font-size: 22px;
+}
+.archive-cloud-panel > header button {
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+.archive-cloud-panel .resonance-cloud-body {
+  padding: 16px 28px 24px;
+  gap: 20px;
+}
+.archive-cloud-panel footer {
+  padding: 16px 28px;
+}
+.archive-cloud-panel.is-destructive {
+  --dialog-accent: var(--notice-error);
+  width: min(620px, 100%);
+}
+@media (max-width: 540px) {
+  .archive-cloud-panel > header {
+    padding: 20px 20px 14px;
+  }
+  .archive-cloud-panel .resonance-cloud-body {
+    padding: 14px 20px 20px;
+    gap: 16px;
+  }
+  .archive-cloud-panel footer {
+    padding: 14px 20px;
+  }
 }
 </style>

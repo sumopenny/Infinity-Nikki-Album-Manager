@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { resonanceCloudMessages } from '../i18n/messages/resonanceCloud'
+import { cloudMessages } from '../i18n/messages/cloud'
 const props = defineProps<{ language: 'zh' | 'en'; registering: boolean; busy: boolean }>()
 const username = defineModel<string>('username', { required: true })
 const password = defineModel<string>('password', { required: true })
 const confirmation = defineModel<string>('confirmation', { required: true })
-const t = computed(() => resonanceCloudMessages[props.language])
+const t = computed(() => cloudMessages[props.language])
 </script>
 <template>
   <p>{{ t.credentials }}</p>

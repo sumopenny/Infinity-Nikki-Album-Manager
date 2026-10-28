@@ -430,3 +430,102 @@ it('keeps an already loaded image visible when retrying catalog details', async 
     wrapper.unmount()
   }
 })
+
+it.each([false, true])(
+  'switches wardrobe forms without copying worn dyes (mobile=%s)',
+  async (compact) => {
+    vi.stubGlobal('matchMedia', () => ({
+      matches: compact,
+      addEventListener() {},
+      removeEventListener() {}
+    }))
+    const catalogModule = await import('../../src/utils/wardrobe/wardrobeCatalog')
+    const storage = await import('../../src/utils/wardrobe/wardrobeStorage')
+    const catalog = await catalogModule.loadWardrobeCatalog()
+    const family = (entry: (typeof catalog.entries)[number]) => entry.familyRootId ?? entry.id
+    const original = catalog.entries.find(
+      (entry) =>
+        entry.kind === 'item' &&
+        entry.variant === 0 &&
+        catalog.entries.some(
+          (other) => other.kind === 'item' && other.variant > 0 && family(other) === family(entry)
+        )
+    )!
+    const evolved = catalog.entries.find(
+      (entry) => entry.kind === 'item' && entry.variant > 0 && family(entry) === family(original)
+    )!
+    const snapshotSpy = vi.spyOn(storage, 'loadWardrobe').mockResolvedValue({
+      ...storage.emptyWardrobe(),
+      entries: Object.fromEntries(
+        original.parts.map((id) => [id, { owned: true, source: 'pearpal' as const }])
+      ),
+      updatedAt: '2026-10-28T00:00:00Z'
+    })
+    const dyes = [{ targetGroupId: 1, featureTag: 1, paletteId: 18, slot: 2, color: '#ff0000' }]
+    parseOutfitCodeMock.mockResolvedValue({
+      code: 'forms-test',
+      wearingClothes: [{ itemId: Number(original.id), clothType: 10, outfitId: null }],
+      dyeItems: [{ itemId: Number(original.id), dyes, hasSpecialEffect: true }]
+    })
+    loadItemCatalogMock.mockResolvedValue(
+      new Map([
+        [
+          Number(original.id),
+          { id: Number(original.id), zh: original.name.zh, en: original.name.en, makeup: false }
+        ]
+      ])
+    )
+    loadOutfitDetailMock.mockImplementation(async (id, _outfit, _lang, name, swatches) => ({
+      ...detail,
+      itemId: id,
+      itemName: name,
+      dyes: swatches.length ? detail.dyes : []
+    }))
+    const wrapper = mount(OutfitParseDialog, {
+      props: {
+        visible: true,
+        code: 'forms-test',
+        language: 'zh',
+        messages: getOutfitMessages('zh')
+      },
+      attachTo: document.body,
+      global: { stubs: { Teleport: true, Transition: true } }
+    })
+    try {
+      await flushPromises()
+      await wrapper.get('.outfit-parse-item-button').trigger('click')
+      await flushPromises()
+      const panel = wrapper.get('.outfit-detail-panel').element
+      const nav = wrapper.get('.wardrobe-form-nav')
+      expect(nav.classes().includes('is-horizontal')).toBe(compact)
+      expect(nav.findAll('.wardrobe-form-owned')).toHaveLength(1)
+      expect(wrapper.findAll('.outfit-detail-table-wrap tbody tr')).toHaveLength(1)
+      const forms = catalog.entries
+        .filter((entry) => entry.kind === 'item' && family(entry) === family(original))
+        .sort((a, b) => a.variant - b.variant)
+      await nav
+        .findAll('button')
+        [forms.findIndex((entry) => entry.id === evolved.id)]!.trigger('click')
+      await flushPromises()
+      expect(wrapper.get('.outfit-detail-panel').element).toBe(panel)
+      expect(loadOutfitDetailMock.mock.lastCall?.[0]).toBe(Number(evolved.id))
+      expect(loadOutfitDetailMock.mock.lastCall?.[4]).toEqual([])
+      expect(loadOutfitDetailMock.mock.lastCall?.[6]).toBe(false)
+      expect(wrapper.find('.outfit-detail-dyes').exists()).toBe(false)
+      await nav
+        .findAll('button')
+        [forms.findIndex((entry) => entry.id === original.id)]!.trigger('click')
+      await flushPromises()
+      expect(loadOutfitDetailMock.mock.lastCall?.[4]).toEqual(dyes)
+      expect(loadOutfitDetailMock.mock.lastCall?.[6]).toBe(true)
+      expect(wrapper.findAll('.outfit-detail-table-wrap tbody tr')).toHaveLength(1)
+      await wrapper.get('.outfit-detail-panel header button').trigger('click')
+      await flushPromises()
+      expect(document.activeElement).toBe(wrapper.get('.outfit-parse-item-button').element)
+    } finally {
+      wrapper.unmount()
+      snapshotSpy.mockRestore()
+      vi.unstubAllGlobals()
+    }
+  }
+)

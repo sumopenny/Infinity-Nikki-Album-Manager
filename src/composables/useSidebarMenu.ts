@@ -1,7 +1,11 @@
-import { onBeforeUnmount, onMounted, ref, type CSSProperties } from 'vue'
+import { ref, watch, type CSSProperties, type Ref } from 'vue'
 
 /** 共用侧栏菜单定位：浮层移出滚动容器，空间不足时向上展开，外层滚动时收起。 */
-export function useSidebarMenu(close: () => void, getMenu: () => HTMLElement | null) {
+export function useSidebarMenu(
+  close: () => void,
+  getMenu: () => HTMLElement | null,
+  active: Readonly<Ref<boolean>> = ref(true)
+) {
   const menuStyle = ref<CSSProperties>({})
   function positionMenu(trigger: HTMLElement) {
     const box = trigger.getBoundingClientRect()
@@ -24,13 +28,18 @@ export function useSidebarMenu(close: () => void, getMenu: () => HTMLElement | n
     if (event.target instanceof Node && getMenu()?.contains(event.target)) return
     close()
   }
-  onMounted(() => {
-    window.addEventListener('scroll', onViewportChange, true)
-    window.addEventListener('resize', onViewportChange)
-  })
-  onBeforeUnmount(() => {
-    window.removeEventListener('scroll', onViewportChange, true)
-    window.removeEventListener('resize', onViewportChange)
-  })
+  watch(
+    active,
+    (enabled, _, onCleanup) => {
+      if (!enabled) return
+      window.addEventListener('scroll', onViewportChange, true)
+      window.addEventListener('resize', onViewportChange)
+      onCleanup(() => {
+        window.removeEventListener('scroll', onViewportChange, true)
+        window.removeEventListener('resize', onViewportChange)
+      })
+    },
+    { immediate: true, flush: 'sync' }
+  )
   return { menuStyle, positionMenu }
 }

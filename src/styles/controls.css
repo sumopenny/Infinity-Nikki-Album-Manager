@@ -83,6 +83,11 @@
   backdrop-filter: blur(8px);
   box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .wardrobe-form-popover {
+    background: var(--surface);
+  }
+}
 /* 两端形态浮层共用柔边遮罩、时长和缓动。 */
 .wardrobe-forms-enter-active,
 .wardrobe-forms-leave-active {
@@ -258,6 +263,11 @@ body .wardrobe-form-nav.is-horizontal button[aria-pressed='true'] strong {
   border-color: var(--pink-deep);
   box-shadow: var(--photo-hover-shadow);
 }
+.wardrobe-form-popover .wardrobe-form-nav.is-horizontal button:hover,
+.wardrobe-form-popover .wardrobe-form-nav.is-horizontal button:focus-visible {
+  border-color: var(--pink-deep);
+  box-shadow: var(--photo-hover-shadow);
+}
 .wardrobe-form-popover .wardrobe-form-nav.is-horizontal img {
   border: 0;
   border-radius: 4px;
@@ -308,6 +318,13 @@ body .wardrobe-form-nav.is-horizontal button[aria-pressed='true'] strong {
   box-shadow: 0 1px 4px rgb(0 0 0 / 10%);
   cursor: pointer;
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .wardrobe-mobile-form-toggle {
+    border: 1px solid var(--line);
+    background: var(--surface);
+  }
+}
+
 :is(.wardrobe-form-toggle, .wardrobe-mobile-form-toggle) svg {
   width: 16px;
   height: 16px;

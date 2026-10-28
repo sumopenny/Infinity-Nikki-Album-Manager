@@ -118,9 +118,21 @@ function status(entry: WardrobeEntry) {
   padding: 12px 20px 24px 36px;
   background: var(--surface-soft);
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .wardrobe-form-nav {
+    --form-selected-shadow: 0 1px 5px rgb(201 132 134 / 20%);
+  }
+}
+
 :where(:root[data-theme='dark']) .wardrobe-form-nav {
   --form-selected-shadow: 0 2px 8px color-mix(in srgb, var(--primary-button-bg) 52.4%, transparent);
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  :where(:root[data-theme='dark']) .wardrobe-form-nav {
+    --form-selected-shadow: 0 2px 8px rgb(239 176 178 / 52%);
+  }
+}
+
 button {
   box-sizing: border-box;
   position: relative;
@@ -206,6 +218,13 @@ button {
     0 0 0 4px color-mix(in srgb, var(--primary-button-bg) 12%, transparent),
     0 0 9px 2px color-mix(in srgb, var(--primary-button-bg) 28%, transparent);
 }
+@supports not (color: color-mix(in srgb, black, white)) {
+  .form-stage.is-current::after {
+    box-shadow:
+      0 0 0 4px var(--line),
+      0 0 9px 2px var(--primary-button-bg);
+  }
+}
 button[aria-pressed='true'],
 button:hover,
 button:focus-visible {
@@ -244,6 +263,11 @@ img {
     color-mix(in srgb, var(--surface) 78%, transparent) 16px,
     var(--surface) 100%
   );
+}
+@supports not (color: color-mix(in srgb, black, white)) {
+  .form-label {
+    background: linear-gradient(to bottom, transparent, var(--surface) 100%);
+  }
 }
 strong {
   flex-shrink: 0;

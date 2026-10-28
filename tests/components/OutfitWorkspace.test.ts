@@ -197,7 +197,7 @@ describe('outfit workspace components', () => {
     expect((wrapper.get('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(true)
   })
 
-  it('disables copying for pending outfits and opens them for editing from the status text', async () => {
+  it('shows pending status as text and opens editing only through the edit button', async () => {
     const pending = outfit('1', '')
     const wrapper = mount(OutfitGrid, {
       props: {
@@ -212,8 +212,23 @@ describe('outfit workspace components', () => {
 
     expect(wrapper.find('[title="复制搭配码"]').attributes('disabled')).toBeDefined()
     expect(wrapper.get('.outfit-card-parse').attributes('disabled')).toBeDefined()
-    await wrapper.find('.outfit-pending-code').trigger('click')
+    const status = wrapper.get('.outfit-pending-code')
+    expect(status.element.tagName).toBe('SPAN')
+    await status.trigger('click')
+    expect(wrapper.emitted('edit')).toBeUndefined()
+    expect(wrapper.emitted('toggleOutfit')).toEqual([[pending.id]])
+
+    const editButton = wrapper.get(
+      `.outfit-card-actions button[title="${getOutfitMessages('zh').edit}"]`
+    )
+    await editButton.trigger('click')
     expect(wrapper.emitted('edit')).toEqual([[pending]])
+    expect(wrapper.emitted('toggleOutfit')).toHaveLength(1)
+
+    await wrapper.setProps({ disabled: true })
+    expect((editButton.element as HTMLButtonElement).disabled).toBe(true)
+    ;(editButton.element as HTMLButtonElement).click()
+    expect(wrapper.emitted('edit')).toHaveLength(1)
   })
 
   it('emits parse without selecting the card', async () => {

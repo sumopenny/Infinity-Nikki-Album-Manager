@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import CatalogImage from './CatalogImage.vue'
+import WardrobeFormNav from './WardrobeFormNav.vue'
+import { wardrobeFamilyKey } from '../utils/wardrobe/wardrobeFamilies'
 // 搭配码解析窗口：调用解析 API 清洗出部件 ID 与染色数据，再叠加本地图鉴展示部件图标与名称。
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, toRef, watch } from 'vue'
 import { ExternalLink, RefreshCw, X } from 'lucide-vue-next'
@@ -74,11 +76,46 @@ const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detailRequest = useLatestRequest()
 const selectedDetail = ref<OutfitDetail | null>(null)
+const selectedWardrobeItem = computed(() => {
+  const entry = wardrobeCatalog.value?.byId.get(String(selectedDetail.value?.itemId))
+  return entry?.kind === 'item' ? entry : null
+})
+const hasDetailForms = computed(() => {
+  const entry = selectedWardrobeItem.value
+  return (
+    !!entry &&
+    (wardrobeCatalog.value?.entries ?? []).filter(
+      (candidate) => wardrobeFamilyKey(candidate) === wardrobeFamilyKey(entry)
+    ).length > 1
+  )
+})
+
+/** 穿戴部件保留搭配码染色，其他形态使用各自的原始详情。 */
+function selectDetailForm(entry: WardrobeEntry) {
+  const worn = items.value.find((item) => String(item.id) === entry.id)
+  const clothType = inferClothTypeFromItemId(Number(entry.id))
+  const typeLabel = getClothTypeLabel(clothType, props.language)
+  const name = entry.name[props.language]
+  void openItemDetail(
+    worn ?? {
+      id: Number(entry.id),
+      name: typeLabel ? `${name}(${typeLabel})` : name,
+      imageUrl: entry.image,
+      resolved: true,
+      outfitId: null,
+      clothType,
+      dyes: [],
+      hasSpecialEffect: false,
+      dyeColors: []
+    }
+  )
+}
 const loadedItemImages = ref(new Set<number>())
 const failedItemImages = ref(new Set<number>())
 const detailImageState = ref<'idle' | 'loaded' | 'failed'>('idle')
 let detailItem: ParseItemView | null = null
 let detailTrigger: HTMLButtonElement | null = null
+let detailTriggerItemId: number | null = null
 let requestId = 0
 let previousActiveElement: HTMLElement | null = null
 
@@ -117,8 +154,10 @@ async function openItemDetail(item: ParseItemView, event?: Event) {
   if (!item.resolved || !item.imageUrl) return
   const request = detailRequest.begin()
   detailItem = item
-  if (event)
+  if (event) {
     detailTrigger = event.currentTarget instanceof HTMLButtonElement ? event.currentTarget : null
+    detailTriggerItemId = item.id
+  }
   detailVisible.value = true
   detailLoading.value = true
   const preview = createOutfitDetailPreview(item.id, props.language, item.name)
@@ -127,6 +166,23 @@ async function openItemDetail(item: ParseItemView, event?: Event) {
     detailImageState.value = 'idle'
   selectedDetail.value = preview
   void nextTick(() => detailPanelRef.value?.querySelector('button')?.focus())
+  void loadWardrobeCatalog()
+    .then((value) => {
+      if (request.isCurrent()) wardrobeCatalog.value = value
+    })
+    .catch((error) => {
+      if (request.isCurrent())
+        captureDiagnosticError(error, { module: 'outfits', action: 'load-wardrobe-catalog' })
+      if (request.isCurrent() && selectedDetail.value) selectedDetail.value.loadError = true
+    })
+  void loadWardrobe()
+    .then((value) => {
+      if (request.isCurrent()) wardrobeSnapshot.value = value
+    })
+    .catch((error) => {
+      if (request.isCurrent())
+        captureDiagnosticError(error, { module: 'outfits', action: 'load-wardrobe-ownership' })
+    })
   try {
     try {
       const local = await loadLocalOutfitDetail(
@@ -154,15 +210,6 @@ async function openItemDetail(item: ParseItemView, event?: Event) {
     )
     if (!request.isCurrent()) return
     selectedDetail.value = result
-    void loadWardrobeCatalog()
-      .then((value) => {
-        if (request.isCurrent()) wardrobeCatalog.value = value
-      })
-      .catch((error) => {
-        if (request.isCurrent())
-          captureDiagnosticError(error, { module: 'outfits', action: 'load-wardrobe-catalog' })
-        if (request.isCurrent() && selectedDetail.value) selectedDetail.value.loadError = true
-      })
     void nextTick(() => {
       if (request.isCurrent()) detailPanelRef.value?.querySelector('button')?.focus()
     })
@@ -213,12 +260,22 @@ function closeItemDetail() {
   outfitPreview.value = null
   detailRequest.invalidate()
   const trigger = detailTrigger
+  const triggerItemId = detailTriggerItemId
   detailVisible.value = false
   detailLoading.value = false
   selectedDetail.value = null
-  trigger?.focus()
-  void nextTick(() => trigger?.focus())
+  // 图鉴补齐或切换形态可能重建原按钮，按部件 ID 找回当前节点。
+  const restoreFocus = () => {
+    if (detailVisible.value) return
+    const current = trigger?.isConnected
+      ? trigger
+      : panelRef.value?.querySelector<HTMLButtonElement>(`button[data-item-id="${triggerItemId}"]`)
+    current?.focus({ preventScroll: true })
+  }
+  restoreFocus()
+  void nextTick(restoreFocus)
   detailTrigger = null
+  detailTriggerItemId = null
 }
 
 /** 解析当前搭配码；重复解析会作废旧请求结果，避免慢响应覆盖新状态。 */
@@ -388,6 +445,7 @@ onBeforeUnmount(() => {
                 <button
                   v-if="item.imageUrl"
                   class="outfit-parse-item-button"
+                  :data-item-id="item.id"
                   type="button"
                   :aria-label="messages.parseOpenDetail(item.name)"
                   @click="openItemDetail(item, $event)"
@@ -449,7 +507,10 @@ onBeforeUnmount(() => {
         <section
           ref="detailPanelRef"
           class="outfit-editor-panel outfit-detail-panel"
-          :class="{ 'is-single-column': !selectedDetail?.dyes.length }"
+          :class="{
+            'is-single-column': !selectedDetail?.dyes.length,
+            'has-form-navigation': hasDetailForms
+          }"
         >
           <header>
             <h2>{{ messages.detailTitle }}</h2>
@@ -462,116 +523,129 @@ onBeforeUnmount(() => {
               <X :size="19" aria-hidden="true" />
             </button>
           </header>
-          <div
-            v-if="selectedDetail"
-            class="outfit-detail-content"
-            :class="{ 'is-single-column': !selectedDetail.dyes.length }"
-          >
-            <section class="outfit-detail-summary">
-              <div
-                class="outfit-detail-image-frame"
-                :class="{
-                  'is-image-loading': selectedDetail.detailImageUrl && detailImageState === 'idle'
-                }"
-                :aria-busy="!!selectedDetail.detailImageUrl && detailImageState === 'idle'"
-              >
-                <CatalogImage
-                  :language="language"
-                  v-if="selectedDetail.detailImageUrl"
-                  class="outfit-detail-image"
-                  loading="eager"
-                  fetchpriority="high"
-                  :class="{ 'is-loading': detailImageState === 'idle' }"
-                  referrerpolicy="no-referrer"
-                  :src="selectedDetail.detailImageUrl"
-                  :alt="selectedDetail.itemName"
-                  @load="markDetailImageLoaded"
-                  @error="markDetailImageFailed"
-                  @retry="detailImageState = 'idle'"
-                />
+          <div class="wardrobe-detail-scroll">
+            <WardrobeFormNav
+              v-if="hasDetailForms && selectedWardrobeItem"
+              ownership-icons
+              :entry="selectedWardrobeItem"
+              :catalog="wardrobeCatalog"
+              :snapshot="wardrobeSnapshot"
+              :language="language"
+              @select="selectDetailForm"
+            />
+            <div
+              v-if="selectedDetail"
+              class="outfit-detail-content"
+              :class="{ 'is-single-column': !selectedDetail.dyes.length }"
+            >
+              <section class="outfit-detail-summary">
                 <div
-                  v-if="selectedDetail.detailImageUrl && detailImageState === 'idle'"
-                  class="outfit-detail-image-placeholder"
-                  role="status"
+                  class="outfit-detail-image-frame"
+                  :class="{
+                    'is-image-loading': selectedDetail.detailImageUrl && detailImageState === 'idle'
+                  }"
+                  :aria-busy="!!selectedDetail.detailImageUrl && detailImageState === 'idle'"
                 >
-                  <span class="outfit-image-spinner" aria-hidden="true"></span>
-                  <span>{{ language === 'zh' ? '正在加载图片…' : 'Loading image…' }}</span>
-                </div>
-                <div
-                  v-else-if="!selectedDetail.detailImageUrl"
-                  class="outfit-detail-image is-missing"
-                  >{{ language === 'zh' ? '暂无图片' : 'No image' }}</div
-                >
-              </div>
-              <dl class="outfit-detail-info">
-                <div
-                  ><dt>{{ messages.detailOutfit }}</dt
-                  ><dd
-                    >{{ selectedDetail.outfitName || messages.detailOutfitUnavailable }}
-                    <button
-                      v-if="associatedOutfit"
-                      type="button"
-                      class="wardrobe-outfit-link"
-                      :aria-label="messages.detailOutfit + ': ' + selectedDetail.outfitName"
-                      :title="messages.detailOutfit"
-                      @click="openAssociatedOutfit"
-                    >
-                      <ExternalLink :size="15" aria-hidden="true" />
-                    </button> </dd
-                ></div>
-                <div
-                  ><dt>{{ messages.detailCurrentItem }}</dt
-                  ><dd>{{ selectedDetail.itemName }}</dd></div
-                >
-                <div
-                  ><dt>{{ messages.detailEvolution }}</dt
-                  ><dd>{{ selectedDetail.evolution }}</dd></div
-                >
-                <div
-                  ><dt>{{ messages.detailDyeCondition }}</dt
-                  ><dd>{{ selectedDetail.dyeCondition }}</dd></div
-                >
-              </dl>
-              <p v-if="selectedDetail.loadError" class="outfit-detail-error" role="alert">
-                {{ messages.detailLoadFailed }}
-                <button
-                  type="button"
-                  :disabled="detailLoading"
-                  @click="detailItem && openItemDetail(detailItem)"
-                  >{{ messages.parseRetry }}</button
-                >
-              </p>
-            </section>
-            <section v-if="selectedDetail.dyes.length" class="outfit-detail-dyes">
-              <h3>{{ messages.detailDyes }}</h3>
-              <div class="outfit-detail-table-wrap">
-                <table>
-                  <thead
-                    ><tr
-                      ><th>{{ messages.detailArea }}</th
-                      ><th>{{ messages.detailPalette }}</th
-                      ><th>{{ messages.detailSlot }}</th
-                      ><th>{{ messages.detailColor }}</th></tr
-                    ></thead
+                  <CatalogImage
+                    :language="language"
+                    v-if="selectedDetail.detailImageUrl"
+                    class="outfit-detail-image"
+                    loading="eager"
+                    fetchpriority="high"
+                    :class="{ 'is-loading': detailImageState === 'idle' }"
+                    referrerpolicy="no-referrer"
+                    :src="selectedDetail.detailImageUrl"
+                    :alt="selectedDetail.itemName"
+                    @load="markDetailImageLoaded"
+                    @error="markDetailImageFailed"
+                    @retry="detailImageState = 'idle'"
+                  />
+                  <div
+                    v-if="selectedDetail.detailImageUrl && detailImageState === 'idle'"
+                    class="outfit-detail-image-placeholder"
+                    role="status"
                   >
-                  <tbody>
-                    <tr v-for="(dye, index) in selectedDetail.dyes" :key="`${dye.area}-${index}`">
-                      <td>{{ dye.area }}</td
-                      ><td>{{
-                        dye.paletteId < 0 ? dye.paletteName : `${dye.paletteId} ${dye.paletteName}`
-                      }}</td
-                      ><td>{{ dye.slot ?? '—' }}</td>
-                      <td
-                        ><span class="outfit-detail-color"
-                          ><i :style="{ backgroundColor: dye.color }"></i
-                          ><code>{{ dye.color }}</code></span
-                        ></td
+                    <span class="outfit-image-spinner" aria-hidden="true"></span>
+                    <span>{{ language === 'zh' ? '正在加载图片…' : 'Loading image…' }}</span>
+                  </div>
+                  <div
+                    v-else-if="!selectedDetail.detailImageUrl"
+                    class="outfit-detail-image is-missing"
+                    >{{ language === 'zh' ? '暂无图片' : 'No image' }}</div
+                  >
+                </div>
+                <dl class="outfit-detail-info">
+                  <div
+                    ><dt>{{ messages.detailOutfit }}</dt
+                    ><dd
+                      >{{ selectedDetail.outfitName || messages.detailOutfitUnavailable }}
+                      <button
+                        v-if="associatedOutfit"
+                        type="button"
+                        class="wardrobe-outfit-link"
+                        :aria-label="messages.detailOutfit + ': ' + selectedDetail.outfitName"
+                        :title="messages.detailOutfit"
+                        @click="openAssociatedOutfit"
                       >
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </section>
+                        <ExternalLink :size="15" aria-hidden="true" />
+                      </button> </dd
+                  ></div>
+                  <div
+                    ><dt>{{ messages.detailCurrentItem }}</dt
+                    ><dd>{{ selectedDetail.itemName }}</dd></div
+                  >
+                  <div
+                    ><dt>{{ messages.detailEvolution }}</dt
+                    ><dd>{{ selectedDetail.evolution }}</dd></div
+                  >
+                  <div
+                    ><dt>{{ messages.detailDyeCondition }}</dt
+                    ><dd>{{ selectedDetail.dyeCondition }}</dd></div
+                  >
+                </dl>
+                <p v-if="selectedDetail.loadError" class="outfit-detail-error" role="alert">
+                  {{ messages.detailLoadFailed }}
+                  <button
+                    type="button"
+                    :disabled="detailLoading"
+                    @click="detailItem && openItemDetail(detailItem)"
+                    >{{ messages.parseRetry }}</button
+                  >
+                </p>
+              </section>
+              <section v-if="selectedDetail.dyes.length" class="outfit-detail-dyes">
+                <h3>{{ messages.detailDyes }}</h3>
+                <div class="outfit-detail-table-wrap">
+                  <table>
+                    <thead
+                      ><tr
+                        ><th>{{ messages.detailArea }}</th
+                        ><th>{{ messages.detailPalette }}</th
+                        ><th>{{ messages.detailSlot }}</th
+                        ><th>{{ messages.detailColor }}</th></tr
+                      ></thead
+                    >
+                    <tbody>
+                      <tr v-for="(dye, index) in selectedDetail.dyes" :key="`${dye.area}-${index}`">
+                        <td>{{ dye.area }}</td
+                        ><td>{{
+                          dye.paletteId < 0
+                            ? dye.paletteName
+                            : `${dye.paletteId} ${dye.paletteName}`
+                        }}</td
+                        ><td>{{ dye.slot ?? '—' }}</td>
+                        <td
+                          ><span class="outfit-detail-color"
+                            ><i :style="{ backgroundColor: dye.color }"></i
+                            ><code>{{ dye.color }}</code></span
+                          ></td
+                        >
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
           </div>
         </section>
       </div>

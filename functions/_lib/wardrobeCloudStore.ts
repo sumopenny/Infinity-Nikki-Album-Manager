@@ -1,4 +1,5 @@
 import { digest, fail, type CloudDB } from './cloudShared'
+import type { PreparedSnapshot, SnapshotStage } from './cloudSnapshot'
 import {
   normalizeCloudWardrobe,
   summarizeWardrobe,
@@ -9,17 +10,13 @@ import {
 import type { WardrobeSnapshot } from '../../src/utils/wardrobe/wardrobeSchema'
 
 export type WardrobeStage =
+  | SnapshotStage
   | 'origin'
   | 'session'
   | 'rate-limit'
   | 'body-read'
-  | 'validation'
   | 'summary-read'
   | 'snapshot-read'
-  | 'receipt-read'
-  | 'staging'
-  | 'commit'
-  | 'cleanup'
 type Stage = (value: WardrobeStage) => void
 type HeadRow = {
   revision: number
@@ -33,11 +30,11 @@ type HeadRow = {
   schema_version: number
   committed_revision: number | null
 }
-const headSQL = `SELECT s.revision,s.updated_at,s.active_snapshot,p.metadata_json,p.entry_count,p.owned_count,
+export const headSQL = `SELECT s.revision,s.updated_at,s.active_snapshot,p.metadata_json,p.entry_count,p.owned_count,
   p.unknown_suit_count,p.record_count,p.schema_version,p.committed_revision FROM cloud_wardrobe_state s
   LEFT JOIN cloud_wardrobe_snapshots p ON p.user_id=s.user_id AND p.id=s.active_snapshot WHERE s.user_id=?`
 
-function decodeHead(row?: HeadRow): WardrobeCloudHead {
+export function decodeHead(row?: HeadRow): WardrobeCloudHead {
   if (!row) return { revision: 0, updated_at: 0, active_snapshot: null, summary: null }
   const head: WardrobeCloudHead = {
     revision: row.revision,
@@ -75,6 +72,11 @@ export async function readWardrobeCloud(db: CloudDB, userId: string, complete: b
       )
       .bind(userId)
   ])
+  return decodeWardrobeSnapshot(result)
+}
+
+/** 统一档案下载复用同一批事务的结果，不再另读一次衣橱指针。 */
+export function decodeWardrobeSnapshot(result: { results: Record<string, unknown>[] }[]) {
   const row = result[0].results[0] as HeadRow | undefined
   const head = decodeHead(row)
   let data: WardrobeSnapshot | null = null
@@ -118,16 +120,14 @@ const receipt = (db: CloudDB, userId: string, id: string) =>
     .bind(userId, id)
     .first<Receipt>()
 
-/** 固定请求内容暂存后，以版本及会话为条件原子提交。回执先于版本检查。 */
-export async function writeWardrobeCloud(
+/** 校验版本并暂存完整衣橱快照，由调用方选择单模块或联合提交。 */
+export async function prepareWardrobeSnapshot(
   db: CloudDB,
   userId: string,
-  sessionHash: string,
   body: Record<string, unknown>,
   deleting: boolean,
-  stage: Stage,
-  traceId: string
-) {
+  stage: (value: SnapshotStage) => void
+): Promise<PreparedSnapshot> {
   stage('validation')
   const id = body.requestId
   const revision = body.revision
@@ -149,10 +149,9 @@ export async function writeWardrobeCloud(
   const previous = await receipt(db, userId, id)
   if (previous && previous.digest !== fingerprint) fail(409, 'CONFLICT')
   if (previous?.committed_revision != null) {
-    stage('cleanup')
-    await cleanupCommitted(db, userId, traceId)
-    return { revision: previous.committed_revision, replayed: true }
+    return { kind: 'replayed', revision: previous.committed_revision }
   }
+  stage('revision-read')
   await db
     .prepare('INSERT OR IGNORE INTO cloud_wardrobe_state(user_id) VALUES(?)')
     .bind(userId)
@@ -212,7 +211,7 @@ export async function writeWardrobeCloud(
   if (!claimed) fail(429, 'UPLOAD_PENDING')
   if (claimed.digest !== fingerprint) fail(409, 'CONFLICT')
   if (claimed.committed_revision != null)
-    return { revision: claimed.committed_revision, replayed: true }
+    return { kind: 'replayed', revision: claimed.committed_revision }
   const chunks: string[] = []
   let chunk: string[] = [],
     bytes = 2
@@ -241,6 +240,28 @@ export async function writeWardrobeCloud(
           .bind(userId, id, value, userId, id)
       )
     )
+  return { kind: 'staged', count: rows.length, fingerprint, createdAt: now }
+}
+
+/** 兼容旧客户端的单模块写入，共享准备逻辑并独立提交。 */
+export async function writeWardrobeCloud(
+  db: CloudDB,
+  userId: string,
+  sessionHash: string,
+  body: Record<string, unknown>,
+  deleting: boolean,
+  stage: Stage,
+  traceId: string
+) {
+  const prepared = await prepareWardrobeSnapshot(db, userId, body, deleting, stage)
+  if (prepared.kind === 'replayed') {
+    stage('cleanup')
+    await cleanupCommitted(db, userId, traceId)
+    return { revision: prepared.revision, replayed: true }
+  }
+  const id = body.requestId as string
+  const revision = body.revision
+  const { createdAt: now, count, fingerprint } = prepared
   stage('commit')
   const result = await db.batch([
     db
@@ -259,7 +280,7 @@ export async function writeWardrobeCloud(
         revision,
         userId,
         id,
-        rows.length,
+        count,
         userId,
         id,
         fingerprint,

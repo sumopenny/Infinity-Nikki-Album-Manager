@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
+import { computed, nextTick, ref, useId, watch } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 import WardrobeFormNav from './WardrobeFormNav.vue'
 import { useCompactLayout } from '../composables/useCompactLayout'
@@ -29,7 +29,7 @@ const t = computed(() => wardrobeEvolutionMessages[props.language])
 const close = () => {
   open.value = false
 }
-const { menuStyle, positionMenu } = useSidebarMenu(close, () => panel.value)
+const { menuStyle, positionMenu } = useSidebarMenu(close, () => panel.value, open)
 watch(() => [props.entry.id, props.disabled, props.resetKey, compact.value], close)
 
 /** 浮层优先向上展开；上方不足时选择空间更大的一侧，并限制在可视区域内。 */
@@ -116,14 +116,20 @@ function escape(event: KeyboardEvent) {
     trigger.value?.focus()
   }
 }
-onMounted(() => {
-  document.addEventListener('pointerdown', outside)
-  document.addEventListener('keydown', escape, true)
-})
-onBeforeUnmount(() => {
-  document.removeEventListener('pointerdown', outside)
-  document.removeEventListener('keydown', escape, true)
-})
+/** 只有打开的浮层参与全局交互，关闭和卸载由 watcher 一并清理。 */
+watch(
+  open,
+  (active, _, onCleanup) => {
+    if (!active) return
+    document.addEventListener('pointerdown', outside)
+    document.addEventListener('keydown', escape, true)
+    onCleanup(() => {
+      document.removeEventListener('pointerdown', outside)
+      document.removeEventListener('keydown', escape, true)
+    })
+  },
+  { flush: 'sync' }
+)
 </script>
 
 <template>

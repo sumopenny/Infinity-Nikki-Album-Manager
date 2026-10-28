@@ -15,6 +15,10 @@ import {
 } from './composables/useOperationCoordinator'
 const operations = createOperationCoordinator()
 provide(operationCoordinatorKey, operations)
+import { archiveCloudKey, useArchiveCloudSync } from './composables/useArchiveCloudSync'
+import ArchiveCloudDialog from './components/ArchiveCloudDialog.vue'
+const archiveCloud = useArchiveCloudSync((task) => operations.run('archive-cloud', task))
+provide(archiveCloudKey, archiveCloud)
 import { invalidateCacheWrites } from './utils/cacheLifecycle'
 import { clearAllBrowserData } from './utils/file-system/database'
 
@@ -335,10 +339,11 @@ const allDataBackupRef = ref<InstanceType<typeof AllDataBackup> | null>(null)
 const wardrobeRef = ref<InstanceType<typeof PersonalWardrobe> | null>(null)
 const resonanceRecordsRef = ref<InstanceType<typeof ResonanceRecords> | null>(null)
 const hasBackupData = ref(false)
-const allBackupDisabled = operations.isBusy
+const allBackupDisabled = computed(() => operations.isBusy.value || archiveCloud.visible.value)
 // 只读目录恢复允许切换独立模块；所有写任务仍沿用原操作协调器互斥。
 const navigationBusy = computed(
   () =>
+    archiveCloud.visible.value ||
     operations.hasPending.value ||
     (activeOperation.value !== null && activeOperation.value !== 'loading')
 )
@@ -346,6 +351,26 @@ const navigationBusy = computed(
 function handleAllBackupBusy(busy: boolean) {
   if (busy) activeOperation.value = 'all-data-backup'
   else if (activeOperation.value === 'all-data-backup') activeOperation.value = null
+}
+/** 两份本地存档提交后统一刷新；共鸣也参与衣橱拥有状态的推导。 */
+async function refreshAfterArchiveSync() {
+  const updates = await Promise.allSettled([
+    wardrobeRef.value?.reload(),
+    resonanceRecordsRef.value
+      ? resonanceRecordsRef.value.reload()
+      : loadResonanceRecords().then((records) => {
+          resonanceRecords.value = records
+        })
+  ])
+  if (updates.some((update) => update.status === 'rejected' || update.value === false))
+    showStatus({
+      message:
+        language.value === 'zh'
+          ? '档案已保存，部分界面刷新失败，请重新加载页面。'
+          : 'Saves restored, but some views could not refresh. Reload the page.',
+      tone: 'warning',
+      source: 'archive-cloud'
+    })
 }
 async function refreshAfterAllImport() {
   homeLibraryRevision.value++
@@ -362,7 +387,7 @@ async function refreshAfterAllImport() {
           resonanceRecords.value = records
         })
   ])
-  if (updates.some((update) => update.status === 'rejected'))
+  if (updates.some((update) => update.status === 'rejected' || update.value === false))
     showStatus({
       message:
         language.value === 'zh'
@@ -1960,6 +1985,11 @@ function importAllDataFromMenu() {
           showStatus({ message, tone, loading, downloadFiles, source: 'all-data-export' })
       "
     />
+    <ArchiveCloudDialog
+      :language="language"
+      @notice="showStatus"
+      @restored="refreshAfterArchiveSync"
+    />
 
     <main
       class="album-layout"
@@ -2406,7 +2436,7 @@ function importAllDataFromMenu() {
         <ResonanceRecords
           ref="resonanceRecordsRef"
           mobile-actions-target="#resonance-filter-actions"
-          :disabled="activeOperation === 'all-data-backup'"
+          :disabled="navigationBusy"
           v-else-if="activeView === 'resonance'"
           :language="language"
           :banner-order="resonanceBannerOrder"

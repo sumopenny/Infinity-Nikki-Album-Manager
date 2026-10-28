@@ -11,11 +11,7 @@ import {
   summarizeWardrobe,
   validateWardrobeCloudSnapshot
 } from '../../src/utils/wardrobe/wardrobeCloudSchema'
-import {
-  readWardrobeSnapshot,
-  updateWardrobe,
-  replaceWardrobeIfUnchanged
-} from '../../src/utils/wardrobe/wardrobeStorage'
+import { readWardrobeSnapshot } from '../../src/utils/wardrobe/wardrobeStorage'
 import { performance } from 'node:perf_hooks'
 import items from '../../src/data/gongeo/items.json'
 
@@ -86,25 +82,6 @@ describe('wardrobe cloud data boundaries', () => {
     expect(await runStoreRequest('wardrobe', 'readonly', (store) => store.get('current'))).toEqual(
       stored
     )
-  })
-  it('rejects a changed local baseline atomically and restores valid empty data with its region', async () => {
-    const initial = await updateWardrobe(() => ({ ...emptyWardrobe(), imported: true }))
-    await updateWardrobe(() => ({ ...initial, unknownSuitIds: ['777777'] }))
-    await expect(
-      replaceWardrobeIfUnchanged(wardrobeBaseline(initial), { ...initial, regionScope: 'global' })
-    ).rejects.toThrow('LOCAL_CHANGED')
-    const latest = await readWardrobeSnapshot()
-    expect(latest.unknownSuitIds).toEqual(['777777'])
-    await replaceWardrobeIfUnchanged(wardrobeBaseline(latest), {
-      ...initial,
-      regionScope: 'global'
-    })
-    expect(await readWardrobeSnapshot()).toMatchObject({
-      entries: {},
-      unknownSuitIds: [],
-      imported: true,
-      regionScope: 'global'
-    })
   })
   it('normalizes the current catalog fixture without quadratic work', () => {
     const ids = items.flatMap((row) => (Array.isArray(row[0]) ? row[0] : [row[0]]))

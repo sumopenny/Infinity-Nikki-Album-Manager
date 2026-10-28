@@ -37,7 +37,7 @@ function closeResonanceMenu() {
   }, 120)
 }
 
-// 触屏的兼容鼠标事件不能参与悬停；点击导航始终直接进入模块。
+// 触屏的兼容鼠标事件不能参与悬停；点击和键盘仍可展开档案菜单。
 function handlePointerEnter(event: PointerEvent) {
   if (event.pointerType === 'mouse' && !compact.value) openResonanceMenu()
 }
@@ -50,6 +50,7 @@ const emit = defineEmits<{
 }>()
 /** 切换导航前关闭共鸣子菜单，避免保留旧展开状态。 */
 function selectView(view: AlbumView) {
+  if (closeTimer) clearTimeout(closeTimer)
   resonanceMenuOpen.value = false
   emit('changeView', view)
 }
@@ -103,7 +104,7 @@ function selectView(view: AlbumView) {
         "
         :aria-haspopup="item.view === 'resonance' ? 'menu' : undefined"
         :aria-expanded="item.view === 'resonance' ? resonanceMenuOpen : undefined"
-        @click="selectView(item.view)"
+        @click="item.view === 'resonance' ? openResonanceMenu() : selectView(item.view)"
         @keydown.down.prevent="item.view === 'resonance' && openResonanceMenu()"
       >
         <span>{{ item.label }}</span>

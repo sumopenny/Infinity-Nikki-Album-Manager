@@ -2,9 +2,11 @@ import { useModuleOperation } from '../src/composables/useOperationCoordinator'
 import { Blob as NodeBlob } from 'node:buffer'
 import 'fake-indexeddb/auto'
 import { runStoreRequest } from '../src/utils/file-system/database'
-import { flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick } from 'vue'
+import { defineComponent, nextTick } from 'vue'
+
+enableAutoUnmount(afterEach)
 import App from '../src/App.vue'
 import { messages } from '../src/i18n'
 import {
@@ -517,6 +519,8 @@ describe('App lifecycle coordination', () => {
     expect(wrapper.findComponent({ name: 'OutfitGuideDialog' }).props('visible')).toBe(false)
 
     await wrapper.findAll('.album-view-button')[3].trigger('click')
+    expect(wrapper.find('.resonance-workspace-stub').exists()).toBe(false)
+    await wrapper.get('.resonance-nav-menu [role=menuitem]').trigger('click')
     expect(wrapper.find('.resonance-workspace-stub').exists()).toBe(true)
     expect(wrapper.find('.empty-album-start').exists()).toBe(false)
     expect(wrapper.get('.album-layout').classes()).not.toContain('without-album')
@@ -931,4 +935,49 @@ it('blocks desktop and mobile navigation until a child operation settles', async
   } finally {
     wrapper.unmount()
   }
+})
+
+it('warns after cloud restore if wardrobe refresh reports a failure', async () => {
+  localStorage.clear()
+  countHomeSchemesMock.mockResolvedValue(0)
+  readOutfitLibraryMock.mockResolvedValue({
+    outfits: [],
+    tags: [],
+    importedSharedCount: 0,
+    failedCount: 0
+  })
+  getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+  readOutfitCollectionMock.mockResolvedValue({ outfits: [], tags: [] })
+  const reload = vi.fn().mockResolvedValue(false)
+  const wrapper = mount(App, {
+    global: {
+      stubs: {
+        ArchiveCloudDialog: true,
+        PersonalWardrobe: defineComponent({
+          setup(_, { expose }) {
+            expose({ reload })
+            return () => null
+          }
+        })
+      }
+    }
+  })
+  await flushPromises()
+  const navigation = wrapper.getComponent({ name: 'AlbumViewSwitcher' })
+  await vi.waitFor(() => expect(navigation.props('disabled')).toBe(false))
+  navigation.vm.$emit('changeView', 'wardrobe')
+  await flushPromises()
+  wrapper.getComponent({ name: 'ArchiveCloudDialog' }).vm.$emit('restored', ['wardrobe'])
+  await flushPromises()
+  expect(reload).toHaveBeenCalledOnce()
+  await vi.waitFor(() =>
+    expect(wrapper.getComponent({ name: 'OperationNotice' }).props('notices')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: expect.stringContaining('部分界面刷新失败'),
+          tone: 'warning'
+        })
+      ])
+    )
+  )
 })

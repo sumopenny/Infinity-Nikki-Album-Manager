@@ -199,6 +199,8 @@ Authorize the game’s `X6Game` folder from Current album. In the game, tap Shar
 
 Use the card’s Parse action, or enter a code directly in Tools → Parameter / outfit-code parser without creating a plan. Copy and Parse are unavailable for plans without a code.
 
+Click a parsed item to view its details. When multiple forms are available, switch between them using the left sidebar on desktop or the row below the title on mobile. Returning to the worn item preserves its outfit-code dyes; other forms show their own details. Owned forms have a green check beside their names.
+
 ### Home schemes
 
 <div align="center">
@@ -249,7 +251,7 @@ Open Resonance records or Personal wardrobe from Nikki Archive in the sidebar.
 </div>
 
 - **Personal wardrobe:** browse original, recolor, and evolution versions. Switch between outfits and pieces, search by name or ID, and filter by rarity, version, item category, or ownership to view details.
-- Import a Whim-Log notebook from China or any global server, or wardrobe JSON, and export a separate JSON backup. One notebook preview lets you choose both resonance and wardrobe data. Clearing wardrobe records does not affect resonance. Wardrobe and resonance share an account, with independent cloud upload, download and deletion. Makeup is not supported.
+- Import a Whim-Log notebook from China or any global server, or wardrobe JSON, and export a separate JSON backup. One notebook preview lets you choose both resonance and wardrobe data. Clearing wardrobe records does not affect resonance. Wardrobe and resonance share an account and one sync dialog, allowing selected modules to upload, download or delete together. Makeup is not supported.
 - Check the replacement rules in [Backup and Migration](#backup-and-migration) before importing.
 
 ### Cleanup and utilities
@@ -285,7 +287,7 @@ Different import entries handle existing records differently:
 | More → Import all data | Merges collections according to each module's rules. Camera-parameter conflicts ask which version to retain; this is not a full replacement. |
 | Outfit module → Import data | Adds plans without overwriting existing ones; duplicate or invalid entries are skipped. |
 
-Resonance and wardrobe cloud sync are manual and use replacement: **upload replaces all cloud records with local records; download replaces all local records with cloud records.** Records unique to the destination are removed. Export a backup before replacing them. The two modules share an account but keep independent saves and revisions. Wardrobe downloads restore the saved region and warn about a region change. A valid imported zero-item wardrobe can sync; an unimported or cleared wardrobe cannot upload, and a missing cloud save never clears local data.
+Resonance and wardrobe share one cloud-sync dialog, accessible from either page. Upload and download select available modules by default; you can deselect either module. Cloud deletion requires explicit selection. **Upload replaces the selected cloud modules with their complete local saves; download replaces the selected local modules with their complete cloud saves.** Destination-only records are removed regardless of page filters. Unselected modules remain unchanged. Selected modules commit together: a version conflict or commit failure leaves all selected destinations unchanged. Existing accounts, save formats and module revisions remain compatible. Wardrobe downloads restore the saved region and warn about a region change. A valid imported zero-item wardrobe can sync; an unimported or cleared wardrobe cannot upload, and a missing cloud save never clears local data.
 
 Unrecorded wardrobe pieces were absent from the notebook response; this does not mean they are unowned in the game. A resonance-only export cannot be imported as wardrobe data.
 
@@ -328,7 +330,7 @@ Browsers block web pages from accessing system folders. Please select `NikkiPhot
 
 - Local photo viewing and photo-parameter parsing happen in your browser; photos and photo-parameter results are not uploaded.
 - Outfit-code parsing sends the share code to parsing services, without sending local photos or notebook credentials.
-- Cloud sync supports resonance records and the personal wardrobe, with separate manual uploads and downloads. Other collections remain in the current browser; back them up before changing devices or clearing site data.
+- Cloud sync supports resonance records and the personal wardrobe; select both in one dialog to upload or download them together. Other collections remain in the current browser; back them up before changing devices or clearing site data.
 - Clear cache removes parsing caches without deleting saved schemes, tags, or settings. **Clear data permanently removes this browser's saved records, images, favorites, settings, and folder authorizations. Export a backup first.** It does not delete uploaded cloud saves or files on your computer. Clearing data through browser settings may also remove login information.
 - Browser security policies may require you to authorize folders again.
 - Album deletion and Special Cleanup operate on real files on your computer. Permanent deletion and cleanup cannot be undone.

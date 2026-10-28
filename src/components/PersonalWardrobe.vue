@@ -16,7 +16,7 @@ import { backupBaseName } from '../utils/backup/backupName'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRef, watch } from 'vue'
 import { ArrowLeftRight, ChevronDown, RotateCcw, Shirt, Info, X } from 'lucide-vue-next'
 import ResonanceDataActions from './ResonanceDataActions.vue'
-import WardrobeCloudActions from './WardrobeCloudActions.vue'
+import ArchiveCloudActions from './ArchiveCloudActions.vue'
 import WardrobeEvolutionSwitch from './WardrobeEvolutionSwitch.vue'
 import WardrobeFormPopover from './WardrobeFormPopover.vue'
 import CollectionFilterBar from './CollectionFilterBar.vue'
@@ -362,7 +362,8 @@ function reportError(cause: unknown) {
         )
   emit('notice', { message, tone: 'error' })
 }
-async function reload() {
+/** 刷新结果交给调用方汇总；过期请求也不视为本次刷新成功。 */
+async function reload(): Promise<boolean> {
   const version = ++loadVersion
   cancelLoad?.()
   loaded.value = false
@@ -381,14 +382,16 @@ async function reload() {
       Promise.all([loadWardrobeCatalog(), loadWardrobe()]),
       deadline
     ])
-    if (version !== loadVersion) return
+    if (version !== loadVersion) return false
     fullCatalog.value = data
     snapshot.value = saved
     loaded.value = true
+    return true
   } catch (cause) {
-    if (version !== loadVersion) return
+    if (version !== loadVersion) return false
     captureDiagnosticError(cause, { module: 'wardrobe', action: 'load' })
     loadFailed.value = true
+    return false
   } finally {
     clearTimeout(timeout)
     if (version === loadVersion) cancelLoad = undefined
@@ -398,22 +401,9 @@ onMounted(reload)
 defineExpose({ reload })
 
 const dialog = ref<'import' | 'detail' | null>(null)
-const cloudOpen = ref(false)
 const dialogOpen = computed(() => dialog.value === 'detail')
 const importOpen = computed(() => dialog.value === 'import')
-const anyDialogOpen = computed(() => dialog.value !== null || cloudOpen.value)
-async function applyCloudWardrobe(restored: WardrobeSnapshot) {
-  snapshot.value = restored
-  await reload()
-  if (loadFailed.value)
-    emit('notice', {
-      message: text(
-        '衣橱数据已保存，但页面加载失败，请重新加载。',
-        'Wardrobe saved, but the view failed to load. Please reload.'
-      ),
-      tone: 'warning'
-    })
-}
+const anyDialogOpen = computed(() => dialog.value !== null)
 const detail = shallowRef<WardrobeEntry | null>(null)
 function closeDialog() {
   if (!busy.value) {
@@ -535,15 +525,14 @@ async function clearRecords() {
         </div>
       </div>
       <ResonanceDataActions
-        hide-cloud-arrow
         :key="compact && loaded ? 'toolbar' : 'header'"
         :t="importText"
         :label="text('衣橱操作', 'Wardrobe actions')"
         :cloud-label="text('云端', 'Cloud')"
         :mobile-target="compact && loaded ? '#wardrobe-filter-actions' : undefined"
-        :add-disabled="blocked || showClearConfirm || cloudOpen"
+        :add-disabled="blocked || showClearConfirm"
         :clear-disabled="blocked || !hasRecords || anyDialogOpen"
-        :export-disabled="blocked || !hasRecords || cloudOpen"
+        :export-disabled="blocked || !hasRecords"
         @add="openImport"
         @clear="requestClear"
         @export="exportBackup"
@@ -553,18 +542,15 @@ async function clearRecords() {
             <span>{{ text('显示进化形态', 'Show evolution forms') }}</span>
             <input v-model="showEvolutions" type="checkbox" role="switch" />
           </label>
+          <button v-if="loaded && hasRecords" type="button" @click="showOwnershipNotice"
+            ><Info :size="16" aria-hidden="true" />{{ ownershipNoticeText.title }}</button
+          >
         </template>
         <template #cloud
-          ><WardrobeCloudActions
+          ><ArchiveCloudActions
             :language="language"
             :disabled="blocked || showClearConfirm || dialog !== null"
-            @lock="cloudOpen = $event"
-            @restored="applyCloudWardrobe"
-            @notice="(message, tone) => emit('notice', { message, tone })"
         /></template>
-        <button v-if="loaded && hasRecords" type="button" @click="showOwnershipNotice"
-          ><Info :size="16" aria-hidden="true" />{{ ownershipNoticeText.title }}</button
-        >
       </ResonanceDataActions>
     </header>
     <CollectionFilterBar

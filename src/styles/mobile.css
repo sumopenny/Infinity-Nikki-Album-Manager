@@ -1793,7 +1793,7 @@
     color: var(--white);
   }
   body .wardrobe-dialog.wardrobe-dialog.has-form-navigation,
-  body .outfit-detail-panel.is-single-column.has-form-navigation {
+  body .outfit-detail-panel.has-form-navigation {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);

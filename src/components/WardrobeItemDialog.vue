@@ -148,28 +148,6 @@ useModalFocus(visible, panel, close)
 </template>
 
 <style scoped>
-/* 形态导航的左右分栏仅用于电脑端，手机端由 mobile.css 提供单列滚动布局。 */
-@media (min-width: 900px) {
-  .outfit-detail-panel.is-single-column.has-form-navigation {
-    width: min(558px, 100%);
-    display: grid;
-    grid-template-columns: 150px minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-  .has-form-navigation > header {
-    grid-column: 1 / -1;
-    grid-row: 1;
-  }
-  .has-form-navigation > .wardrobe-detail-scroll > .outfit-detail-content {
-    grid-column: 2;
-    grid-row: 2;
-    min-width: 0;
-    min-height: 0;
-    overflow: auto;
-    border-left: 1px solid var(--line-soft);
-  }
-}
-
 .wardrobe-outfit-link {
   display: inline-flex;
   align-items: center;
