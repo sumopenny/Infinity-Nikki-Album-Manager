@@ -318,8 +318,6 @@ const mobileCollectionPicker = computed(
 const topBarRef = ref<InstanceType<typeof TopBar> | null>(null)
 // 筛选栏提供当前位置，顶栏保留唯一点赞实例。
 provide('mobileLikeTarget', ref<HTMLElement | null>(null))
-const homeVisibleCount = ref(0)
-const cameraVisibleCount = ref(0)
 const activeView = ref<AlbumView>(compactLayout.value && !directorySupported ? 'outfits' : 'all')
 const sidebarMode = ref<'date' | 'action'>('date')
 const actionSort = ref<ActionSort>('id')
@@ -603,19 +601,15 @@ const {
 })
 const mobileText = (zh: string, en: string) => (language.value === 'zh' ? zh : en)
 const mobileFilterCount = computed(() =>
-  activeView.value === 'home'
-    ? homeVisibleCount.value
-    : isCameraFavoritesView.value
-      ? cameraVisibleCount.value
-      : activeView.value === 'outfits'
-        ? visibleOutfits.value.length
-        : activeView.value === 'resonance'
-          ? resonanceRecords.value.filter(
-              (record) =>
-                resonanceRarityFilter.value === 'all' ||
-                record.rarity === Number(resonanceRarityFilter.value)
-            ).length
-          : visibleCount.value
+  activeView.value === 'outfits'
+    ? visibleOutfits.value.length
+    : activeView.value === 'resonance'
+      ? resonanceRecords.value.filter(
+          (record) =>
+            resonanceRarityFilter.value === 'all' ||
+            record.rarity === Number(resonanceRarityFilter.value)
+        ).length
+      : visibleCount.value
 )
 const mobileFilterEntries = computed(() =>
   activeView.value === 'outfits'
@@ -2461,7 +2455,6 @@ function importAllDataFromMenu() {
           @open-filters="mobileFiltersOpen = true"
           @close-filters="mobileFiltersOpen = false"
           :filters-open="mobileFiltersOpen"
-          @visible-count-change="cameraVisibleCount = $event"
           :disabled="activeOperation === 'all-data-backup'"
           ref="cameraFavoritesRef"
           sidebar-target="#album-sidebar-column"
@@ -2672,7 +2665,6 @@ function importAllDataFromMenu() {
           @open-filters="mobileFiltersOpen = true"
           @close-filters="mobileFiltersOpen = false"
           :filters-open="mobileFiltersOpen"
-          @visible-count-change="homeVisibleCount = $event"
           v-if="activeView === 'home'"
           :library-revision="homeLibraryRevision"
           :messages="locale.homeScheme"

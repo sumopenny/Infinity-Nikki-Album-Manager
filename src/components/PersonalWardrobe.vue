@@ -178,10 +178,8 @@ const displayEntries = computed(() =>
           entries.find((entry) => entry.id === selectedForms.value[key]) ?? entries[0]!
       )
 )
-const formsFor = (entry: WardrobeEntry) =>
-  [...(catalogFamilies.value.get(wardrobeFamilyKey(entry)) ?? [])].sort(
-    (a, b) => a.variant - b.variant
-  )
+const hasMultipleForms = (entry: WardrobeEntry) =>
+  (catalogFamilies.value.get(wardrobeFamilyKey(entry))?.length ?? 0) > 1
 const limit = ref(48)
 const loadMoreTarget = ref<HTMLElement | null>(null)
 let loadMoreObserver: IntersectionObserver | null = null
@@ -772,7 +770,7 @@ async function clearRecords() {
           v-for="(entry, imageIndex) in displayEntries.slice(0, limit)"
           :key="merged ? wardrobeFamilyKey(entry) : entry.id"
           class="wardrobe-card"
-          :class="{ 'has-forms': merged && formsFor(entry).length > 1 }"
+          :class="{ 'has-forms': merged && hasMultipleForms(entry) }"
         >
           <div class="wardrobe-card-media">
             <button
@@ -794,7 +792,7 @@ async function clearRecords() {
               </div>
             </button>
             <WardrobeFormPopover
-              v-if="compact && merged && formsFor(entry).length > 1"
+              v-if="compact && merged && hasMultipleForms(entry)"
               :entry="entry"
               :catalog="catalog"
               :snapshot="snapshot"
@@ -816,7 +814,7 @@ async function clearRecords() {
                 <h3>{{ name(entry) }}</h3>
               </button>
               <WardrobeFormPopover
-                v-if="!compact && merged && formsFor(entry).length > 1"
+                v-if="!compact && merged && hasMultipleForms(entry)"
                 :entry="entry"
                 :catalog="catalog"
                 :snapshot="snapshot"

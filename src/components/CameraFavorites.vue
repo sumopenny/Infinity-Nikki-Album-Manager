@@ -82,7 +82,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   openFilters: []
   closeFilters: []
-  visibleCountChange: [count: number]
   codesChange: [codes: string[]]
   modalChange: [visible: boolean]
   status: [message: string, tone: 'success' | 'error' | 'warning' | 'info', downloadFiles?: File[]]
@@ -310,7 +309,6 @@ const visibleRecords = computed(() => {
       (!query || [r.name, r.code, r.tag].join(' ').toLocaleLowerCase().includes(query))
   )
 })
-watch(visibleRecords, (value) => emit('visibleCountChange', value.length), { immediate: true })
 const resources = favoriteResources
 const compactResourceCover = computed(() => compact.value && props.thumbnailSize === 'small')
 

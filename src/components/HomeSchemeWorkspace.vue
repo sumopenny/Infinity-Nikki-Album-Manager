@@ -72,7 +72,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   openFilters: []
   closeFilters: []
-  visibleCountChange: [count: number]
   status: [message: string, tone: 'success' | 'warning' | 'error' | 'info', downloadFiles?: File[]]
   countChange: [count: number]
 }>()
@@ -140,7 +139,6 @@ const previewUrl = computed(
   () => localImageUrl.value ?? (removeLocalImage.value ? null : coverImageUrl.value)
 )
 const isBusy = computed(() => props.disabled || busy.value)
-watch(visibleSchemes, (value) => emit('visibleCountChange', value.length), { immediate: true })
 
 const selectedSchemes = computed(() =>
   visibleSchemes.value.filter((item) => selectedSchemeIds.value.has(item.id))

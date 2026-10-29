@@ -81,14 +81,23 @@ watch(
   { deep: true }
 )
 
-function countFor(filter: OutfitFilter): number {
-  if (filter === 'all') return props.outfits.length
-  if (filter === 'pending') return props.outfits.filter((outfit) => !outfit.code.trim()).length
-  if (filter === 'uncategorized')
-    return props.outfits.filter((outfit) => !outfit.tags.length).length
-  const tag = filter.slice(4)
-  return props.outfits.filter((outfit) => outfit.tags[0] === tag).length
-}
+// 计数使用完整集合；每项仅归属首个标签，与现有筛选语义一致。
+const filterCounts = computed(() => {
+  const counts = new Map<string, number>([
+    ['all', props.outfits.length],
+    ['pending', 0],
+    ['uncategorized', 0]
+  ])
+  for (const outfit of props.outfits) {
+    if (!outfit.code.trim()) counts.set('pending', counts.get('pending')! + 1)
+    if (!outfit.tags.length) counts.set('uncategorized', counts.get('uncategorized')! + 1)
+    else {
+      const key = `tag:${outfit.tags[0]}`
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+  }
+  return counts
+})
 
 function updateEditorPosition() {
   const toggle = toggleRef.value
@@ -288,7 +297,7 @@ function toggleTagManagement() {
           @click="selectFilter(item.filter)"
         >
           <span>{{ item.label }}</span
-          ><small>{{ countFor(item.filter) }}</small>
+          ><small>{{ filterCounts.get(item.filter) ?? 0 }}</small>
         </button>
       </slot>
       <div
@@ -325,7 +334,7 @@ function toggleTagManagement() {
             v-if="compact && activeFilter === `tag:${tag}`"
             :size="16"
             aria-hidden="true"
-          /><small>{{ countFor(`tag:${tag}`) }}</small>
+          /><small>{{ filterCounts.get(`tag:${tag}`) ?? 0 }}</small>
         </button>
         <button
           v-if="!compact || managingTags"

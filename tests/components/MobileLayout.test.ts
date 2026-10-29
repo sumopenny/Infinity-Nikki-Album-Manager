@@ -497,6 +497,35 @@ describe('mobile navigation and collection controls', () => {
     ).toBe(true)
   })
 
+  it('counts full collections by first tag and updates counts independently of tag search', async () => {
+    const wrapper = mount(OutfitSidebar, {
+      props: {
+        outfits: [
+          { code: ' ', tags: ['A', 'B'] },
+          { code: 'CODE', tags: ['A'] },
+          { code: '', tags: [] }
+        ],
+        tags: ['A', 'B'],
+        activeFilter: 'all',
+        disabled: false,
+        messages: messages.zh.outfit,
+        pickerOpen: true
+      }
+    })
+    wrappers.push(wrapper)
+    const totals = () =>
+      wrapper.findAll('.outfit-filter-list > button small').map((item) => item.text())
+    expect(totals()).toEqual(['3', '2', '1'])
+    expect(wrapper.get('[data-outfit-tag="A"] small').text()).toBe('2')
+    expect(wrapper.get('[data-outfit-tag="B"] small').text()).toBe('0')
+    await wrapper.get('.tag-picker-search input').setValue('B')
+    expect(totals()).toEqual(['3', '2', '1'])
+    expect(wrapper.get('[data-outfit-tag="B"] small').text()).toBe('0')
+    await wrapper.setProps({ outfits: [{ code: 'CODE', tags: ['B', 'A'] }] })
+    expect(totals()).toEqual(['1', '0', '0'])
+    expect(wrapper.get('[data-outfit-tag="B"] small').text()).toBe('1')
+  })
+
   it('searches tags without mutating their order and closes only after ordinary selection', async () => {
     const wrapper = mount(OutfitSidebar, {
       props: {
