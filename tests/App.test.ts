@@ -1123,6 +1123,52 @@ it('blocks desktop and mobile navigation until a child operation settles', async
   }
 })
 
+it('shows logout notices before the cloud dialog is first mounted and after it opens', async () => {
+  let cloud!: ArchiveCloudSync
+  localStorage.clear()
+  getSavedAlbumDirectoryHandleMock.mockResolvedValue(null)
+  const wrapper = mount(App, {
+    global: {
+      stubs: {
+        Teleport: true,
+        CloudDialog: true,
+        PersonalWardrobe: defineComponent({
+          setup() {
+            cloud = useArchiveCloud()
+            return () => null
+          }
+        })
+      }
+    }
+  })
+  await flushPromises()
+  const navigation = wrapper.getComponent({ name: 'AlbumViewSwitcher' })
+  await vi.waitFor(() => expect(navigation.props('disabled')).toBe(false))
+  navigation.vm.$emit('changeView', 'wardrobe')
+  await flushPromises()
+  expect(wrapper.findComponent({ name: 'ArchiveCloudDialog' }).exists()).toBe(false)
+  vi.spyOn(cloud.session, 'logout').mockResolvedValue(undefined)
+  await cloud.logout()
+  await flushPromises()
+  const notices = () => wrapper.getComponent({ name: 'OperationNotice' }).props('notices')
+  expect(notices()).toEqual([
+    expect.objectContaining({ message: '操作成功。', tone: 'success', source: 'archive-cloud' })
+  ])
+
+  wrapper.getComponent({ name: 'OperationNotice' }).vm.$emit('close', notices()[0].id)
+  await nextTick()
+  expect(notices()).toHaveLength(0)
+  await cloud.open('login')
+  await flushPromises()
+  await vi.waitFor(() =>
+    expect(wrapper.findComponent({ name: 'ArchiveCloudDialog' }).exists()).toBe(true)
+  )
+  cloud.close()
+  await cloud.logout()
+  await flushPromises()
+  expect(notices()).toHaveLength(1)
+})
+
 it('warns after cloud restore if wardrobe refresh reports a failure', async () => {
   let cloud!: ArchiveCloudSync
   localStorage.clear()

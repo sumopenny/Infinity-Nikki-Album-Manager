@@ -24,6 +24,7 @@ import {
 const operations = createOperationCoordinator()
 provide(operationCoordinatorKey, operations)
 import { archiveCloudKey, useArchiveCloudSync } from './composables/useArchiveCloudSync'
+import { cloudMessages } from './i18n/messages/cloud'
 const ArchiveCloudDialog = lazyFeature(
   () => import('./components/ArchiveCloudDialog.vue'),
   () => language.value
@@ -544,6 +545,14 @@ const {
   isUserCancelledFilePicker,
   dispose: disposeStatusNotice
 } = useOperationNotice(locale, operations)
+// 退出可直接从菜单触发，提示监听不能依赖云存档弹窗首次挂载。
+watch(archiveCloud.logoutNotice, () =>
+  showStatus({
+    message: cloudMessages[language.value].success,
+    tone: 'success',
+    source: 'archive-cloud'
+  })
+)
 // 自动解析进度固定占用一条顶部通知；关闭或结束后只撤下进度，不影响其他通知。
 watch(
   [actionParseProgress, autoParseActionsEnabled],

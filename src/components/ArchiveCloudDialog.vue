@@ -41,9 +41,6 @@ watch(visible, () => {
   password.value = ''
   confirmation.value = ''
 })
-watch(sync.logoutNotice, () =>
-  emit('notice', { message: t.value.success, tone: 'success', source: 'archive-cloud' })
-)
 const message = computed(
   () => t.value.errors[error.value as keyof typeof t.value.errors] || t.value.errors.SERVER_ERROR
 )

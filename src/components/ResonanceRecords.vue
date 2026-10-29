@@ -15,6 +15,8 @@ import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import WardrobeOutfitDialog from './WardrobeOutfitDialog.vue'
 import WardrobeItemDialog from './WardrobeItemDialog.vue'
+import WardrobeFormPopover from './WardrobeFormPopover.vue'
+import { groupWardrobeEntries, wardrobeFamilyKey } from '../utils/wardrobe/wardrobeFamilies'
 import { useLatestRequest } from '../composables/useLatestRequest'
 import {
   loadWardrobeCatalog,
@@ -66,6 +68,35 @@ const emit = defineEmits<{
 const previewCatalog = shallowRef<WardrobeCatalog | null>(null)
 const previewSnapshot = ref(emptyWardrobe())
 const outfitPreview = shallowRef<WardrobeEntry | null>(null)
+const expandedRecordId = ref<string | null>(null)
+const formFamilies = computed(() => groupWardrobeEntries(previewCatalog.value?.entries ?? []))
+const outfitAnchor = (id: string) => document.getElementById(`resonance-outfit-anchor-${id}`)
+function formEntry(id: string) {
+  const entry = previewCatalog.value?.byId.get(id)
+  return entry?.kind === 'outfit' &&
+    (formFamilies.value.get(wardrobeFamilyKey(entry))?.length ?? 0) > 1
+    ? entry
+    : null
+}
+function setRecordExpanded(id: string, open: boolean) {
+  if (open) expandedRecordId.value = id
+  else if (expandedRecordId.value === id) expandedRecordId.value = null
+}
+watch(
+  () => [props.bannerOrder, props.rarityFilter, props.disabled],
+  () => {
+    expandedRecordId.value = null
+  }
+)
+const contextRequest = useLatestRequest()
+/** 后台补齐形态与拥有信息，不阻塞共鸣记录的展示。 */
+async function loadFormContext() {
+  const request = contextRequest.begin()
+  const results = await Promise.allSettled([loadWardrobeCatalog(), loadWardrobe()])
+  if (!request.isCurrent()) return
+  if (results[0].status === 'fulfilled') previewCatalog.value = results[0].value
+  if (results[1].status === 'fulfilled') previewSnapshot.value = results[1].value
+}
 const itemPreview = shallowRef<WardrobeEntry | null>(null)
 const previewRequest = useLatestRequest()
 const itemOutfits = computed(() =>
@@ -75,6 +106,8 @@ const itemOutfits = computed(() =>
   )
 )
 async function openPreview(id: string, kind: 'outfit' | 'item') {
+  expandedRecordId.value = null
+  contextRequest.invalidate()
   const request = previewRequest.begin()
   try {
     const [catalog, snapshot] = await Promise.all([loadWardrobeCatalog(), loadWardrobe()])
@@ -221,7 +254,9 @@ async function clearRecords() {
 async function reload(): Promise<boolean> {
   return trackOperation(async () => {
     try {
+      expandedRecordId.value = null
       records.value = await loadResonanceRecords()
+      void loadFormContext()
       selectedSet.value = {}
       recordsLoaded.value = true
       return true
@@ -337,18 +372,33 @@ defineExpose({ reload })
           }}</p>
         </div>
         <div class="resonance-record-body">
-          <button
-            type="button"
-            class="resonance-outfit-image"
-            :aria-label="displayName(record.outfitName)"
-            @click="openPreview(record.outfitId, 'outfit')"
-            ><CatalogImage
+          <div :id="`resonance-outfit-anchor-${record.id}`" class="resonance-outfit-preview">
+            <button
+              type="button"
+              class="resonance-outfit-image"
+              :aria-label="displayName(record.outfitName)"
+              @click="openPreview(record.outfitId, 'outfit')"
+              ><CatalogImage
+                :language="language"
+                referrerpolicy="no-referrer"
+                :src="record.outfitImageUrl"
+                :index="recordIndex * 100"
+                :alt="displayName(record.outfitName)"
+            /></button>
+            <WardrobeFormPopover
+              v-if="formEntry(record.outfitId)"
+              icon-only
+              :entry="formEntry(record.outfitId)!"
+              :catalog="previewCatalog"
+              :snapshot="previewSnapshot"
               :language="language"
-              referrerpolicy="no-referrer"
-              :src="record.outfitImageUrl"
-              :index="recordIndex * 100"
-              :alt="displayName(record.outfitName)"
-          /></button>
+              :disabled="disabled"
+              :anchor="() => outfitAnchor(record.id)"
+              :open="expandedRecordId === record.id"
+              @update:open="setRecordExpanded(record.id, $event)"
+              @select="openPreview($event.id, 'outfit')"
+            />
+          </div>
           <div class="resonance-sets">
             <section
               v-for="set in displayedSets(record)"
@@ -576,6 +626,15 @@ button.resonance-part:focus-visible {
   margin-top: 18px;
   align-items: flex-start;
 }
+.resonance-outfit-preview {
+  position: relative;
+  flex-shrink: 0;
+  width: clamp(140px, 22%, 180px);
+  align-self: flex-start;
+}
+.resonance-outfit-preview .resonance-outfit-image {
+  width: 100%;
+}
 .resonance-outfit-image {
   position: relative;
   flex-shrink: 0;
@@ -742,7 +801,7 @@ button.resonance-part:focus-visible {
   .resonance-set-row {
     display: contents;
   }
-  .resonance-outfit-image {
+  .resonance-outfit-preview {
     grid-column: 1;
     grid-row: 1;
     width: 100%;

@@ -109,6 +109,7 @@ Open Nikki Archive from the bottom navigation, then switch between Resonance rec
 </div>
 
 - **Resonance records:** tap “+” to import data, review the preview, then confirm. Use rarity filters to find outfits, and switch between the first and second set on each card.
+- For outfits with multiple forms, tap the expand button in the main image’s upper right corner to choose an original, glow-up, or evolution form and view its details. Green checks indicate ownership in your wardrobe data; pull statistics are unchanged.
 - The page “⋯” menu provides export, local-record clearing, and account actions. After signing in, manually upload or download cloud records.
 
 <div align="center">
@@ -245,6 +246,7 @@ Open Resonance records or Personal wardrobe from Nikki Archive in the sidebar.
 </div>
 
 - **Resonance records:** add notebook credentials or JSON data, review the preview, then confirm. Sort, filter rarity, or find an outfit from the sidebar.
+- Expand an outfit using the button in its main image’s lower right corner, then select a form to open its details. Only confirmed owned forms receive green checks; records and statistics are unchanged.
 - Desktop shows both sets together, with recorded pulls, known-piece averages, and collection progress for each set. The heading shows combined statistics. Manual entries count toward collection progress; unavailable pull statistics show “—”.
 - Page actions provide JSON export, local-record clearing, and account cloud sync.
 

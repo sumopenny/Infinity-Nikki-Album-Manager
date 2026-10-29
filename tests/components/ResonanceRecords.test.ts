@@ -912,3 +912,60 @@ it('reports failed resonance storage reads instead of only showing a notice', as
   expect(capture).toHaveBeenCalledWith(error, { module: 'resonance', action: 'load' })
   expect(latestNotice(wrapper)?.tone).toBe('error')
 })
+
+it.each([false, true])(
+  'expands resonance outfit forms without changing records (mobile=%s)',
+  async (compact) => {
+    vi.stubGlobal('matchMedia', () => ({
+      matches: compact,
+      addEventListener() {},
+      removeEventListener() {}
+    }))
+    const { loadWardrobeCatalog } = await import('../../src/utils/wardrobe/wardrobeCatalog')
+    const storage = await import('../../src/utils/wardrobe/wardrobeStorage')
+    const catalog = await loadWardrobeCatalog()
+    const original = catalog.byId.get(savedRecord.outfitId)!
+    const data = [savedRecord, { ...savedRecord, id: 'second-record' }]
+    await saveResonanceRecords(data)
+    vi.spyOn(storage, 'loadWardrobe').mockResolvedValue({
+      ...storage.emptyWardrobe(),
+      entries: Object.fromEntries(
+        original.parts.map((id) => [id, { owned: true, source: 'pearpal' as const }])
+      ),
+      updatedAt: '2026-10-29T00:00:00Z'
+    })
+    const wrapper = mount(ResonanceRecords, { attachTo: document.body })
+    wrappers.push(wrapper)
+    await vi.waitFor(() =>
+      expect(
+        wrapper.findAll('.resonance-outfit-preview button[aria-label="展开形态"]')
+      ).toHaveLength(2)
+    )
+    const before = wrapper.findAll('.resonance-overall-summary').map((node) => node.text())
+    const buttons = wrapper.findAll('.resonance-outfit-preview button[aria-label="展开形态"]')
+    await buttons[0]!.trigger('click')
+    await flushPromises()
+    expect(document.querySelectorAll('.wardrobe-form-popover')).toHaveLength(1)
+    expect(document.querySelectorAll('.wardrobe-form-popover .wardrobe-form-owned')).toHaveLength(1)
+    await buttons[1]!.trigger('click')
+    await flushPromises()
+    expect(buttons[0]!.attributes('aria-expanded')).toBe('false')
+    expect(buttons[1]!.attributes('aria-expanded')).toBe('true')
+    expect(document.querySelectorAll('.wardrobe-form-popover')).toHaveLength(1)
+    document.querySelectorAll<HTMLButtonElement>('.wardrobe-form-popover nav button')[1]!.click()
+    await vi.waitFor(() => expect(document.querySelector('.wardrobe-dialog')).not.toBeNull())
+    expect(document.querySelector('.wardrobe-detail-variant')?.textContent).toBe('焕新')
+    expect(document.querySelector('.wardrobe-form-popover')).toBeNull()
+    expect(wrapper.findAll('.resonance-overall-summary').map((node) => node.text())).toEqual(before)
+    expect(await loadResonanceRecords()).toEqual(data)
+  }
+)
+
+it('does not expose forms for unmatched outfit records', async () => {
+  await saveResonanceRecords([{ ...savedRecord, id: '77:99999999', outfitId: '99999999' }])
+  const wrapper = mount(ResonanceRecords)
+  wrappers.push(wrapper)
+  await flushPromises()
+  await vi.waitFor(() => expect(wrapper.findAll('button.resonance-outfit-image')).toHaveLength(1))
+  expect(wrapper.findComponent({ name: 'WardrobeFormPopover' }).exists()).toBe(false)
+})

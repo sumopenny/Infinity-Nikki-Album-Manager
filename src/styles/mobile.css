@@ -1741,6 +1741,16 @@
     top: 6px;
     right: 6px;
   }
+  .resonance-outfit-preview > .wardrobe-mobile-form-toggle {
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+  }
+  .resonance-outfit-preview > .wardrobe-mobile-form-toggle svg {
+    width: 12px;
+    height: 12px;
+  }
   /* 详情缩略图采用方形卡片和悬出勾选标记，文字区域保留原有排版。 */
   body :is(.wardrobe-dialog, .outfit-detail-panel) .wardrobe-form-nav.is-horizontal {
     container-type: inline-size;

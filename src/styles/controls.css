@@ -70,10 +70,6 @@
 .wardrobe-form-nav:not(.is-horizontal) button {
   overflow: hidden;
 }
-/* 只偏移部件详情缩略图内部的图像，卡片、背景和文字保持原位。 */
-.outfit-detail-panel .wardrobe-form-nav.is-pieces img {
-  object-position: center calc(50% - 6px);
-}
 .wardrobe-form-popover {
   overflow: auto;
   border: 1px solid var(--line);
@@ -347,5 +343,18 @@ body .wardrobe-form-nav.is-horizontal button[aria-pressed='true'] strong {
 @media (prefers-reduced-motion: reduce) {
   :is(.wardrobe-form-toggle, .wardrobe-mobile-form-toggle) svg {
     transition: none;
+  }
+}
+
+/* 共鸣记录的形态入口叠在主图上，主图按钮与展开按钮互不嵌套。 */
+.resonance-outfit-preview > .wardrobe-mobile-form-toggle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+@media (min-width: 900px) {
+  .resonance-outfit-preview > .wardrobe-mobile-form-toggle {
+    top: auto;
+    bottom: 10px;
   }
 }

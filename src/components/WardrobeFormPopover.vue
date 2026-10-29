@@ -17,10 +17,12 @@ const props = defineProps<{
   language: Language
   disabled?: boolean
   resetKey?: number
+  anchor?: () => HTMLElement | null
+  iconOnly?: boolean
 }>()
 const emit = defineEmits<{ select: [entry: WardrobeEntry] }>()
 const compact = useCompactLayout()
-const open = ref(false)
+const open = defineModel<boolean>('open', { default: false })
 const opensUpward = ref(true)
 const trigger = ref<HTMLButtonElement | null>(null)
 const panel = ref<HTMLElement | null>(null)
@@ -54,7 +56,9 @@ async function toggle() {
     Math.max(1, count) * thumbnailWidth + Math.max(0, count - 1) * 6 + 26
   )
   const box =
-    button.closest('.wardrobe-card')?.getBoundingClientRect() ?? button.getBoundingClientRect()
+    props.anchor?.()?.getBoundingClientRect() ??
+    button.closest('.wardrobe-card')?.getBoundingClientRect() ??
+    button.getBoundingClientRect()
   menuStyle.value = {
     ...menuStyle.value,
     width: `${width}px`,
@@ -66,15 +70,17 @@ async function toggle() {
   if (!open.value || !panel.value) return
   if (!compact.value) {
     const media =
+      props.anchor?.()?.getBoundingClientRect() ??
       button
         .closest('.wardrobe-card')
         ?.querySelector('.wardrobe-card-media')
-        ?.getBoundingClientRect() ?? box
+        ?.getBoundingClientRect() ??
+      box
     opensUpward.value = true
     menuStyle.value = {
       ...menuStyle.value,
       top: 'auto',
-      bottom: `${window.innerHeight - media.bottom + 4}px`,
+      bottom: `${window.innerHeight - media.bottom + 44}px`,
       maxHeight: `${Math.max(40, media.bottom - (viewport?.offsetTop ?? 0) - 16)}px`
     }
     return
@@ -136,14 +142,14 @@ watch(
   <button
     ref="trigger"
     type="button"
-    :class="compact ? 'wardrobe-mobile-form-toggle' : 'wardrobe-form-toggle'"
+    :class="compact || iconOnly ? 'wardrobe-mobile-form-toggle' : 'wardrobe-form-toggle'"
     :disabled="disabled"
     :aria-label="open ? t.collapse : t.expand"
     :aria-expanded="open"
     :aria-controls="open ? panelId : undefined"
     @click.stop="toggle"
   >
-    <span v-if="!compact">{{ open ? t.collapseShort : t.expandShort }}</span>
+    <span v-if="!compact && !iconOnly">{{ open ? t.collapseShort : t.expandShort }}</span>
     <ChevronDown :size="compact ? 18 : 16" :class="{ rotated: open }" aria-hidden="true" />
   </button>
   <Teleport to="body">
