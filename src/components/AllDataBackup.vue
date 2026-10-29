@@ -5,11 +5,13 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { lazyFeature } from '../utils/lazyFeature'
 const CameraImportConflictDialog = lazyFeature(
   () => import('./CameraImportConflictDialog.vue'),
-  () => props.language
+  () => props.language,
+  { active: () => conflict.value !== null, cancel: () => finishChoices(null) }
 )
 const WardrobeRestoreRegionDialog = lazyFeature(
   () => import('./WardrobeRestoreRegionDialog.vue'),
-  () => props.language
+  () => props.language,
+  { active: () => regionConflict.value !== null, cancel: () => finishRegion(null) }
 )
 import { hasAllBackupData } from '../utils/backup/backupAvailability'
 import type {

@@ -1,6 +1,9 @@
-import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
 import ParseToolsDialog from '../../src/components/ParseToolsDialog.vue'
+import { warmLookbookParser } from '../../src/utils/outfit/lookbookWasmClient'
+
+vi.mock('../../src/utils/outfit/lookbookWasmClient', () => ({ warmLookbookParser: vi.fn() }))
 
 const messages = {
   title: '参数/搭配码解析',
@@ -32,6 +35,37 @@ function mountDialog(overrides: Partial<{ visible: boolean; busy: boolean }> = {
 }
 
 describe('ParseToolsDialog', () => {
+  it('initializes focus and parser warmup on its first visible mount', async () => {
+    vi.mocked(warmLookbookParser).mockClear()
+    const trigger = document.createElement('button')
+    document.body.append(trigger)
+    trigger.focus()
+    const wrapper = mount(ParseToolsDialog, {
+      attachTo: document.body,
+      props: {
+        visible: true,
+        cameraParams: '',
+        outfitCode: '',
+        outfitMaxLength: 64,
+        busy: false,
+        messages
+      }
+    })
+    try {
+      await flushPromises()
+      await vi.waitFor(() => expect(warmLookbookParser).toHaveBeenCalledOnce())
+      expect(document.activeElement).toBe(document.body.querySelector('.parse-tools-panel'))
+      document.activeElement!.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+      )
+      expect(wrapper.emitted('close')).toHaveLength(1)
+      await wrapper.setProps({ visible: false })
+      expect(document.activeElement).toBe(trigger)
+    } finally {
+      wrapper.unmount()
+      trigger.remove()
+    }
+  })
   it('renders both parser sections and emits their values', async () => {
     const wrapper = mountDialog()
     const inputs = wrapper.findAll('input:not([type="file"])')

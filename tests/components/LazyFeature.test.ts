@@ -42,3 +42,38 @@ it('loads only when rendered, retries failures and reuses the resolved component
     wrapper.unmount()
   }
 })
+
+it('can cancel a pending dialog load without opening it when the download finishes', async () => {
+  vi.useFakeTimers()
+  const active = ref(true)
+  let finish!: (component: ReturnType<typeof defineComponent>) => void
+  const loader = () =>
+    new Promise<ReturnType<typeof defineComponent>>((resolve) => {
+      finish = resolve
+    })
+  const cancel = vi.fn(() => {
+    active.value = false
+  })
+  const Feature = lazyFeature(loader, () => 'zh', { active: () => active.value, cancel })
+  const wrapper = mount(defineComponent(() => () => h(Feature, { visible: active.value })))
+  try {
+    await vi.advanceTimersByTimeAsync(160)
+    const button = document.body.querySelector<HTMLButtonElement>('button')!
+    expect(button.textContent).toBe('取消')
+    button.click()
+    await flushPromises()
+    expect(cancel).toHaveBeenCalledOnce()
+    finish(
+      defineComponent({
+        props: ['visible'],
+        template: '<div v-if="visible" class="late-dialog">Loaded</div>'
+      })
+    )
+    await flushPromises()
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+    expect(wrapper.find('.late-dialog').exists()).toBe(false)
+    expect(document.documentElement.style.overflowY).not.toBe('hidden')
+  } finally {
+    wrapper.unmount()
+  }
+})

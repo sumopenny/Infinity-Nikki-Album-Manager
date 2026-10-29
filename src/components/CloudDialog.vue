@@ -23,13 +23,18 @@ const dialog = ref<HTMLDialogElement | null>(null)
 let opener: HTMLElement | null = null
 const modal = useModalPresence(visible, ref(true))
 useBodyScrollLock(modal.present)
-watch(visible, async (value) => {
-  if (value) {
-    opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    await nextTick()
-    dialog.value?.showModal()
-  }
-})
+watch(
+  visible,
+  async (value) => {
+    if (value) {
+      opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      await nextTick()
+      dialog.value?.showModal()
+    }
+  },
+  // 弹窗按需加载时首次挂载已是可见状态，也需要打开原生模态层。
+  { immediate: true }
+)
 watch(modal.present, (value) => {
   if (!value) {
     dialog.value?.close()
@@ -45,6 +50,7 @@ function close() {
     <dialog ref="dialog" class="resonance-cloud-dialog" :aria-label="title" @cancel.prevent="close">
       <Transition
         name="confirm-dialog"
+        appear
         @before-enter="modal.beforeEnter"
         @before-leave="modal.beforeLeave"
         @after-leave="modal.afterLeave"

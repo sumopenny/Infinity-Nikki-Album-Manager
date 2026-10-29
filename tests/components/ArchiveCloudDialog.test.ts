@@ -15,7 +15,6 @@ import {
   getArchiveSnapshot,
   writeArchive
 } from '../../src/utils/cloud/archiveClient'
-import { exportArchiveBackup } from '../../src/utils/cloud/archiveBackup'
 import { clearAllBrowserData, runStoreRequest } from '../../src/utils/file-system/database'
 import { saveResonanceRecords } from '../../src/utils/resonance/resonanceStorage'
 import { updateWardrobe } from '../../src/utils/wardrobe/wardrobeStorage'
@@ -34,7 +33,6 @@ vi.mock('../../src/utils/cloud/archiveClient', () => ({
   getArchiveSnapshot: vi.fn(),
   writeArchive: vi.fn()
 }))
-vi.mock('../../src/utils/cloud/archiveBackup', () => ({ exportArchiveBackup: vi.fn() }))
 vi.mock('../../src/utils/errorReporting/errorReporter', async (original) => ({
   ...(await original<typeof import('../../src/utils/errorReporting/errorReporter')>()),
   reportError: vi.fn()
@@ -66,7 +64,6 @@ beforeEach(async () => {
     revisions: { resonance: 2, wardrobe: 2 },
     replayed: false
   })
-  vi.mocked(exportArchiveBackup).mockReturnValue([])
   await clearAllBrowserData()
   await saveResonanceRecords([resonanceFixture('local')])
   await updateWardrobe(() => ({ ...wardrobeFixture(), regionScope: 'cn' }))
@@ -95,6 +92,28 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 describe('shared archive cloud window', () => {
+  it.each(['upload', 'download'] as const)(
+    'keeps comparison roles visible after deselecting a module for %s',
+    async (action) => {
+      await open(action)
+      const module = panel().querySelector('.archive-cloud-module')!
+      const checkbox = module.querySelector<HTMLInputElement>('input[type=checkbox]')!
+      checkbox.click()
+      await flushPromises()
+      expect(sync.selected.value).toEqual(['wardrobe'])
+      expect(module.classList.contains('is-selected')).toBe(false)
+      expect(module.querySelector('.archive-cloud-module-label .archive-cloud-badge')).toBeNull()
+      const headings = module.querySelectorAll('.archive-cloud-save-heading')
+      expect(headings[0].textContent).toContain('来源')
+      expect(headings[1].textContent).toContain('将被替换')
+      expect(headings[0].textContent).toContain(action === 'upload' ? '本机存档' : '云端存档')
+      expect(module.querySelector('.archive-cloud-date br')).toBeNull()
+      expect(module.querySelector('time')?.getAttribute('datetime')).toBeTruthy()
+      checkbox.click()
+      await flushPromises()
+      expect(sync.selected.value).toContain('resonance')
+    }
+  )
   it('shares the same window across page entry components and does not sync on session restoration', async () => {
     expect(getArchiveHead).not.toHaveBeenCalled()
     await wrapper
@@ -161,7 +180,8 @@ describe('shared archive cloud window', () => {
     })
     await open('download')
     expect(sync.selected.value).toEqual(['resonance'])
-    expect(panel().textContent).toContain('云端暂无存档')
+    expect(panel().querySelector('.archive-cloud-unavailable')).toBeNull()
+    expect(panel().querySelectorAll<HTMLInputElement>('input[type=checkbox]')[1].disabled).toBe(true)
     expect(sync.canSubmit.value).toBe(true)
   })
   it('distinguishes cleared local data from a valid imported zero-piece wardrobe', async () => {
@@ -250,28 +270,6 @@ describe('shared archive cloud window', () => {
     await submit()
     expect(writeArchive).toHaveBeenCalledTimes(2)
   })
-  it('backs up both selected modules without closing the dialog or downloading the cloud', async () => {
-    await open('download')
-    panel().querySelector<HTMLButtonElement>('.archive-cloud-backup button')!.click()
-    await settle()
-    expect(exportArchiveBackup).toHaveBeenCalledWith(
-      expect.objectContaining({ resonance: [resonanceFixture('local')] }),
-      ['resonance', 'wardrobe']
-    )
-    expect(panel().hasAttribute('open')).toBe(true)
-    expect(panel().textContent).toContain('本机备份已生成')
-    expect(getArchiveSnapshot).not.toHaveBeenCalled()
-  })
-  it('keeps recovery available after backup failure', async () => {
-    await open('download')
-    vi.mocked(exportArchiveBackup).mockImplementationOnce(() => {
-      throw new Error('quota')
-    })
-    panel().querySelector<HTMLButtonElement>('.archive-cloud-backup button')!.click()
-    await settle()
-    expect(panel().textContent).toContain('备份未能生成')
-    expect(sync.canSubmit.value).toBe(true)
-  })
   it('blocks writes under a changed account', async () => {
     await open('upload')
     sync.session.invalidate()
@@ -331,16 +329,6 @@ describe('shared archive cloud window', () => {
       )
     }
   )
-  it('backs up only the selected healthy module when the other module is corrupt', async () => {
-    await runStoreRequest('wardrobe', 'readwrite', (store) => store.put('corrupt', 'current'))
-    await open('download')
-    panel().querySelector<HTMLButtonElement>('.archive-cloud-backup button')!.click()
-    await settle()
-    expect(exportArchiveBackup).toHaveBeenCalledWith({ resonance: [resonanceFixture('local')] }, [
-      'resonance'
-    ])
-    expect(panel().textContent).toContain('本机备份已生成')
-  })
   it('deletes cloud saves without accessing local IndexedDB', async () => {
     const read = vi.spyOn(IDBDatabase.prototype, 'transaction').mockImplementation(() => {
       throw new DOMException('storage unavailable', 'InvalidStateError')

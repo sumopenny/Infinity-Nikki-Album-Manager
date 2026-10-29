@@ -377,7 +377,7 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body">
-    <Transition name="confirm-dialog">
+    <Transition name="confirm-dialog" appear>
       <div
         v-if="visible"
         class="outfit-editor"

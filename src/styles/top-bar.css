@@ -479,7 +479,7 @@
 }
 @supports not (color: color-mix(in srgb, black, white)) {
   .view-toggle-pill::before {
-    border-color: rgba(221, 188, 186, 0.91);
+    border: 1px solid rgba(221, 188, 186, 0.91);
     box-shadow: 0 2px 7px rgba(201, 132, 134, 0.12);
   }
   :where(:root[data-theme='dark']) .view-toggle-pill::before {

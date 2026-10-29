@@ -32,8 +32,7 @@ export function useArchiveCloudSync(
   const session = useCloudSession()
   const visible = ref(false),
     checking = ref(true),
-    authBusy = ref(false),
-    backupBusy = ref(false)
+    authBusy = ref(false)
   const action = ref<ArchiveDialogAction>('upload'),
     phase = ref<Phase>('idle')
   const local = shallowRef<Partial<ArchiveLocal> | null>(null),
@@ -46,11 +45,7 @@ export function useArchiveCloudSync(
   const pending = shallowRef<ArchiveWrite | null>(null)
   const logoutNotice = ref(0)
   const busy = computed(
-    () =>
-      authBusy.value ||
-      backupBusy.value ||
-      phase.value === 'preparing' ||
-      phase.value === 'submitting'
+    () => authBusy.value || phase.value === 'preparing' || phase.value === 'submitting'
   )
   const auth = computed(() => action.value === 'login' || action.value === 'register')
   const localWardrobe = computed(() =>
@@ -264,7 +259,6 @@ export function useArchiveCloudSync(
     visible,
     checking,
     authBusy,
-    backupBusy,
     action,
     phase,
     local,

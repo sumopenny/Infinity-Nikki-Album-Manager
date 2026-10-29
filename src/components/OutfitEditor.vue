@@ -302,7 +302,7 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body">
-    <Transition name="confirm-dialog">
+    <Transition name="confirm-dialog" appear>
       <div
         ref="editorOverlayRef"
         v-if="visible"

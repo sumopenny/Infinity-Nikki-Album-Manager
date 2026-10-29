@@ -1,7 +1,7 @@
 # NikkiCube
 
 <div align="center">
-  <img src="img/wxnn.ico" alt="Nikki³ NikkiCube" width="72" height="72">
+  <img src="img/brand-mark.png" alt="Nikki³ NikkiCube" width="72" height="72">
   <p><strong>Nikki³ · Infinity Nikki Toolkit</strong></p>
   <p>NikkiCube manages albums, outfit codes, home schemes, camera parameters and resonance records in your browser, with optional resonance and wardrobe cloud sync and targeted cleanup.</p>
   <p style="color: orange;">If you run into any issues, please fill out the survey in the site's Feedback section, or report them through GitHub/Gitee Issues or the author's social platforms.</p>

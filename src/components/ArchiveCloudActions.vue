@@ -56,14 +56,16 @@ const disabled = computed(() => props.disabled || busy.value || checking.value)
   margin: 6px 0;
   background: var(--line);
 }
-button.archive-cloud-delete {
-  color: #a13e48;
-}
+button.archive-cloud-delete,
 button.archive-cloud-delete:hover:not(:disabled) {
-  color: #872d38;
-  border-color: currentColor;
+  color: #a13e48;
+  border-color: var(--line);
+  background: var(--surface-strong);
+  transform: none;
+  box-shadow: none;
 }
-:where(:root[data-theme='dark']) button.archive-cloud-delete {
+:where(:root[data-theme='dark']) button.archive-cloud-delete,
+:where(:root[data-theme='dark']) button.archive-cloud-delete:hover:not(:disabled) {
   color: #ffb2b9;
 }
 </style>

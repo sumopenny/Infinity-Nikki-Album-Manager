@@ -1,7 +1,7 @@
 # 暖立方
 
 <div align="center">
-  <img src="img/wxnn.ico" alt="Nikki³ 暖立方" width="72" height="72">
+  <img src="img/brand-mark.png" alt="Nikki³ 暖立方" width="72" height="72">
   <p><strong>Nikki³ · 无限暖暖工具集</strong></p>
   <p>暖立方（NikkiCube）在浏览器中整理相册、搭配码、家园方案、相机参数和共鸣记录，支持可选的共鸣与衣橱云同步，并提供专项清理工具。</p>
   <p style="color: orange;">如果遇到问题，请及时在网站内问题反馈处填写问卷，或在 GitHub / Gitee 的 Issues 或作者社交平台反馈。</p>

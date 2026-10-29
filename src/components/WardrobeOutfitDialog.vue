@@ -505,7 +505,7 @@ useModalFocus(dialogOpen, panel, closeDialog)
 }
 @supports not (color: color-mix(in srgb, black, white)) {
   .wardrobe-detail-variant {
-    border-color: #dbc4a8;
+    border: 1px solid #dbc4a8;
     background: #fbf9f5;
   }
   :where(:root[data-theme='dark']) .wardrobe-detail-variant {
