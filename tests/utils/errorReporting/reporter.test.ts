@@ -137,6 +137,8 @@ describe('in-memory error reporter', () => {
   it.each([
     ['cloud save is empty', new Error('EMPTY_CLOUD')],
     ['local resonance is empty', new Error('EMPTY_LOCAL')],
+    ['home build is missing', new Error('home_build_not_found')],
+    ['share code is invalid', new Error('share_code_invalid')],
     ['cloud revision conflict', new CloudRequestError('CONFLICT', 'test-request')],
     ['password confirmation mismatch', new Error('PASSWORD_MISMATCH')],
     ['desktop folder picker unsupported', new Error(fileSystemZh.unsupportedBrowser)],
@@ -175,20 +177,20 @@ describe('in-memory error reporter', () => {
     expect(
       reporter.report(new PhotoParseError(codes), { module: 'photo-params', action: 'parse' })
     ).toBeNull()
-    expect(reporter.snapshot().lastCapture?.reason).toBe('expected-error')
+    expect(reporter.snapshot().lastCapture?.reason).toBe('photo-params-not-reported')
     await reporter.flush()
     expect(transport).not.toHaveBeenCalled()
   })
-  it('does not suppress an unexpected error bundled with an expected parse code', async () => {
+  it('does not send photo parameter errors even with an unexpected parse code', async () => {
     const { reporter, transport } = setup()
     expect(
       reporter.report(new PhotoParseError(['base64_invalid', 'unreachable']), {
         module: 'photo-params',
         action: 'parse'
       })
-    ).not.toBeNull()
+    ).toBeNull()
     await reporter.flush()
-    expect(transport).toHaveBeenCalledTimes(1)
+    expect(transport).not.toHaveBeenCalled()
   })
   it('only filters structured errors inside photo parameter parsing', async () => {
     const { reporter, transport } = setup()
@@ -203,9 +205,7 @@ describe('in-memory error reporter', () => {
   })
   it.each([
     ['other module', '错误码：base64_invalid；含义：无效数据', 'camera'],
-    ['WASM runtime', 'unreachable', 'photo-params'],
-    ['different parse code', '错误码：camera_base64_invalid；含义：无效数据', 'photo-params'],
-    ['file read failure', 'NotReadableError', 'photo-params']
+    ['other module read error', 'NotReadableError', 'camera']
   ])('preserves genuine failures: %s', async (_name, message, module) => {
     const { reporter, transport } = setup()
     expect(reporter.report(new Error(message), { module, action: 'parse' })).not.toBeNull()

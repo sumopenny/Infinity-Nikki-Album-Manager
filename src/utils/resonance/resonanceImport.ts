@@ -6,6 +6,7 @@ import {
   readPearpalJSON
 } from './pearpalDiagnostics'
 import { diagnosticFetch } from '../errorReporting/diagnosticFetch'
+import { throwIfSignalAborted } from '../abortSignal'
 // 奇想手账按所选区服验证角色；凭据只随当前请求发送，不进入持久化层。
 import { decodePearpal } from './resonancePearpalData'
 import type { ResonanceRecord } from './resonanceTypes'
@@ -163,9 +164,9 @@ export async function fetchPearpalSnapshot(
   signal?: AbortSignal,
   region: PearpalRegion = 'cn'
 ): Promise<unknown> {
-  signal?.throwIfAborted()
+  throwIfSignalAborted(signal)
   await verifyPearpalUid(credentials, region, signal)
-  signal?.throwIfAborted()
+  throwIfSignalAborted(signal)
   const response = await postPearpal('snapshot', credentials, region, signal)
   // 登录失效时快照返回 JSON 而非 Snappy，先识别登录错误，避免显示解压异常。
   if (response.headers.get('content-type')?.includes('application/json')) {
@@ -219,7 +220,7 @@ export async function fetchPearpalSnapshot(
       }
     })
   }
-  signal?.throwIfAborted()
+  throwIfSignalAborted(signal)
   return decoded
 }
 
@@ -229,7 +230,7 @@ export async function parsePearpalResonance(
   onProgress?: (value: ResonanceImportProgress) => void,
   signal?: AbortSignal
 ): Promise<ResonanceImportResult> {
-  signal?.throwIfAborted()
+  throwIfSignalAborted(signal)
   const gachaList = asGachaRows(decoded?.info_from_self?.gacha_list)
   if (!gachaList.length) throw new Error(PEARPAL_NO_RECORDS)
 
@@ -246,7 +247,7 @@ export async function parsePearpalResonance(
   const { loadResonanceCatalog } = await import('./resonanceCatalog')
   const { loadResonanceBanners, normalizeBannerPulls, buildResonanceRecords } =
     await loadResonanceCatalog()
-  signal?.throwIfAborted()
+  throwIfSignalAborted(signal)
   const banners = loadResonanceBanners()
   const targets = banners.filter((banner) => byBanner.has(banner.bannerId))
   const records: ResonanceRecord[] = []

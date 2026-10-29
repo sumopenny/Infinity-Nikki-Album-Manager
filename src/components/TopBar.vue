@@ -132,16 +132,37 @@ const menuTrigger = ref<HTMLElement | null>(null)
 useModalFocus(menuMotion.present, dropdownRef, closeMenus, menuTrigger)
 const menuPosition = ref({ top: 0, left: 0 })
 const isBusy = computed(() => props.isLoading || props.isDeleting)
+let menuCloseTimer: ReturnType<typeof setTimeout> | null = null
+let menuOpenedByHover = false
+function cancelMenuClose() {
+  if (menuCloseTimer !== null) clearTimeout(menuCloseTimer)
+  menuCloseTimer = null
+}
+/** 桌面鼠标悬停展开；触屏继续使用点击，跨过菜单间隙时保留 120ms。 */
+function enterMenu(menu: Exclude<OpenMenu, null>, event: PointerEvent) {
+  if (compact.value || event.pointerType !== 'mouse') return
+  cancelMenuClose()
+  if (openMenu.value !== menu) void toggleMenu(menu, event, true)
+}
+function leaveMenu(event: PointerEvent) {
+  if (compact.value || event.pointerType !== 'mouse') return
+  cancelMenuClose()
+  menuCloseTimer = setTimeout(closeMenus, 120)
+}
 
 /** 切换顶部菜单，并保证同一时间只展开一个菜单。参数：menu 为目标菜单。 */
-async function toggleMenu(menu: Exclude<OpenMenu, null>, event: MouseEvent) {
+async function toggleMenu(menu: Exclude<OpenMenu, null>, event: MouseEvent, fromHover = false) {
+  cancelMenuClose()
   closeMobileSearch(false)
   if (openMenu.value === menu) {
+    // 悬停展开后点击同一入口仍保持展开，与左侧档案菜单一致。
+    if (!compact.value && menuOpenedByHover) return
     closeMenus()
     return
   }
 
   menuTrigger.value = event.currentTarget as HTMLElement
+  menuOpenedByHover = fromHover
   openMenu.value = menu
   if (menu === 'more') emit('refreshBackupAvailability')
   await nextTick()
@@ -237,6 +258,8 @@ function clearMobileSearch() {
 
 /** 关闭全部顶部菜单及搜索浮层，不抢占下一项操作的焦点。 */
 function closeMenus() {
+  cancelMenuClose()
+  menuOpenedByHover = false
   closeMobileSearch(false)
   openMenu.value = null
 }
@@ -312,6 +335,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  cancelMenuClose()
   document.removeEventListener('click', handleDocumentInteraction)
   document.removeEventListener('keydown', handleDocumentInteraction)
   window.removeEventListener('resize', alignOpenMenu)
@@ -358,6 +382,8 @@ function openDonate() {
         aria-haspopup="menu"
         :aria-expanded="openMenu === 'view'"
         @click.stop="toggleMenu('view', $event)"
+        @pointerenter="enterMenu('view', $event)"
+        @pointerleave="leaveMenu"
         ><Grid2X2 :size="20" aria-hidden="true"
       /></button>
       <button
@@ -365,6 +391,8 @@ function openDonate() {
         :aria-label="messages.moreMenuAria"
         :aria-expanded="openMenu === 'more'"
         @click.stop="toggleMenu('more', $event)"
+        @pointerenter="enterMenu('more', $event)"
+        @pointerleave="leaveMenu"
         ><MoreHorizontal :size="22"
       /></button>
     </div>
@@ -451,6 +479,8 @@ function openDonate() {
           aria-haspopup="menu"
           :aria-expanded="openMenu === 'album'"
           @click.stop="toggleMenu('album', $event)"
+          @pointerenter="enterMenu('album', $event)"
+          @pointerleave="leaveMenu"
         >
           <FolderOpen :size="16" aria-hidden="true" />
           <span>{{ hasAlbumDirectory ? directoryName : messages.currentAlbum }}</span>
@@ -471,6 +501,8 @@ function openDonate() {
             <div
               v-if="openMenu === 'album'"
               ref="dropdownRef"
+              @pointerenter="cancelMenuClose"
+              @pointerleave="leaveMenu"
               tabindex="-1"
               :aria-label="messages.more"
               class="header-dropdown"
@@ -529,6 +561,8 @@ function openDonate() {
           aria-haspopup="menu"
           :aria-expanded="openMenu === 'view'"
           @click.stop="toggleMenu('view', $event)"
+          @pointerenter="enterMenu('view', $event)"
+          @pointerleave="leaveMenu"
         >
           <Grid2X2 :size="16" aria-hidden="true" />
           <span>{{ messages.view }}</span>
@@ -549,6 +583,8 @@ function openDonate() {
             <div
               v-if="openMenu === 'view'"
               ref="dropdownRef"
+              @pointerenter="cancelMenuClose"
+              @pointerleave="leaveMenu"
               tabindex="-1"
               :aria-label="messages.more"
               class="header-dropdown view-dropdown"
@@ -668,6 +704,8 @@ function openDonate() {
           aria-haspopup="menu"
           :aria-expanded="openMenu === 'tools'"
           @click.stop="toggleMenu('tools', $event)"
+          @pointerenter="enterMenu('tools', $event)"
+          @pointerleave="leaveMenu"
         >
           <Wrench :size="17" aria-hidden="true" />
           <span>{{ messages.tools }}</span>
@@ -688,6 +726,8 @@ function openDonate() {
             <div
               v-if="openMenu === 'tools'"
               ref="dropdownRef"
+              @pointerenter="cancelMenuClose"
+              @pointerleave="leaveMenu"
               tabindex="-1"
               :aria-label="messages.more"
               class="header-dropdown"
@@ -731,6 +771,8 @@ function openDonate() {
           aria-haspopup="menu"
           :aria-expanded="openMenu === 'more'"
           @click.stop="toggleMenu('more', $event)"
+          @pointerenter="enterMenu('more', $event)"
+          @pointerleave="leaveMenu"
         >
           <MoreHorizontal :size="19" aria-hidden="true" />
           <span>{{ messages.more }}</span>
@@ -751,6 +793,8 @@ function openDonate() {
             <div
               v-if="openMenu === 'more'"
               ref="dropdownRef"
+              @pointerenter="cancelMenuClose"
+              @pointerleave="leaveMenu"
               tabindex="-1"
               :aria-label="messages.more"
               class="header-dropdown header-dropdown-right more-menu-panel"

@@ -10,7 +10,6 @@ import {
   addSavedCameraParamUid
 } from '../../src/utils/file-system/directoryStorage'
 import { decodePhoto, decodeCameraParams } from '../../src/utils/photo-params/wasmClient'
-import { PhotoParseError } from '../../src/utils/photo-params/parseError'
 import { reportError } from '../../src/utils/errorReporting/errorReporter'
 vi.mock('../../src/utils/errorReporting/errorReporter', () => ({ reportError: vi.fn() }))
 vi.mock('../../src/utils/file-system/directoryStorage', () => ({
@@ -53,10 +52,7 @@ it('retains structured codes while translating the same failure after a language
   await state.openForFile(file())
   expect(state.errorCodes.value).toEqual(['base64_invalid'])
   expect(state.error.value).toContain('错误码：base64_invalid')
-  expect(reportError).toHaveBeenCalledWith(expect.any(PhotoParseError), {
-    module: 'photo-params',
-    action: 'parse'
-  })
+  expect(reportError).not.toHaveBeenCalled()
   language.value = 'en'
   expect(state.error.value).toContain('Error code: base64_invalid')
   expect(state.errorCodes.value).toEqual(['base64_invalid'])

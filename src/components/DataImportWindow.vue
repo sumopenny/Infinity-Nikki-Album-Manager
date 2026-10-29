@@ -2,7 +2,8 @@
 import {
   reportError as captureDiagnosticError,
   trackDiagnostic,
-  reportPartialFailure
+  reportPartialFailure,
+  diagnosticMetadata
 } from '../utils/errorReporting/errorReporter'
 import { computed, nextTick, ref, watch } from 'vue'
 import { Check } from 'lucide-vue-next'
@@ -235,6 +236,7 @@ function report(cause: unknown) {
       }
     })
   const message = cause instanceof Error ? cause.message : ''
+  const diagnosticCode = diagnosticMetadata(cause).code
   if (message === 'MISSING_CREDENTIALS') {
     emit('notice', t.value.credentialsRequired, 'error')
     return
@@ -244,20 +246,37 @@ function report(cause: unknown) {
     return
   }
   const errorMessage =
-    message === PEARPAL_UID_MISMATCH
-      ? t.value.uidMismatch
-      : message === PEARPAL_AUTH_FAILED
-        ? t.value.authFailed
-        : message === 'LOCAL_CHANGED'
-          ? text(
-              '记录已在其他页面变更，请重新获取预览。',
-              'Records changed in another tab. Preview again.'
-            )
-          : confirming.value
-            ? t.value.saveError
-            : method.value === 'file'
-              ? t.value.fileInvalid
-              : t.value.importError
+    method.value === 'pearpal' &&
+    [
+      'PEARPAL_RESPONSE_INVALID',
+      'PEARPAL_NOTEBOOK_DECODE_FAILED',
+      'PEARPAL_RESPONSE_CODE_INVALID'
+    ].includes(diagnosticCode ?? '')
+      ? text(
+          '美鸭梨返回的数据格式暂时无法识别，请稍后重试；持续出现时请反馈给站点维护者。',
+          'Pear-Pal returned data in an unrecognized format. Try again later; if it persists, contact the site maintainer.'
+        )
+      : diagnosticCode === 'PEARPAL_ROLE_MISSING' || diagnosticCode === 'PEARPAL_UID_MISSING'
+        ? text(
+            '美鸭梨接口未返回角色资料，请确认已选中角色；若仍失败，请稍后重试。',
+            'Pear-Pal did not return role details. Select a role and try again later.'
+          )
+        : diagnosticCode === 'PEARPAL_HTTP_ERROR' || diagnosticCode === 'PEARPAL_NETWORK_FAILED'
+          ? text('美鸭梨连接失败，请稍后重试。', 'Could not connect to Pear-Pal. Try again later.')
+          : message === PEARPAL_UID_MISMATCH
+            ? t.value.uidMismatch
+            : message === PEARPAL_AUTH_FAILED
+              ? t.value.authFailed
+              : message === 'LOCAL_CHANGED'
+                ? text(
+                    '记录已在其他页面变更，请重新获取预览。',
+                    'Records changed in another tab. Preview again.'
+                  )
+                : confirming.value
+                  ? t.value.saveError
+                  : method.value === 'file'
+                    ? t.value.fileInvalid
+                    : t.value.importError
   emit('notice', errorMessage, 'error')
 }
 async function createPreview() {

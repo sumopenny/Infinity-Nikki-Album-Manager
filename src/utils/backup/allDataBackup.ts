@@ -158,7 +158,9 @@ async function readBundle(file: File): Promise<Map<string, Blob>> {
         }
       },
       (error, files) =>
-        error ? reject(new Error('无法读取总 ZIP / Unable to read backup ZIP')) : resolve(files)
+        error
+          ? reject(new Error('无法读取总 ZIP / Unable to read backup ZIP', { cause: error }))
+          : resolve(files)
     )
   })
   if (failure) throw failure

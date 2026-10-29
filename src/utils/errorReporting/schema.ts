@@ -158,7 +158,9 @@ const expected = new Set([
   'home_scheme_record_missing',
   'FILE_TOO_LARGE',
   'outfit_record_changed',
-  'home_build_server_unsupported'
+  'home_build_server_unsupported',
+  'home_build_not_found',
+  'share_code_invalid'
 ])
 /** 兼容浏览器提示、相册重新授权和 X6Game 目录选择属于预期状态，不进入 D1。 */
 const expectedDirectoryMessages = new Set([

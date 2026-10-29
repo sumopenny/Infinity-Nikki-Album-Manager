@@ -58,36 +58,42 @@ export async function readCameraBackup(file: Blob): Promise<FavoriteLibrary> {
   let total = 0
   const names = new Set<string>()
   let invalid = false
+  let tooLarge = false
+  let otherBackup = false
   const files = await new Promise<Record<string, Uint8Array>>(async (resolve, reject) => {
     try {
       unzip(
         new Uint8Array(await file.arrayBuffer()),
         {
           filter: (entry) => {
+            if (entry.name === 'backup.json') otherBackup = true
             if (
               names.has(entry.name) ||
               !/^(favorites\.json|covers\/[a-zA-Z0-9-]{1,100})$/.test(entry.name)
             )
               invalid = true
             names.add(entry.name)
-            if (names.size > CAMERA_BACKUP_LIMITS.entries) invalid = true
+            if (names.size > CAMERA_BACKUP_LIMITS.entries) tooLarge = true
             total += entry.originalSize
             if (
               total > CAMERA_BACKUP_LIMITS.bytes ||
               (entry.name === 'favorites.json' &&
                 entry.originalSize > CAMERA_BACKUP_LIMITS.manifest)
             )
-              invalid = true
-            return !invalid
+              tooLarge = true
+            return !invalid && !tooLarge
           }
         },
-        (error, data) => (error ? reject(new Error('无法读取 ZIP 备份')) : resolve(data))
+        (error, data) =>
+          error ? reject(new Error('无法读取 ZIP 备份', { cause: error })) : resolve(data)
       )
     } catch (error) {
       reject(error)
     }
   })
-  if (invalid || !files['favorites.json']) throw new Error('备份格式无效或解压后的体积过大')
+  if (tooLarge) throw new Error('备份解压后的体积过大')
+  if (otherBackup) throw new Error('这不是相机收藏备份；若选择的是总备份，请到“全部数据”入口导入')
+  if (invalid || !files['favorites.json']) throw new Error('备份格式无效')
   if (
     Object.values(files).reduce((sum, bytes) => sum + bytes.length, 0) >
       CAMERA_BACKUP_LIMITS.bytes ||

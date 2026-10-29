@@ -392,9 +392,16 @@ function report(caught: unknown, action = 'operation') {
   const message =
     caught instanceof DuplicateCameraCodeError
       ? t('该参数已收藏', 'These parameters are already saved')
-      : caught instanceof Error
-        ? caught.message
-        : String(caught)
+      : action === 'importBackup' &&
+          caught instanceof Error &&
+          caught.message === '无法读取 ZIP 备份'
+        ? t(
+            '无法解压相机收藏备份，请确认文件是完整的 ZIP。',
+            'Could not unzip the camera favorites backup. Check that the ZIP is complete.'
+          )
+        : caught instanceof Error
+          ? caught.message
+          : String(caught)
   error.value = caught instanceof DuplicateCameraCodeError ? '' : message
   emit('status', message, 'error')
 }

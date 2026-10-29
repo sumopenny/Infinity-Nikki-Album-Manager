@@ -1,5 +1,4 @@
 import { collectDiagnosticEnvironment, prepareDiagnosticEnvironment } from './environment'
-import { isExpectedPhotoInputError } from '../photo-params/parseError'
 import {
   MAX_ERROR_BYTES,
   MAX_BREADCRUMBS,
@@ -36,7 +35,7 @@ export function annotateDiagnosticError<T>(error: T, metadata: Partial<ErrorMeta
   return error
 }
 /** Retain lower-level network/storage annotations through Error.cause wrappers. */
-function diagnosticMetadata(error: unknown): Partial<ErrorMetadata> {
+export function diagnosticMetadata(error: unknown): Partial<ErrorMetadata> {
   const chain: Partial<ErrorMetadata>[] = [],
     visited = new Set<object>()
   let current = error
@@ -230,20 +229,16 @@ export function createErrorReporter(options: ReporterOptions) {
       })
     return pending
   }
-  /** 仅照片参数解析的预期格式/UID 错误不上报；WASM 和其他运行异常继续采集。 */
-  function isExpectedPhotoParseError(error: unknown, metadata: Partial<ErrorMetadata>): boolean {
-    if (metadata.module !== 'photo-params' || metadata.action !== 'parse') return false
-    return isExpectedPhotoInputError(error)
-  }
   function report(error: unknown, metadata: Partial<ErrorMetadata> = {}): string | null {
     if (!enabled) return skip('disabled')
+    // Photo parameter parsing failures stay in the UI and local parse state only.
+    if (metadata.module === 'photo-params') return skip('photo-params-not-reported')
     if (now() < pauseUntil) return skip('backoff')
     counts.captured++
     try {
       if (
         isExpectedError(error) ||
-        (metadata.code && isExpectedError(metadata.code)) ||
-        isExpectedPhotoParseError(error, metadata)
+        (metadata.code && isExpectedError(metadata.code))
       ) {
         counts.filtered++
         return skip('expected-error')

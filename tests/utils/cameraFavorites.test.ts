@@ -254,6 +254,20 @@ afterEach(() => vi.unstubAllGlobals())
 const zipManifest = (manifest: unknown) =>
   new Blob([zipSync({ 'favorites.json': strToU8(JSON.stringify(manifest)) })])
 describe('complete camera backup', () => {
+  it('keeps the decompression reason for an unreadable ZIP', async () => {
+    await expect(readCameraBackup(new Blob(['not a zip']))).rejects.toMatchObject({
+      message: '无法读取 ZIP 备份',
+      cause: expect.any(Error)
+    })
+  })
+  it('distinguishes another backup type from an invalid camera archive', async () => {
+    await expect(
+      readCameraBackup(new Blob([zipSync({ 'backup.json': strToU8('{}') })]))
+    ).rejects.toThrow('这不是相机收藏备份')
+    await expect(
+      readCameraBackup(new Blob([zipSync({ 'other.json': strToU8('{}') })]))
+    ).rejects.toThrow('备份格式无效')
+  })
   it('round-trips empty tags and ordering into an empty library, including a tags-only backup', async () => {
     const tags = ['夜景', '空标签', '人像']
     await saveCameraFavoriteTags(tags)

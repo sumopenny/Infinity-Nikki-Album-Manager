@@ -47,11 +47,32 @@ export function installErrorReporting(app: App): () => void {
   app.config.errorHandler = vueHandler
   const runtime = (event: ErrorEvent | Event) => {
     if (event instanceof ErrorEvent) {
+      const opaque = event.message === 'Script error.' && !event.filename && !event.error
+      const resizeLoop =
+        /^(?:ResizeObserver loop limit exceeded|ResizeObserver loop completed with undelivered notifications\.)$/.test(
+          event.message
+        )
       reportError(event.error ?? new Error(event.message), {
         type: 'runtime',
-        action: 'window-error',
+        action: opaque
+          ? 'opaque-script-error'
+          : resizeLoop
+            ? 'resize-observer-loop'
+            : 'window-error',
         handled: false,
-        context: { script: event.filename, line: event.lineno, column: event.colno }
+        severity: resizeLoop ? 'warning' : 'error',
+        context: {
+          script: event.filename,
+          line: event.lineno,
+          column: event.colno,
+          locationAvailable: Boolean(event.filename && event.lineno),
+          errorObjectAvailable: Boolean(event.error),
+          resourceOrigin: event.filename
+            ? new URL(event.filename, location.href).origin === location.origin
+              ? 'same-origin'
+              : 'other-origin'
+            : 'unknown'
+        }
       })
       return
     }

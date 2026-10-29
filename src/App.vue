@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { lazyFeature } from './utils/lazyFeature'
 import { isAlbumPhoto } from './utils/photoGrouping'
+import { outfitBackupMessage } from './utils/outfit/outfitBackupMessage'
 import { readCompatibleAlbum } from './utils/file-system/compatibleAlbum'
 import { exportCompatiblePhotos } from './utils/file-system/compatiblePhotoExport'
 import { requestBlobDownload } from './utils/backup/downloadFallback'
@@ -1441,13 +1442,18 @@ function showOutfitStorageError(error: unknown, source?: string) {
   const message =
     error instanceof DuplicateOutfitCodeError
       ? outfitLocale.value.duplicateCode
-      : error instanceof DOMException && error.name === 'QuotaExceededError'
-        ? outfitLocale.value.storageFull
-        : error instanceof Error && error.message === 'outfit_record_changed'
-          ? outfitLocale.value.recordChanged
-          : error instanceof Error && error.message.startsWith('outfit_')
-            ? outfitLocale.value.operationFailed
-            : null
+      : activeOperation.value === 'importing-outfits'
+        ? (outfitBackupMessage(error, language.value) ??
+          (language.value === 'zh'
+            ? '搭配码备份导入失败，请确认文件是完整的搭配码 ZIP 备份后重试。'
+            : 'The outfit backup could not be imported. Check the ZIP file and try again.'))
+        : error instanceof DOMException && error.name === 'QuotaExceededError'
+          ? outfitLocale.value.storageFull
+          : error instanceof Error && error.message === 'outfit_record_changed'
+            ? outfitLocale.value.recordChanged
+            : error instanceof Error && error.message.startsWith('outfit_')
+              ? outfitLocale.value.operationFailed
+              : null
   if (message) showOutfitStatus(message, 'warning', false, source)
   else {
     const status = createErrorStatus(error, { type: 'readFailed' })

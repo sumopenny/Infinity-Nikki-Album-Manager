@@ -86,13 +86,18 @@ function setBusy(value: boolean) {
   busy.value = value
   emit('busy', value)
 }
-function report(error: unknown, action: string) {
-  captureDiagnosticError(error, { module: 'backup', action })
+function report(error: unknown, action: string, file?: File) {
+  captureDiagnosticError(error, {
+    module: 'backup', action,
+    context: file ? { fileSize: file.size, fileType: file.type } : {}
+  })
   const message = error instanceof Error ? error.message : String(error)
   emit(
     'status',
     t('全部数据备份操作失败：', 'Backup operation failed: ') +
-      (message === 'WARDROBE_CHANGED'
+      (message === '无法读取总 ZIP / Unable to read backup ZIP'
+        ? t('无法解压所选文件，请确认它是完整的 ZIP 备份。', 'The selected file could not be unzipped. Check that it is a complete ZIP backup.')
+        : message === 'WARDROBE_CHANGED'
         ? t(
             '衣橱已在其他页面变更，请重新选择备份并确认区服。',
             'The wardrobe changed in another tab. Select the backup again and confirm the region.'
@@ -222,7 +227,7 @@ async function importData(event: Event) {
         : 'success'
     )
   } catch (error) {
-    report(error, 'importData')
+    report(error, 'importData', file)
   } finally {
     if (started) emit('changed')
     setBusy(false)

@@ -1,5 +1,4 @@
 import { readPhotoFile, isAlbumPhoto } from '../utils/photoGrouping'
-import { reportError as captureDiagnosticError } from '../utils/errorReporting/errorReporter'
 import { formatCameraParams } from '../utils/photo-params/formatCameraParams'
 import {
   computed,
@@ -144,7 +143,6 @@ export function usePhotoParams(options: {
       setStage('ready', 100)
     } catch (caught) {
       if (run !== runId) return
-      captureDiagnosticError(caught, { module: 'photo-params', action: 'parse' })
       failure.value = caught
       setStage('error', 100)
     }
@@ -180,7 +178,6 @@ export function usePhotoParams(options: {
       setStage('ready', 100)
     } catch (caught) {
       if (run !== runId) return
-      captureDiagnosticError(caught, { module: 'photo-params', action: 'parse' })
       failure.value = caught
       setStage('error', 100)
     }
@@ -216,7 +213,6 @@ export function usePhotoParams(options: {
       setStage('ready', 100)
     } catch (caught) {
       if (run !== runId) return
-      captureDiagnosticError(caught, { module: 'photo-params', action: 'parse' })
       failure.value = caught
       setStage('error', 100)
     }
@@ -248,7 +244,6 @@ export function usePhotoParams(options: {
       setStage('ready', 100)
     } catch (caught) {
       if (run !== runId) return
-      captureDiagnosticError(caught, { module: 'photo-params', action: 'parse' })
       failure.value = caught
       setStage('error', 100)
     }
