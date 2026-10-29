@@ -212,8 +212,10 @@ async function loadLibrary() {
       emit('countChange', result.schemes.length)
       if (filter.value.startsWith('tag:') && !tags.value.includes(filter.value.slice(4)))
         filter.value = 'all'
+      return true
     } catch (error) {
       emit('status', operationError(error, 'loadLibrary'), 'error')
+      return false
     } finally {
       if (generation === loadGeneration) busy.value = false
     }
@@ -826,14 +828,19 @@ async function exportBackup() {
   })
 }
 
+// 编辑期间保留草稿；关闭编辑器后沿用 pendingLibraryReload 执行重载。
+function reload() {
+  if (editorVisible.value) {
+    pendingLibraryReload = true
+    return 'deferred' as const
+  }
+  return loadLibrary()
+}
+defineExpose({ reload })
 watch(
   () => props.libraryRevision,
   () => {
-    if (editorVisible.value) {
-      pendingLibraryReload = true
-      return
-    }
-    void loadLibrary()
+    void reload()
   },
   { immediate: true }
 )

@@ -131,7 +131,6 @@ it('does not repopulate storage while website reset suppresses persistence', asy
   preferences.saveThumbnailMode('home', 'default')
   preferences.saveThumbnailSize('home', 'large')
   const switching = preferences.toggleTheme()
-  await vi.advanceTimersByTimeAsync(280)
   await switching
   await nextTick()
   expect(localStorage.length).toBe(0)
@@ -140,15 +139,14 @@ it('does not repopulate storage while website reset suppresses persistence', asy
   wrapper.unmount()
 })
 
-it('serializes preference changes and stops persistence watchers on unmount', async () => {
+it('applies preferences immediately and stops persistence watchers on unmount', async () => {
   const { preferences, onStatus, wrapper } = setup()
   const initial = preferences.language.value
   const switching = preferences.toggleLanguage()
-  await preferences.toggleLanguage()
-  await vi.advanceTimersByTimeAsync(280)
+  expect(preferences.language.value).not.toBe(initial)
   await switching
   expect(preferences.language.value).not.toBe(initial)
-  expect(onStatus).toHaveBeenCalledTimes(2)
+  expect(onStatus).toHaveBeenCalledTimes(1)
   const stored = localStorage.getItem('infinity-nikki-language')
   wrapper.unmount()
   preferences.language.value = initial

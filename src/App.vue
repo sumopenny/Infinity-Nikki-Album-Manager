@@ -265,63 +265,24 @@ const noteDialogBaseline = ref('')
 const isNoteDialogVisible = ref(false)
 // 首次打开后保留组件，使关闭监听、焦点恢复及退出动画继续按原流程执行。
 const mountedDialogs = ref(new Set<string>())
-watch(
-  isParseToolsVisible,
-  (open) => {
-    if (open) mountedDialogs.value.add('ParseToolsDialog')
-  },
-  { immediate: true, flush: 'sync' }
-)
-watch(
-  archiveCloud.visible,
-  (open) => {
-    if (open) mountedDialogs.value.add('ArchiveCloudDialog')
-  },
-  { immediate: true, flush: 'sync' }
-)
-watch(
-  isOutfitParseVisible,
-  (open) => {
-    if (open) mountedDialogs.value.add('OutfitParseDialog')
-  },
-  { immediate: true, flush: 'sync' }
-)
-watch(
-  isOutfitEditorVisible,
-  (open) => {
-    if (open) mountedDialogs.value.add('OutfitEditor')
-  },
-  { immediate: true, flush: 'sync' }
-)
+function retainDialogAfterOpen(name: string, visible: import('vue').Ref<boolean>) {
+  watch(
+    visible,
+    (open) => {
+      if (open) mountedDialogs.value.add(name)
+    },
+    { immediate: true, flush: 'sync' }
+  )
+}
+retainDialogAfterOpen('ParseToolsDialog', isParseToolsVisible)
+retainDialogAfterOpen('ArchiveCloudDialog', archiveCloud.visible)
+retainDialogAfterOpen('OutfitParseDialog', isOutfitParseVisible)
+retainDialogAfterOpen('OutfitEditor', isOutfitEditorVisible)
 
-watch(
-  isHelpAboutVisible,
-  (open) => {
-    if (open) mountedDialogs.value.add('HelpAboutDialog')
-  },
-  { immediate: true, flush: 'sync' }
-)
-watch(
-  isUpdateLogVisible,
-  (open) => {
-    if (open) mountedDialogs.value.add('UpdateLogDialog')
-  },
-  { immediate: true, flush: 'sync' }
-)
-watch(
-  isOutfitGuideVisible,
-  (open) => {
-    if (open) mountedDialogs.value.add('OutfitGuideDialog')
-  },
-  { immediate: true, flush: 'sync' }
-)
-watch(
-  isFortuneTimeVisible,
-  (open) => {
-    if (open) mountedDialogs.value.add('FortuneTimeDialog')
-  },
-  { immediate: true, flush: 'sync' }
-)
+retainDialogAfterOpen('HelpAboutDialog', isHelpAboutVisible)
+retainDialogAfterOpen('UpdateLogDialog', isUpdateLogVisible)
+retainDialogAfterOpen('OutfitGuideDialog', isOutfitGuideVisible)
+retainDialogAfterOpen('FortuneTimeDialog', isFortuneTimeVisible)
 const compactLayout = useCompactLayout()
 useVisualViewport()
 const {
@@ -422,17 +383,27 @@ function handleAllBackupBusy(busy: boolean) {
   if (busy) activeOperation.value = 'all-data-backup'
   else if (activeOperation.value === 'all-data-backup') activeOperation.value = null
 }
+const homeWorkspaceRef = ref<InstanceType<typeof HomeSchemeWorkspace> | null>(null)
+async function reloadResonanceState() {
+  if (resonanceRecordsRef.value) return resonanceRecordsRef.value.reload()
+  resonanceRecords.value = await loadResonanceRecords()
+}
+function refreshArchiveViews() {
+  return Promise.allSettled([wardrobeRef.value?.reload(), reloadResonanceState()])
+}
+function hasRefreshFailure(updates: PromiseSettledResult<unknown>[]) {
+  return updates.some((update) => update.status === 'rejected' || update.value === false)
+}
+async function refreshHomeAfterImport() {
+  const result = await homeWorkspaceRef.value?.reload()
+  // 未挂载或编辑中延迟刷新时，仅更新导航计数。
+  if (result === undefined || result === 'deferred') await updateHomeSchemeCount()
+  return result
+}
 /** 两份本地存档提交后统一刷新；共鸣也参与衣橱拥有状态的推导。 */
 async function refreshAfterArchiveSync() {
-  const updates = await Promise.allSettled([
-    wardrobeRef.value?.reload(),
-    resonanceRecordsRef.value
-      ? resonanceRecordsRef.value.reload()
-      : loadResonanceRecords().then((records) => {
-          resonanceRecords.value = records
-        })
-  ])
-  if (updates.some((update) => update.status === 'rejected' || update.value === false))
+  const updates = await refreshArchiveViews()
+  if (hasRefreshFailure(updates))
     showStatus({
       message:
         language.value === 'zh'
@@ -443,21 +414,17 @@ async function refreshAfterArchiveSync() {
     })
 }
 async function refreshAfterAllImport() {
-  homeLibraryRevision.value++
   selectedOutfitIds.value = new Set()
   if (currentPreview.value && 'code' in currentPreview.value) currentPreview.value = null
-  const updates = await Promise.allSettled([
-    reloadOutfitCollection(),
-    updateHomeSchemeCount(),
-    cameraFavoritesRef.value ? cameraFavoritesRef.value.reload() : refreshCameraFavoriteCodes(),
-    wardrobeRef.value?.reload(),
-    resonanceRecordsRef.value
-      ? resonanceRecordsRef.value.reload()
-      : loadResonanceRecords().then((records) => {
-          resonanceRecords.value = records
-        })
+  const [moduleUpdates, archiveUpdates] = await Promise.all([
+    Promise.allSettled([
+      reloadOutfitCollection(),
+      refreshHomeAfterImport(),
+      cameraFavoritesRef.value ? cameraFavoritesRef.value.reload() : refreshCameraFavoriteCodes()
+    ]),
+    refreshArchiveViews()
   ])
-  if (updates.some((update) => update.status === 'rejected' || update.value === false))
+  if (hasRefreshFailure([...moduleUpdates, ...archiveUpdates]))
     showStatus({
       message:
         language.value === 'zh'
@@ -553,13 +520,7 @@ const {
   uidRequired: photoParamsUidRequired,
   progress: photoParamsProgress
 } = photoParams
-watch(
-  isPhotoParamsVisible,
-  (open) => {
-    if (open) mountedDialogs.value.add('PhotoParamsDialog')
-  },
-  { immediate: true, flush: 'sync' }
-)
+retainDialogAfterOpen('PhotoParamsDialog', isPhotoParamsVisible)
 const {
   statusState,
   notices: statusNotices,
@@ -2697,6 +2658,7 @@ function importAllDataFromMenu() {
         />
 
         <HomeSchemeWorkspace
+          ref="homeWorkspaceRef"
           :language="language"
           @open-filters="mobileFiltersOpen = true"
           @close-filters="mobileFiltersOpen = false"

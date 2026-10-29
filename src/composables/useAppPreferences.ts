@@ -1,5 +1,5 @@
 import { readLocalStorage, writeLocalStorage } from '../utils/localStorage'
-import { computed, ref, watch, nextTick, onBeforeUnmount, type Ref } from 'vue'
+import { computed, ref, watch, onBeforeUnmount, type Ref } from 'vue'
 import { DEFAULT_LANGUAGE, messages, type Language } from '../i18n'
 import {
   isThumbnailMode,
@@ -39,7 +39,6 @@ export function useAppPreferences({ compactLayout, canPersist, onStatus }: AppPr
   const language = ref<Language>(isLanguage(storedLanguage) ? storedLanguage : DEFAULT_LANGUAGE)
   const locale = computed(() => messages[language.value])
   const autoParseActionsEnabled = ref(storedAutoParseActions === 'true')
-  const isPreferenceUpdating = ref(false)
   let themeSwitchFrame: number | undefined
   const thumbnailMode = ref<ThumbnailMode>(
     isThumbnailMode(storedThumbnailMode) ? storedThumbnailMode : 'default'
@@ -136,19 +135,8 @@ export function useAppPreferences({ compactLayout, canPersist, onStatus }: AppPr
     if (canPersist()) writeLocalStorage(AUTO_PARSE_ACTIONS_STORAGE_KEY, String(value))
   })
 
-  /** 应用语言或主题偏好，并显示加载及完成提示。参数：preference 为要切换的偏好。 */
-  async function applyPreference(preference: 'language' | 'theme') {
-    if (isPreferenceUpdating.value) return
-
-    isPreferenceUpdating.value = true
-    onStatus({
-      type: 'custom',
-      message: locale.value.app.preferencesUpdating,
-      tone: 'info',
-      loading: true
-    })
-    await new Promise<void>((resolve) => window.setTimeout(resolve, 280))
-
+  /** 立即应用偏好，并使用更新后的语言显示完成提示。 */
+  function applyPreference(preference: 'language' | 'theme') {
     if (preference === 'language') {
       language.value = language.value === 'zh' ? 'en' : 'zh'
     } else {
@@ -156,7 +144,6 @@ export function useAppPreferences({ compactLayout, canPersist, onStatus }: AppPr
       if (canPersist()) writeLocalStorage(THEME_STORAGE_KEY, themeMode.value)
     }
 
-    await nextTick()
     onStatus({
       type: 'custom',
       message:
@@ -165,7 +152,6 @@ export function useAppPreferences({ compactLayout, canPersist, onStatus }: AppPr
           : locale.value.app.themeUpdated,
       tone: 'success'
     })
-    isPreferenceUpdating.value = false
   }
 
   /** 切换中英文。参数：无。 */

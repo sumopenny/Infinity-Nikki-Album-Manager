@@ -3,6 +3,18 @@ import { computed, type Ref } from 'vue'
 import type { PhotoItem, RecentlyDeletedPhoto } from '../utils/photoGrouping'
 import type { OutfitItem } from '../utils/outfit/outfitTypes'
 
+function toggleId(ids: Set<string>, id: string) {
+  const next = new Set(ids)
+  next.has(id) ? next.delete(id) : next.add(id)
+  return next
+}
+// 仅切换当前可见范围，保留筛选范围之外的选择。
+function toggleVisible(ids: Set<string>, items: { id: string }[], selected: boolean) {
+  const next = new Set(ids)
+  for (const item of items) selected ? next.delete(item.id) : next.add(item.id)
+  return next
+}
+
 export function useSelectionState(options: {
   recentlyDeleted: Ref<RecentlyDeletedPhoto[]>
   visiblePhotos: Ref<PhotoItem[]>
@@ -57,35 +69,23 @@ export function useSelectionState(options: {
   )
 
   const toggleAll = () => {
-    const ids = new Set(visiblePhotos.value.map((photo) => photo.id))
-    selectedIds.value = allSelected.value
-      ? new Set([...selectedIds.value].filter((id) => !ids.has(id)))
-      : new Set([...selectedIds.value, ...ids])
+    selectedIds.value = toggleVisible(selectedIds.value, visiblePhotos.value, allSelected.value)
   }
-
   const toggleAllOutfits = () => {
-    const ids = new Set(visibleOutfits.value.map((outfit) => outfit.id))
-    selectedOutfitIds.value = allOutfitsSelected.value
-      ? new Set([...selectedOutfitIds.value].filter((id) => !ids.has(id)))
-      : new Set([...selectedOutfitIds.value, ...ids])
+    selectedOutfitIds.value = toggleVisible(
+      selectedOutfitIds.value,
+      visibleOutfits.value,
+      allOutfitsSelected.value
+    )
   }
-
   const toggleOutfit = (id: string) => {
-    const next = new Set(selectedOutfitIds.value)
-    next.has(id) ? next.delete(id) : next.add(id)
-    selectedOutfitIds.value = next
+    selectedOutfitIds.value = toggleId(selectedOutfitIds.value, id)
   }
-
   const togglePhoto = (id: string) => {
-    const next = new Set(selectedIds.value)
-    next.has(id) ? next.delete(id) : next.add(id)
-    selectedIds.value = next
+    selectedIds.value = toggleId(selectedIds.value, id)
   }
-
   const toggleTrashPhoto = (id: string) => {
-    const next = new Set(trashSelectedIds.value)
-    next.has(id) ? next.delete(id) : next.add(id)
-    trashSelectedIds.value = next
+    trashSelectedIds.value = toggleId(trashSelectedIds.value, id)
   }
 
   const toggleAllTrash = () => {
@@ -95,8 +95,7 @@ export function useSelectionState(options: {
   }
 
   const toggleFavorite = (id: string) => {
-    const next = new Set(favoriteIds.value)
-    next.has(id) ? next.delete(id) : next.add(id)
+    const next = toggleId(favoriteIds.value, id)
     favoriteIds.value = next
     if (activeView.value === 'favorites' && !next.has(id)) {
       selectedIds.value = new Set([...selectedIds.value].filter((selectedId) => selectedId !== id))

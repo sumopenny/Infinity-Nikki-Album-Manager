@@ -405,3 +405,19 @@ it('reports the displayed home cover failure while preserving the editor', async
     capture.mockRestore()
   }
 })
+
+it('exposes an awaitable reload and reports storage failures to its caller', async () => {
+  const wrapper = mount(HomeSchemeWorkspace, { props, attachTo: document.body })
+  try {
+    await flushPromises()
+    const read = vi.spyOn(homeStorage, 'readHomeSchemeLibrary')
+    expect(await wrapper.vm.reload()).toBe(true)
+    expect(read).toHaveBeenCalledTimes(1)
+    read.mockRejectedValueOnce(new Error('read failed'))
+    expect(await wrapper.vm.reload()).toBe(false)
+    expect(wrapper.emitted('status')?.at(-1)?.[1]).toBe('error')
+    read.mockRestore()
+  } finally {
+    wrapper.unmount()
+  }
+})
