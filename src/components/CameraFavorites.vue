@@ -1442,21 +1442,11 @@ function handleImportChoices(value: typeof choices.value) {
 .camera-card-tag {
   padding: 3px 7px;
   border-radius: 7px;
-  background: color-mix(in srgb, var(--pink-deep) 10%, var(--surface-strong));
+  background: var(--tag-bg);
   color: var(--pink-deep);
   font-size: 10px;
   overflow-wrap: anywhere;
   max-width: 100%;
-}
-@supports not (color: color-mix(in srgb, black, white)) {
-  .camera-name-tags span,
-  .camera-card-tag {
-    background: rgba(249.6, 242.7, 242.9, 1);
-  }
-  :where(:root[data-theme='dark']) .camera-name-tags span,
-  :where(:root[data-theme='dark']) .camera-card-tag {
-    background: rgba(48.2, 41.9, 45.7, 1);
-  }
 }
 .camera-code {
   display: -webkit-box;

@@ -133,20 +133,7 @@
 .mobile-header-search:focus-within {
   border-color: var(--pink-deep);
   background: var(--search-focus-bg, var(--surface-strong));
-  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 14%, transparent);
-}
-@supports not (color: color-mix(in srgb, black, white)) {
-  .header-search input:focus,
-  .header-search input:focus-visible,
-  .mobile-header-search:focus-within {
-    box-shadow: 0 0 8px 1px rgba(201, 132, 134, 0.14);
-  }
-
-  :where(:root[data-theme='dark']) .header-search input:focus,
-  :where(:root[data-theme='dark']) .header-search input:focus-visible,
-  :where(:root[data-theme='dark']) .mobile-header-search:focus-within {
-    box-shadow: 0 0 8px 1px rgba(239, 176, 178, 0.14);
-  }
+  box-shadow: var(--input-focus-shadow);
 }
 
 :is(.header-search, .mobile-header-search) input::-webkit-search-cancel-button,
@@ -222,17 +209,7 @@
 
 .note-dialog-content input:focus {
   border-color: var(--pink-deep);
-  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 14%, transparent);
-}
-
-@supports not (color: color-mix(in srgb, black, white)) {
-  .note-dialog-content input:focus {
-    box-shadow: 0 0 8px 1px rgba(201, 132, 134, 0.14);
-  }
-
-  :where(:root[data-theme='dark']) .note-dialog-content input:focus {
-    box-shadow: 0 0 8px 1px rgba(239, 176, 178, 0.14);
-  }
+  box-shadow: var(--input-focus-shadow);
 }
 
 .note-dialog-content > span {
@@ -359,21 +336,13 @@
   padding: 6px;
   border: 1px solid var(--line);
   border-radius: var(--ui-radius);
-  background: color-mix(in srgb, var(--surface-strong) 84%, transparent);
+  background: var(--menu-bg);
   box-shadow: 0 18px 44px rgba(45, 39, 35, 0.18);
   backdrop-filter: blur(13px) saturate(1.5);
   --menu-rest-transform: translateX(calc(-50% + var(--menu-shift, 0px)));
   transform: var(--menu-rest-transform);
   animation: header-dropdown-in 0.18s var(--ease-spring);
   transform-origin: top center;
-}
-@supports not (color: color-mix(in srgb, black, white)) {
-  .header-dropdown {
-    background: rgba(255, 255, 255, 0.84);
-  }
-  :where(:root[data-theme='dark']) .header-dropdown {
-    background: rgba(27, 27, 31, 0.84);
-  }
 }
 
 @keyframes header-dropdown-in {
@@ -396,12 +365,13 @@
 .header-dropdown button,
 .header-dropdown a {
   display: flex;
+  box-sizing: border-box;
   width: 100%;
   min-height: 48px;
   align-items: center;
   gap: 9px;
-  padding: 7px 9px;
-  border: 0;
+  padding: 6px 8px;
+  border: 1px solid transparent;
   border-radius: var(--ui-radius);
   background: transparent;
   color: var(--text);
@@ -409,30 +379,18 @@
   text-align: left;
   text-decoration: none;
   transition:
-    background var(--motion-base) ease,
-    color var(--motion-base) ease;
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
-.header-dropdown button:hover:not(:disabled),
-.header-dropdown a:hover
-/* .header-dropdown .menu-radio.active  */ {
-  background: color-mix(in srgb, var(--soft-accent) 82%, transparent);
-  /* backdrop-filter: blur(18px) saturate(1.5); */
-  color: var(--heading);
-}
-
-@supports not (color: color-mix(in srgb, black, white)) {
-  .header-dropdown button:hover:not(:disabled),
-.header-dropdown a:hover
-/* .header-dropdown .menu-radio.active  */ {
-    background: rgba(255, 239, 237, 0.7544);
-  }
-
-  :where(:root[data-theme='dark']) .header-dropdown button:hover:not(:disabled),
-:where(:root[data-theme='dark']) .header-dropdown a:hover
-/* .header-dropdown .menu-radio.active  */ {
-    background: rgba(74, 70, 70, 0.574);
-  }
+.header-dropdown button:not(.view-toggle-option):hover:not(:disabled),
+.header-dropdown a:hover,
+.header-dropdown button:not(.view-toggle-option):focus-visible:not(:disabled),
+.header-dropdown a:focus-visible {
+  border-color: var(--menu-hover-border);
+  background: var(--menu-hover-bg);
+  color: var(--menu-hover-text);
 }
 
 .view-dropdown .menu-radio {
@@ -466,26 +424,16 @@
   left: 3px;
   box-sizing: border-box;
   width: calc(50% - 4px);
-  border: 1px solid color-mix(in srgb, var(--pink-deep) 35%, var(--line-soft));
+  border: 1px solid var(--accent-border-subtle);
   border-radius: 999px;
   background: var(--surface-strong);
-  box-shadow: 0 2px 7px color-mix(in srgb, var(--pink-deep) 12%, transparent);
+  box-shadow: var(--accent-shadow-sm);
   content: '';
   pointer-events: none;
   transition: transform 220ms var(--ease-spring);
 }
 .view-toggle-pill.is-second::before {
   transform: translateX(calc(100% + 2px));
-}
-@supports not (color: color-mix(in srgb, black, white)) {
-  .view-toggle-pill::before {
-    border: 1px solid rgba(221, 188, 186, 0.91);
-    box-shadow: 0 2px 7px rgba(201, 132, 134, 0.12);
-  }
-  :where(:root[data-theme='dark']) .view-toggle-pill::before {
-    border-color: rgba(133, 105, 110, 0.91);
-    box-shadow: 0 2px 7px rgba(239, 176, 178, 0.12);
-  }
 }
 
 /* 选择器需要写得比 .header-dropdown button 更具体，才能盖掉它的整行按钮样式 */

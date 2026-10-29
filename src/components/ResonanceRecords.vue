@@ -532,7 +532,7 @@ button.resonance-part:focus-visible {
   gap: 10px;
   padding: 32px;
   border: 1px dashed var(--line);
-  border-radius: var(--ui-radius);
+  border-radius: var(--radius-lg);
   color: var(--muted);
   text-align: center;
 }
@@ -545,7 +545,7 @@ button.resonance-part:focus-visible {
   margin-bottom: 16px;
   padding: 18px;
   border: 1px solid var(--line);
-  border-radius: var(--ui-radius);
+  border-radius: var(--radius-lg);
   background: var(--surface);
 }
 /* 桌面标题两侧允许收缩并省略长名称；移动布局在下方覆盖为纵向摘要。 */
@@ -642,7 +642,7 @@ button.resonance-part:focus-visible {
   width: clamp(140px, 22%, 180px);
   aspect-ratio: 448 / 656;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--frame-bg) url('../../img/back.png') center / cover no-repeat;
   /* 背景覆盖整个卡片区域。 */
   background-origin: border-box;
@@ -701,7 +701,7 @@ button.resonance-part:focus-visible {
   position: relative;
   aspect-ratio: 1;
   overflow: visible;
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--frame-bg) url('../../img/pinkCardBg.png') center / 100% 100% no-repeat;
   /* 方形底图按实际宽高铺满，避免移动端亚像素取整留下细条。 */
   background-origin: border-box;
@@ -715,7 +715,7 @@ button.resonance-part:focus-visible {
   background-image: url('../../img/silverCardBg.png');
 }
 .resonance-part img {
-  border-radius: 8px;
+  border-radius: inherit;
 }
 .resonance-pull-number {
   position: absolute;
@@ -823,14 +823,14 @@ button.resonance-part:focus-visible {
     width: 70px;
     padding: 3px;
     border: 1px solid var(--line-soft);
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     background: var(--frame-bg);
   }
   .resonance-set-switch button {
     min-height: 36px;
     min-width: 0;
     border: 0;
-    border-radius: 8px;
+    border-radius: 12px;
     background: transparent;
     color: var(--muted);
     font: inherit;

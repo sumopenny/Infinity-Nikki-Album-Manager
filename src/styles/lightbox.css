@@ -208,31 +208,11 @@
   width: 34px;
   min-width: 34px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--heading) 8%, transparent);
-}
-
-@supports not (color: color-mix(in srgb, black, white)) {
-  .lightbox-close {
-    background: rgba(76, 66, 64, 0.08);
-  }
-
-  :where(:root[data-theme='dark']) .lightbox-close {
-    background: rgba(255, 248, 244, 0.08);
-  }
+  background: var(--icon-button-bg);
 }
 
 .lightbox-close:hover {
-  background: color-mix(in srgb, var(--heading) 16%, transparent);
-}
-
-@supports not (color: color-mix(in srgb, black, white)) {
-  .lightbox-close:hover {
-    background: rgba(76, 66, 64, 0.16);
-  }
-
-  :where(:root[data-theme='dark']) .lightbox-close:hover {
-    background: rgba(255, 248, 244, 0.16);
-  }
+  background: var(--icon-button-hover-bg);
 }
 
 .lightbox-zoom-controls button:disabled,
@@ -318,19 +298,9 @@
   padding: 5px;
   border: 1px solid var(--line);
   border-radius: var(--ui-radius);
-  background: color-mix(in srgb, var(--surface-strong) 100%, transparent);
+  background: var(--surface-strong);
   box-shadow: 0 10px 30px rgba(25, 22, 22, 0.22);
   backdrop-filter: blur(3px);
-}
-
-@supports not (color: color-mix(in srgb, black, white)) {
-  .lightbox-toolbar {
-    background: rgba(255, 255, 255, 1);
-  }
-
-  :where(:root[data-theme='dark']) .lightbox-toolbar {
-    background: rgba(27, 27, 31, 1);
-  }
 }
 
 .lightbox-outfit-meta {

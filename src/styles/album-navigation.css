@@ -311,19 +311,11 @@
   padding: 6px;
   border: 1px solid var(--line);
   border-radius: var(--ui-radius);
-  background: color-mix(in srgb, var(--surface-strong) 84%, transparent);
+  background: var(--menu-bg);
   box-shadow: 0 18px 44px rgba(45, 39, 35, 0.18);
   backdrop-filter: blur(13px) saturate(1.5);
   animation: resonance-nav-menu-in 0.18s var(--ease-spring);
   transform-origin: top left;
-}
-@supports not (color: color-mix(in srgb, black, white)) {
-  .resonance-nav-menu {
-    background: rgba(255, 255, 255, 0.84);
-  }
-  :where(:root[data-theme='dark']) .resonance-nav-menu {
-    background: rgba(27, 27, 31, 0.84);
-  }
 }
 @keyframes resonance-nav-menu-in {
   from {
@@ -337,32 +329,29 @@
 }
 .resonance-nav-menu button {
   min-height: 34px;
-  padding: 6px 9px;
-  border: 0;
-  border-radius: var(--ui-radius);
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--menu-item-radius);
   background: transparent;
   color: var(--text);
   font-size: 12px;
   text-align: left;
   cursor: pointer;
   transition:
-    background var(--motion-base) ease,
-    color var(--motion-base) ease;
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+.resonance-nav-menu button.active {
+  background: var(--menu-hover-bg);
+  border-color: var(--menu-hover-border);
+  color: var(--menu-hover-text);
 }
 .resonance-nav-menu button:hover:not(:disabled),
-.resonance-nav-menu button.active {
-  background: color-mix(in srgb, var(--soft-accent) 82%, transparent);
-  color: var(--heading);
-}
-@supports not (color: color-mix(in srgb, black, white)) {
-  .resonance-nav-menu button:hover:not(:disabled),
-  .resonance-nav-menu button.active {
-    background: rgba(255, 239, 237, 0.7544);
-  }
-  :where(:root[data-theme='dark']) .resonance-nav-menu button:hover:not(:disabled),
-  :where(:root[data-theme='dark']) .resonance-nav-menu button.active {
-    background: rgba(74, 70, 70, 0.574);
-  }
+.resonance-nav-menu button:focus-visible:not(:disabled) {
+  background: var(--menu-hover-bg);
+  border-color: var(--menu-hover-border);
+  color: var(--menu-hover-text);
 }
 .resonance-nav-menu button:disabled {
   color: var(--muted);
@@ -877,20 +866,8 @@
 .photo-card:hover,
 .photo-card:focus-visible {
   transform: none;
-  border-color: color-mix(in srgb, var(--pink-deep) 55%, var(--line));
+  border-color: var(--interactive-hover-border);
   box-shadow: var(--photo-hover-shadow);
-}
-
-@supports not (color: color-mix(in srgb, black, white)) {
-  .photo-card:hover,
-  .photo-card:focus-visible {
-    border-color: rgba(213.15, 168.45, 166.4, 1);
-  }
-
-  :where(:root[data-theme='dark']) .photo-card:hover,
-  :where(:root[data-theme='dark']) .photo-card:focus-visible {
-    border-color: rgba(176, 135.95, 139.3, 1);
-  }
 }
 
 .photo-card.selected {

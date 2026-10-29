@@ -1,10 +1,13 @@
 /* 跨模块控件和减少动态效果规则：由入口统一加载，不再依赖搭配业务样式。 */
 .primary-button,
 .confirm-dialog-button,
-.header-dropdown,
+.header-dropdown {
+  border-radius: var(--ui-radius);
+}
+
 .header-dropdown button,
 .header-dropdown a {
-  border-radius: var(--ui-radius);
+  border-radius: var(--menu-item-radius);
 }
 
 .primary-button,
@@ -305,20 +308,14 @@ body .wardrobe-form-nav.is-horizontal button[aria-pressed='true'] strong {
   min-height: 0;
   box-sizing: border-box;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--white) 78%, var(--line));
+  border: 1px solid var(--form-control-border);
   border-radius: 50%;
-  background: color-mix(in srgb, var(--surface) 66%, transparent);
+  background: var(--form-control-bg);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(2px);
   color: var(--text);
   box-shadow: 0 1px 4px rgb(0 0 0 / 10%);
   cursor: pointer;
-}
-@supports not (color: color-mix(in srgb, black, white)) {
-  .wardrobe-mobile-form-toggle {
-    border: 1px solid var(--line);
-    background: var(--surface);
-  }
 }
 
 :is(.wardrobe-form-toggle, .wardrobe-mobile-form-toggle) svg {

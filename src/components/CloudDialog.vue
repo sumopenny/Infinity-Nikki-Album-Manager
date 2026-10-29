@@ -167,10 +167,6 @@ function close() {
   background: #eab1b3;
 }
 .resonance-cloud-panel footer :deep(.confirm-dialog-button.ghost:hover:not(:disabled)) {
-  border-color: var(--pink-deep);
-  border-color: color-mix(in srgb, var(--pink-deep) 45%, var(--line));
-  background: var(--surface-strong);
-  background: color-mix(in srgb, var(--pink-deep) 9%, var(--surface-strong));
   color: var(--heading);
 }
 .resonance-cloud-panel footer :deep(.confirm-dialog-button:hover:not(:disabled)) {

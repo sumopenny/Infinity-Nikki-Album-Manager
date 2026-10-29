@@ -134,33 +134,15 @@
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--heading) 8%, transparent);
+  background: var(--icon-button-bg);
   color: var(--text);
   transition:
     background 0.18s ease,
     transform 0.18s ease;
 }
-@supports not (color: color-mix(in srgb, black, white)) {
-  .outfit-guide-panel > header button {
-    background: rgba(76, 66, 64, 0.08);
-  }
-  :where(:root[data-theme='dark']) .outfit-guide-panel > header button {
-    background: rgba(255, 248, 244, 0.08);
-  }
-}
 
 .outfit-guide-panel > header button:hover {
-  background: color-mix(in srgb, var(--heading) 16%, transparent);
-}
-
-@supports not (color: color-mix(in srgb, black, white)) {
-  .outfit-guide-panel > header button:hover {
-    background: rgba(76, 66, 64, 0.16);
-  }
-
-  :where(:root[data-theme='dark']) .outfit-guide-panel > header button:hover {
-    background: rgba(255, 248, 244, 0.16);
-  }
+  background: var(--icon-button-hover-bg);
 }
 
 .outfit-guide-sections {
@@ -257,18 +239,16 @@
 }
 
 .outfit-guide-panel > footer input:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--pink-deep) 42%, transparent);
+  outline: 2px solid var(--focus-ring-color);
   outline-offset: 2px;
 }
 
 @supports not (color: color-mix(in srgb, black, white)) {
   .outfit-guide-panel > footer input:focus-visible {
-    outline: 2px solid rgba(201, 132, 134, 0.42);
     outline-offset: 2px;
   }
 
   :where(:root[data-theme='dark']) .outfit-guide-panel > footer input:focus-visible {
-    outline: 2px solid rgba(239, 176, 178, 0.42);
     outline-offset: 2px;
   }
 }
@@ -361,33 +341,15 @@
   height: 34px;
   border: 0;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--heading) 8%, transparent);
+  background: var(--icon-button-bg);
   color: var(--text);
   transition:
     background 0.18s ease,
     transform 0.18s ease;
 }
-@supports not (color: color-mix(in srgb, black, white)) {
-  .outfit-editor-panel > header button {
-    background: rgba(76, 66, 64, 0.08);
-  }
-  :where(:root[data-theme='dark']) .outfit-editor-panel > header button {
-    background: rgba(255, 248, 244, 0.08);
-  }
-}
 
 .outfit-editor-panel > header button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--heading) 16%, transparent);
-}
-
-@supports not (color: color-mix(in srgb, black, white)) {
-  .outfit-editor-panel > header button:hover:not(:disabled) {
-    background: rgba(76, 66, 64, 0.16);
-  }
-
-  :where(:root[data-theme='dark']) .outfit-editor-panel > header button:hover:not(:disabled) {
-    background: rgba(255, 248, 244, 0.16);
-  }
+  background: var(--icon-button-hover-bg);
 }
 
 .outfit-tag-editor {
@@ -438,21 +400,7 @@
 .outfit-fields > textarea:focus,
 .outfit-fields > input:focus {
   border-color: var(--pink-deep);
-  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 14%, transparent);
-}
-
-@supports not (color: color-mix(in srgb, black, white)) {
-  .outfit-tag-editor input:focus,
-  .outfit-fields > textarea:focus,
-  .outfit-fields > input:focus {
-    box-shadow: 0 0 8px 1px rgba(201, 132, 134, 0.14);
-  }
-
-  :where(:root[data-theme='dark']) .outfit-tag-editor input:focus,
-  :where(:root[data-theme='dark']) .outfit-fields > textarea:focus,
-  :where(:root[data-theme='dark']) .outfit-fields > input:focus {
-    box-shadow: 0 0 8px 1px rgba(239, 176, 178, 0.14);
-  }
+  box-shadow: var(--input-focus-shadow);
 }
 
 .outfit-tag-editor button {
@@ -795,19 +743,7 @@
 .outfit-parse-form input:focus-visible {
   border-color: var(--pink-deep);
   background: var(--surface-strong);
-  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--pink-deep) 14%, transparent);
-}
-
-@supports not (color: color-mix(in srgb, black, white)) {
-  .outfit-parse-form input:focus,
-  .outfit-parse-form input:focus-visible {
-    box-shadow: 0 0 8px 1px rgba(201, 132, 134, 0.14);
-  }
-
-  :where(:root[data-theme='dark']) .outfit-parse-form input:focus,
-  :where(:root[data-theme='dark']) .outfit-parse-form input:focus-visible {
-    box-shadow: 0 0 8px 1px rgba(239, 176, 178, 0.14);
-  }
+  box-shadow: var(--input-focus-shadow);
 }
 
 .outfit-parse-form input::placeholder {
@@ -1137,17 +1073,7 @@
 
 .outfit-tag-choices .outfit-editor-add-tag:hover:not(:disabled) {
   border-color: var(--pink-deep);
-  background: color-mix(in srgb, var(--pink-deep) 10%, var(--surface-strong));
-}
-
-@supports not (color: color-mix(in srgb, black, white)) {
-  .outfit-tag-choices .outfit-editor-add-tag:hover:not(:disabled) {
-    background: rgba(249.6, 242.7, 242.9, 1);
-  }
-
-  :where(:root[data-theme='dark']) .outfit-tag-choices .outfit-editor-add-tag:hover:not(:disabled) {
-    background: rgba(48.2, 41.9, 45.7, 1);
-  }
+  background: var(--interactive-hover-bg);
 }
 
 .outfit-tag-choices button.active {
@@ -1494,18 +1420,16 @@
 }
 
 .outfit-parse-item-button:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--pink-deep) 45%, transparent);
+  outline: 3px solid var(--focus-ring-color);
   outline-offset: 3px;
 }
 
 @supports not (color: color-mix(in srgb, black, white)) {
   .outfit-parse-item-button:focus-visible {
-    outline: 3px solid rgba(201, 132, 134, 0.45);
     outline-offset: 3px;
   }
 
   :where(:root[data-theme='dark']) .outfit-parse-item-button:focus-visible {
-    outline: 3px solid rgba(239, 176, 178, 0.45);
     outline-offset: 3px;
   }
 }

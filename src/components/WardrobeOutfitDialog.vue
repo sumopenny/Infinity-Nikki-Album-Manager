@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CatalogImage from './CatalogImage.vue'
 import WardrobeFormNav from './WardrobeFormNav.vue'
+import { matchesWardrobeSource, wardrobeSourceOptions } from '../utils/wardrobe/wardrobeFilters'
 import { wardrobeFamilyKey } from '../utils/wardrobe/wardrobeFamilies'
 import { computed, ref, toRef, watch } from 'vue'
 import {
@@ -87,6 +88,14 @@ const detailStyle = computed(() =>
   detail.value?.style ? wardrobeStyleLabels[detail.value.style][props.language] : ''
 )
 const detailSourceVersion = computed(() => detail.value?.version ?? '')
+const detailSource = computed(() =>
+  detail.value
+    ? wardrobeSourceOptions(detail.value.kind, props.language)
+        .filter((option) => matchesWardrobeSource(detail.value!, option.value))
+        .map((option) => option.label)
+        .join(' · ')
+    : ''
+)
 const detailProgress = computed(() =>
   detail.value
     ? getOwnershipSummary(detail.value, snapshot.value)
@@ -159,6 +168,7 @@ useModalFocus(dialogOpen, panel, closeDialog)
               <h2 id="wardrobe-dialog-title">{{ name(detail) }}</h2>
               <div class="wardrobe-detail-meta">
                 <span class="wardrobe-detail-variant">{{ variants[detail.variant] }}</span>
+                <span v-if="detailSource" class="wardrobe-detail-source">{{ detailSource }}</span>
               </div>
             </div>
             <button type="button" :aria-label="text('关闭', 'Close')" @click="closeDialog">
@@ -392,18 +402,8 @@ useModalFocus(dialogOpen, panel, closeDialog)
 }
 .wardrobe-part:has(.wardrobe-part-open:hover:not(:disabled)),
 .wardrobe-part:has(.wardrobe-part-open:focus-visible) {
-  border-color: color-mix(in srgb, var(--pink-deep) 55%, var(--line));
+  border-color: var(--interactive-hover-border);
   box-shadow: var(--photo-hover-shadow);
-}
-@supports not (color: color-mix(in srgb, black, white)) {
-  .wardrobe-part:has(.wardrobe-part-open:hover:not(:disabled)),
-  .wardrobe-part:has(.wardrobe-part-open:focus-visible) {
-    border-color: rgba(213.15, 168.45, 166.4, 1);
-  }
-  :where(:root[data-theme='dark']) .wardrobe-part:has(.wardrobe-part-open:hover:not(:disabled)),
-  :where(:root[data-theme='dark']) .wardrobe-part:has(.wardrobe-part-open:focus-visible) {
-    border-color: rgba(176, 135.95, 139.3, 1);
-  }
 }
 
 .wardrobe-image-fallback {
@@ -491,27 +491,33 @@ useModalFocus(dialogOpen, panel, closeDialog)
   gap: 12px;
   font-size: 15px;
 }
+.wardrobe-detail-source {
+  display: none;
+}
+@media (min-width: 901px) {
+  .wardrobe-detail-source {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border: 1px solid var(--capsule-source-border);
+    border-radius: 999px;
+    background: var(--capsule-source-bg);
+    color: var(--capsule-source-text);
+    font-size: 12px;
+    line-height: 1.3;
+  }
+}
 .wardrobe-detail-variant {
   display: inline-flex;
   align-items: center;
   padding: 3px 9px;
-  border: 1px solid color-mix(in srgb, var(--notice-warning) 28%, var(--line));
+  border: 1px solid var(--capsule-variant-border);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--notice-warning) 8%, var(--surface-strong));
+  background: var(--capsule-variant-bg);
   color: var(--heading);
   font-size: 12px;
   line-height: 1.3;
   white-space: nowrap;
-}
-@supports not (color: color-mix(in srgb, black, white)) {
-  .wardrobe-detail-variant {
-    border: 1px solid #dbc4a8;
-    background: #fbf9f5;
-  }
-  :where(:root[data-theme='dark']) .wardrobe-detail-variant {
-    border-color: #806c54;
-    background: #2b2925;
-  }
 }
 .wardrobe-dialog-body {
   min-height: 0;
@@ -691,44 +697,20 @@ useModalFocus(dialogOpen, panel, closeDialog)
   display: inline-block;
   padding: 2px 11px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--pink-deep) 12%, var(--surface-strong));
-}
-@supports not (color: color-mix(in srgb, black, white)) {
-  .wardrobe-style-tag,
-  .wardrobe-version-tag,
-  .wardrobe-rarity-tag {
-    background: rgba(248.52, 240.24, 240.48, 1);
-  }
-  :where(:root[data-theme='dark']) .wardrobe-style-tag,
-  :where(:root[data-theme='dark']) .wardrobe-version-tag,
-  :where(:root[data-theme='dark']) .wardrobe-rarity-tag {
-    background: rgba(52.44, 44.88, 48.64, 1);
-  }
+  background: var(--tag-bg);
 }
 /* 风格标签：比公共浅粉更鲜明的玫瑰红，贴近方案 A 的原始配色。 */
 .wardrobe-style-tag {
-  color: #b45162;
-  background: #fbe1e5;
-}
-:root[data-theme='dark'] .wardrobe-style-tag {
-  color: #ffc2ce;
-  background: #58313c;
+  color: var(--capsule-style-text);
+  background: var(--tag-bg);
 }
 .wardrobe-rarity-tag {
-  color: #966719;
-  background: #fff0c5;
-}
-:root[data-theme='dark'] .wardrobe-rarity-tag {
-  color: #f8d78c;
-  background: #59451f;
+  color: var(--capsule-rarity-text);
+  background: var(--capsule-rarity-bg);
 }
 .wardrobe-version-tag {
-  color: #3c6d9b;
-  background: #e5f1fc;
-}
-:root[data-theme='dark'] .wardrobe-version-tag {
-  color: #b5d9fa;
-  background: #243e57;
+  color: var(--capsule-version-text);
+  background: var(--capsule-version-bg);
 }
 .wardrobe-suit-description {
   min-width: 0;

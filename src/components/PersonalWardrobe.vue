@@ -1232,23 +1232,19 @@ async function clearRecords() {
   top: 10px;
   left: 10px;
   padding: 4px 8px;
-  border: 1px solid color-mix(in srgb, var(--white) 78%, var(--line));
+  border: 1px solid var(--form-control-border);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--surface) 66%, transparent);
+  background: var(--form-control-bg);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(2px);
   font-size: 12px;
 }
 @supports not (color: color-mix(in srgb, black, white)) {
   .wardrobe-variant {
-    border: 1px solid rgba(249.06, 244.2, 239.54, 1);
     border-radius: var(--radius-sm);
-    background: rgba(255, 255, 255, 0.6204);
   }
   :where(:root[data-theme='dark']) .wardrobe-variant {
-    border: 1px solid rgba(39.72, 37.08, 40.52, 1);
     border-radius: var(--radius-sm);
-    background: rgba(23, 23, 27, 0.627);
   }
 }
 .wardrobe-card-body {
@@ -1465,7 +1461,7 @@ progress::-webkit-progress-value {
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: var(--ui-radius);
-  background: var(--soft);
+  background: var(--surface);
   color: var(--muted);
   font-size: 13px;
   line-height: 1.65;
@@ -1497,14 +1493,14 @@ progress::-webkit-progress-value {
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--muted);
+  border-radius: 50%;
+  background: var(--icon-button-bg);
+  color: var(--text);
   cursor: pointer;
+  transition: background 0.18s ease;
 }
 .wardrobe-collection-notice-close:hover {
-  background: var(--frame-bg);
-  color: var(--heading);
+  background: var(--icon-button-hover-bg);
 }
 @media (max-width: 899px) {
   .wardrobe-collection-notice {

@@ -1,5 +1,16 @@
 /* 主题设计令牌：颜色、间距、圆角、阴影、动画时长，以及亮色/暗色主题变量。 */
 :root {
+  /* 详情胶囊：来源紫、形态暖金、风格粉、星级金、版本蓝。 */
+  --capsule-source-border: #cfc0df;
+  --capsule-source-bg: #f4eef8;
+  --capsule-source-text: #7a618f;
+  --capsule-variant-border: color-mix(in srgb, var(--notice-warning) 28%, var(--line));
+  --capsule-variant-bg: color-mix(in srgb, var(--notice-warning) 8%, var(--surface-strong));
+  --capsule-style-text: #b45162;
+  --capsule-rarity-text: #966719;
+  --capsule-rarity-bg: #fff0c5;
+  --capsule-version-text: #3c6d9b;
+  --capsule-version-bg: #e5f1fc;
   font-family: 'Microsoft YaHei', 'PingFang SC', 'Segoe UI', sans-serif;
   color: #5f5552;
   background: #fbf8f4;
@@ -13,6 +24,29 @@
   --soft-accent: rgba(255, 239, 237, 0.92);
   --soft-accent-bottom: #fff6d9;
   --pink-deep: #c98486;
+  /* 通用悬停色：背景按粉 8% 配比、边框按粉与边框各 50% 固定取色。 */
+  --interactive-hover-bg: #fbf5f5;
+  --interactive-hover-border: #d7adaa;
+  /* 图标按钮与输入聚焦使用独立状态色，固定色值兼容旧浏览器。 */
+  --icon-button-bg: rgba(76, 66, 64, 0.08);
+  --icon-button-hover-bg: rgba(76, 66, 64, 0.16);
+  --input-focus-shadow: 0 0 8px 1px rgba(201, 132, 134, 0.14);
+  /* 菜单悬停与选中分别保存，标签和键盘焦点使用独立语义。 */
+  --menu-hover-bg: #fff0ef;
+  --menu-hover-text: #9e5f69;
+  --menu-hover-border: #e8c5c8;
+  --menu-item-radius: 12px;
+  --tag-bg: #faf3f3;
+  --focus-ring-color: rgba(201, 132, 134, 0.45);
+  --menu-selected-bg: rgba(255, 239, 237, 0.7544);
+  /* 菜单、形态控件、信息底色及强调边框使用固定主题色。 */
+  --menu-bg: rgba(255, 255, 255, 0.84);
+  --form-control-bg: rgba(255, 255, 255, 0.6204);
+  --form-control-border: #f9f4f0;
+  --surface-accent-subtle: #fcf8f8;
+  --surface-accent-border: #dec3be;
+  --accent-border-subtle: rgba(221, 188, 186, 0.909);
+  --accent-shadow-sm: 0 2px 7px rgba(201, 132, 134, 0.12);
   --yellow-soft: #fff6d9;
   --line: #e4d5ce;
   --line-soft: rgba(234, 223, 218, 0.86);
@@ -49,9 +83,7 @@
   --notice-error: #c76f72;
   --title-gradient: linear-gradient(115deg, #c98486 5%, #e0a19b 50%, #d9b86a 95%);
   /* 弹窗统一投影：与“关于网站”窗口一致的双层主题色投影 */
-  --dialog-shadow:
-    0 30px 80px color-mix(in srgb, var(--heading) 32%, transparent),
-    0 4px 18px color-mix(in srgb, var(--heading) 14%, transparent);
+  --dialog-shadow: 0 30px 80px rgba(76, 66, 64, 0.32), 0 4px 18px rgba(76, 66, 64, 0.14);
   --sidebar-width: clamp(144px, 10.5vw, 170px);
   /* 圆角统一为三档：10 / 16 / 24，另有胶囊 999px */
   --radius-sm: 10px;
@@ -68,25 +100,18 @@
   --ease-spring: ease-out;
   --primary-button-bg: #e4a6a8;
   --primary-button-bg-hover: #d88f95;
-  --header-glow: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--pink-deep) 42%, transparent),
-    transparent
-  );
-}
-@supports not (color: color-mix(in srgb, black, white)) {
-  :root {
-    --dialog-shadow: 0 30px 80px rgba(76, 66, 64, 0.32), 0 4px 18px rgba(76, 66, 64, 0.14);
-    --header-glow: linear-gradient(90deg, transparent, rgba(201, 132, 134, 0.42), transparent);
-  }
-  :root[data-theme='dark'] {
-    --dialog-shadow: 0 30px 80px rgba(255, 248, 244, 0.32), 0 4px 18px rgba(255, 248, 244, 0.14);
-    --header-glow: linear-gradient(90deg, transparent, rgba(239, 176, 178, 0.42), transparent);
-  }
+  --header-glow: linear-gradient(90deg, transparent, rgba(201, 132, 134, 0.42), transparent);
 }
 
 :root[data-theme='dark'] {
+  --capsule-source-border: #665275;
+  --capsule-source-bg: #352c3e;
+  --capsule-source-text: #d2bde4;
+  --capsule-style-text: #ffc2ce;
+  --capsule-rarity-text: #f8d78c;
+  --capsule-rarity-bg: #59451f;
+  --capsule-version-text: #b5d9fa;
+  --capsule-version-bg: #243e57;
   color: #e9e1dd;
   background: #0d0d0f;
   --white: #17171a;
@@ -99,6 +124,24 @@
   --soft-accent: rgba(74, 70, 70, 0.7);
   --soft-accent-bottom: rgba(74, 70, 70, 0.7);
   --pink-deep: #efb0b2;
+  --interactive-hover-bg: #2c272b;
+  --interactive-hover-border: #a98487;
+  --icon-button-bg: rgba(255, 248, 244, 0.08);
+  --icon-button-hover-bg: rgba(255, 248, 244, 0.16);
+  --input-focus-shadow: 0 0 8px 1px rgba(239, 176, 178, 0.14);
+  --menu-hover-bg: #453038;
+  --menu-hover-text: #efb0b2;
+  --menu-hover-border: #77535e;
+  --tag-bg: #302a2e;
+  --focus-ring-color: rgba(239, 176, 178, 0.45);
+  --menu-selected-bg: rgba(74, 70, 70, 0.574);
+  --menu-bg: rgba(27, 27, 31, 0.84);
+  --form-control-bg: rgba(23, 23, 27, 0.627);
+  --form-control-border: #282529;
+  --surface-accent-subtle: #282428;
+  --surface-accent-border: #826b6f;
+  --accent-border-subtle: rgba(133, 105, 110, 0.909);
+  --accent-shadow-sm: 0 2px 7px rgba(239, 176, 178, 0.12);
   --yellow-soft: #242016;
   --line: #63575c;
   --line-soft: rgba(66, 61, 67, 0.86);
@@ -138,8 +181,21 @@
   /* 深色主题下的主按钮纯色背景，保持白字对比度 */
   --primary-button-bg: #835a5c;
   --primary-button-bg-hover: #8f6668;
+  --dialog-shadow: 0 30px 80px rgba(255, 248, 244, 0.32), 0 4px 18px rgba(255, 248, 244, 0.14);
+  --header-glow: linear-gradient(90deg, transparent, rgba(239, 176, 178, 0.42), transparent);
 }
 
 * {
   box-sizing: border-box;
+}
+
+@supports not (color: color-mix(in srgb, black, white)) {
+  :root {
+    --capsule-variant-border: #dbc4a8;
+    --capsule-variant-bg: #fbf9f5;
+  }
+  :root[data-theme='dark'] {
+    --capsule-variant-border: #806c54;
+    --capsule-variant-bg: #2b2925;
+  }
 }

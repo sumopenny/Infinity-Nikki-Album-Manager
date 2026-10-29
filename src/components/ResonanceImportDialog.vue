@@ -335,25 +335,21 @@ const VIDEO_TUTORIALS = [
   gap: 6px;
   min-height: 44px;
   padding: 8px 12px;
-  border: 1px solid color-mix(in srgb, var(--pink-deep) 35%, var(--line-soft));
+  border: 1px solid var(--accent-border-subtle);
   border-radius: 10px;
   color: var(--pink-deep);
   background: var(--surface-strong);
-  box-shadow: 0 2px 7px color-mix(in srgb, var(--pink-deep) 12%, transparent);
+  box-shadow: var(--accent-shadow-sm);
   font-size: 13px;
   font-weight: 800;
   text-decoration: none;
 }
 @supports not (color: color-mix(in srgb, black, white)) {
   .resonance-video-tutorials .resonance-video-links a {
-    border: 1px solid rgba(221.2937, 187.9615, 185.6568, 0.909);
     border-radius: 10px;
-    box-shadow: 0 2px 7px rgba(201, 132, 134, 0.12);
   }
   :where(:root[data-theme='dark']) .resonance-video-tutorials .resonance-video-links a {
-    border: 1px solid rgba(132.6117, 105.2794, 109.7393, 0.909);
     border-radius: 10px;
-    box-shadow: 0 2px 7px rgba(239, 176, 178, 0.12);
   }
 }
 .resonance-video-links a:hover {
@@ -457,6 +453,20 @@ const VIDEO_TUTORIALS = [
 .resonance-paste textarea {
   width: 100%;
   resize: vertical;
+  border-radius: var(--radius-md);
+  font-family: 'Cascadia Code', Consolas, 'SFMono-Regular', monospace;
+  font-weight: 400;
+  line-height: 1.65;
+  letter-spacing: normal;
+}
+.resonance-paste textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+@media (min-width: 900px) {
+  .resonance-paste textarea {
+    font-size: 14px;
+  }
 }
 .resonance-form {
   display: grid;

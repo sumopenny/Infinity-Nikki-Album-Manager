@@ -350,7 +350,7 @@ function markImageFailed(title: string, name: string) {
 /* 窄屏继续上下排列，共用外层滚动；参数码始终位于两栏下方。 */
 @media (min-width: 900px) {
   .is-split-layout .photo-params-columns {
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr);
     gap: 24px;
     align-items: stretch;
   }
@@ -440,12 +440,28 @@ function markImageFailed(title: string, name: string) {
   opacity: 0.75;
   cursor: default;
 }
-@media (max-width: 520px) {
+/* 手机标题栏统一在组件内定义，避免 scoped 的换行规则覆盖全局样式。 */
+@media (max-width: 899px) {
   .photo-params-header {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    gap: 8px;
   }
   .photo-params-header-content {
-    flex: 1 1 170px;
+    flex: 1 1 0;
+    overflow: hidden;
+  }
+  .photo-params-title-row h2 {
+    min-width: 0;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .photo-params-header .photo-params-file-name {
+    display: none;
+  }
+  .photo-params-header > button {
+    flex-shrink: 0;
   }
 }
 </style>
