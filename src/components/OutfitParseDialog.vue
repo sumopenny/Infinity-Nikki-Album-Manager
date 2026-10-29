@@ -3,8 +3,8 @@ import { reportError as captureDiagnosticError } from '../utils/errorReporting/e
 import CatalogImage from './CatalogImage.vue'
 import WardrobeFormNav from './WardrobeFormNav.vue'
 import { wardrobeFamilyKey } from '../utils/wardrobe/wardrobeFamilies'
-// 搭配码解析窗口：调用解析 API 清洗出部件 ID 与染色数据，再叠加本地图鉴展示部件图标与名称。
-import { computed, nextTick, onBeforeUnmount, ref, shallowRef, toRef, watch } from 'vue'
+// 搭配码与照片共用部件列表和详情；照片传入解码结果时不请求搭配码服务。
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { ExternalLink, RefreshCw, X } from 'lucide-vue-next'
 import type { Language, OutfitMessages } from '../i18n'
 import {
@@ -48,6 +48,8 @@ const associatedOutfit = computed(() => {
 const props = defineProps<{
   visible: boolean
   code: string
+  embedded?: boolean
+  suppliedResult?: LookbookDecodeResult
   language: Language
   messages: OutfitMessages
 }>()
@@ -119,7 +121,7 @@ let detailTriggerItemId: number | null = null
 let requestId = 0
 let previousActiveElement: HTMLElement | null = null
 
-useBodyScrollLock(toRef(props, 'visible'))
+useBodyScrollLock(computed(() => props.visible && !props.embedded))
 
 const requestCode = computed(() => decoded.value?.code || props.code)
 
@@ -286,7 +288,7 @@ async function startParse() {
   decoded.value = null
   status.value = 'loading'
 
-  if (!code) {
+  if (!code && !props.suppliedResult) {
     errorKind.value = 'invalid'
     status.value = 'error'
     return
@@ -301,7 +303,7 @@ async function startParse() {
       .catch(() => {
         // 保留部件 ID 和染色结果，再次解析时图鉴加载器会重试。
       })
-    const result = await parseOutfitCode(code)
+    const result = props.suppliedResult ?? (await parseOutfitCode(code))
     if (currentRequest !== requestId) return
     decoded.value = result
     status.value = 'success'
@@ -316,6 +318,7 @@ async function startParse() {
 
 function handleKeydown(event: KeyboardEvent) {
   if (!props.visible || event.defaultPrevented || outfitPreview.value) return
+  if (props.embedded && !detailVisible.value) return
   if (event.key === 'Escape') {
     event.preventDefault()
     if (detailVisible.value) {
@@ -351,11 +354,11 @@ watch(
       previousActiveElement =
         document.activeElement instanceof HTMLElement ? document.activeElement : null
       void startParse()
-      void nextTick(() => panelRef.value?.querySelector('button')?.focus())
+      if (!props.embedded) void nextTick(() => panelRef.value?.querySelector('button')?.focus())
     } else {
       requestId += 1
       closeItemDetail()
-      previousActiveElement?.focus()
+      if (!props.embedded) previousActiveElement?.focus()
       previousActiveElement = null
     }
   },
@@ -364,7 +367,7 @@ watch(
 
 window.addEventListener('keydown', handleKeydown)
 watch(
-  () => [props.code, props.language],
+  () => [props.code, props.language, props.suppliedResult],
   () => {
     if (props.visible) void startParse()
   }
@@ -376,18 +379,21 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport to="body" :disabled="embedded">
     <Transition name="confirm-dialog" appear>
       <div
         v-if="visible"
-        class="outfit-editor"
-        role="dialog"
-        aria-modal="true"
+        :class="embedded ? 'photo-outfit-content' : 'outfit-editor'"
+        :role="embedded ? undefined : 'dialog'"
+        :aria-modal="embedded ? undefined : true"
         :aria-label="messages.parseTitle"
-        @click.self="$emit('close')"
+        @click.self="!embedded && $emit('close')"
       >
-        <section ref="panelRef" class="outfit-editor-panel outfit-parse-panel">
-          <header>
+        <section
+          ref="panelRef"
+          :class="embedded ? 'photo-outfit-panel' : 'outfit-editor-panel outfit-parse-panel'"
+        >
+          <header v-if="!embedded">
             <div class="outfit-parse-heading">
               <h2>{{ messages.parseTitle }}</h2>
               <p
@@ -489,12 +495,17 @@ onBeforeUnmount(() => {
             <p v-else class="outfit-parse-empty">{{ messages.parseEmpty }}</p>
           </div>
 
-          <footer v-if="status === 'success' && items.length" class="outfit-parse-footer">
+          <footer
+            v-if="!embedded && status === 'success' && items.length"
+            class="outfit-parse-footer"
+          >
             <span>{{ messages.parseItemCount(items.length) }}</span>
           </footer>
         </section>
       </div>
     </Transition>
+  </Teleport>
+  <Teleport to="body">
     <Transition name="confirm-dialog">
       <div
         v-if="visible && detailVisible"
@@ -662,6 +673,12 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* 内嵌列表跟随参数窗口滚动，避免内部滚动容器裁掉悬停上移和焦点描边。 */
+.photo-outfit-panel .outfit-parse-content {
+  overflow: visible;
+  padding: 0;
+}
+
 .wardrobe-outfit-link {
   display: inline-flex;
   align-items: center;

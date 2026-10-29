@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import PhotoParamsDialog from '../../src/components/PhotoParamsDialog.vue'
 import { photoParamsEn, photoParamsZh as messages } from '../../src/i18n/messages/photoParams'
@@ -278,4 +278,79 @@ describe('original photo warning', () => {
     expect(hints).toContain(photoParamsEn.originalFolderHint)
     wrapper.unmount()
   })
+})
+
+it('switches photo layouts and keeps the raw code below both columns', async () => {
+  const wrapper = mount(PhotoParamsDialog, {
+    props: {
+      visible: true,
+      language: 'zh',
+      photo: { name: 'photo.jpeg' },
+      uidRequired: false,
+      progress: { stage: 'ready', percent: 100, message: '' },
+      error: null,
+      messages,
+      favoriteLabel: '收藏参数',
+      result: {
+        environmentFields: [],
+        cameraFields: [],
+        imageFields: [],
+        resourceGroups: [],
+        rawCameraParams: 'raw',
+        outfit: {
+          code: '',
+          wearingClothes: [{ itemId: 1020100001, clothType: 10, outfitId: null }],
+          dyeItems: []
+        }
+      }
+    },
+    global: {
+      stubs: {
+        Teleport: true,
+        OutfitParseDialog: { template: '<div class="test-parts">parts</div>' }
+      }
+    }
+  })
+  try {
+    await flushPromises()
+    const button = () => wrapper.get('.photo-params-layout-button')
+    expect(button().attributes('aria-pressed')).toBe('false')
+    await button().trigger('click')
+    expect(wrapper.get('.photo-params-dialog').classes()).toContain('is-split-layout')
+    expect(button().attributes('aria-label')).toBe('切换为上下布局')
+    expect(wrapper.findAll('.test-parts')).toHaveLength(1)
+    expect(wrapper.get('.photo-params-columns').element.nextElementSibling).toBe(
+      wrapper.get('.photo-params-raw').element
+    )
+    await wrapper.get('.photo-params-copy-button').trigger('click')
+    expect(wrapper.emitted('copy')).toHaveLength(1)
+    await button().trigger('click')
+    expect(wrapper.get('.photo-params-dialog').classes()).not.toContain('is-split-layout')
+    await wrapper.setProps({ language: 'en' })
+    expect(button().attributes('aria-label')).toBe('Switch to side-by-side view')
+    await button().trigger('click')
+    await wrapper.setProps({ visible: false })
+    await wrapper.setProps({ visible: true })
+    expect(wrapper.get('.photo-params-layout-button').attributes('aria-pressed')).toBe('true')
+    expect(localStorage.getItem('nikki-photo-params-layout')).toBe('split')
+    const restored = mount(PhotoParamsDialog, {
+      props: wrapper.props(),
+      global: { stubs: { Teleport: true, OutfitParseDialog: true } }
+    })
+    expect(restored.get('.photo-params-layout-button').attributes('aria-pressed')).toBe('true')
+    restored.unmount()
+    await wrapper.setProps({
+      result: {
+        environmentFields: [],
+        cameraFields: [],
+        imageFields: [],
+        resourceGroups: [],
+        rawCameraParams: 'code'
+      }
+    })
+    expect(wrapper.find('.photo-params-layout-button').exists()).toBe(false)
+  } finally {
+    wrapper.unmount()
+    localStorage.removeItem('nikki-photo-params-layout')
+  }
 })

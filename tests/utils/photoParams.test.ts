@@ -138,3 +138,25 @@ it('parses compatibility photos without X6Game authorization and permits manual 
   expect(decodePhoto).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]), '123456')
   expect(state.errorCodes.value).toEqual(['base64_invalid'])
 })
+
+it('keeps photo dressing on UID retry and clears it for standalone camera codes', async () => {
+  const state = setup()
+  await state.openForFile(file())
+  const outfit = {
+    code: '',
+    wearingClothes: [{ itemId: 1020100001, clothType: 10, outfitId: null }],
+    dyeItems: []
+  }
+  const rawOutfit = { nikkiClothes: [1020100001], nikkiDIY: {} }
+  vi.mocked(decodePhoto).mockResolvedValue({
+    ok: true,
+    value: { camera: {}, photo: {}, rawCameraParams: 'photo', outfit, rawOutfit }
+  })
+  await state.submitUid('123456')
+  expect(state.result.value?.outfit).toEqual(outfit)
+  expect(state.result.value?.rawOutfit).toEqual(rawOutfit)
+  state.openCameraParamsTool()
+  vi.mocked(decodeCameraParams).mockResolvedValue({ ok: true, value: {} })
+  await state.parseRawCameraParams('standalone')
+  expect(state.result.value?.outfit).toBeUndefined()
+})

@@ -26,7 +26,7 @@ import type {
   PhotoParamsStage
 } from '../utils/photo-params/types'
 
-type DecodedPhoto = {
+type DecodedPhoto = Pick<PhotoParamsResult, 'outfit' | 'rawOutfit'> & {
   rawCameraParams: string
   photo: Record<string, unknown>
   camera: Record<string, unknown>
@@ -74,7 +74,8 @@ export function usePhotoParams(options: {
   function presentCameraParams(
     camera: Record<string, unknown>,
     rawCameraParams: string,
-    photoData?: Record<string, unknown>
+    photoData?: Record<string, unknown>,
+    dressing?: Pick<PhotoParamsResult, 'outfit' | 'rawOutfit'>
   ) {
     result.value = formatCameraParams(
       camera,
@@ -83,6 +84,8 @@ export function usePhotoParams(options: {
       messages.value,
       photoData
     )
+    if (dressing)
+      Object.assign(result.value!, { outfit: dressing.outfit, rawOutfit: dressing.rawOutfit })
   }
 
   async function parsePhotoBytes(bytes: Uint8Array, candidateUids: string[], run: number) {
@@ -139,7 +142,7 @@ export function usePhotoParams(options: {
       const decoded = await parsePhotoBytes(bytes, candidateUids, run)
       if (!decoded || run !== runId) return
       setStage('parsingCamera', 90)
-      presentCameraParams(decoded.camera, decoded.rawCameraParams, decoded.photo)
+      presentCameraParams(decoded.camera, decoded.rawCameraParams, decoded.photo, decoded)
       setStage('ready', 100)
     } catch (caught) {
       if (run !== runId) return
@@ -174,7 +177,7 @@ export function usePhotoParams(options: {
       const decoded = await parsePhotoBytes(bytes, candidateUids, run)
       if (!decoded || run !== runId) return
       setStage('parsingCamera', 90)
-      presentCameraParams(decoded.camera, decoded.rawCameraParams, decoded.photo)
+      presentCameraParams(decoded.camera, decoded.rawCameraParams, decoded.photo, decoded)
       setStage('ready', 100)
     } catch (caught) {
       if (run !== runId) return
@@ -209,7 +212,12 @@ export function usePhotoParams(options: {
       await addSavedCameraParamUid(normalized)
       // 保存 UID 期间也可能切换或关闭窗口，旧结果不能再写入界面。
       if (run !== runId) return
-      presentCameraParams(decoded.value.camera, decoded.value.rawCameraParams, decoded.value.photo)
+      presentCameraParams(
+        decoded.value.camera,
+        decoded.value.rawCameraParams,
+        decoded.value.photo,
+        decoded.value
+      )
       setStage('ready', 100)
     } catch (caught) {
       if (run !== runId) return

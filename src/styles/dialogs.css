@@ -727,11 +727,46 @@
   word-break: break-all;
 }
 
-.photo-params-raw button {
-  display: inline-flex;
-  margin-top: 10px;
+.photo-params-raw-heading {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: 8px 14px;
+  margin-bottom: 12px;
+}
+
+.photo-params-raw-heading h3 {
+  margin: 0;
+}
+
+.photo-params-copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+.photo-params-copy-button:hover {
+  background: var(--soft-accent);
+  border-color: var(--pink-deep);
+}
+
+@media (pointer: coarse) {
+  .photo-params-copy-button {
+    min-height: 44px;
+  }
 }
 @media (max-width: 640px) {
   .photo-params-grid {

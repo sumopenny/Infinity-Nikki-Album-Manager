@@ -45,7 +45,6 @@ it('captures runtime, promise and Vue failures through the installed handlers', 
   expect(events.map((e) => e.type)).toEqual(['runtime', 'promise', 'vue'])
   expect(status()).toMatchObject({
     configured: true,
-    allowed: true,
     enabled: true,
     listenersInstalled: true
   })
@@ -60,18 +59,22 @@ it('still exposes why collection is unavailable when the production flag is abse
   window.dispatchEvent(new Event('unhandledrejection'))
   expect(transport).not.toHaveBeenCalled()
 })
-it('honors opt-out and later opt-in without reinstalling listeners', async () => {
+it('reports errors despite a legacy disabled preference and storage events', async () => {
   localStorage.setItem('nikki-diagnostics-disabled', '1')
   const { reporter, transport } = await install()
-  window.dispatchEvent(new ErrorEvent('error', { error: new Error('ignored') }))
-  await reporter.flushDiagnostics()
-  expect(transport).not.toHaveBeenCalled()
-  expect(status()).toMatchObject({ allowed: false, enabled: false })
-  reporter.setDiagnosticsAllowed(true)
-  window.dispatchEvent(new ErrorEvent('error', { error: new Error('accepted') }))
+  window.dispatchEvent(new ErrorEvent('error', { error: new Error('legacy-preference') }))
   await reporter.flushDiagnostics()
   expect(transport).toHaveBeenCalledTimes(1)
-  expect(status()).toMatchObject({ allowed: true, enabled: true })
+  window.dispatchEvent(
+    new StorageEvent('storage', {
+      key: 'nikki-diagnostics-disabled',
+      newValue: '1'
+    })
+  )
+  window.dispatchEvent(new ErrorEvent('error', { error: new Error('legacy-storage-event') }))
+  await reporter.flushDiagnostics()
+  expect(transport).toHaveBeenCalledTimes(2)
+  expect(status()).toMatchObject({ configured: true, enabled: true })
 })
 it('removes listeners and the debug facade on disposal', async () => {
   const { transport } = await install()

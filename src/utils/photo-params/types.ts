@@ -1,3 +1,5 @@
+import type { LookbookDecodeResult } from '../outfit/outfitCodeParser'
+
 export type PhotoParamsStage =
   | 'idle'
   | 'resolvingUid'
@@ -15,6 +17,8 @@ export interface PhotoParamsProgress {
 }
 
 export interface PhotoParamsResult {
+  outfit?: LookbookDecodeResult | null
+  rawOutfit?: { nikkiClothes: number[]; nikkiDIY: unknown } | null
   environmentFields: Array<{ label: string; value: string }>
   cameraFields: Array<{ label: string; value: string; position?: number }>
   imageFields: Array<{ label: string; value: string; position?: number }>

@@ -1489,6 +1489,7 @@
 
 .outfit-parse-item-button:hover .outfit-parse-item-icon {
   border-color: var(--pink-deep);
+  box-shadow: var(--photo-hover-shadow);
   transform: translateY(-1px);
 }
 
@@ -1512,6 +1513,7 @@
 .outfit-parse-item-button .outfit-parse-item-icon {
   transition:
     border-color 160ms ease,
+    box-shadow 160ms ease,
     transform 160ms ease;
 }
 

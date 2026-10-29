@@ -227,9 +227,6 @@ export interface LocaleMessages {
     introTitle: string
     intro: string
     privacyNote: string
-    diagnosticsTitle: string
-    diagnosticsNote: string
-    diagnosticsToggle: string
     featuresTitle: string
     tutorialTitle: string
     notesTitle: string

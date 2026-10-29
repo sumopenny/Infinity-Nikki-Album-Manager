@@ -236,10 +236,7 @@ export function createErrorReporter(options: ReporterOptions) {
     if (now() < pauseUntil) return skip('backoff')
     counts.captured++
     try {
-      if (
-        isExpectedError(error) ||
-        (metadata.code && isExpectedError(metadata.code))
-      ) {
+      if (isExpectedError(error) || (metadata.code && isExpectedError(metadata.code))) {
         counts.filtered++
         return skip('expected-error')
       }
@@ -375,34 +372,14 @@ const fallbackBuild: BuildInfo = {
 }
 export const diagnosticsConfigured =
   import.meta.env.PROD && import.meta.env.VITE_ERROR_REPORTING_ENABLED === 'true'
-const preferenceKey = 'nikki-diagnostics-disabled'
-export function diagnosticsAllowed(): boolean {
-  try {
-    return localStorage.getItem(preferenceKey) !== '1'
-  } catch {
-    return true
-  }
-}
-let sessionAllowed = diagnosticsAllowed()
 const reporter = createErrorReporter({
-  enabled: diagnosticsConfigured && sessionAllowed,
+  enabled: diagnosticsConfigured,
   build: typeof __ERROR_BUILD__ === 'undefined' ? fallbackBuild : __ERROR_BUILD__
 })
-export function setDiagnosticsAllowed(value: boolean) {
-  sessionAllowed = value
-  try {
-    localStorage.setItem(preferenceKey, value ? '0' : '1')
-  } catch {
-    /* session still applies */
-  }
-  reporter.setEnabled(diagnosticsConfigured && value)
-  if (diagnosticsConfigured && value) prepareDiagnosticEnvironment()
-}
 /** Read-only technical state; never returns error payloads, credentials or device fingerprints. */
 export function getDiagnosticsStatus() {
   return Object.freeze({
     configured: diagnosticsConfigured,
-    allowed: sessionAllowed,
     build: Object.freeze({
       ...(typeof __ERROR_BUILD__ === 'undefined' ? fallbackBuild : __ERROR_BUILD__)
     }),
@@ -430,5 +407,5 @@ export const trackDiagnostic = reporter.breadcrumb
 export const setDiagnosticModule = reporter.setModule
 export const flushDiagnostics = reporter.flush
 export function initializeDiagnosticEnvironment() {
-  if (diagnosticsConfigured && diagnosticsAllowed()) prepareDiagnosticEnvironment()
+  if (diagnosticsConfigured) prepareDiagnosticEnvironment()
 }

@@ -3,8 +3,7 @@ import {
   diagnosticsConfigured,
   getDiagnosticsStatus,
   initializeDiagnosticEnvironment,
-  reportError,
-  setDiagnosticsAllowed
+  reportError
 } from './errorReporter'
 
 /** 保留已有 Vue handler 与浏览器默认错误行为；卸载/HMR 时释放监听。 */
@@ -94,13 +93,8 @@ export function installErrorReporting(app: App): () => void {
   }
   const promise = (event: PromiseRejectionEvent) =>
     reportError(event.reason, { type: 'promise', action: 'unhandled-rejection', handled: false })
-  const preference = (event: StorageEvent) => {
-    if (event.key === 'nikki-diagnostics-disabled' || event.key === null)
-      setDiagnosticsAllowed(event.newValue !== '1')
-  }
   window.addEventListener('error', runtime, true)
   window.addEventListener('unhandledrejection', promise)
-  window.addEventListener('storage', preference)
   listenersInstalled = true
   return () => {
     listenersInstalled = false
@@ -108,6 +102,5 @@ export function installErrorReporting(app: App): () => void {
     if (app.config.errorHandler === vueHandler) app.config.errorHandler = previous
     window.removeEventListener('error', runtime, true)
     window.removeEventListener('unhandledrejection', promise)
-    window.removeEventListener('storage', preference)
   }
 }

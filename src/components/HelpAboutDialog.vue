@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import {
-  diagnosticsConfigured,
-  diagnosticsAllowed,
-  setDiagnosticsAllowed
-} from '../utils/errorReporting/errorReporter'
-const allowDiagnostics = ref(diagnosticsAllowed())
-import {
   Archive,
   BookOpen,
   Hand,
@@ -74,7 +68,6 @@ watch(
   () => props.visible,
   (visible) => {
     if (visible) {
-      allowDiagnostics.value = diagnosticsAllowed()
       previousActiveElement =
         document.activeElement instanceof HTMLElement ? document.activeElement : null
       void nextTick(() => panelRef.value?.querySelector<HTMLElement>('button')?.focus())
@@ -111,18 +104,6 @@ watch(
             /></button>
           </header>
           <div class="help-about-body">
-            <section v-if="diagnosticsConfigured">
-              <h3>{{ messages.diagnosticsTitle }}</h3>
-              <p>{{ messages.diagnosticsNote }}</p>
-              <label
-                ><input
-                  v-model="allowDiagnostics"
-                  type="checkbox"
-                  @change="setDiagnosticsAllowed(allowDiagnostics)"
-                />
-                {{ messages.diagnosticsToggle }}</label
-              >
-            </section>
             <section class="help-about-intro"
               ><h3>{{ messages.introTitle }}</h3
               ><p>{{ messages.intro }}</p

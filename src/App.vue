@@ -2861,6 +2861,7 @@ function importAllDataFromMenu() {
     />
 
     <PhotoParamsDialog
+      :language="language"
       v-if="mountedDialogs.has('PhotoParamsDialog')"
       :visible="isPhotoParamsVisible && !cameraFavoriteModal"
       :saved="photoParamsSaved"

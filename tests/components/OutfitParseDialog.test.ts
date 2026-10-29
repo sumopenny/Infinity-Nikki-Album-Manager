@@ -529,3 +529,60 @@ it.each([false, true])(
     }
   }
 )
+
+it('embeds photo dressing, opens dye details and updates without requesting a share code', async () => {
+  parseOutfitCodeMock.mockClear()
+  loadOutfitDetailMock.mockReset().mockResolvedValue(detail)
+  loadItemCatalogMock
+    .mockReset()
+    .mockResolvedValue(
+      new Map([[1020100001, { id: 1020100001, zh: '照片发型', en: 'Photo hair', makeup: false }]])
+    )
+  const dyes = [{ targetGroupId: 1, featureTag: 6, paletteId: 18, slot: 2, color: '#ff0000' }]
+  const suppliedResult = {
+    code: '',
+    wearingClothes: [{ itemId: 1020100001, clothType: 10, outfitId: null }],
+    dyeItems: [{ itemId: 1020100001, clothType: 10, outfitId: null, dyes, hasSpecialEffect: false }]
+  }
+  const wrapper = mount(OutfitParseDialog, {
+    props: {
+      visible: true,
+      embedded: true,
+      suppliedResult,
+      code: '',
+      language: 'zh',
+      messages: getOutfitMessages('zh')
+    },
+    global: { stubs: { Teleport: true, Transition: true } }
+  })
+  try {
+    await flushPromises()
+    expect(wrapper.find('.outfit-editor').exists()).toBe(false)
+    expect(wrapper.find('.outfit-parse-code').exists()).toBe(false)
+    expect(wrapper.text()).toContain('照片发型')
+    expect(wrapper.find('.outfit-parse-dye-dot').exists()).toBe(true)
+    await wrapper.get('.outfit-parse-item-button').trigger('click')
+    await flushPromises()
+    expect(loadOutfitDetailMock).toHaveBeenLastCalledWith(
+      1020100001,
+      null,
+      'zh',
+      expect.any(String),
+      dyes,
+      10,
+      false
+    )
+    expect(wrapper.get('.outfit-detail-overlay').text()).toContain('名流鸦盛宴')
+    const escape = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true })
+    window.dispatchEvent(escape)
+    await flushPromises()
+    expect(wrapper.find('.outfit-detail-overlay').exists()).toBe(false)
+    expect(wrapper.emitted('close')).toBeUndefined()
+    await wrapper.setProps({ suppliedResult: { code: '', wearingClothes: [], dyeItems: [] } })
+    await flushPromises()
+    expect(wrapper.find('.outfit-parse-item-button').exists()).toBe(false)
+    expect(parseOutfitCodeMock).not.toHaveBeenCalled()
+  } finally {
+    wrapper.unmount()
+  }
+})

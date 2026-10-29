@@ -222,6 +222,8 @@ Click a parsed item to view its details. When multiple forms are available, swit
 
 - Click Add scheme, enter a home or combo code, then edit its parsed name, cover, notes, and tags before saving.
 - Filter by code type or tag in the sidebar. Card actions provide Copy, Edit, and Delete; double-click for a large preview.
+- On desktop, use the view button to the left of Save parameters to switch between stacked and side-by-side layouts when a photo contains outfit data. The initial layout is stacked; subsequent visits restore your last choice. The parameter code spans the bottom in split view. Mobile stays stacked without changing the desktop preference.
+- When an original game photo contains outfit data, worn parts and dye swatches appear below its camera parameters. Click a part to view dye details. Standalone camera codes do not contain outfits.
 - Page actions provide module ZIP import/export. Deleting a tag does not delete its schemes.
 
 ### Camera parameters and favorites
