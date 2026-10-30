@@ -13,12 +13,12 @@ import {
   X
 } from 'lucide-vue-next'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
-import type { LocaleMessages } from '../i18n'
+import type { FullLocaleMessages } from '../i18n'
 
 const props = defineProps<{
   visible: boolean
   compact: boolean
-  messages: LocaleMessages['helpAbout']
+  messages: FullLocaleMessages['helpAbout']
 }>()
 const emit = defineEmits<{ close: [] }>()
 const panelRef = ref<HTMLElement | null>(null)

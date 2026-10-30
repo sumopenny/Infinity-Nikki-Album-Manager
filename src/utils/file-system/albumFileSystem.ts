@@ -1,3 +1,4 @@
+import { PHOTO_IMAGE_EXTENSIONS as IMAGE_EXTENSIONS } from './imageFormats'
 // 相册文件系统：负责相册目录读取、照片扫描和增量刷新。
 import {
   datePartsFromTimestamp,
@@ -18,7 +19,7 @@ import { listRecentlyDeleted } from './trashFileSystem'
 import { runWithConcurrency } from '../concurrency'
 import { createDirectoryError, normalizeDirectoryError } from './directoryErrors'
 
-const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
+
 const SCAN_CONCURRENCY = 6
 
 export interface AlbumDirectoryResult {

@@ -9,15 +9,6 @@ export class PhotoParseError extends Error {
   }
 }
 
-export function isExpectedPhotoInputError(error: unknown): boolean {
-  return (
-    error instanceof PhotoParseError &&
-    error.codes.every((code) =>
-      ['jpeg_second_end_marker_missing', 'photo_structure_invalid', 'base64_invalid'].includes(code)
-    )
-  )
-}
-
 export function needsOriginalPhotoHint(codes: readonly string[]): boolean {
   return codes.some((code) => ['jpeg_second_end_marker_missing', 'base64_invalid'].includes(code))
 }

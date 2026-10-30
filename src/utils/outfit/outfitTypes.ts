@@ -111,13 +111,6 @@ export function isValidOutfitTag(value: string): boolean {
 export function isReservedOutfitTag(value: string): boolean {
   return RESERVED_OUTFIT_TAGS.has(value.toLowerCase())
 }
-export function normalizeOutfitTags(value: unknown, allowedTags?: Set<string>): string[] {
-  if (!Array.isArray(value)) return []
-  const tag = normalizeOutfitTag(value[0])
-  if (!isValidOutfitTag(tag) || isReservedOutfitTag(tag) || (allowedTags && !allowedTags.has(tag)))
-    return []
-  return [tag]
-}
 export function normalizeOutfitTagList(value: unknown): string[] {
   if (!Array.isArray(value)) throw new Error('outfit_tags_invalid')
   const tags = [...new Set(value.map(normalizeOutfitTag))]

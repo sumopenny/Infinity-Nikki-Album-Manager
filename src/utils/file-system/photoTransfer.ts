@@ -1,10 +1,12 @@
+export { PHOTO_IMAGE_EXTENSIONS } from './imageFormats'
+import { PHOTO_IMAGE_EXTENSIONS } from './imageFormats'
 import { readPhotoFile } from '../photoGrouping'
 import { reportError as captureDiagnosticError } from '../errorReporting/errorReporter'
 // 相册图片传输：负责批量导入、并发导出、重名分配和可取消进度。
 import type { PhotoItem } from '../photoGrouping'
 import { runWithConcurrency } from '../concurrency'
 
-export const PHOTO_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
+
 export const PHOTO_IMPORT_CONCURRENCY = 3
 export const PHOTO_EXPORT_CONCURRENCY = 8
 

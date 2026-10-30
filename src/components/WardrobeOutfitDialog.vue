@@ -488,24 +488,25 @@ useModalFocus(dialogOpen, panel, closeDialog)
   display: flex;
   align-items: center;
   flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
   gap: 12px;
   font-size: 15px;
 }
 .wardrobe-detail-source {
-  display: none;
-}
-@media (min-width: 901px) {
-  .wardrobe-detail-source {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 9px;
-    border: 1px solid var(--capsule-source-border);
-    border-radius: 999px;
-    background: var(--capsule-source-bg);
-    color: var(--capsule-source-text);
-    font-size: 12px;
-    line-height: 1.3;
-  }
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+  padding: 3px 9px;
+  border: 1px solid var(--capsule-source-border);
+  border-radius: 999px;
+  background: var(--capsule-source-bg);
+  color: var(--capsule-source-text);
+  font-size: 12px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .wardrobe-detail-variant {
   display: inline-flex;

@@ -3,8 +3,6 @@ import type { LocaleMessages } from './types'
 import { appZh } from './messages/app'
 import { topBarZh } from './messages/topBar'
 import { fortuneTimeZh } from './messages/fortuneTime'
-import { helpAboutZh } from './messages/helpAbout'
-import { updateLogZh } from './messages/updateLog'
 import { selectionBarZh } from './messages/selectionBar'
 import { cleanupZh } from './messages/cleanup'
 import { viewNavZh } from './messages/viewNav'
@@ -23,8 +21,6 @@ export const zh: LocaleMessages = {
   app: appZh,
   topBar: topBarZh,
   fortuneTime: fortuneTimeZh,
-  updateLog: updateLogZh,
-  helpAbout: helpAboutZh,
   selectionBar: selectionBarZh,
   cleanup: cleanupZh,
   viewNav: viewNavZh,

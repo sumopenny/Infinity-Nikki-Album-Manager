@@ -19,7 +19,8 @@ export interface HelpAboutDeviceContent {
   operationSections: Array<{ icon: 'mouse' | 'keyboard' | 'touch'; title: string; items: string[] }>
 }
 
-export interface LocaleMessages {
+export type LocaleMessages = Omit<FullLocaleMessages, 'helpAbout' | 'updateLog'>
+export interface FullLocaleMessages {
   outfit: OutfitMessages
   photoParams: PhotoParamsMessages
   homeScheme: HomeSchemeMessages

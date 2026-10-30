@@ -26,13 +26,13 @@ import {
 } from '../../src/utils/file-system/directoryAccess'
 
 beforeAll(() => {
-  let tail = Promise.resolve()
+  const tails = new Map<string, Promise<unknown>>()
   Object.defineProperty(navigator, 'locks', {
     configurable: true,
     value: {
       request: (_name: string, action: () => Promise<void>) => {
-        const next = tail.then(action)
-        tail = next.catch(() => undefined)
+        const next = (tails.get(_name) ?? Promise.resolve()).then(action)
+        tails.set(_name, next.catch(() => undefined))
         return next
       }
     }
@@ -143,7 +143,7 @@ class MemoryDirectoryHandle {
     const existing = this.files.get(name)
     if (existing) return existing as unknown as FileSystemFileHandle
     if (!options?.create) throw new DOMException('Missing file', 'NotFoundError')
-    const created = new MemoryFileHandle(name, undefined, false, 1, this.writeTracker)
+    const created = new MemoryFileHandle(name, new Blob([]), false, 1, this.writeTracker)
     this.files.set(name, created)
     return created as unknown as FileSystemFileHandle
   }
@@ -909,7 +909,8 @@ it('keeps source notes and files when move or restore deletion fails', async () 
   expect((await restoreRecentlyDeletedPhotos(moved.movedPhotos, handle)).failedNames).toEqual([
     photo.name
   ])
-  expect(directory.files.has(photo.name)).toBe(false)
+  // A completed copy is preserved if source removal fails; never delete an uncertain target.
+  expect(directory.files.has(photo.name)).toBe(true)
   expect((await listRecentlyDeleted(handle))[0].note).toBe('kept')
 })
 
@@ -923,4 +924,23 @@ it('does not resurrect a note removed after the album was loaded', async () => {
   expect(
     (await listRecentlyDeleted(directory as unknown as FileSystemDirectoryHandle))[0].note
   ).toBe('')
+})
+
+it('preserves a destination created after restore-name allocation', async () => {
+  const directory = new MemoryDirectoryHandle('album')
+  const handle = directory as unknown as FileSystemDirectoryHandle
+  const source = new MemoryFileHandle('2026_06_26_11_22_00.jpeg')
+  directory.files.set(source.name, source)
+  const { photos: [photo] } = await readAlbumDirectory(handle, { messages: messages.zh.fileSystem })
+  const moved = await movePhotosToRecentlyDeleted([photo], new Set())
+  const original = directory.getFileHandle.bind(directory)
+  vi.spyOn(directory, 'getFileHandle').mockImplementation(async (name, options) => {
+    if (name === source.name && options?.create)
+      directory.files.set(name, new MemoryFileHandle(name, new Blob(['external'])))
+    return original(name, options)
+  })
+  const restored = await restoreRecentlyDeletedPhotos(moved.movedPhotos, handle)
+  expect(restored.succeeded).toHaveLength(0)
+  expect(await (await directory.files.get(source.name)!.getFile()).text()).toBe('external')
+  expect(await listRecentlyDeleted(handle)).toHaveLength(1)
 })

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { currentVersion } from './i18n/version'
 import { lazyFeature } from './utils/lazyFeature'
 import { isAlbumPhoto } from './utils/photoGrouping'
 import { outfitBackupMessage } from './utils/outfit/outfitBackupMessage'
@@ -11,11 +12,13 @@ import {
   reportError as captureDiagnosticError,
   setDiagnosticModule
 } from './utils/errorReporting/errorReporter'
+import { usePhotoFavorites } from './composables/usePhotoFavorites'
 import { useAppPreferences } from './composables/useAppPreferences'
 import { readLocalStorage, writeLocalStorage, removeLocalStorage } from './utils/localStorage'
 import { useGameCleanup } from './composables/useGameCleanup'
 import { usePhotoTrashActions } from './composables/usePhotoTrashActions'
 import { useOutfitWorkspace } from './composables/useOutfitWorkspace'
+import { useDirectoryRefresh } from './composables/useDirectoryRefresh'
 import { useDirectorySession, type DirectoryState } from './composables/useDirectorySession'
 import {
   createOperationCoordinator,
@@ -38,11 +41,11 @@ import { clearAllBrowserData } from './utils/file-system/database'
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { CircleHelp, Download, Plus, Trash2, Upload } from 'lucide-vue-next'
 const UpdateLogDialog = lazyFeature(
-  () => import('./components/UpdateLogDialog.vue'),
+  () => import('./components/UpdateLogDialogContent.vue'),
   () => language.value
 )
 const HelpAboutDialog = lazyFeature(
-  () => import('./components/HelpAboutDialog.vue'),
+  () => import('./components/HelpAboutDialogContent.vue'),
   () => language.value
 )
 import AlbumViewSwitcher, { type AlbumView } from './components/AlbumViewSwitcher.vue'
@@ -113,7 +116,6 @@ const CameraFavorites = lazyFeature(
 import AllDataBackup from './components/AllDataBackup.vue'
 import { loadResonanceRecords } from './utils/resonance/resonanceStorage'
 import { normalizeCameraCode, readCameraFavorites } from './utils/photo-params/favorites'
-import { messages } from './i18n'
 import type { ThumbnailMode, ThumbnailSize } from './types/thumbnail'
 import {
   type ActionSort,
@@ -123,7 +125,6 @@ import {
 } from './utils/photoGrouping'
 import {
   clearSavedAlbumDirectoryHandle,
-  refreshAlbumPhotos,
   refreshAlbumDirectory,
   saveAlbumDirectoryHandle,
   type AlbumDirectoryResult,
@@ -185,9 +186,8 @@ import type { ResonanceBannerOrder, ResonanceRarityFilter } from './utils/resona
 
 const OUTFIT_GUIDE_DISMISSED_KEY = 'infinity-nikki-outfit-guide-dismissed'
 const X6GAME_AUTO_PROMPT_DISMISSED_KEY = 'infinity-nikki-x6game-auto-prompt-dismissed'
-const FAVORITES_STORAGE_KEY = 'infinity-nikki-favorite-photo-ids'
 const ABOUT_STATE_STORAGE_KEY = 'infinity-nikki-about-state'
-const currentAboutVersion = messages.zh.updateLog.currentVersion.replace(/^v/, '')
+const currentAboutVersion = currentVersion.replace(/^v/, '')
 
 function readStoredAboutState(): { version: string; dismissed: boolean } | null {
   try {
@@ -201,17 +201,6 @@ function readStoredAboutState(): { version: string; dismissed: boolean } | null 
     /* invalid storage is treated as empty */
   }
   return null
-}
-function readStoredFavoriteIds(): Set<string> {
-  try {
-    const parsed = JSON.parse(readLocalStorage(FAVORITES_STORAGE_KEY) ?? '[]')
-    const ids = Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === 'string')
-      : []
-    return new Set(ids)
-  } catch {
-    return new Set()
-  }
 }
 
 let suppressLocalPersistence = false
@@ -260,7 +249,7 @@ const recentlyDeleted = ref<RecentlyDeletedPhoto[]>([])
 const selectedIds = ref<Set<string>>(new Set())
 const selectedOutfitIds = ref<Set<string>>(new Set())
 const trashSelectedIds = ref<Set<string>>(new Set())
-const favoriteIds = ref<Set<string>>(readStoredFavoriteIds())
+const favoriteIds = usePhotoFavorites(() => !suppressLocalPersistence)
 const searchQuery = ref('')
 const noteDialogPhoto = ref<PhotoItem | null>(null)
 const noteDialogBaseline = ref('')
@@ -348,21 +337,6 @@ const compatibleAlbumInput = ref<HTMLInputElement | null>(null)
 
 const appShellRef = ref<HTMLElement | null>(null)
 let topBarResizeObserver: ResizeObserver | null = null
-let focusRefreshTimer: number | undefined
-let focusRefreshGeneration = 0
-let latestRefreshToken = 0
-let suppressNextFocusRefresh = false
-
-/** 使旧刷新任务和已排队的焦点刷新失效。 */
-function invalidatePendingRefreshes() {
-  latestRefreshToken += 1
-  focusRefreshGeneration += 1
-  if (focusRefreshTimer !== undefined) {
-    window.clearTimeout(focusRefreshTimer)
-    focusRefreshTimer = undefined
-  }
-}
-
 // 派生视图状态
 const favoriteTab = ref<'photos' | 'camera'>('camera')
 const cameraFavoritesRef = ref<InstanceType<typeof CameraFavorites> | null>(null)
@@ -801,14 +775,6 @@ function deleteMatchingLowQualityPhotos() {
   return cleanMatchingPhotos(scopedSelectedPhotos.value)
 }
 // 通用通知、偏好与持久化
-watch(
-  favoriteIds,
-  (ids) => {
-    if (!suppressLocalPersistence)
-      writeLocalStorage(FAVORITES_STORAGE_KEY, JSON.stringify([...ids]))
-  },
-  { deep: true }
-)
 async function resolveActionCandidateUids(): Promise<string[]> {
   if (isCompatibleAlbum.value) return getSavedCameraParamUids()
   const source = sharedOutfitSource.value ?? (await ensureSharedOutfitSource(true, false))
@@ -980,6 +946,27 @@ async function replaceAlbum(
   }
 }
 
+const { refreshAlbum, scheduleFocusRefresh, invalidatePendingRefreshes, suppressNextFocusRefresh } =
+  useDirectoryRefresh({
+    directory: () => albumDirectoryHandle.value,
+    photos: () => photos.value,
+    blocked: () =>
+      isAnyFileOperationBusy.value || confirmDialog.value.visible || isOutfitEditorVisible.value,
+    editorOpen: () => isOutfitEditorVisible.value,
+    refreshingMessage: () =>
+      activeView.value === 'outfits' ? outfitLocale.value.updating : locale.value.topBar.refreshing,
+    locale,
+    activeOperation,
+    statusState,
+    createErrorStatus,
+    apply: applyRefreshResult,
+    migrate: migrateHomeSchemes,
+    refreshCollections: async () => {
+      await updateOutfitLibrary(false, false)
+      if (!cameraMounted.value) refreshCameraFavoriteMetadata()
+    }
+  })
+
 const { restoreSavedDirectory, restoreSavedX6GameAuthorization, chooseDirectory } =
   useDirectorySession({
     language,
@@ -997,17 +984,17 @@ const { restoreSavedDirectory, restoreSavedX6GameAuthorization, chooseDirectory 
 /** 用户点击时同步打开选择器，避免选择过程触发焦点刷新。 */
 function chooseCompatibleAlbum() {
   if (isAnyFileOperationBusy.value) return
-  suppressNextFocusRefresh = true
+  suppressNextFocusRefresh.value = true
   if (compatibleAlbumInput.value) {
     compatibleAlbumInput.value.value = ''
     compatibleAlbumInput.value.click()
   }
 }
 function cancelCompatibleAlbum() {
-  suppressNextFocusRefresh = false
+  suppressNextFocusRefresh.value = false
 }
 async function loadCompatibleAlbum(event: Event) {
-  suppressNextFocusRefresh = false
+  suppressNextFocusRefresh.value = false
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files ?? [])
   input.value = ''
@@ -1232,59 +1219,6 @@ function applyRefreshResult(result: RefreshAlbumResult) {
       (photo) => photo.id === currentPreview.value?.id
     )
     currentPreview.value = refreshedPreview ?? null
-  }
-}
-
-/**
- * 刷新相册和最近删除目录。
- * 参数：manual 表示是否由用户点击触发；手动刷新可请求权限，并始终显示“更新中”和结果提示；
- * 后台自动刷新无变化时静默，并在有新增、移除或失败时显示统一结果。
- */
-async function refreshAlbum(manual: boolean) {
-  const directoryHandle = albumDirectoryHandle.value
-  if (
-    !directoryHandle ||
-    isAnyFileOperationBusy.value ||
-    confirmDialog.value.visible ||
-    isOutfitEditorVisible.value
-  )
-    return
-  const refreshToken = ++latestRefreshToken
-  activeOperation.value = 'refreshing'
-  if (manual) {
-    statusState.value = {
-      type: 'custom',
-      message:
-        activeView.value === 'outfits'
-          ? outfitLocale.value.updating
-          : locale.value.topBar.refreshing,
-      tone: 'info',
-      loading: true
-    }
-  }
-  try {
-    const [albumResult, trashResult] = await Promise.all([
-      refreshAlbumPhotos(directoryHandle, photos.value, {
-        requestPermission: manual,
-        messages: locale.value.fileSystem
-      }),
-      listRecentlyDeleted(directoryHandle)
-    ])
-    if (refreshToken !== latestRefreshToken || directoryHandle !== albumDirectoryHandle.value)
-      return
-    const result: RefreshAlbumResult = { ...albumResult, recentlyDeleted: trashResult }
-    applyRefreshResult(result)
-    const migrationStatus = await migrateHomeSchemes(directoryHandle)
-    if (refreshToken !== latestRefreshToken || directoryHandle !== albumDirectoryHandle.value)
-      return
-    const refreshStatus = migrationStatus ?? createRefreshResultStatus(result, manual)
-    if (refreshStatus) statusState.value = refreshStatus
-  } catch (error) {
-    if (refreshToken !== latestRefreshToken || directoryHandle !== albumDirectoryHandle.value)
-      return
-    statusState.value = createErrorStatus(error, { type: 'readFailed' })
-  } finally {
-    if (activeOperation.value === 'refreshing') activeOperation.value = null
   }
 }
 
@@ -1799,25 +1733,25 @@ const {
   showOutfitStorageError,
   openConfirmDialog,
   onImportPicked: () => {
-    suppressNextFocusRefresh = false
+    suppressNextFocusRefresh.value = false
   }
 })
 
 function chooseOutfitBackup() {
   if (isAnyFileOperationBusy.value) return
-  suppressNextFocusRefresh = true
+  suppressNextFocusRefresh.value = true
   outfitImportInput.value?.click()
 }
 
 function openPhotoImportPicker() {
   if (!albumDirectoryHandle.value || isAnyFileOperationBusy.value) return
-  suppressNextFocusRefresh = true
+  suppressNextFocusRefresh.value = true
   photoImportInput.value?.click()
 }
 
 async function importAlbumPhotos(event: Event) {
   const input = event.target as HTMLInputElement
-  suppressNextFocusRefresh = false
+  suppressNextFocusRefresh.value = false
   const files = Array.from(input.files ?? [])
   input.value = ''
   const directory = albumDirectoryHandle.value
@@ -1846,18 +1780,6 @@ async function importAlbumPhotos(event: Event) {
     if (activeOperation.value === 'importing-photos') activeOperation.value = null
     clearPhotoTransferController()
   }
-}
-
-/** 生成照片与最近删除的刷新提示；搭配更新独立报告结果。 */
-function createRefreshResultStatus(album: RefreshAlbumResult, manual: boolean): StatusState | null {
-  if (album.addedCount || album.removedCount)
-    return {
-      type: 'custom',
-      message: locale.value.trash.refreshStatus(album.addedCount, album.removedCount),
-      tone: 'success'
-    }
-  if (!manual) return null
-  return { type: 'custom', message: locale.value.trash.upToDate, tone: 'success' }
 }
 
 async function pickPhotoExportDirectory(): Promise<FileSystemDirectoryHandle | null> {
@@ -2033,30 +1955,6 @@ function updateSidebarStickyOffset() {
   )
 }
 
-async function refreshAfterFocus() {
-  if (isAnyFileOperationBusy.value || confirmDialog.value.visible || isOutfitEditorVisible.value)
-    return
-  if (albumDirectoryHandle.value) await refreshAlbum(false)
-  await updateOutfitLibrary(false, false)
-  if (!cameraMounted.value) refreshCameraFavoriteMetadata()
-}
-
-/** 合并窗口聚焦和页面可见事件后执行自动刷新。参数：无。 */
-function scheduleFocusRefresh() {
-  const generation = ++focusRefreshGeneration
-  if (suppressNextFocusRefresh) {
-    suppressNextFocusRefresh = false
-    return
-  }
-  if (document.visibilityState === 'hidden' || isOutfitEditorVisible.value) return
-  if (focusRefreshTimer !== undefined) window.clearTimeout(focusRefreshTimer)
-  focusRefreshTimer = window.setTimeout(() => {
-    focusRefreshTimer = undefined
-    if (generation !== focusRefreshGeneration) return
-    void refreshAfterFocus()
-  }, 400)
-}
-
 // 生命周期
 let startupReady: Promise<unknown> = Promise.resolve()
 let initialOutfitScanStarted = false
@@ -2127,7 +2025,6 @@ onBeforeUnmount(() => {
   outfitLoadGeneration++
   invalidatePendingRefreshes()
   disposeStatusNotice()
-  if (focusRefreshTimer !== undefined) window.clearTimeout(focusRefreshTimer)
   topBarResizeObserver?.disconnect()
   window.removeEventListener('resize', updateSidebarStickyOffset)
   window.removeEventListener('focus', scheduleFocusRefresh)
@@ -2995,7 +2892,7 @@ function importAllDataFromMenu() {
       v-if="mountedDialogs.has('UpdateLogDialog')"
       :visible="isUpdateLogVisible"
       :dismissed="isAboutDialogDismissed"
-      :messages="locale.updateLog"
+      :language="language"
       @close="closeUpdateLog"
       @open-help="openHelpFromUpdateLog"
     />
@@ -3004,7 +2901,7 @@ function importAllDataFromMenu() {
       v-if="mountedDialogs.has('HelpAboutDialog')"
       :visible="isHelpAboutVisible"
       :compact="compactLayout"
-      :messages="locale.helpAbout"
+      :language="language"
       @close="closeHelpAbout"
     />
 

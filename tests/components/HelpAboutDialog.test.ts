@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import HelpAboutDialog from '../../src/components/HelpAboutDialog.vue'
-import { messages } from '../../src/i18n'
+import { helpAboutZh, helpAboutEn } from '../../src/i18n/messages/helpAbout'
+const messages = { zh: { helpAbout: helpAboutZh }, en: { helpAbout: helpAboutEn } }
 
 const wrappers: Array<ReturnType<typeof mount>> = []
 afterEach(() => {

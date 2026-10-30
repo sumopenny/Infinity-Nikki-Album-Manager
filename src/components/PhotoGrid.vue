@@ -6,6 +6,8 @@ import type { ThumbnailMode, ThumbnailSize } from '../types/thumbnail'
 import type { ActionGroup, DateGroup, PhotoItem } from '../utils/photoGrouping'
 import { createPhotoLoadQueue } from '../utils/photoLoader'
 import LazyPhotoImage from './LazyPhotoImage.vue'
+import WindowedPhotoBatch from './WindowedPhotoBatch.vue'
+const batches = (photos: PhotoItem[]) => Array.from({ length: Math.ceil(photos.length / 36) }, (_, i) => photos.slice(i * 36, (i + 1) * 36))
 
 const props = defineProps<{
   readOnly?: boolean
@@ -120,9 +122,9 @@ onBeforeUnmount(() => photoLoadQueue.cancel())
         </button>
       </div>
 
-      <div class="photo-grid">
+      <WindowedPhotoBatch v-for="(batch, index) in batches(group.photos)" :key="index" :count="batch.length">
         <article
-          v-for="photo in group.photos"
+          v-for="photo in batch"
           :key="photo.id"
           class="photo-card"
           :class="{ selected: selectedIds.has(photo.id), favorited: favoriteIds.has(photo.id) }"
@@ -177,7 +179,7 @@ onBeforeUnmount(() => photoLoadQueue.cancel())
             /></button>
           </div>
         </article>
-      </div>
+      </WindowedPhotoBatch>
     </section>
   </div>
 </template>

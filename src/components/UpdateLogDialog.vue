@@ -2,12 +2,12 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { CircleHelp, X } from 'lucide-vue-next'
 import { useBodyScrollLock } from '../utils/bodyScrollLock'
-import type { LocaleMessages } from '../i18n'
+import type { FullLocaleMessages } from '../i18n'
 
 const props = defineProps<{
   visible: boolean
   dismissed: boolean
-  messages: LocaleMessages['updateLog']
+  messages: FullLocaleMessages['updateLog']
 }>()
 const emit = defineEmits<{ close: [dontShowAgain: boolean]; openHelp: [] }>()
 const dontShowAgain = ref(false)

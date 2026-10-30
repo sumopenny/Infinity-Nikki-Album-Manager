@@ -1,6 +1,7 @@
+import { PHOTO_IMAGE_EXTENSIONS as IMAGE_EXTENSIONS } from './imageFormats'
 // 专项清理文件系统：负责收集、统计并执行低画质图片、日志、崩溃和网页缓存清理。
 import { runWithConcurrency } from '../concurrency'
-const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
+
 const LOW_QUALITY_DIRECTORY_NAME = 'NikkiPhotos_LowQuality'
 const SCREENSHOT_DIRECTORY_NAME = 'ScreenShot'
 const FILE_DELETE_CONCURRENCY = 10

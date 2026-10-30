@@ -226,9 +226,14 @@ Click a parsed item to view its details. When multiple forms are available, swit
 ### Camera parameters and favorites
 
 <div align="center">
-  <img src="img/screenshots/camera-favorites.webp" alt="Camera favorites" width="49%">
-  <img src="img/screenshots/image-parameters.webp" alt="Photo parameter parser" width="49%">
-  <p><sub>Left · Camera favorites ｜ Right · Photo parameter parsing</sub></p>
+  <img src="img/screenshots/camera-favorites.webp" alt="Camera favorites" width="80%">
+  <p><sub>Camera parameter favorites</sub></p>
+</div>
+
+<div align="center">
+  <img src="img/screenshots/image-parameters.webp" alt="Side-by-side photo decoding layout with camera settings and outfit pieces" width="49%">
+  <img src="img/screenshots/image-parameters-stacked.webp" alt="Stacked photo decoding layout with camera settings, outfit pieces and dyes" width="49%">
+  <p><sub>Photo settings and outfit decoding: left · Side-by-side layout ｜ Right · Stacked layout</sub></p>
 </div>
 
 - Open Favorites → Camera parameters, add and parse a parameter code, then enter a name and save. Covers and tags are optional.
@@ -268,6 +273,12 @@ Open Resonance records or Personal wardrobe from Nikki Archive in the sidebar.
 - Import a Whim-Log notebook from China or any global server, or wardrobe JSON, and export a separate JSON backup. One notebook preview lets you choose both resonance and wardrobe data. Clearing wardrobe records does not affect resonance. Wardrobe and resonance share an account and one sync dialog, allowing selected modules to upload, download or delete together. Makeup is not supported.
 - Check the replacement rules in [Backup and Migration](#backup-and-migration) before importing.
 
+
+<div align="center">
+  <img src="img/screenshots/archive-pearpal.webp" alt="Nikki Archive import: select a server and follow the credential instructions" width="80%">
+  <p><sub>Nikki Archive import: select a server and follow the credential instructions</sub></p>
+</div>
+
 ### Cleanup and utilities
 
 <div align="center">
@@ -302,6 +313,13 @@ Different import entries handle existing records differently:
 | Outfit module → Import data | Adds plans without overwriting existing ones; duplicate or invalid entries are skipped. |
 
 Resonance and wardrobe share one cloud-sync dialog, accessible from either page. Upload and download select available modules by default; you can deselect either module. Cloud deletion requires explicit selection. **Upload replaces the selected cloud modules with their complete local saves; download replaces the selected local modules with their complete cloud saves.** Destination-only records are removed regardless of page filters. Unselected modules remain unchanged. Selected modules commit together: a version conflict or commit failure leaves all selected destinations unchanged. Existing accounts, save formats and module revisions remain compatible. Wardrobe downloads restore the saved region and warn about a region change. A valid imported zero-item wardrobe can sync; an unimported or cleared wardrobe cannot upload, and a missing cloud save never clears local data.
+
+
+<div align="center">
+  <img src="img/screenshots/data-backup.webp" alt="Cloud upload preview" width="49%">
+  <img src="img/screenshots/data-sync.webp" alt="Cloud download preview" width="49%">
+  <p><sub>Left · Upload selected saves to cloud ｜ Right · Sync selected saves from cloud</sub></p>
+</div>
 
 Unrecorded wardrobe pieces were absent from the notebook response; this does not mean they are unowned in the game. A resonance-only export cannot be imported as wardrobe data.
 

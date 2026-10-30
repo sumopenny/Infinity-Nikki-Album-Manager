@@ -1,11 +1,12 @@
+import { currentVersion } from '../version'
 // 更新记录文案：当前版本和历史版本保持结构化，便于发布时维护。
-import type { LocaleMessages } from '../types'
+import type { FullLocaleMessages } from '../types'
 
-export const updateLogZh: LocaleMessages['updateLog'] = {
+export const updateLogZh: FullLocaleMessages['updateLog'] = {
   title: '更新记录',
   helpAbout: '使用帮助',
   currentTitle: '当前版本',
-  currentVersion: 'v2.3',
+  currentVersion,
   currentDate: '2026.10.30 更新',
   currentItems: [
     {
@@ -654,11 +655,11 @@ export const updateLogZh: LocaleMessages['updateLog'] = {
   closeAria: '关闭更新记录窗口'
 }
 
-export const updateLogEn: LocaleMessages['updateLog'] = {
+export const updateLogEn: FullLocaleMessages['updateLog'] = {
   title: 'Release history',
   helpAbout: 'Help',
   currentTitle: 'Current version',
-  currentVersion: 'v2.3',
+  currentVersion,
   currentDate: 'Updated 2026.10.30',
   currentItems: [
     {

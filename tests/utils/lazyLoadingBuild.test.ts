@@ -48,6 +48,7 @@ it('keeps feature pages, catalog data and lookbook parsing out of the initial pr
     ).toBe(true)
   }
   expect(modules.filter((id) => id.includes('/data/gongeo/'))).toEqual([])
+  expect(modules.filter((id) => /\/i18n\/messages\/(helpAbout|updateLog)\.ts/.test(id))).toEqual([])
   expect(
     modules.filter((id) => /\/(outfitCodeParser|lookbookWasmClient|outfitDetails)\.ts/.test(id))
   ).toEqual([])

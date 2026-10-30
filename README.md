@@ -226,9 +226,14 @@
 ### 相机参数与收藏
 
 <div align="center">
-  <img src="img/screenshots/camera-favorites.webp" alt="相机参数收藏" width="49%">
-  <img src="img/screenshots/image-parameters.webp" alt="照片参数解析窗口" width="49%">
-  <p><sub>左 · 相机参数收藏 ｜ 右 · 照片参数解析</sub></p>
+  <img src="img/screenshots/camera-favorites.webp" alt="相机参数收藏" width="80%">
+  <p><sub>相机参数收藏</sub></p>
+</div>
+
+<div align="center">
+  <img src="img/screenshots/image-parameters.webp" alt="照片参数解析左右布局：拍摄参数与穿搭并排展示" width="49%">
+  <img src="img/screenshots/image-parameters-stacked.webp" alt="照片参数解析上下布局：拍摄参数、穿搭部件与染色信息" width="49%">
+  <p><sub>照片参数与穿搭解析：左 · 左右布局 ｜ 右 · 上下布局</sub></p>
 </div>
 
 - 从“收藏夹 → 相机参数”添加参数码，解析成功后填写名称并保存，可添加封面与标签。
@@ -268,6 +273,12 @@
 - 支持国服及全部国际区服奇想手账或衣橱 JSON 导入，单独导出 JSON；可在同一次手账预览中选择共鸣和衣橱。单独清空衣橱不影响共鸣。衣橱与共鸣共用账号和同步窗口，可一次上传、下载或删除所选模块的云端存档；暂不支持妆容。
 - 导入前请查看[备份与迁移](#备份与迁移)中的覆盖规则。
 
+
+<div align="center">
+  <img src="img/screenshots/archive-pearpal.webp" alt="暖暖档案导入：选择区服并按引导获取手账凭据" width="80%">
+  <p><sub>暖暖档案导入：选择区服并按引导获取手账凭据</sub></p>
+</div>
+
 ### 专项清理与小工具
 
 <div align="center">
@@ -302,6 +313,13 @@
 | 搭配码模块 → 导入数据 | 添加方案，不覆盖已有方案，重复或无效内容会跳过。 |
 
 共鸣与衣橱共用一个云同步窗口，从任一页面的“云端”进入均可处理两个模块。上传和下载默认勾选可用模块，也可取消其中一项；删除云端存档需明确勾选范围。采用覆盖方式：**上传以所选模块的全部本地记录覆盖对应云端存档，下载以所选云端完整存档覆盖对应本地记录。**目标端独有记录会移除，不受页面筛选影响；未选中的模块保持原样。两个模块一起操作时共同提交，任一模块版本冲突或提交失败都不覆盖目标。账号、存档格式和各模块版本保持兼容。衣橱区服随存档恢复，区服不同时会提示；有效的 0 件衣橱可以同步，未导入或清空后的状态不能上传，云端无存档不会清空本地。
+
+
+<div align="center">
+  <img src="img/screenshots/data-backup.webp" alt="上传云端存档预览" width="49%">
+  <img src="img/screenshots/data-sync.webp" alt="从云端同步存档预览" width="49%">
+  <p><sub>左 · 上传所选存档到云端 ｜ 右 · 从云端同步所选存档</sub></p>
+</div>
 
 衣橱中的“未记录”表示手账未返回该散件，不代表游戏中未拥有。仅含共鸣记录的导出文件不能用于导入衣橱。
 

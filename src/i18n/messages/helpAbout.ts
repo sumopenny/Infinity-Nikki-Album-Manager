@@ -1,5 +1,5 @@
 // 使用帮助：共享介绍与窗口文案，电脑和手机分别提供与当前界面一致的教程。
-import type { HelpAboutDeviceContent, LocaleMessages } from '../types'
+import type { HelpAboutDeviceContent, FullLocaleMessages } from '../types'
 
 const sharedNotesZh = [
   '方案、相机参数收藏、共鸣记录和设置保存在当前浏览器中。共鸣与衣橱可在同一窗口勾选后手动上传云端，在其他设备登录同一账号后下载；登录和本地修改不会自动同步。其他模块跨设备迁移仍使用备份，清理浏览器站点数据前请先备份或上传最新共鸣与衣橱记录。',
@@ -502,7 +502,7 @@ const mobileEn: HelpAboutDeviceContent = {
   ]
 }
 
-export const helpAboutZh: LocaleMessages['helpAbout'] = {
+export const helpAboutZh: FullLocaleMessages['helpAbout'] = {
   title: '使用帮助与介绍',
   eyebrow: '暖立方 · 无限暖暖工具集',
   introTitle: '网站介绍',
@@ -518,7 +518,7 @@ export const helpAboutZh: LocaleMessages['helpAbout'] = {
   confirm: '我知道了',
   closeAria: '关闭使用帮助与介绍窗口'
 }
-export const helpAboutEn: LocaleMessages['helpAbout'] = {
+export const helpAboutEn: FullLocaleMessages['helpAbout'] = {
   title: 'Help and introduction',
   eyebrow: 'NikkiCube · Infinity Nikki Toolkit',
   introTitle: 'About this site',

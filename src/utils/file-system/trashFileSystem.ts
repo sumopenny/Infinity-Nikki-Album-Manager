@@ -1,3 +1,5 @@
+import { reportError } from '../errorReporting/errorReporter'
+import { PHOTO_IMAGE_EXTENSIONS as IMAGE_EXTENSIONS } from './imageFormats'
 import { isDirectoryPhoto } from '../photoGrouping'
 // 相册回收站：负责最近删除照片的读取、移动、恢复、永久删除和安全清空。
 import {
@@ -10,7 +12,7 @@ import { formatFileSize, releasePhotoUrl } from './photoUrl'
 import { runWithConcurrency } from '../concurrency'
 import { readTrashNotes, normalizePhotoNote, transferPhotoNote } from './photoMetadata'
 
-const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
+
 const TRASH_DIRECTORY_NAME = 'trash'
 const TRASH_FILE_PREFIX = 'inam-v1__'
 const FILE_COPY_CONCURRENCY = 27
@@ -187,7 +189,8 @@ export async function movePhotosToRecentlyDeleted(
             size: sourceFile.size
           } satisfies RecentlyDeletedPhoto
         }
-      } catch {
+      } catch (error) {
+        reportError(error, { module: 'album-trash', action: 'move' })
         return { source: photo, moved: null }
       }
     },
@@ -242,7 +245,17 @@ async function findAvailableRestoreName(
  * 参数：photos 为待恢复照片，albumDirectoryHandle 为当前相册目录。
  * 返回：成功恢复的回收项、新照片状态和失败文件名。
  */
-export async function restoreRecentlyDeletedPhotos(
+/** Serialize cooperating tabs; external filesystem writers remain outside Web Locks. */
+export function restoreRecentlyDeletedPhotos(
+  photos: RecentlyDeletedPhoto[], albumDirectoryHandle: FileSystemDirectoryHandle
+): Promise<RestoreTrashResult> {
+  const restore = () => restorePhotos(photos, albumDirectoryHandle)
+  return navigator.locks?.request
+    ? navigator.locks.request('nikki-photo-restore', restore)
+    : restore()
+}
+
+async function restorePhotos(
   photos: RecentlyDeletedPhoto[],
   albumDirectoryHandle: FileSystemDirectoryHandle
 ): Promise<RestoreTrashResult> {
@@ -255,17 +268,24 @@ export async function restoreRecentlyDeletedPhotos(
     photos,
     async (photo) => {
       let restoreName = ''
+      let stage = 'allocate-name'
       try {
         restoreName = await findAvailableRestoreName(
           albumDirectoryHandle,
           photo.originalName,
           reservedNames
         )
+        stage = 'read-source'
         const sourceFile = await photo.fileHandle.getFile()
+        stage = 'create-target'
         const targetHandle = await albumDirectoryHandle.getFileHandle(restoreName, { create: true })
+        // Refuse a file created by another writer since name allocation.
+        const destination = await targetHandle.getFile()
+        if (destination.size !== 0) throw new Error('Restore destination changed')
         let note = photo.note ?? ''
         try {
           await copyFileToHandle(sourceFile, targetHandle)
+          stage = 'transfer-metadata-and-remove-source'
           const noteKey =
             restoreName !== photo.originalName && photo.noteKey === photo.originalName
               ? `trash/${photo.trashName}`
@@ -278,7 +298,7 @@ export async function restoreRecentlyDeletedPhotos(
           )
         } catch (error) {
           if (!(error && typeof error === 'object' && 'preserveTarget' in error))
-            await rollbackFile(albumDirectoryHandle, restoreName)
+            await rollbackRestorePlaceholder(albumDirectoryHandle, restoreName, targetHandle, destination)
           throw error
         }
 
@@ -305,7 +325,8 @@ export async function restoreRecentlyDeletedPhotos(
         }
         releasePhotoUrl(photo)
         return { source: photo, restored: restoredPhoto }
-      } catch {
+      } catch (error) {
+        reportError(error, { module: 'album-trash', action: 'restore', stage })
         if (restoreName) reservedNames.delete(restoreName)
         return { source: photo, restored: null }
       }
@@ -343,7 +364,8 @@ export async function permanentlyDeleteRecentlyDeleted(
         await photo.directoryHandle.removeEntry(photo.trashName)
         releasePhotoUrl(photo)
         return { photo, succeeded: true }
-      } catch {
+      } catch (error) {
+        reportError(error, { module: 'album-trash', action: 'delete' })
         return { photo, succeeded: false }
       }
     },
@@ -473,4 +495,16 @@ async function rollbackFile(
   } catch {
     // 回滚失败不覆盖触发回滚的原始错误。
   }
+}
+
+async function rollbackRestorePlaceholder(
+  directory: FileSystemDirectoryHandle, name: string,
+  expected: FileSystemFileHandle, original: File
+): Promise<void> {
+  try {
+    const current = await directory.getFileHandle(name)
+    const file = await current.getFile()
+    if (await current.isSameEntry(expected) && file.size === 0 && file.lastModified === original.lastModified)
+      await directory.removeEntry(name)
+  } catch { /* Keep uncertain targets; the source remains available. */ }
 }
