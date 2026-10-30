@@ -314,6 +314,8 @@ it('switches photo layouts and keeps the raw code below both columns', async () 
   try {
     await flushPromises()
     const button = () => wrapper.get('.photo-params-layout-button')
+    expect(button().attributes('aria-pressed')).toBe('true')
+    await button().trigger('click')
     expect(button().attributes('aria-pressed')).toBe('false')
     await button().trigger('click')
     expect(wrapper.get('.photo-params-dialog').classes()).toContain('is-split-layout')

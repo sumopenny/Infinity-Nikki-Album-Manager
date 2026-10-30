@@ -73,25 +73,28 @@ it('releases active handlers when a card unmounts', async () => {
   expect(removeDocument).toHaveBeenCalledWith('keydown', expect.any(Function), true)
 })
 
-it('anchors desktop resonance forms inside the image bottom and unfolds upward', async () => {
-  const anchor = document.createElement('div')
-  vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue({
-    left: 200,
-    right: 380,
-    top: 200,
-    bottom: 450,
-    width: 180,
-    height: 250,
-    x: 200,
-    y: 200,
-    toJSON() {}
-  })
-  const wrapper = create()
-  await wrapper.setProps({ anchor: () => anchor, iconOnly: true })
-  await wrapper.get('button').trigger('click')
-  await flushPromises()
-  const popup = document.querySelector<HTMLElement>('.wardrobe-form-popover')!
-  expect(popup.style.top).toBe('auto')
-  expect(popup.style.bottom).toBe(`${window.innerHeight - 450 + 4}px`)
-  expect(popup.classList.contains('is-upward')).toBe(true)
-})
+it.each([undefined, 44])(
+  'anchors desktop forms with bottom offset %s and unfolds upward',
+  async (offset) => {
+    const anchor = document.createElement('div')
+    vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue({
+      left: 200,
+      right: 380,
+      top: 200,
+      bottom: 450,
+      width: 180,
+      height: 250,
+      x: 200,
+      y: 200,
+      toJSON() {}
+    })
+    const wrapper = create()
+    await wrapper.setProps({ anchor: () => anchor, iconOnly: true, desktopBottomOffset: offset })
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    const popup = document.querySelector<HTMLElement>('.wardrobe-form-popover')!
+    expect(popup.style.top).toBe('auto')
+    expect(popup.style.bottom).toBe(`${window.innerHeight - 450 + (offset ?? 4)}px`)
+    expect(popup.classList.contains('is-upward')).toBe(true)
+  }
+)

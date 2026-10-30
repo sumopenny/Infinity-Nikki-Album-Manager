@@ -25,6 +25,7 @@ const operations = createOperationCoordinator()
 provide(operationCoordinatorKey, operations)
 import { archiveCloudKey, useArchiveCloudSync } from './composables/useArchiveCloudSync'
 import { cloudMessages } from './i18n/messages/cloud'
+import { archiveCloudMessages } from './i18n/messages/archiveCloud'
 const ArchiveCloudDialog = lazyFeature(
   () => import('./components/ArchiveCloudDialog.vue'),
   () => language.value
@@ -543,6 +544,27 @@ const {
   isUserCancelledFilePicker,
   dispose: disposeStatusNotice
 } = useOperationNotice(locale, operations)
+// 云端进度复用一条顶部通知，结束、失败或关闭后立即撤下。
+watch(
+  [archiveCloud.visible, archiveCloud.phase, archiveCloud.action, language],
+  ([visible, phase, action, lang]) => {
+    const t = archiveCloudMessages[lang]
+    const message =
+      !visible || action === 'login' || action === 'register'
+        ? null
+        : phase === 'preparing'
+          ? t.preparing
+          : phase === 'submitting'
+            ? action === 'upload'
+              ? t.uploading
+              : action === 'download'
+                ? t.downloading
+                : t.deleting
+            : null
+    updateLoadingNotice('archive-cloud', message)
+  },
+  { immediate: true, flush: 'sync' }
+)
 // 退出可直接从菜单触发，提示监听不能依赖云存档弹窗首次挂载。
 watch(archiveCloud.logoutNotice, () =>
   showStatus({

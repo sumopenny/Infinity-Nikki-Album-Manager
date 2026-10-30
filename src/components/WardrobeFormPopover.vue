@@ -19,6 +19,7 @@ const props = defineProps<{
   resetKey?: number
   anchor?: () => HTMLElement | null
   iconOnly?: boolean
+  desktopBottomOffset?: number
 }>()
 const emit = defineEmits<{ select: [entry: WardrobeEntry] }>()
 const compact = useCompactLayout()
@@ -80,7 +81,7 @@ async function toggle() {
     menuStyle.value = {
       ...menuStyle.value,
       top: 'auto',
-      bottom: `${window.innerHeight - media.bottom + 44}px`,
+      bottom: `${window.innerHeight - media.bottom + (props.desktopBottomOffset ?? 4)}px`,
       maxHeight: `${Math.max(40, media.bottom - (viewport?.offsetTop ?? 0) - 16)}px`
     }
     return

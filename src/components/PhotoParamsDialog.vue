@@ -31,7 +31,7 @@ const emit = defineEmits<{ close: []; copy: []; favorite: []; submitUid: [uid: s
 const panel = ref<HTMLElement | null>(null)
 const compact = useCompactLayout()
 const layoutStorageKey = 'nikki-photo-params-layout'
-const sideBySide = ref(readLocalStorage(layoutStorageKey) === 'split')
+const sideBySide = ref(readLocalStorage(layoutStorageKey) !== 'stack')
 // 只记录用户选择，窄屏回退不覆盖桌面布局偏好。
 watch(sideBySide, (split) => writeLocalStorage(layoutStorageKey, split ? 'split' : 'stack'))
 const splitLayout = computed(() => sideBySide.value && !compact.value && !!props.result?.outfit)

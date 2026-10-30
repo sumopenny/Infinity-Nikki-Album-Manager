@@ -394,6 +394,7 @@ defineExpose({ reload })
               :language="language"
               :disabled="disabled"
               :anchor="() => outfitAnchor(record.id)"
+              :desktop-bottom-offset="44"
               :open="expandedRecordId === record.id"
               @update:open="setRecordExpanded(record.id, $event)"
               @select="openPreview($event.id, 'outfit')"

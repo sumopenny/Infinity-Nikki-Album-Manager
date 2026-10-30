@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ArrowRight, AlertTriangle, LoaderCircle, UserRound } from 'lucide-vue-next'
+import { ArrowRight, AlertTriangle, UserRound } from 'lucide-vue-next'
 import CloudDialog from './CloudDialog.vue'
 import CloudAuthFields from './CloudAuthFields.vue'
 import { useArchiveCloud } from '../composables/useArchiveCloudSync'
@@ -50,17 +50,6 @@ const description = computed(() =>
     : action.value === 'download'
       ? t.value.downloadDescription
       : t.value.deleteDescription
-)
-const status = computed(() =>
-  phase.value === 'preparing'
-    ? t.value.preparing
-    : phase.value === 'submitting'
-      ? action.value === 'upload'
-        ? t.value.uploading
-        : action.value === 'download'
-          ? t.value.downloading
-          : t.value.deleting
-      : ''
 )
 const columns = computed(() =>
   action.value === 'upload' ? ['local', 'cloud'] : ['cloud', 'local']
@@ -298,9 +287,6 @@ async function submit() {
           <p v-if="emptyWardrobe">{{ action === 'upload' ? t.emptyUpload : t.emptyDownload }}</p>
         </div></div
       >
-      <p v-if="status" class="archive-cloud-status" role="status" aria-live="polite"
-        ><LoaderCircle :size="18" aria-hidden="true" />{{ status }}</p
-      >
     </template>
     <div v-if="error" class="archive-cloud-error" role="alert"
       ><p>{{ message }}</p
@@ -341,7 +327,6 @@ async function submit() {
 .archive-cloud-intro,
 .archive-cloud-selection,
 .archive-cloud-warning,
-.archive-cloud-status,
 .archive-cloud-error,
 .archive-cloud-footer-count {
   --archive-secondary: #756662;
@@ -527,19 +512,6 @@ async function submit() {
   margin-top: 4px;
   font-size: 13px;
 }
-.archive-cloud-status {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  min-height: 44px;
-  font-size: 14px;
-  color: var(--archive-secondary);
-}
-.archive-cloud-status svg {
-  flex: none;
-  animation: archive-cloud-spin 1s linear infinite;
-}
 .archive-cloud-error {
   border: 1px solid var(--archive-danger);
   border-radius: 12px;
@@ -563,24 +535,15 @@ async function submit() {
 :where(:root[data-theme='dark']) .archive-cloud-intro,
 :where(:root[data-theme='dark']) .archive-cloud-selection,
 :where(:root[data-theme='dark']) .archive-cloud-warning,
-:where(:root[data-theme='dark']) .archive-cloud-status,
-:where(:root[data-theme='dark']) .archive-cloud-error,
+:where(:root[data-theme='dark']) :where(:root[data-theme='dark']) .archive-cloud-error,
 :where(:root[data-theme='dark']) .archive-cloud-footer-count {
   --archive-secondary: #c9b9b5;
   --archive-warning: #f0d294;
   --archive-danger: #ffb2b9;
 }
-@keyframes archive-cloud-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   .archive-cloud-module {
     transition: none;
-  }
-  .archive-cloud-status svg {
-    animation: none;
   }
 }
 @media (max-width: 540px) {

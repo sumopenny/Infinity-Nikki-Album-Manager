@@ -127,7 +127,7 @@ Open Nikki Archive from the bottom navigation, then switch between Resonance rec
 
 Use desktop Chrome, Edge, or a compatible Chromium browser. Switch modules and filter from the sidebar; search the current module from the header. View controls display, theme, and language; Tools opens parsers and utilities; More provides full-data backups and help.
 
-### Albums, photo parameters, and Recently Deleted
+### Albums, photo decoding, and Recently Deleted
 
 Browse game photos by date or action, open large previews, save favorites, and inspect photo parameters.
 
@@ -175,7 +175,6 @@ If normal authorization cannot open your game album, choose **Compatibility open
 
 #### Recently Deleted and refresh
 
-- Click Refresh album to sync the folder immediately; the page also syncs when it regains focus and reports newly added or externally removed photos.
 - Recently Deleted is sorted by deletion time, with total photo count and total size shown at the top; it supports single or batch restore, permanent deletion, select all, large preview, and clearing everything.
 - When restoring, if a file with the same name exists in the original album, suffixes like `_restored_1` and `_restored_2` are used automatically without overwriting existing photos.
 - Recently Deleted photos do not expire automatically and remain until restored or manually permanently deleted.
@@ -222,8 +221,6 @@ Click a parsed item to view its details. When multiple forms are available, swit
 
 - Click Add scheme, enter a home or combo code, then edit its parsed name, cover, notes, and tags before saving.
 - Filter by code type or tag in the sidebar. Card actions provide Copy, Edit, and Delete; double-click for a large preview.
-- On desktop, use the view button to the left of Save parameters to switch between stacked and side-by-side layouts when a photo contains outfit data. The initial layout is stacked; subsequent visits restore your last choice. The parameter code spans the bottom in split view. Mobile stays stacked without changing the desktop preference.
-- When an original game photo contains outfit data, worn parts and dye swatches appear below its camera parameters. Click a part to view dye details. Standalone camera codes do not contain outfits.
 - Page actions provide module ZIP import/export. Deleting a tag does not delete its schemes.
 
 ### Camera parameters and favorites
@@ -236,6 +233,8 @@ Click a parsed item to view its details. When multiple forms are available, swit
 
 - Open Favorites → Camera parameters, add and parse a parameter code, then enter a name and save. Covers and tags are optional.
 - Parameters can also be saved directly from photo-parsing results. Card actions provide Copy, Edit, Details, and Delete; copied codes can be imported into the in-game camera.
+- On desktop, use the view button to the left of Save parameters to switch between stacked and side-by-side layouts when a photo contains outfit data. The initial layout is side-by-side; subsequent visits restore your last choice. The parameter code spans the bottom in split view. Mobile stays stacked without changing the desktop preference.
+- When an original game photo contains outfit data, worn parts and dye swatches appear below its camera parameters. Click a part to view dye details. Standalone camera codes do not contain outfits.
 - Page actions provide module ZIP import/export. The parser in Tools also accepts parameter codes or original game photos.
 
 ### Nikki Archive
@@ -265,6 +264,7 @@ Open Resonance records or Personal wardrobe from Nikki Archive in the sidebar.
 </div>
 
 - **Personal wardrobe:** browse original, recolor, and evolution versions. Switch between outfits and pieces, search by name or ID, and filter by rarity, version, item category, or ownership to view details.
+- Use **Show evolution forms** to list all forms or group each family into one card. Your preference is saved. Expand a grouped card to choose a form, or switch forms in outfit and piece details. Desktop outfit details also show source labels.
 - Import a Whim-Log notebook from China or any global server, or wardrobe JSON, and export a separate JSON backup. One notebook preview lets you choose both resonance and wardrobe data. Clearing wardrobe records does not affect resonance. Wardrobe and resonance share an account and one sync dialog, allowing selected modules to upload, download or delete together. Makeup is not supported.
 - Check the replacement rules in [Backup and Migration](#backup-and-migration) before importing.
 
